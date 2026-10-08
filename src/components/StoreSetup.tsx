@@ -42,7 +42,7 @@ function cnpjOk(v: string) {
 
 const UFS = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
 
-const TIPOS = [
+export const TIPOS = [
   { id: "mercado", nome: "Mercado", Icon: ShoppingCart, desc: "Controle de estoque, gôndola, validade e caixa." },
   { id: "farmacia", nome: "Farmácia", Icon: Pill, desc: "Controle de validade, lote e estoque de medicamentos." },
   { id: "roupas", nome: "Loja de roupas", Icon: Shirt, desc: "Variações de tamanho e cor em cada produto." },
@@ -136,13 +136,14 @@ const btnGhost =
 /* ---------- tela ---------- */
 type Addr = { rua: string; bairro: string; cidade: string; uf: string };
 
-export function StoreSetup() {
+export type StoreData = { tipo: string; nome: string; cidade: string; uf: string; rua: string; numero: string; bairro: string };
+
+export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "first" | "add"; onFinish?: (s: StoreData) => void; onCancel?: () => void } = {}) {
   const kb = useKeyboard();
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState<1 | -1>(1);
   const [fromReview, setFromReview] = useState(false);
   const [done, setDone] = useState(false);
-  const [notice, setNotice] = useState(false);
 
   const [tipo, setTipo] = useState<string>("");
   const [nome, setNome] = useState("");
@@ -203,20 +204,26 @@ export function StoreSetup() {
   const go = (to: number) => { setDir(to > step ? 1 : -1); setStep(to); };
   const next = () => {
     if (!valid) return;
-    if (step === 3) return setDone(true);
+    if (step === 3) { if (mode === "add") return finish(); return setDone(true); }
     if (fromReview) { setFromReview(false); return go(3); }
     go(step + 1);
   };
   const edit = (s: number) => { setFromReview(true); go(s); };
   const tipoNome = TIPOS.find((t) => t.id === tipo)?.nome ?? "";
+  const finish = () => onFinish?.({ tipo, nome: nome.trim(), cidade: addr?.cidade ?? "", uf: addr?.uf ?? "", rua: addr?.rua ?? "", numero: semNumero ? "s/n" : numero, bairro: addr?.bairro ?? "" });
 
   return (
     <div className="relative h-app overflow-hidden bg-app">
       <div className="pointer-events-none absolute inset-0 bg-dots" />
       <div className="pointer-events-none absolute left-1/2 top-0 h-[520px] w-[520px] -translate-x-1/2 -translate-y-24 bg-glow" />
       <main className={`app-top relative flex h-full flex-col items-center overflow-hidden ${kb ? "app-top-kb" : ""}`}>
-        <div className="flex max-h-full w-full max-w-[480px] flex-col sm:rounded-3xl sm:border sm:border-border sm:bg-card sm:p-8 sm:backdrop-blur-xl short:sm:p-6">
+        <div className="flex max-h-full w-full max-w-[480px] flex-col sm:relative sm:rounded-3xl sm:border sm:border-border sm:bg-card sm:p-8 sm:backdrop-blur-xl short:sm:p-6">
           {/* logo mini fixa */}
+          {mode === "add" && (
+            <button type="button" onClick={onCancel} aria-label="Cancelar" className="absolute right-3 top-3 z-10 flex h-12 w-12 items-center justify-center rounded-2xl text-muted-foreground hover:text-foreground sm:right-4 sm:top-4" style={{ marginTop: "env(safe-area-inset-top)" }}>
+              <X size={22} />
+            </button>
+          )}
           <div className="flex shrink-0 items-center justify-center gap-2.5">
             <LogoMark size={kb ? 28 : 40} />
             <span className="whitespace-nowrap text-base font-bold tracking-[0.16em] text-foreground">
@@ -225,12 +232,12 @@ export function StoreSetup() {
           </div>
 
           {done ? (
-            <Success nome={nome} notice={notice} onContinue={() => setNotice(true)} />
+            <Success nome={nome} onContinue={finish} />
           ) : (
             <form noValidate onSubmit={(ev) => { ev.preventDefault(); next(); }} className="flex min-h-0 flex-1 flex-col">
               {!kb && (
                 <div className="mt-5 shrink-0 text-center short:mt-3 tiny:mt-2">
-                  <h1 className="text-xl font-bold text-foreground short:text-lg tiny:text-base">Vamos cadastrar o seu comércio</h1>
+                  <h1 className="text-xl font-bold text-foreground short:text-lg tiny:text-base">{mode === "add" ? "Adicionar comércio" : "Vamos cadastrar o seu comércio"}</h1>
                   <p className="mt-1 text-sm text-muted-foreground tiny:hidden">Leva menos de 2 minutos. Você pode mudar tudo depois.</p>
                 </div>
               )}
@@ -430,7 +437,7 @@ function AddressSheet({ initial, onClose, onSave }: { initial: Addr; onClose: ()
   );
 }
 
-function Success({ nome, notice, onContinue }: { nome: string; notice: boolean; onContinue: () => void }) {
+function Success({ nome, onContinue }: { nome: string; onContinue: () => void }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 py-6 text-center animate-in fade-in zoom-in-95 duration-500">
       <span className="flex h-20 w-20 items-center justify-center rounded-full bg-accent/15 animate-in zoom-in-50 duration-700">
@@ -439,8 +446,7 @@ function Success({ nome, notice, onContinue }: { nome: string; notice: boolean; 
       <h1 className="text-xl font-bold text-foreground">Tudo certo! Seu comércio está pronto</h1>
       <p className="text-base font-semibold text-accent">{nome}</p>
       <p className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">Modo de demonstração: nenhum dado foi salvo.</p>
-      <button type="button" onClick={onContinue} className={`mt-3 ${btnPrimary(true)}`}>Continuar</button>
-      {notice && <p className="text-sm text-muted-foreground animate-in fade-in">O painel será criado na próxima etapa.</p>}
+      <button type="button" onClick={onContinue} className={`mt-3 ${btnPrimary(true)}`}>Ir para meu painel</button>
     </div>
   );
 }

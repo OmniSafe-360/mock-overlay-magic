@@ -3,6 +3,7 @@ import { useEffect, useState, type InputHTMLAttributes, type KeyboardEvent, type
 import { Eye, EyeOff, Check, CheckCircle2, ArrowLeft, MailCheck } from "lucide-react";
 import { Logo, LogoMark } from "@/components/Logo";
 import { StoreSetup, Entering } from "@/components/StoreSetup";
+import { OwnerApp } from "@/components/OwnerHome";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -180,7 +181,7 @@ function LoginForm({ onForgot, onEnter }: { onForgot: () => void; onEnter: () =>
 
 const stepTitles = ["Seus dados", "Seu e-mail", "Crie sua senha", "Confirme e finalize"];
 
-function SignupForm({ onGoogle }: { onGoogle?: () => void }) {
+function SignupForm({ onGoogle }: { onGoogle?: (nome?: string) => void }) {
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState<1 | -1>(1);
   const [done, setDone] = useState(false);
@@ -216,7 +217,7 @@ function SignupForm({ onGoogle }: { onGoogle?: () => void }) {
   return (
     <form
       noValidate
-      onSubmit={(ev) => { ev.preventDefault(); if (!valid) return; if (step < 3) go(1); else { setDone(true); onGoogle?.(); } }}
+      onSubmit={(ev) => { ev.preventDefault(); if (!valid) return; if (step < 3) go(1); else { setDone(true); onGoogle?.(v.nome); } }}
       className="flex flex-col"
     >
       <div className="mb-4 short:mb-2.5">
@@ -281,7 +282,7 @@ function SignupForm({ onGoogle }: { onGoogle?: () => void }) {
       </div>
 
       {step === 0 && (
-        <button type="button" onClick={onGoogle} className="mx-auto mt-4 flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-muted-foreground transition hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring short:mt-3">
+        <button type="button" onClick={() => onGoogle?.()} className="mx-auto mt-4 flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-muted-foreground transition hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring short:mt-3">
           <GoogleIcon small /> Ou continuar com Google
         </button>
       )}
@@ -373,10 +374,13 @@ function Collapse({ hidden, children }: { hidden: boolean; children: ReactNode }
 function Index() {
   const [view, setView] = useState<"entrar" | "criar" | "recuperar">("entrar");
   const kb = useKeyboard();
-  const [phase, setPhase] = useState<"auth" | "loading" | "store">("auth");
-  const enter = () => { setPhase("loading"); setTimeout(() => setPhase("store"), 1000); };
+  const [phase, setPhase] = useState<"auth" | "loading" | "store" | "home">("auth");
+  const [owner, setOwner] = useState("");
+  const [first, setFirst] = useState<import("@/components/StoreSetup").StoreData | null>(null);
+  const enter = (nome?: string) => { if (nome) setOwner(nome.trim().split(/\s+/)[0] ?? ""); setPhase("loading"); setTimeout(() => setPhase("store"), 1000); };
   if (phase === "loading") return <Entering />;
-  if (phase === "store") return <StoreSetup />;
+  if (phase === "store") return <StoreSetup onFinish={(s) => { setFirst(s); setPhase("home"); }} />;
+  if (phase === "home") return <OwnerApp owner={owner} initial={first ? [first] : []} />;
   return (
     <div className="relative h-app overflow-hidden bg-app">
       <div className="pointer-events-none absolute inset-0 bg-dots" />
@@ -416,7 +420,7 @@ function Index() {
                 </div>
               </Collapse>
               <div className={kb ? "mt-3" : "mt-6 short:mt-4 tiny:mt-3"}>
-                {view === "entrar" ? <LoginForm onForgot={() => setView("recuperar")} onEnter={enter} /> : <SignupForm onGoogle={enter} />}
+                {view === "entrar" ? <LoginForm onForgot={() => setView("recuperar")} onEnter={() => enter()} /> : <SignupForm onGoogle={enter} />}
               </div>
             </>
           )}
