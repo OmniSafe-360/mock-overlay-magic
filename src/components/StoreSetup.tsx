@@ -154,6 +154,7 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
   const [cep, setCep] = useState("");
   const [addr, setAddr] = useState<Addr | null>(null);
   const [cepState, setCepState] = useState<"idle" | "loading" | "error">("idle");
+  const [addrMode, setAddrMode] = useState<"full" | "city" | "manual" | null>(null);
   const [numero, setNumero] = useState("");
   const [semNumero, setSemNumero] = useState(false);
   const [compl, setCompl] = useState("");
@@ -168,20 +169,45 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
     lastCep.current = d;
     setCepState("loading");
     let alive = true;
-    fetch(`https://viacep.com.br/ws/${d}/json/`)
-      .then((r) => r.json())
-      .then((j) => {
-        if (!alive) return;
-        if (j.erro) throw new Error("cep");
-        setAddr({ rua: j.logradouro ?? "", bairro: j.bairro ?? "", cidade: j.localidade ?? "", uf: j.uf ?? "" });
+    type R = { kind: "ok"; a: Addr } | { kind: "notfound" } | { kind: "fail" };
+    const viacep = async (): Promise<R> => {
+      try {
+        const r = await fetch(`https://viacep.com.br/ws/${d}/json/`);
+        if (!r.ok) return { kind: "fail" };
+        const j = await r.json();
+        if (j.erro) return { kind: "notfound" };
+        return { kind: "ok", a: { rua: j.logradouro ?? "", bairro: j.bairro ?? "", cidade: j.localidade ?? "", uf: j.uf ?? "" } };
+      } catch { return { kind: "fail" }; }
+    };
+    const brasilapi = async (): Promise<R> => {
+      try {
+        const r = await fetch(`https://brasilapi.com.br/api/cep/v2/${d}`);
+        if (r.status === 404) return { kind: "notfound" };
+        if (!r.ok) return { kind: "fail" };
+        const j = await r.json();
+        return { kind: "ok", a: { rua: j.street ?? "", bairro: j.neighborhood ?? "", cidade: j.city ?? "", uf: j.state ?? "" } };
+      } catch { return { kind: "fail" }; }
+    };
+    (async () => {
+      let res = await viacep();
+      if (res.kind === "fail") res = await brasilapi();
+      if (!alive) return;
+      if (res.kind === "ok" && res.a.cidade && res.a.uf) {
+        const full = !!res.a.rua.trim() && !!res.a.bairro.trim();
+        setAddr(res.a);
+        setAddrMode(full ? "full" : "city");
         setCepState("idle");
-      })
-      .catch(() => {
-        if (!alive) return;
+      } else if (res.kind === "fail") {
+        setCepState("idle");
+        setAddrMode("manual");
+        setAddr((a) => a ?? { rua: "", bairro: "", cidade: "", uf: "" });
+      } else {
         setCepState("error");
+        setAddrMode(null);
         setAddr((a) => a ?? { rua: "", bairro: "", cidade: "", uf: "" });
         setSheet(true);
-      });
+      }
+    })();
     return () => { alive = false; };
   }, [cep]);
 
@@ -318,7 +344,42 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
                       onChange={(x) => { setCep(maskCEP(x.target.value)); if (cepState === "error") setCepState("idle"); }}
                       error={cepState === "error" ? "Não encontramos esse CEP. Preencha o endereço manualmente." : ""}
                       hint={cepState === "loading" ? <span className="inline-flex items-center gap-1.5"><Loader2 size={12} className="animate-spin" /> Buscando endereço...</span> : "Buscamos o endereço para você."} />
-                    {addr && addrOk && (
+                    {addr && addrMode === "city" && cepState !== "loading" && (
+                      <>
+                        <div className="flex items-center gap-3 rounded-2xl border border-border bg-background-deep/60 p-3 animate-in fade-in duration-300">
+                          <MapPin size={20} className="shrink-0 text-accent" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-foreground">{addr.cidade} - {addr.uf}</p>
+                            <p className="text-xs leading-snug text-muted-foreground">Esse CEP é geral da cidade. Informe a rua e o bairro do seu comércio.</p>
+                          </div>
+                          <button type="button" onClick={() => setSheet(true)} className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-primary hover:underline">
+                            <Pencil size={13} /> Alterar
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <Field label="Rua" name="rua" autoComplete="address-line1" enterKeyHint="next" onKeyDown={nextOnEnter("bairro")} value={addr.rua} onChange={(x) => setAddr({ ...addr, rua: x.target.value })} placeholder="Rua ou avenida" />
+                          <Field label="Bairro" name="bairro" enterKeyHint="next" onKeyDown={nextOnEnter("numero")} value={addr.bairro} onChange={(x) => setAddr({ ...addr, bairro: x.target.value })} placeholder="Bairro" />
+                        </div>
+                      </>
+                    )}
+                    {addr && addrMode === "manual" && cepState !== "loading" && (
+                      <>
+                        <p role="alert" className="text-xs font-medium text-destructive">Não conseguimos buscar agora. Preencha o endereço manualmente.</p>
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <Field label="Rua" name="rua" autoComplete="address-line1" enterKeyHint="next" onKeyDown={nextOnEnter("bairro")} value={addr.rua} onChange={(x) => setAddr({ ...addr, rua: x.target.value })} placeholder="Rua ou avenida" />
+                          <Field label="Bairro" name="bairro" enterKeyHint="next" onKeyDown={nextOnEnter("cidade")} value={addr.bairro} onChange={(x) => setAddr({ ...addr, bairro: x.target.value })} placeholder="Bairro" />
+                          <Field label="Cidade" name="cidade" autoComplete="address-level2" enterKeyHint="next" onKeyDown={nextOnEnter("numero")} value={addr.cidade} onChange={(x) => setAddr({ ...addr, cidade: x.target.value })} placeholder="Cidade" />
+                          <div className="space-y-1">
+                            <label htmlFor="uf-inline" className="text-sm font-medium text-muted-foreground">Estado</label>
+                            <select id="uf-inline" value={addr.uf} onChange={(x) => setAddr({ ...addr, uf: x.target.value })} className={inputCls()}>
+                              <option value="">Selecione</option>
+                              {UFS.map((u) => <option key={u} value={u}>{u}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    {addr && addrOk && addrMode !== "city" && addrMode !== "manual" && (
                       <div className="flex items-center gap-3 rounded-2xl border border-border bg-background-deep/60 p-3 animate-in fade-in duration-300">
                         <MapPin size={20} className="shrink-0 text-accent" />
                         <p className="min-w-0 flex-1 text-sm leading-snug text-foreground">
@@ -329,7 +390,7 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
                         </button>
                       </div>
                     )}
-                    {addr && !addrOk && cepState !== "loading" && (
+                    {addr && !addrOk && addrMode !== "city" && addrMode !== "manual" && cepState !== "loading" && (
                       <button type="button" onClick={() => setSheet(true)} className="text-sm font-semibold text-primary hover:underline">Preencher endereço</button>
                     )}
                     <div className="grid grid-cols-2 gap-2.5">
@@ -374,7 +435,7 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
       </main>
 
       {sheet && addr && (
-        <AddressSheet initial={addr} onClose={() => setSheet(false)} onSave={(a) => { setAddr(a); setSheet(false); setCepState("idle"); }} />
+        <AddressSheet initial={addr} onClose={() => setSheet(false)} onSave={(a) => { setAddr(a); setSheet(false); setCepState("idle"); setAddrMode("full"); }} />
       )}
     </div>
   );
