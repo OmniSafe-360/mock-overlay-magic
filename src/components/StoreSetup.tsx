@@ -154,6 +154,7 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
   const [cep, setCep] = useState("");
   const [addr, setAddr] = useState<Addr | null>(null);
   const [cepState, setCepState] = useState<"idle" | "loading" | "error">("idle");
+  const [addrMode, setAddrMode] = useState<"full" | "city" | "manual" | null>(null);
   const [numero, setNumero] = useState("");
   const [semNumero, setSemNumero] = useState(false);
   const [compl, setCompl] = useState("");
@@ -168,20 +169,45 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
     lastCep.current = d;
     setCepState("loading");
     let alive = true;
-    fetch(`https://viacep.com.br/ws/${d}/json/`)
-      .then((r) => r.json())
-      .then((j) => {
-        if (!alive) return;
-        if (j.erro) throw new Error("cep");
-        setAddr({ rua: j.logradouro ?? "", bairro: j.bairro ?? "", cidade: j.localidade ?? "", uf: j.uf ?? "" });
+    type R = { kind: "ok"; a: Addr } | { kind: "notfound" } | { kind: "fail" };
+    const viacep = async (): Promise<R> => {
+      try {
+        const r = await fetch(`https://viacep.com.br/ws/${d}/json/`);
+        if (!r.ok) return { kind: "fail" };
+        const j = await r.json();
+        if (j.erro) return { kind: "notfound" };
+        return { kind: "ok", a: { rua: j.logradouro ?? "", bairro: j.bairro ?? "", cidade: j.localidade ?? "", uf: j.uf ?? "" } };
+      } catch { return { kind: "fail" }; }
+    };
+    const brasilapi = async (): Promise<R> => {
+      try {
+        const r = await fetch(`https://brasilapi.com.br/api/cep/v2/${d}`);
+        if (r.status === 404) return { kind: "notfound" };
+        if (!r.ok) return { kind: "fail" };
+        const j = await r.json();
+        return { kind: "ok", a: { rua: j.street ?? "", bairro: j.neighborhood ?? "", cidade: j.city ?? "", uf: j.state ?? "" } };
+      } catch { return { kind: "fail" }; }
+    };
+    (async () => {
+      let res = await viacep();
+      if (res.kind === "fail") res = await brasilapi();
+      if (!alive) return;
+      if (res.kind === "ok" && res.a.cidade && res.a.uf) {
+        const full = !!res.a.rua.trim() && !!res.a.bairro.trim();
+        setAddr(res.a);
+        setAddrMode(full ? "full" : "city");
         setCepState("idle");
-      })
-      .catch(() => {
-        if (!alive) return;
+      } else if (res.kind === "fail") {
+        setCepState("idle");
+        setAddrMode("manual");
+        setAddr((a) => a ?? { rua: "", bairro: "", cidade: "", uf: "" });
+      } else {
         setCepState("error");
+        setAddrMode(null);
         setAddr((a) => a ?? { rua: "", bairro: "", cidade: "", uf: "" });
         setSheet(true);
-      });
+      }
+    })();
     return () => { alive = false; };
   }, [cep]);
 
