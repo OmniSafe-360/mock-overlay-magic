@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, type InputHTMLAttributes, type ReactNode } from "react";
-import { Eye, EyeOff, Check } from "lucide-react";
+import { Eye, EyeOff, Check, CheckCircle2, ArrowLeft, MailCheck } from "lucide-react";
 import { Logo, LogoMark } from "@/components/Logo";
 
 export const Route = createFileRoute("/")({
@@ -26,10 +26,10 @@ const maskPhone = (v: string) => {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 };
 
-function GoogleIcon() {
+function GoogleIcon({ small }: { small?: boolean }) {
   return (
-    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground">
-      <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
+    <span className={`flex shrink-0 items-center justify-center rounded-full bg-foreground ${small ? "h-6 w-6" : "h-8 w-8"}`}>
+      <svg width={small ? 14 : 18} height={small ? 14 : 18} viewBox="0 0 48 48" aria-hidden>
         <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
         <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
         <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
@@ -45,15 +45,15 @@ function Field({
   const [show, setShow] = useState(false);
   const id = props.id ?? props.name;
   return (
-    <div className="space-y-1.5">
-      <label htmlFor={id} className="text-sm font-medium text-muted-foreground">{label}</label>
+    <div className="space-y-1.5 short:space-y-1">
+      <label htmlFor={id} className="text-sm font-medium text-muted-foreground short:text-xs">{label}</label>
       <div className="relative">
         <input
           id={id}
           {...props}
           type={toggle ? (show ? "text" : "password") : props.type}
           aria-invalid={!!error}
-          className={`h-13 w-full rounded-2xl border bg-background-deep/60 px-4 text-base text-foreground outline-none transition placeholder:text-muted-foreground/60 focus-visible:ring-2 ${
+          className={`h-13 w-full rounded-2xl border bg-background-deep/60 px-4 text-base text-foreground outline-none transition placeholder:text-muted-foreground/60 focus-visible:ring-2 short:h-12 tiny:h-11 ${
             error ? "border-destructive focus-visible:ring-destructive/40" : "border-border focus-visible:border-primary focus-visible:ring-ring/40"
           } ${toggle ? "pr-12" : ""}`}
         />
@@ -75,7 +75,7 @@ function Field({
 
 function GoogleButton({ children }: { children: ReactNode }) {
   return (
-    <button type="button" className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-primary px-5 text-base font-semibold text-primary-foreground shadow-primary transition hover:brightness-110 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+    <button type="button" className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-primary px-5 text-base font-semibold text-primary-foreground shadow-primary transition hover:brightness-110 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent tiny:min-h-12">
       <GoogleIcon />
       {children}
     </button>
@@ -84,18 +84,21 @@ function GoogleButton({ children }: { children: ReactNode }) {
 
 function Divider() {
   return (
-    <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-widest text-muted-foreground">
+    <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-widest text-muted-foreground short:my-3 tiny:my-2">
       <span className="h-px flex-1 bg-border" />ou<span className="h-px flex-1 bg-border" />
     </div>
   );
 }
 
 const submitCls = (ready: boolean) =>
-  `mt-2 h-13 w-full rounded-2xl text-base font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+  `h-13 w-full rounded-2xl text-base font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent short:h-12 tiny:h-11 ${
     ready
       ? "bg-primary text-primary-foreground shadow-primary hover:brightness-110 active:scale-[0.98]"
       : "cursor-not-allowed border border-border bg-secondary text-muted-foreground opacity-60"
   }`;
+
+const ghostCls =
+  "h-13 shrink-0 rounded-2xl border border-border px-5 text-base font-semibold text-foreground transition hover:border-primary focus-visible:outline-2 focus-visible:outline-ring short:h-12 tiny:h-11";
 
 const passRules = [
   { label: "Mínimo de 8 caracteres", test: (s: string) => s.length >= 8 },
@@ -108,27 +111,27 @@ function PasswordStrength({ value }: { value: string }) {
   const score = passRules.filter((r) => r.test(value)).length;
   const level = !value ? 0 : score <= 2 ? 1 : score === 3 ? 2 : 3;
   const meta = [
-    { t: "", c: "" },
-    { t: "Fraca", c: "bg-destructive text-destructive" },
-    { t: "Média", c: "bg-warning text-warning" },
-    { t: "Forte", c: "bg-accent text-accent" },
+    { t: "", bar: "", txt: "" },
+    { t: "Fraca", bar: "bg-destructive", txt: "text-destructive" },
+    { t: "Média", bar: "bg-warning", txt: "text-warning" },
+    { t: "Forte", bar: "bg-accent", txt: "text-accent" },
   ][level]!;
   return (
-    <div className="space-y-3 pt-1">
+    <div className="space-y-3 pt-2 short:space-y-2">
       <div className="flex items-center gap-3">
         <div className="grid flex-1 grid-cols-3 gap-1.5">
           {[1, 2, 3].map((i) => (
-            <span key={i} className={`h-1.5 rounded-full transition-colors ${i <= level ? meta.c.split(" ")[0] : "bg-secondary"}`} />
+            <span key={i} className={`h-1.5 rounded-full transition-colors ${i <= level ? meta.bar : "bg-secondary"}`} />
           ))}
         </div>
-        <span className={`w-12 text-right text-xs font-semibold ${meta.c.split(" ")[1] ?? ""}`}>{meta.t}</span>
+        <span className={`w-12 text-right text-xs font-semibold ${meta.txt}`}>{meta.t}</span>
       </div>
-      <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+      <ul className="grid grid-cols-2 gap-x-2 gap-y-1.5">
         {passRules.map((r) => {
           const ok = r.test(value);
           return (
-            <li key={r.label} className={`flex items-center gap-2 text-xs transition-colors ${ok ? "text-accent" : "text-muted-foreground"}`}>
-              <span className={`flex h-4 w-4 items-center justify-center rounded-full ${ok ? "bg-accent text-accent-foreground" : "bg-secondary"}`}>
+            <li key={r.label} className={`flex min-w-0 items-center gap-1.5 text-[11px] leading-tight transition-colors sm:text-xs ${ok ? "text-accent" : "text-muted-foreground"}`}>
+              <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${ok ? "bg-accent text-accent-foreground" : "bg-secondary"}`}>
                 <Check size={11} strokeWidth={3} className={ok ? "" : "opacity-40"} />
               </span>
               {r.label}
@@ -140,7 +143,7 @@ function PasswordStrength({ value }: { value: string }) {
   );
 }
 
-function LoginForm() {
+function LoginForm({ onForgot }: { onForgot: () => void }) {
   const [v, setV] = useState({ email: "", senha: "" });
   const [sub, setSub] = useState(false);
   const e = {
@@ -149,101 +152,217 @@ function LoginForm() {
   };
   const ready = !!v.email && !!v.senha;
   return (
-    <form noValidate onSubmit={(ev) => { ev.preventDefault(); setSub(true); }} className="space-y-4">
+    <form noValidate onSubmit={(ev) => { ev.preventDefault(); setSub(true); }} className="space-y-4 short:space-y-2.5">
       <GoogleButton>Entrar com Google</GoogleButton>
       <Divider />
       <Field label="E-mail" name="email" type="email" autoComplete="email" inputMode="email" placeholder="voce@empresa.com"
         value={v.email} onChange={(x) => setV({ ...v, email: x.target.value })} error={sub ? e.email : ""} />
-      <div className="space-y-2">
+      <div className="space-y-2 short:space-y-1">
         <Field label="Senha" name="senha" toggle autoComplete="current-password" placeholder="Sua senha"
           value={v.senha} onChange={(x) => setV({ ...v, senha: x.target.value })} error={sub ? e.senha : ""} />
         <div className="flex justify-end">
-          <button type="button" className="rounded-md text-xs font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring">
+          <button type="button" onClick={onForgot} className="rounded-md text-xs font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring">
             Esqueci minha senha
           </button>
         </div>
       </div>
-      <button type="submit" className={submitCls(ready)}>Acessar minha conta</button>
+      <div className="pt-2 short:pt-1"><button type="submit" className={submitCls(ready)}>Acessar minha conta</button></div>
     </form>
   );
 }
 
-function SignupForm() {
+const stepTitles = ["Seus dados", "Seu e-mail", "Crie sua senha", "Confirme e finalize"];
+
+function SignupForm({ onGoogle }: { onGoogle?: () => void }) {
+  const [step, setStep] = useState(0);
+  const [dir, setDir] = useState<1 | -1>(1);
+  const [done, setDone] = useState(false);
   const [v, setV] = useState({ nome: "", email: "", tel: "", senha: "", conf: "", termos: false });
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const strong = passRules.every((r) => r.test(v.senha));
   const e = {
     nome: !v.nome.trim() ? "Informe seu nome." : v.nome.trim().split(/\s+/).length < 2 ? "Digite nome e sobrenome." : "",
-    email: !v.email ? "Informe seu e-mail." : !emailOk(v.email) ? "E-mail inválido." : "",
     tel: v.tel.replace(/\D/g, "").length < 10 ? "Telefone incompleto." : "",
-    senha: !v.senha ? "Crie uma senha." : !strong ? "A senha não cumpre todas as regras." : "",
-    conf: !v.conf ? "Confirme sua senha." : v.conf !== v.senha ? "As senhas não conferem" : "",
+    email: !v.email ? "Informe seu e-mail." : !emailOk(v.email) ? "E-mail inválido." : "",
   };
-  const ready = Object.values(e).every((x) => !x) && v.termos;
   const err = (k: keyof typeof e) => (touched[k] ? e[k] : "");
   const blur = (k: string) => () => setTouched((t) => ({ ...t, [k]: true }));
+  const valid = [
+    !e.nome && !e.tel,
+    !e.email,
+    strong,
+    strong && v.conf === v.senha && v.termos,
+  ][step]!;
+  const go = (d: 1 | -1) => { setDir(d); setStep((s) => s + d); };
+
+  if (done) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-6 text-center animate-in fade-in zoom-in-95 duration-300">
+        <CheckCircle2 size={56} className="text-accent" />
+        <p className="text-lg font-semibold text-foreground">Conta criada!</p>
+        <p className="text-sm text-muted-foreground">Em breve você poderá entrar.</p>
+      </div>
+    );
+  }
+
   return (
-    <form noValidate onSubmit={(ev) => ev.preventDefault()} className="space-y-4">
-      <GoogleButton>Continuar com Google</GoogleButton>
-      <Divider />
-      <Field label="Nome completo" name="nome" autoComplete="name" placeholder="Maria Silva" onBlur={blur("nome")}
-        value={v.nome} onChange={(x) => setV({ ...v, nome: x.target.value })} error={err("nome")} />
-      <Field label="E-mail" name="email2" type="email" autoComplete="email" inputMode="email" placeholder="voce@empresa.com" onBlur={blur("email")}
-        value={v.email} onChange={(x) => setV({ ...v, email: x.target.value })} error={err("email")} />
-      <Field label="Telefone" name="tel" type="tel" autoComplete="tel" inputMode="numeric" placeholder="(11) 99999-9999" onBlur={blur("tel")}
-        value={v.tel} onChange={(x) => setV({ ...v, tel: maskPhone(x.target.value) })} error={err("tel")} />
-      <div>
-        <Field label="Senha" name="senha2" toggle autoComplete="new-password" placeholder="Crie uma senha forte" onBlur={blur("senha")}
-          value={v.senha} onChange={(x) => setV({ ...v, senha: x.target.value })} error={err("senha")} />
-        <PasswordStrength value={v.senha} />
+    <form
+      noValidate
+      onSubmit={(ev) => { ev.preventDefault(); if (!valid) return; step < 3 ? go(1) : setDone(true); }}
+      className="flex flex-col"
+    >
+      <div className="mb-4 short:mb-3">
+        <div className="mb-2 flex items-baseline justify-between">
+          <span className="text-base font-semibold text-foreground short:text-sm">{stepTitles[step]}</span>
+          <span className="text-xs text-muted-foreground">Passo {step + 1} de 4</span>
+        </div>
+        <div className="h-1 overflow-hidden rounded-full bg-secondary">
+          <div className="h-full rounded-full bg-progress transition-all duration-500" style={{ width: `${((step + 1) / 4) * 100}%` }} />
+        </div>
       </div>
-      <Field label="Confirmar senha" name="conf" toggle autoComplete="new-password" placeholder="Repita a senha"
-        value={v.conf} onChange={(x) => setV({ ...v, conf: x.target.value })}
-        error={v.conf && v.conf !== v.senha ? "As senhas não conferem" : ""} />
-      <div>
-        <label className="flex cursor-pointer items-center gap-3 py-1 text-sm text-muted-foreground">
-          <input type="checkbox" className="peer sr-only" checked={v.termos} onChange={(x) => setV({ ...v, termos: x.target.checked })} />
-          <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border transition peer-focus-visible:ring-2 peer-focus-visible:ring-ring ${v.termos ? "border-accent bg-accent text-accent-foreground" : "border-border"}`}>
-            {v.termos && <Check size={16} strokeWidth={3} />}
-          </span>
-          Li e aceito os <span className="font-medium text-foreground underline underline-offset-2">termos de uso</span>
-        </label>
+
+      <div
+        key={step}
+        className={`space-y-4 animate-in fade-in duration-300 short:space-y-2.5 ${dir === 1 ? "slide-in-from-right-8" : "slide-in-from-left-8"}`}
+      >
+        {step === 0 && (
+          <>
+            <Field label="Nome completo" name="nome" autoComplete="name" placeholder="Maria Silva" onBlur={blur("nome")}
+              value={v.nome} onChange={(x) => setV({ ...v, nome: x.target.value })} error={err("nome")} />
+            <Field label="Telefone" name="tel" type="tel" autoComplete="tel" inputMode="numeric" placeholder="(11) 99999-9999" onBlur={blur("tel")}
+              value={v.tel} onChange={(x) => setV({ ...v, tel: maskPhone(x.target.value) })} error={err("tel")} />
+          </>
+        )}
+        {step === 1 && (
+          <Field label="E-mail" name="email2" type="email" autoComplete="email" inputMode="email" placeholder="voce@empresa.com" onBlur={blur("email")}
+            value={v.email} onChange={(x) => setV({ ...v, email: x.target.value })} error={err("email")} />
+        )}
+        {step === 2 && (
+          <div>
+            <Field label="Senha" name="senha2" toggle autoComplete="new-password" placeholder="Crie uma senha forte"
+              value={v.senha} onChange={(x) => setV({ ...v, senha: x.target.value })} />
+            <PasswordStrength value={v.senha} />
+          </div>
+        )}
+        {step === 3 && (
+          <>
+            <Field label="Confirmar senha" name="conf" toggle autoComplete="new-password" placeholder="Repita a senha"
+              value={v.conf} onChange={(x) => setV({ ...v, conf: x.target.value })}
+              error={v.conf && v.conf !== v.senha ? "As senhas não conferem" : ""} />
+            <label className="flex cursor-pointer items-center gap-3 py-1 text-sm text-muted-foreground">
+              <input type="checkbox" className="peer sr-only" checked={v.termos} onChange={(x) => setV({ ...v, termos: x.target.checked })} />
+              <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border transition peer-focus-visible:ring-2 peer-focus-visible:ring-ring ${v.termos ? "border-accent bg-accent text-accent-foreground" : "border-border"}`}>
+                {v.termos && <Check size={16} strokeWidth={3} />}
+              </span>
+              Li e aceito os <span className="font-medium text-foreground underline underline-offset-2">termos de uso</span>
+            </label>
+          </>
+        )}
       </div>
-      <button type="submit" disabled={!ready} aria-disabled={!ready} className={submitCls(ready)}>Criar conta</button>
+
+      <div className="mt-5 flex gap-2 short:mt-3">
+        {step > 0 && (
+          <button type="button" onClick={() => go(-1)} className={ghostCls} aria-label="Voltar">
+            <span className="flex items-center gap-1.5"><ArrowLeft size={18} />Voltar</span>
+          </button>
+        )}
+        <button type="submit" disabled={!valid} aria-disabled={!valid} className={`flex-1 ${submitCls(valid)}`}>
+          {step < 3 ? "Continuar" : "Criar conta"}
+        </button>
+      </div>
+
+      {step === 0 && (
+        <button type="button" onClick={onGoogle} className="mx-auto mt-4 flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-muted-foreground transition hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring short:mt-3">
+          <GoogleIcon small /> Ou continuar com Google
+        </button>
+      )}
     </form>
   );
 }
 
+function RecoverForm({ onBack }: { onBack: () => void }) {
+  const [email, setEmail] = useState("");
+  const [touched, setTouched] = useState(false);
+  const [sent, setSent] = useState(false);
+  const ok = emailOk(email);
+  return (
+    <div className="animate-in fade-in slide-in-from-right-8 duration-300">
+      <h1 className="text-lg font-semibold text-foreground">Recuperar senha</h1>
+      <p className="mt-1 text-sm text-muted-foreground">Digite seu e-mail e enviaremos um link para criar uma nova senha.</p>
+      {sent ? (
+        <div className="mt-5 flex items-start gap-3 rounded-2xl border border-accent/40 bg-accent/10 p-4 text-sm text-foreground">
+          <MailCheck size={20} className="mt-0.5 shrink-0 text-accent" />
+          Se o e-mail estiver cadastrado, você receberá o link em instantes.
+        </div>
+      ) : (
+        <form noValidate onSubmit={(ev) => { ev.preventDefault(); if (ok) setSent(true); }} className="mt-5 space-y-4 short:mt-3 short:space-y-3">
+          <Field label="E-mail" name="recover" type="email" autoComplete="email" inputMode="email" placeholder="voce@empresa.com"
+            value={email} onChange={(x) => setEmail(x.target.value)} onBlur={() => setTouched(true)}
+            error={touched && !ok ? (email ? "E-mail inválido." : "Informe seu e-mail.") : ""} />
+          <button type="submit" disabled={!ok} aria-disabled={!ok} className={submitCls(ok)}>Enviar link</button>
+        </form>
+      )}
+      <button type="button" onClick={onBack} className="mx-auto mt-5 flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring">
+        <ArrowLeft size={16} /> Voltar para o login
+      </button>
+    </div>
+  );
+}
+
+function CompactLogo() {
+  return (
+    <div className="flex items-center justify-center gap-3">
+      <LogoMark size={48} />
+      <span className="whitespace-nowrap text-lg font-bold tracking-[0.16em] text-foreground">
+        OMNI SAFE <span className="text-accent">360</span>
+      </span>
+    </div>
+  );
+}
+
 function Index() {
-  const [tab, setTab] = useState<"entrar" | "criar">("entrar");
+  const [view, setView] = useState<"entrar" | "criar" | "recuperar">("entrar");
+  const compact = view !== "entrar";
   return (
     <div className="relative min-h-dvh overflow-hidden bg-app">
       <div className="pointer-events-none absolute inset-0 bg-dots" />
       <div className="pointer-events-none absolute left-1/2 top-0 h-[520px] w-[520px] -translate-x-1/2 -translate-y-24 bg-glow" />
-      <main className="safe-area relative flex min-h-dvh flex-col items-center justify-center">
-        <div className="w-full max-w-[440px] sm:rounded-3xl sm:border sm:border-border sm:bg-card sm:p-8 sm:backdrop-blur-xl">
-          <div className="flex justify-center">
-            <span className="sm:hidden"><Logo size={96} /></span>
-            <span className="hidden sm:block"><Logo size={120} /></span>
-          </div>
+      <main className="safe-area relative flex min-h-dvh flex-col items-center justify-center short:py-3">
+        <div className="w-full max-w-[440px] sm:rounded-3xl sm:border sm:border-border sm:bg-card sm:p-8 sm:backdrop-blur-xl short:sm:p-6">
+          {compact ? (
+            <CompactLogo />
+          ) : (
+            <div className="flex justify-center">
+              <span className="sm:hidden tiny:hidden"><Logo size={96} /></span>
+              <span className="hidden tiny:block"><Logo size={64} /></span>
+              <span className="hidden sm:block tiny:hidden"><Logo size={120} /></span>
+            </div>
+          )}
 
-          <div role="tablist" className="mt-8 grid grid-cols-2 rounded-2xl border border-border bg-background-deep/60 p-1">
-            {(["entrar", "criar"] as const).map((t) => (
-              <button
-                key={t}
-                role="tab"
-                aria-selected={tab === t}
-                onClick={() => setTab(t)}
-                className={`h-11 rounded-xl text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-ring ${tab === t ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                {t === "entrar" ? "Entrar" : "Criar conta"}
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-6">{tab === "entrar" ? <LoginForm /> : <SignupForm />}</div>
+          {view === "recuperar" ? (
+            <div className="mt-6 short:mt-4"><RecoverForm onBack={() => setView("entrar")} /></div>
+          ) : (
+            <>
+              <div role="tablist" className={`grid grid-cols-2 rounded-2xl border border-border bg-background-deep/60 p-1 ${compact ? "mt-5 short:mt-3" : "mt-8 short:mt-4 tiny:mt-3"}`}>
+                {(["entrar", "criar"] as const).map((t) => (
+                  <button
+                    key={t}
+                    role="tab"
+                    aria-selected={view === t}
+                    onClick={() => setView(t)}
+                    className={`h-11 rounded-xl text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-ring tiny:h-10 ${view === t ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    {t === "entrar" ? "Entrar" : "Criar conta"}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-6 short:mt-4 tiny:mt-3">
+                {view === "entrar" ? <LoginForm onForgot={() => setView("recuperar")} /> : <SignupForm />}
+              </div>
+            </>
+          )}
         </div>
-        <footer className="mt-8 flex items-center gap-2 text-xs tracking-wider text-muted-foreground">
+        <footer className="mt-8 flex items-center gap-2 text-xs tracking-wider text-muted-foreground short:mt-3">
           <LogoMark size={16} /> Omni Safe 360
         </footer>
       </main>
