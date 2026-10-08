@@ -17,7 +17,7 @@ const UNIDADES: Record<string, string[]> = {
   construcao: ["Unidade", "Metro", "m²", "Kg", "Saco", "Caixa", "Lata"], autopecas: ["Unidade", "Par", "Jogo", "Kit"],
 };
 const CATEGORIAS: Record<string, string[]> = {
-  mercado: ["Mercearia", "Bebidas", "Hortifrúti", "Açougue", "Frios e laticínios", "Padaria", "Limpeza", "Higiene"],
+  mercado: ["Mercearia", "Bebidas", "Hortifrúti", "Frios e laticínios", "Limpeza", "Higiene"],
   farmacia: ["Medicamentos", "Genéricos", "Higiene", "Dermocosméticos", "Infantil", "Suplementos"],
   roupas: ["Camisetas", "Calças", "Vestidos", "Calçados", "Íntima", "Acessórios"],
   construcao: ["Básico", "Hidráulica", "Elétrica", "Pintura", "Ferramentas", "Acabamento"],
@@ -157,7 +157,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const isRoupas = tipo === "roupas";
   const valid = [
     !!codigo.trim() && !dup && !!nome.trim(),
-    venda > 0 && !!unidade && !!categoria,
+    compra > 0 && venda > 0 && !!unidade && !!categoria,
     !isRoupas || vars.length > 0,
     forn !== undefined,
     true,
@@ -229,6 +229,9 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                     <div><p className="text-xs text-muted-foreground">Lucro por unidade</p><p className={`text-base font-bold ${lucro < 0 ? "text-destructive" : "text-accent"}`}>{brl2(lucro)}</p></div>
                     <div><p className="text-xs text-muted-foreground">Margem %</p><p className={`text-base font-bold ${lucro < 0 ? "text-destructive" : "text-accent"}`}>{margem.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</p></div>
                   </div>
+                  {compra > 0 && venda > 0 && venda < compra && (
+                    <p className="-mt-1 text-xs text-warning">O preço de venda está menor que o de compra. Você terá prejuízo.</p>
+                  )}
                   <Chips label="Unidade de medida" hint="Como você vende este produto." opts={UNIDADES[tipo] ?? []} value={unidade} onChange={setUnidade} />
                   <div className="space-y-1">
                     <label htmlFor="cat" className="text-sm font-medium text-muted-foreground">Categoria</label>
