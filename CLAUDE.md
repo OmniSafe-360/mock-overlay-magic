@@ -16,3 +16,5 @@
 - 08/10/2026: o dono decidiu **manter o repositório GitHub público** (contraria a seção 10, por decisão escrita do dono).
 - 08/10/2026: o Claude agora tem acesso ao GitHub, ao Lovable e ao Supabase, mas a regra 3 continua: o dono é quem cola os prompts no Lovable.
 - Busca de CEP usa ViaCEP e, como reserva, BrasilAPI (seção 8 cita só ViaCEP).
+- 09/10/2026 (Etapa B2): na loja de roupas, a variação passa a ter Tamanho, Cor e Código de barras (opcional). A quantidade sai da variação e volta na Etapa C (depósito/gôndola). Decisão do dono.
+- Etapa B1 (comércios no banco) testada e aprovada pelo dono. Prompt A aprovado, exceto "Esqueci minha senha", que falhou por limite de e-mails do Supabase (refazer).
