@@ -435,7 +435,7 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
       </main>
 
       {sheet && addr && (
-        <AddressSheet initial={addr} onClose={() => setSheet(false)} onSave={(a) => { setAddr(a); setSheet(false); setCepState("idle"); }} />
+        <AddressSheet initial={addr} onClose={() => setSheet(false)} onSave={(a) => { setAddr(a); setSheet(false); setCepState("idle"); setAddrMode("full"); }} />
       )}
     </div>
   );
