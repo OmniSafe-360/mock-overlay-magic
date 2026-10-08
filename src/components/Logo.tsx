@@ -1,7 +1,7 @@
 import { useId } from "react";
 
 /** Símbolo Omni Safe 360 — cores da marca fixas (identidade visual). */
-export function LogoMark({ size = 48, className }: { size?: number; className?: string }) {
+export function LogoMark({ size = 48, className }: { size?: number; className?: string | undefined }) {
   const id = useId().replace(/:/g, "");
   const bars = [
     [40, 3], [45, 1.5], [48.5, 3], [53.5, 1.5], [57, 4], [63, 1.5], [66.5, 3], [71.5, 1.5], [75, 3], [80, 1.5], [83.5, 3],
