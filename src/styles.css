@@ -3,6 +3,8 @@
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
+@custom-variant short (@media (max-height: 760px));
+@custom-variant tiny (@media (max-height: 620px));
 
 @theme inline {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
