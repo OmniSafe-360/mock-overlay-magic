@@ -310,10 +310,118 @@ function RecoverForm({ onBack }: { onBack: () => void }) {
           <button type="submit" disabled={!ok} aria-disabled={!ok} className={submitCls(ok)}>Enviar link</button>
         </form>
       )}
-      <button type="button" onClick={onBack} className="mx-auto mt-5 flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring">
+      <button type="button" onClick={onBack} className="mx-auto mt-5 flex items-center gap-1.5 short:mt-3 rounded-lg px-2 py-1 text-sm font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring">
         <ArrowLeft size={16} /> Voltar para o login
       </button>
     </div>
   );
 }
 
+/** Detecta teclado aberto pela altura visível real (visualViewport) e expõe --app-h. */
+function useKeyboard() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const root = document.documentElement;
+    const update = () => {
+      const h = vv ? vv.height : window.innerHeight;
+      root.style.setProperty("--app-h", `${h}px`);
+      const el = document.activeElement as HTMLElement | null;
+      const typing = !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA");
+      const kb = typing && window.innerHeight - h > 120;
+      setOpen(kb);
+      if (kb) window.scrollTo(0, 0);
+    };
+    update();
+    vv?.addEventListener("resize", update);
+    vv?.addEventListener("scroll", update);
+    window.addEventListener("resize", update);
+    document.addEventListener("focusin", update);
+    document.addEventListener("focusout", () => setTimeout(update, 50));
+    return () => {
+      vv?.removeEventListener("resize", update);
+      vv?.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      document.removeEventListener("focusin", update);
+      root.style.removeProperty("--app-h");
+    };
+  }, []);
+  return open;
+}
+
+function MiniLogo() {
+  return (
+    <div className="flex items-center justify-center gap-2.5">
+      <LogoMark size={32} />
+      <span className="whitespace-nowrap text-base font-bold tracking-[0.16em] text-foreground">
+        OMNI SAFE <span className="text-accent">360</span>
+      </span>
+    </div>
+  );
+}
+
+/** Bloco que recolhe suavemente (altura + opacidade). */
+function Collapse({ hidden, children }: { hidden: boolean; children: ReactNode }) {
+  return (
+    <div aria-hidden={hidden} className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${hidden ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100"}`}>
+      <div className="min-h-0 overflow-hidden">{children}</div>
+    </div>
+  );
+}
+
+function Index() {
+  const [view, setView] = useState<"entrar" | "criar" | "recuperar">("entrar");
+  const kb = useKeyboard();
+  return (
+    <div className="relative h-app overflow-hidden bg-app">
+      <div className="pointer-events-none absolute inset-0 bg-dots" />
+      <div className="pointer-events-none absolute left-1/2 top-0 h-[520px] w-[520px] -translate-x-1/2 -translate-y-24 bg-glow" />
+      <main className={`app-top relative flex h-full flex-col items-center overflow-y-auto ${kb ? "app-top-kb" : ""}`}>
+        <div className="w-full max-w-[440px] sm:rounded-3xl sm:border sm:border-border sm:bg-card sm:p-8 sm:backdrop-blur-xl short:sm:p-6">
+          {/* Cabeçalho fixo: igual em todas as telas e etapas */}
+          {kb ? (
+            <div className="animate-in fade-in duration-200"><MiniLogo /></div>
+          ) : (
+            <div className="flex justify-center animate-in fade-in duration-300">
+              <span className="sm:hidden short:hidden"><Logo size={96} /></span>
+              <span className="hidden short:block tiny:hidden"><Logo size={72} /></span>
+              <span className="hidden tiny:block"><Logo size={56} /></span>
+              <span className="hidden sm:block short:hidden"><Logo size={120} /></span>
+            </div>
+          )}
+
+          {view === "recuperar" ? (
+            <div className={kb ? "mt-3" : "mt-6 short:mt-4 tiny:mt-3"}><RecoverForm onBack={() => setView("entrar")} /></div>
+          ) : (
+            <>
+              <Collapse hidden={kb}>
+                <div role="tablist" className="mt-8 grid grid-cols-2 rounded-2xl border border-border bg-background-deep/60 p-1 short:mt-4 tiny:mt-3">
+                  {(["entrar", "criar"] as const).map((t) => (
+                    <button
+                      key={t}
+                      role="tab"
+                      tabIndex={kb ? -1 : 0}
+                      aria-selected={view === t}
+                      onClick={() => setView(t)}
+                      className={`h-11 rounded-xl text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-ring tiny:h-10 ${view === t ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                    >
+                      {t === "entrar" ? "Entrar" : "Criar conta"}
+                    </button>
+                  ))}
+                </div>
+              </Collapse>
+              <div className={kb ? "mt-3" : "mt-6 short:mt-4 tiny:mt-3"}>
+                {view === "entrar" ? <LoginForm onForgot={() => setView("recuperar")} /> : <SignupForm />}
+              </div>
+            </>
+          )}
+        </div>
+        {!kb && (
+          <footer className="mt-auto flex items-center gap-2 pt-4 text-xs tracking-wider text-muted-foreground">
+            <LogoMark size={16} /> Omni Safe 360
+          </footer>
+        )}
+      </main>
+    </div>
+  );
+}
