@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, type InputHTMLAttributes, type ReactNode } from "react";
+import { useEffect, useState, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
 import { Eye, EyeOff, Check, CheckCircle2, ArrowLeft, MailCheck } from "lucide-react";
 import { Logo, LogoMark } from "@/components/Logo";
 
@@ -100,6 +100,12 @@ const submitCls = (ready: boolean) =>
 const ghostCls =
   "h-13 shrink-0 rounded-2xl border border-border px-5 text-base font-semibold text-foreground transition hover:border-primary focus-visible:outline-2 focus-visible:outline-ring short:h-12 tiny:h-11";
 
+const nextOnEnter = (id: string, ok = true) => (ev: KeyboardEvent<HTMLInputElement>) => {
+  if (ev.key !== "Enter") return;
+  ev.preventDefault();
+  if (ok) document.getElementById(id)?.focus();
+};
+
 const passRules = [
   { label: "Mínimo de 8 caracteres", test: (s: string) => s.length >= 8 },
   { label: "Uma letra maiúscula", test: (s: string) => /[A-Z]/.test(s) },
@@ -117,7 +123,7 @@ function PasswordStrength({ value }: { value: string }) {
     { t: "Forte", bar: "bg-accent", txt: "text-accent" },
   ][level]!;
   return (
-    <div className="space-y-3 pt-2 short:space-y-2">
+    <div className="space-y-2 pt-2 short:space-y-1.5 short:pt-1.5">
       <div className="flex items-center gap-3">
         <div className="grid flex-1 grid-cols-3 gap-1.5">
           {[1, 2, 3].map((i) => (
@@ -155,10 +161,10 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
     <form noValidate onSubmit={(ev) => { ev.preventDefault(); setSub(true); }} className="space-y-4 short:space-y-2.5">
       <GoogleButton>Entrar com Google</GoogleButton>
       <Divider />
-      <Field label="E-mail" name="email" type="email" autoComplete="email" inputMode="email" placeholder="voce@empresa.com"
-        value={v.email} onChange={(x) => setV({ ...v, email: x.target.value })} error={sub ? e.email : ""} />
+      <Field label="E-mail" name="email" type="email" autoComplete="email" inputMode="email" enterKeyHint="next" placeholder="voce@empresa.com"
+        onKeyDown={nextOnEnter("senha")} value={v.email} onChange={(x) => setV({ ...v, email: x.target.value })} error={sub ? e.email : ""} />
       <div className="space-y-2 short:space-y-1">
-        <Field label="Senha" name="senha" toggle autoComplete="current-password" placeholder="Sua senha"
+        <Field label="Senha" name="senha" toggle autoComplete="current-password" enterKeyHint="done" placeholder="Sua senha"
           value={v.senha} onChange={(x) => setV({ ...v, senha: x.target.value })} error={sub ? e.senha : ""} />
         <div className="flex justify-end">
           <button type="button" onClick={onForgot} className="rounded-md text-xs font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring">
@@ -193,7 +199,8 @@ function SignupForm({ onGoogle }: { onGoogle?: () => void }) {
     strong,
     strong && v.conf === v.senha && v.termos,
   ][step]!;
-  const go = (d: 1 | -1) => { setDir(d); setStep((s) => s + d); };
+  const [nav, setNav] = useState(false);
+  const go = (d: 1 | -1) => { setDir(d); setNav(true); setStep((s) => s + d); };
 
   if (done) {
     return (
@@ -211,7 +218,7 @@ function SignupForm({ onGoogle }: { onGoogle?: () => void }) {
       onSubmit={(ev) => { ev.preventDefault(); if (!valid) return; step < 3 ? go(1) : setDone(true); }}
       className="flex flex-col"
     >
-      <div className="mb-4 short:mb-3">
+      <div className="mb-4 short:mb-2.5">
         <div className="mb-2 flex items-baseline justify-between">
           <span className="text-base font-semibold text-foreground short:text-sm">{stepTitles[step]}</span>
           <span className="text-xs text-muted-foreground">Passo {step + 1} de 4</span>
@@ -227,26 +234,27 @@ function SignupForm({ onGoogle }: { onGoogle?: () => void }) {
       >
         {step === 0 && (
           <>
-            <Field label="Nome completo" name="nome" autoComplete="name" placeholder="Maria Silva" onBlur={blur("nome")}
+            <Field label="Nome completo" name="nome" autoComplete="name" enterKeyHint="next" autoFocus={nav} placeholder="Maria Silva" onBlur={blur("nome")}
+              onKeyDown={nextOnEnter("tel", !e.nome)}
               value={v.nome} onChange={(x) => setV({ ...v, nome: x.target.value })} error={err("nome")} />
-            <Field label="Telefone" name="tel" type="tel" autoComplete="tel" inputMode="numeric" placeholder="(11) 99999-9999" onBlur={blur("tel")}
+            <Field label="Telefone" name="tel" type="tel" autoComplete="tel" inputMode="tel" enterKeyHint="done" placeholder="(11) 99999-9999" onBlur={blur("tel")}
               value={v.tel} onChange={(x) => setV({ ...v, tel: maskPhone(x.target.value) })} error={err("tel")} />
           </>
         )}
         {step === 1 && (
-          <Field label="E-mail" name="email2" type="email" autoComplete="email" inputMode="email" placeholder="voce@empresa.com" onBlur={blur("email")}
+          <Field label="E-mail" name="email2" type="email" autoComplete="email" inputMode="email" enterKeyHint="done" autoFocus={nav} placeholder="voce@empresa.com" onBlur={blur("email")}
             value={v.email} onChange={(x) => setV({ ...v, email: x.target.value })} error={err("email")} />
         )}
         {step === 2 && (
           <div>
-            <Field label="Senha" name="senha2" toggle autoComplete="new-password" placeholder="Crie uma senha forte"
+            <Field label="Senha" name="senha2" toggle autoComplete="new-password" enterKeyHint="done" autoFocus={nav} placeholder="Crie uma senha forte"
               value={v.senha} onChange={(x) => setV({ ...v, senha: x.target.value })} />
             <PasswordStrength value={v.senha} />
           </div>
         )}
         {step === 3 && (
           <>
-            <Field label="Confirmar senha" name="conf" toggle autoComplete="new-password" placeholder="Repita a senha"
+            <Field label="Confirmar senha" name="conf" toggle autoComplete="new-password" enterKeyHint="done" autoFocus={nav} placeholder="Repita a senha"
               value={v.conf} onChange={(x) => setV({ ...v, conf: x.target.value })}
               error={v.conf && v.conf !== v.senha ? "As senhas não conferem" : ""} />
             <label className="flex cursor-pointer items-center gap-3 py-1 text-sm text-muted-foreground">
@@ -296,75 +304,123 @@ function RecoverForm({ onBack }: { onBack: () => void }) {
         </div>
       ) : (
         <form noValidate onSubmit={(ev) => { ev.preventDefault(); if (ok) setSent(true); }} className="mt-5 space-y-4 short:mt-3 short:space-y-3">
-          <Field label="E-mail" name="recover" type="email" autoComplete="email" inputMode="email" placeholder="voce@empresa.com"
+          <Field label="E-mail" name="recover" type="email" autoComplete="email" inputMode="email" enterKeyHint="done" placeholder="voce@empresa.com"
             value={email} onChange={(x) => setEmail(x.target.value)} onBlur={() => setTouched(true)}
             error={touched && !ok ? (email ? "E-mail inválido." : "Informe seu e-mail.") : ""} />
           <button type="submit" disabled={!ok} aria-disabled={!ok} className={submitCls(ok)}>Enviar link</button>
         </form>
       )}
-      <button type="button" onClick={onBack} className="mx-auto mt-5 flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring">
+      <button type="button" onClick={onBack} className="mx-auto mt-5 flex items-center gap-1.5 short:mt-3 rounded-lg px-2 py-1 text-sm font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring">
         <ArrowLeft size={16} /> Voltar para o login
       </button>
     </div>
   );
 }
 
-function CompactLogo() {
+/** Detecta teclado aberto pela altura visível real (visualViewport) e expõe --app-h. */
+function useKeyboard() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const root = document.documentElement;
+    const update = () => {
+      const h = vv ? vv.height : window.innerHeight;
+      root.style.setProperty("--app-h", `${h}px`);
+      const el = document.activeElement as HTMLElement | null;
+      const typing = !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA");
+      const kb = typing && window.innerHeight - h > 120;
+      setOpen(kb);
+      if (kb) window.scrollTo(0, 0);
+    };
+    update();
+    vv?.addEventListener("resize", update);
+    vv?.addEventListener("scroll", update);
+    window.addEventListener("resize", update);
+    document.addEventListener("focusin", update);
+    document.addEventListener("focusout", () => setTimeout(update, 50));
+    return () => {
+      vv?.removeEventListener("resize", update);
+      vv?.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      document.removeEventListener("focusin", update);
+      root.style.removeProperty("--app-h");
+    };
+  }, []);
+  return open;
+}
+
+function MiniLogo() {
   return (
-    <div className="flex items-center justify-center gap-3">
-      <LogoMark size={48} />
-      <span className="whitespace-nowrap text-lg font-bold tracking-[0.16em] text-foreground">
+    <div className="flex items-center justify-center gap-2.5">
+      <LogoMark size={32} />
+      <span className="whitespace-nowrap text-base font-bold tracking-[0.16em] text-foreground">
         OMNI SAFE <span className="text-accent">360</span>
       </span>
     </div>
   );
 }
 
+/** Bloco que recolhe suavemente (altura + opacidade). */
+function Collapse({ hidden, children }: { hidden: boolean; children: ReactNode }) {
+  return (
+    <div aria-hidden={hidden} className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${hidden ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100"}`}>
+      <div className="min-h-0 overflow-hidden">{children}</div>
+    </div>
+  );
+}
+
 function Index() {
   const [view, setView] = useState<"entrar" | "criar" | "recuperar">("entrar");
-  const compact = view !== "entrar";
+  const kb = useKeyboard();
   return (
-    <div className="relative min-h-dvh overflow-hidden bg-app">
+    <div className="relative h-app overflow-hidden bg-app">
       <div className="pointer-events-none absolute inset-0 bg-dots" />
       <div className="pointer-events-none absolute left-1/2 top-0 h-[520px] w-[520px] -translate-x-1/2 -translate-y-24 bg-glow" />
-      <main className="safe-area relative flex min-h-dvh flex-col items-center justify-center short:py-3">
+      <main className={`app-top relative flex h-full flex-col items-center overflow-y-auto ${kb ? "app-top-kb" : ""}`}>
         <div className="w-full max-w-[440px] sm:rounded-3xl sm:border sm:border-border sm:bg-card sm:p-8 sm:backdrop-blur-xl short:sm:p-6">
-          {compact ? (
-            <CompactLogo />
+          {/* Cabeçalho fixo: igual em todas as telas e etapas */}
+          {kb ? (
+            <div className="animate-in fade-in duration-200"><MiniLogo /></div>
           ) : (
-            <div className="flex justify-center">
-              <span className="sm:hidden tiny:hidden"><Logo size={96} /></span>
-              <span className="hidden tiny:block"><Logo size={64} /></span>
-              <span className="hidden sm:block tiny:hidden"><Logo size={120} /></span>
+            <div className="flex justify-center animate-in fade-in duration-300">
+              <span className="sm:hidden short:hidden"><Logo size={96} /></span>
+              <span className="hidden short:block tiny:hidden"><Logo size={72} /></span>
+              <span className="hidden tiny:block"><Logo size={56} /></span>
+              <span className="hidden sm:block short:hidden"><Logo size={120} /></span>
             </div>
           )}
 
           {view === "recuperar" ? (
-            <div className="mt-6 short:mt-4"><RecoverForm onBack={() => setView("entrar")} /></div>
+            <div className={kb ? "mt-3" : "mt-6 short:mt-4 tiny:mt-3"}><RecoverForm onBack={() => setView("entrar")} /></div>
           ) : (
             <>
-              <div role="tablist" className={`grid grid-cols-2 rounded-2xl border border-border bg-background-deep/60 p-1 ${compact ? "mt-5 short:mt-3" : "mt-8 short:mt-4 tiny:mt-3"}`}>
-                {(["entrar", "criar"] as const).map((t) => (
-                  <button
-                    key={t}
-                    role="tab"
-                    aria-selected={view === t}
-                    onClick={() => setView(t)}
-                    className={`h-11 rounded-xl text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-ring tiny:h-10 ${view === t ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                  >
-                    {t === "entrar" ? "Entrar" : "Criar conta"}
-                  </button>
-                ))}
-              </div>
-              <div className="mt-6 short:mt-4 tiny:mt-3">
+              <Collapse hidden={kb}>
+                <div role="tablist" className="mt-8 grid grid-cols-2 rounded-2xl border border-border bg-background-deep/60 p-1 short:mt-4 tiny:mt-3">
+                  {(["entrar", "criar"] as const).map((t) => (
+                    <button
+                      key={t}
+                      role="tab"
+                      tabIndex={kb ? -1 : 0}
+                      aria-selected={view === t}
+                      onClick={() => setView(t)}
+                      className={`h-11 rounded-xl text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-ring tiny:h-10 ${view === t ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                    >
+                      {t === "entrar" ? "Entrar" : "Criar conta"}
+                    </button>
+                  ))}
+                </div>
+              </Collapse>
+              <div className={kb ? "mt-3" : "mt-6 short:mt-4 tiny:mt-3"}>
                 {view === "entrar" ? <LoginForm onForgot={() => setView("recuperar")} /> : <SignupForm />}
               </div>
             </>
           )}
         </div>
-        <footer className="mt-8 flex items-center gap-2 text-xs tracking-wider text-muted-foreground short:mt-3">
-          <LogoMark size={16} /> Omni Safe 360
-        </footer>
+        {!kb && (
+          <footer className="mt-auto flex items-center gap-2 pt-4 text-xs tracking-wider text-muted-foreground">
+            <LogoMark size={16} /> Omni Safe 360
+          </footer>
+        )}
       </main>
     </div>
   );
