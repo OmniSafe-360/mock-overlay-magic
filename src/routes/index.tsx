@@ -402,26 +402,40 @@ function Index() {
   const kb = useKeyboard();
   const [phase, setPhase] = useState<"auth" | "loading" | "store" | "home">("auth");
   const [owner, setOwner] = useState("");
+  const [account, setAccount] = useState({ nome: "", email: "" });
   const [first, setFirst] = useState<import("@/components/StoreSetup").StoreData | null>(null);
-  const enter = (nome?: string) => { if (nome) setOwner(nome.trim().split(/\s+/)[0] ?? ""); setPhase("loading"); setTimeout(() => setPhase("store"), 1000); };
   const [oauthError] = useState(readOAuthError);
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const [okMsg, setOkMsg] = useState("");
+  const [recovery, setRecovery] = useState(false);
+  const recoveryRef = useRef(false);
   useEffect(() => {
-    const fromSession = (user: { user_metadata?: Record<string, unknown> } | null | undefined) => {
-      if (!user) return;
-      const nome = String(user.user_metadata?.["full_name"] ?? user.user_metadata?.["name"] ?? "");
-      if (nome) setOwner(nome.trim().split(/\s+/)[0] ?? "");
-      setPhase((p) => (p === "auth" ? "store" : p));
+    if (window.location.hash.includes("type=recovery")) { recoveryRef.current = true; setRecovery(true); }
+    const load = async (user: { id: string; email?: string; user_metadata?: Record<string, unknown> } | null | undefined, animate: boolean) => {
+      if (!user || recoveryRef.current) return;
+      const { data } = await supabase.from("profiles").select("nome").eq("id", user.id).maybeSingle();
+      const nome = String(data?.nome ?? user.user_metadata?.["full_name"] ?? user.user_metadata?.["name"] ?? "").trim();
+      setOwner(nome.split(/\s+/)[0] ?? "");
+      setAccount({ nome, email: user.email ?? "" });
+      setPhase((p) => {
+        if (p !== "auth") return p;
+        if (!animate) return "store";
+        setTimeout(() => setPhase((q) => (q === "loading" ? "store" : q)), 1000);
+        return "loading";
+      });
     };
-    supabase.auth.getSession().then(({ data }) => fromSession(data.session?.user));
+    supabase.auth.getSession().then(({ data }) => load(data.session?.user, false));
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN") fromSession(session?.user);
-      if (event === "SIGNED_OUT") setPhase("auth");
+      if (event === "PASSWORD_RECOVERY") { recoveryRef.current = true; setRecovery(true); setPhase("auth"); return; }
+      if (event === "SIGNED_IN") setTimeout(() => load(session?.user, true), 0);
+      if (event === "SIGNED_OUT") { setPhase("auth"); setFirst(null); setAccount({ nome: "", email: "" }); setOwner(""); }
     });
     return () => sub.subscription.unsubscribe();
   }, []);
+  const logout = () => { void supabase.auth.signOut(); setPhase("auth"); setView("entrar"); };
   if (phase === "loading") return <Entering />;
   if (phase === "store") return <StoreSetup onFinish={(s) => { setFirst(s); setPhase("home"); }} />;
-  if (phase === "home") return <OwnerApp owner={owner} initial={first ? [first] : []} />;
+  if (phase === "home") return <OwnerApp owner={owner} fullName={account.nome} email={account.email} onLogout={logout} initial={first ? [first] : []} />;
   return (
     <div className="relative h-app overflow-hidden bg-app">
       <div className="pointer-events-none absolute inset-0 bg-dots" />
@@ -440,7 +454,14 @@ function Index() {
             </div>
           )}
 
-          {view === "recuperar" ? (
+          {recovery ? (
+            <div className={kb ? "mt-3" : "mt-6 short:mt-4 tiny:mt-3"}>
+              <NewPasswordForm onDone={() => {
+                recoveryRef.current = false; setRecovery(false); setView("entrar"); setOkMsg("Senha alterada!");
+                window.history.replaceState(null, "", window.location.pathname);
+              }} />
+            </div>
+          ) : view === "recuperar" ? (
             <div className={kb ? "mt-3" : "mt-6 short:mt-4 tiny:mt-3"}><RecoverForm onBack={() => setView("entrar")} /></div>
           ) : (
             <>
@@ -461,7 +482,19 @@ function Index() {
                 </div>
               </Collapse>
               <div className={kb ? "mt-3" : "mt-6 short:mt-4 tiny:mt-3"}>
-                {view === "entrar" ? <LoginForm onForgot={() => setView("recuperar")} onEnter={() => enter()} oauthError={oauthError} /> : <SignupForm onGoogle={enter} />}
+                {view === "entrar" && confirmEmail && (
+                  <div className="mb-4 rounded-2xl border border-accent/40 bg-accent/10 p-4 text-sm text-foreground animate-in fade-in duration-300">
+                    <p className="flex items-center gap-2 font-semibold"><MailCheck size={18} className="text-accent" /> Confirme seu e-mail</p>
+                    <p className="mt-1 text-muted-foreground">Enviamos um link para <span className="break-all text-foreground">{confirmEmail}</span>. Depois de confirmar, entre aqui.</p>
+                    <ResendButton email={confirmEmail} start />
+                  </div>
+                )}
+                {view === "entrar" && okMsg && !confirmEmail && (
+                  <p role="status" className="mb-4 flex items-center gap-2 rounded-2xl border border-accent/40 bg-accent/10 px-3 py-2 text-sm text-foreground"><CheckCircle2 size={18} className="text-accent" /> {okMsg}</p>
+                )}
+                {view === "entrar"
+                  ? <LoginForm key={confirmEmail} initialEmail={confirmEmail} onForgot={() => setView("recuperar")} oauthError={oauthError} />
+                  : <SignupForm onCreated={(email) => { setOkMsg(""); setConfirmEmail(email); setView("entrar"); }} />}
               </div>
             </>
           )}
