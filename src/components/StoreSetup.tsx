@@ -344,7 +344,42 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
                       onChange={(x) => { setCep(maskCEP(x.target.value)); if (cepState === "error") setCepState("idle"); }}
                       error={cepState === "error" ? "Não encontramos esse CEP. Preencha o endereço manualmente." : ""}
                       hint={cepState === "loading" ? <span className="inline-flex items-center gap-1.5"><Loader2 size={12} className="animate-spin" /> Buscando endereço...</span> : "Buscamos o endereço para você."} />
-                    {addr && addrOk && (
+                    {addr && addrMode === "city" && cepState !== "loading" && (
+                      <>
+                        <div className="flex items-center gap-3 rounded-2xl border border-border bg-background-deep/60 p-3 animate-in fade-in duration-300">
+                          <MapPin size={20} className="shrink-0 text-accent" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-foreground">{addr.cidade} - {addr.uf}</p>
+                            <p className="text-xs leading-snug text-muted-foreground">Esse CEP é geral da cidade. Informe a rua e o bairro do seu comércio.</p>
+                          </div>
+                          <button type="button" onClick={() => setSheet(true)} className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-primary hover:underline">
+                            <Pencil size={13} /> Alterar
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <Field label="Rua" name="rua" autoComplete="address-line1" enterKeyHint="next" onKeyDown={nextOnEnter("bairro")} value={addr.rua} onChange={(x) => setAddr({ ...addr, rua: x.target.value })} placeholder="Rua ou avenida" />
+                          <Field label="Bairro" name="bairro" enterKeyHint="next" onKeyDown={nextOnEnter("numero")} value={addr.bairro} onChange={(x) => setAddr({ ...addr, bairro: x.target.value })} placeholder="Bairro" />
+                        </div>
+                      </>
+                    )}
+                    {addr && addrMode === "manual" && cepState !== "loading" && (
+                      <>
+                        <p role="alert" className="text-xs font-medium text-destructive">Não conseguimos buscar agora. Preencha o endereço manualmente.</p>
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <Field label="Rua" name="rua" autoComplete="address-line1" enterKeyHint="next" onKeyDown={nextOnEnter("bairro")} value={addr.rua} onChange={(x) => setAddr({ ...addr, rua: x.target.value })} placeholder="Rua ou avenida" />
+                          <Field label="Bairro" name="bairro" enterKeyHint="next" onKeyDown={nextOnEnter("cidade")} value={addr.bairro} onChange={(x) => setAddr({ ...addr, bairro: x.target.value })} placeholder="Bairro" />
+                          <Field label="Cidade" name="cidade" autoComplete="address-level2" enterKeyHint="next" onKeyDown={nextOnEnter("numero")} value={addr.cidade} onChange={(x) => setAddr({ ...addr, cidade: x.target.value })} placeholder="Cidade" />
+                          <div className="space-y-1">
+                            <label htmlFor="uf-inline" className="text-sm font-medium text-muted-foreground">Estado</label>
+                            <select id="uf-inline" value={addr.uf} onChange={(x) => setAddr({ ...addr, uf: x.target.value })} className={inputCls()}>
+                              <option value="">Selecione</option>
+                              {UFS.map((u) => <option key={u} value={u}>{u}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    {addr && addrOk && addrMode !== "city" && addrMode !== "manual" && (
                       <div className="flex items-center gap-3 rounded-2xl border border-border bg-background-deep/60 p-3 animate-in fade-in duration-300">
                         <MapPin size={20} className="shrink-0 text-accent" />
                         <p className="min-w-0 flex-1 text-sm leading-snug text-foreground">
@@ -355,7 +390,7 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
                         </button>
                       </div>
                     )}
-                    {addr && !addrOk && cepState !== "loading" && (
+                    {addr && !addrOk && addrMode !== "city" && addrMode !== "manual" && cepState !== "loading" && (
                       <button type="button" onClick={() => setSheet(true)} className="text-sm font-semibold text-primary hover:underline">Preencher endereço</button>
                     )}
                     <div className="grid grid-cols-2 gap-2.5">
