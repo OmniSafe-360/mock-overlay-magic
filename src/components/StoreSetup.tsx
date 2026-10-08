@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
-import { ArrowLeft, Beef, Check, CheckCircle2, Croissant, MapPin, Pencil, Pill, Shirt, ShoppingCart, Store, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, CheckCircle2, Hammer, PawPrint, Wrench, MapPin, Pencil, Pill, Shirt, ShoppingCart, X, Loader2 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 
 /* ---------- utilidades ---------- */
@@ -43,12 +43,12 @@ function cnpjOk(v: string) {
 const UFS = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
 
 const TIPOS = [
-  { id: "mercado", nome: "Mercado", Icon: ShoppingCart },
-  { id: "farmacia", nome: "Farmácia", Icon: Pill },
-  { id: "roupas", nome: "Loja de roupas", Icon: Shirt },
-  { id: "acougue", nome: "Açougue", Icon: Beef },
-  { id: "padaria", nome: "Padaria", Icon: Croissant },
-  { id: "outro", nome: "Outro tipo de comércio", Icon: Store },
+  { id: "mercado", nome: "Mercado", Icon: ShoppingCart, desc: "Controle de estoque, gôndola, validade e caixa." },
+  { id: "farmacia", nome: "Farmácia", Icon: Pill, desc: "Controle de validade, lote e estoque de medicamentos." },
+  { id: "roupas", nome: "Loja de roupas", Icon: Shirt, desc: "Variações de tamanho e cor em cada produto." },
+  { id: "construcao", nome: "Material de construção", Icon: Hammer, desc: "Produtos por unidade, metro, caixa ou saco." },
+  { id: "pet", nome: "Pet shop", Icon: PawPrint, desc: "Rações, acessórios e produtos com validade." },
+  { id: "autopecas", nome: "Autopeças", Icon: Wrench, desc: "Peças por código, aplicação e localização." },
 ] as const;
 
 const stepTitles = ["Qual é o seu tipo de comércio?", "Dados do comércio", "Onde fica o seu comércio?", "Confira os dados"];
@@ -145,7 +145,6 @@ export function StoreSetup() {
   const [notice, setNotice] = useState(false);
 
   const [tipo, setTipo] = useState<string>("");
-  const [outro, setOutro] = useState("");
   const [nome, setNome] = useState("");
   const [docType, setDocType] = useState<"CNPJ" | "CPF">("CNPJ");
   const [doc, setDoc] = useState("");
@@ -188,7 +187,6 @@ export function StoreSetup() {
   const docValid = docType === "CNPJ" ? cnpjOk(doc) : cpfOk(doc);
   const docLen = docType === "CNPJ" ? 14 : 11;
   const errs = {
-    outro: tipo === "outro" && !outro.trim() ? "Conte qual é o seu tipo de comércio." : "",
     nome: !nome.trim() ? "Informe o nome do comércio." : "",
     doc: !digits(doc) ? `Informe o ${docType}.` : digits(doc).length < docLen ? `${docType} incompleto.` : !docValid ? `${docType} inválido, confira os números` : "",
     tel: digits(tel).length < 10 ? "Telefone incompleto." : "",
@@ -196,7 +194,7 @@ export function StoreSetup() {
   };
   const addrOk = !!addr && !!addr.rua.trim() && !!addr.bairro.trim() && !!addr.cidade.trim() && !!addr.uf;
   const valid = [
-    !!tipo && !errs.outro,
+    !!tipo,
     !errs.nome && !errs.doc && !errs.tel,
     digits(cep).length === 8 && addrOk && !errs.numero,
     true,
@@ -210,7 +208,7 @@ export function StoreSetup() {
     go(step + 1);
   };
   const edit = (s: number) => { setFromReview(true); go(s); };
-  const tipoNome = tipo === "outro" ? outro : TIPOS.find((t) => t.id === tipo)?.nome ?? "";
+  const tipoNome = TIPOS.find((t) => t.id === tipo)?.nome ?? "";
 
   return (
     <div className="relative h-app overflow-hidden bg-app">
@@ -371,6 +369,14 @@ export function StoreSetup() {
       {sheet && addr && (
         <AddressSheet initial={addr} onClose={() => setSheet(false)} onSave={(a) => { setAddr(a); setSheet(false); setCepState("idle"); }} />
       )}
+    </div>
+  );
+}
+
+function Collapse({ show, children }: { show: boolean; children: ReactNode }) {
+  return (
+    <div className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${show ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+      <div className="min-h-0 overflow-hidden">{children}</div>
     </div>
   );
 }
