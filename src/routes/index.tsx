@@ -90,7 +90,55 @@ function Divider() {
   );
 }
 
-const submitCls = "mt-2 h-13 w-full rounded-2xl border border-border bg-secondary text-base font-semibold text-foreground transition hover:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+const submitCls = (ready: boolean) =>
+  `mt-2 h-13 w-full rounded-2xl text-base font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+    ready
+      ? "bg-primary text-primary-foreground shadow-primary hover:brightness-110 active:scale-[0.98]"
+      : "cursor-not-allowed border border-border bg-secondary text-muted-foreground opacity-60"
+  }`;
+
+const passRules = [
+  { label: "Mínimo de 8 caracteres", test: (s: string) => s.length >= 8 },
+  { label: "Uma letra maiúscula", test: (s: string) => /[A-Z]/.test(s) },
+  { label: "Uma letra minúscula", test: (s: string) => /[a-z]/.test(s) },
+  { label: "Um número", test: (s: string) => /\d/.test(s) },
+];
+
+function PasswordStrength({ value }: { value: string }) {
+  const score = passRules.filter((r) => r.test(value)).length;
+  const level = !value ? 0 : score <= 2 ? 1 : score === 3 ? 2 : 3;
+  const meta = [
+    { t: "", c: "" },
+    { t: "Fraca", c: "bg-destructive text-destructive" },
+    { t: "Média", c: "bg-warning text-warning" },
+    { t: "Forte", c: "bg-accent text-accent" },
+  ][level]!;
+  return (
+    <div className="space-y-3 pt-1">
+      <div className="flex items-center gap-3">
+        <div className="grid flex-1 grid-cols-3 gap-1.5">
+          {[1, 2, 3].map((i) => (
+            <span key={i} className={`h-1.5 rounded-full transition-colors ${i <= level ? meta.c.split(" ")[0] : "bg-secondary"}`} />
+          ))}
+        </div>
+        <span className={`w-12 text-right text-xs font-semibold ${meta.c.split(" ")[1] ?? ""}`}>{meta.t}</span>
+      </div>
+      <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+        {passRules.map((r) => {
+          const ok = r.test(value);
+          return (
+            <li key={r.label} className={`flex items-center gap-2 text-xs transition-colors ${ok ? "text-accent" : "text-muted-foreground"}`}>
+              <span className={`flex h-4 w-4 items-center justify-center rounded-full ${ok ? "bg-accent text-accent-foreground" : "bg-secondary"}`}>
+                <Check size={11} strokeWidth={3} className={ok ? "" : "opacity-40"} />
+              </span>
+              {r.label}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
 
 function LoginForm() {
   const [v, setV] = useState({ email: "", senha: "" });
@@ -99,56 +147,69 @@ function LoginForm() {
     email: !v.email ? "Informe seu e-mail." : !emailOk(v.email) ? "E-mail inválido." : "",
     senha: !v.senha ? "Informe sua senha." : "",
   };
+  const ready = !!v.email && !!v.senha;
   return (
     <form noValidate onSubmit={(ev) => { ev.preventDefault(); setSub(true); }} className="space-y-4">
       <GoogleButton>Entrar com Google</GoogleButton>
       <Divider />
       <Field label="E-mail" name="email" type="email" autoComplete="email" inputMode="email" placeholder="voce@empresa.com"
         value={v.email} onChange={(x) => setV({ ...v, email: x.target.value })} error={sub ? e.email : ""} />
-      <Field label="Senha" name="senha" toggle autoComplete="current-password" placeholder="••••••••"
-        value={v.senha} onChange={(x) => setV({ ...v, senha: x.target.value })} error={sub ? e.senha : ""} />
-      <button type="submit" className={submitCls}>Entrar</button>
+      <div className="space-y-2">
+        <Field label="Senha" name="senha" toggle autoComplete="current-password" placeholder="Sua senha"
+          value={v.senha} onChange={(x) => setV({ ...v, senha: x.target.value })} error={sub ? e.senha : ""} />
+        <div className="flex justify-end">
+          <button type="button" className="rounded-md text-xs font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring">
+            Esqueci minha senha
+          </button>
+        </div>
+      </div>
+      <button type="submit" className={submitCls(ready)}>Acessar minha conta</button>
     </form>
   );
 }
 
 function SignupForm() {
   const [v, setV] = useState({ nome: "", email: "", tel: "", senha: "", conf: "", termos: false });
-  const [sub, setSub] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const strong = passRules.every((r) => r.test(v.senha));
   const e = {
-    nome: v.nome.trim().split(/\s+/).length < 2 ? "Digite nome e sobrenome." : "",
-    email: !emailOk(v.email) ? "E-mail inválido." : "",
+    nome: !v.nome.trim() ? "Informe seu nome." : v.nome.trim().split(/\s+/).length < 2 ? "Digite nome e sobrenome." : "",
+    email: !v.email ? "Informe seu e-mail." : !emailOk(v.email) ? "E-mail inválido." : "",
     tel: v.tel.replace(/\D/g, "").length < 10 ? "Telefone incompleto." : "",
-    senha: v.senha.length < 8 ? "Mínimo de 8 caracteres." : "",
-    conf: !v.conf || v.conf !== v.senha ? "As senhas não coincidem." : "",
-    termos: !v.termos ? "Aceite os termos para continuar." : "",
+    senha: !v.senha ? "Crie uma senha." : !strong ? "A senha não cumpre todas as regras." : "",
+    conf: !v.conf ? "Confirme sua senha." : v.conf !== v.senha ? "As senhas não conferem" : "",
   };
-  const err = (k: keyof typeof e) => (sub ? e[k] : "");
+  const ready = Object.values(e).every((x) => !x) && v.termos;
+  const err = (k: keyof typeof e) => (touched[k] ? e[k] : "");
+  const blur = (k: string) => () => setTouched((t) => ({ ...t, [k]: true }));
   return (
-    <form noValidate onSubmit={(ev) => { ev.preventDefault(); setSub(true); }} className="space-y-4">
+    <form noValidate onSubmit={(ev) => ev.preventDefault()} className="space-y-4">
       <GoogleButton>Continuar com Google</GoogleButton>
       <Divider />
-      <Field label="Nome completo" name="nome" autoComplete="name" placeholder="Maria Silva"
+      <Field label="Nome completo" name="nome" autoComplete="name" placeholder="Maria Silva" onBlur={blur("nome")}
         value={v.nome} onChange={(x) => setV({ ...v, nome: x.target.value })} error={err("nome")} />
-      <Field label="E-mail" name="email2" type="email" autoComplete="email" inputMode="email" placeholder="voce@empresa.com"
+      <Field label="E-mail" name="email2" type="email" autoComplete="email" inputMode="email" placeholder="voce@empresa.com" onBlur={blur("email")}
         value={v.email} onChange={(x) => setV({ ...v, email: x.target.value })} error={err("email")} />
-      <Field label="Telefone" name="tel" type="tel" autoComplete="tel" inputMode="numeric" placeholder="(11) 99999-9999"
+      <Field label="Telefone" name="tel" type="tel" autoComplete="tel" inputMode="numeric" placeholder="(11) 99999-9999" onBlur={blur("tel")}
         value={v.tel} onChange={(x) => setV({ ...v, tel: maskPhone(x.target.value) })} error={err("tel")} />
-      <Field label="Senha" name="senha2" toggle autoComplete="new-password" placeholder="Mínimo 8 caracteres" hint="Use letras e números."
-        value={v.senha} onChange={(x) => setV({ ...v, senha: x.target.value })} error={err("senha")} />
+      <div>
+        <Field label="Senha" name="senha2" toggle autoComplete="new-password" placeholder="Crie uma senha forte" onBlur={blur("senha")}
+          value={v.senha} onChange={(x) => setV({ ...v, senha: x.target.value })} error={err("senha")} />
+        <PasswordStrength value={v.senha} />
+      </div>
       <Field label="Confirmar senha" name="conf" toggle autoComplete="new-password" placeholder="Repita a senha"
-        value={v.conf} onChange={(x) => setV({ ...v, conf: x.target.value })} error={err("conf")} />
+        value={v.conf} onChange={(x) => setV({ ...v, conf: x.target.value })}
+        error={v.conf && v.conf !== v.senha ? "As senhas não conferem" : ""} />
       <div>
         <label className="flex cursor-pointer items-center gap-3 py-1 text-sm text-muted-foreground">
           <input type="checkbox" className="peer sr-only" checked={v.termos} onChange={(x) => setV({ ...v, termos: x.target.checked })} />
-          <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border transition peer-focus-visible:ring-2 peer-focus-visible:ring-ring ${v.termos ? "border-accent bg-accent text-accent-foreground" : err("termos") ? "border-destructive" : "border-border"}`}>
+          <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border transition peer-focus-visible:ring-2 peer-focus-visible:ring-ring ${v.termos ? "border-accent bg-accent text-accent-foreground" : "border-border"}`}>
             {v.termos && <Check size={16} strokeWidth={3} />}
           </span>
           Li e aceito os <span className="font-medium text-foreground underline underline-offset-2">termos de uso</span>
         </label>
-        {err("termos") && <p className="mt-1 text-xs text-destructive">{err("termos")}</p>}
       </div>
-      <button type="submit" className={submitCls}>Criar conta</button>
+      <button type="submit" disabled={!ready} aria-disabled={!ready} className={submitCls(ready)}>Criar conta</button>
     </form>
   );
 }
