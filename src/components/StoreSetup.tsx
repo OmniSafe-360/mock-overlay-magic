@@ -146,7 +146,9 @@ export const btnGhost =
 /* ---------- tela ---------- */
 type Addr = { rua: string; bairro: string; cidade: string; uf: string };
 
-export type StoreData = { tipo: string; nome: string; cidade: string; uf: string; rua: string; numero: string; bairro: string };
+export type StoreData = { id?: string; tipo: string; nome: string; cidade: string; uf: string; rua: string; numero: string; bairro: string };
+export const TIPO_TO_DB: Record<string, string> = { mercado: "mercado", farmacia: "farmacia", roupas: "loja_roupas", construcao: "material_construcao", pet: "pet_shop", autopecas: "autopecas" };
+export const TIPO_FROM_DB: Record<string, string> = Object.fromEntries(Object.entries(TIPO_TO_DB).map(([a, b]) => [b, a]));
 
 export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "first" | "add"; onFinish?: (s: StoreData) => void; onCancel?: () => void } = {}) {
   const kb = useKeyboard();
@@ -238,15 +240,52 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
   ][step]!;
 
   const go = (to: number) => { setDir(to > step ? 1 : -1); setStep(to); };
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState("");
+  const [savedId, setSavedId] = useState<string | undefined>();
+  const save = async () => {
+    if (saving) return;
+    setSaving(true); setSaveErr("");
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) throw new Error("no user");
+      const { data, error } = await supabase.from("comercios").insert({
+        dono_id: u.user.id,
+        tipo: TIPO_TO_DB[tipo] as Database["public"]["Enums"]["tipo_comercio"],
+        nome: nome.trim(),
+        documento_tipo: docType.toLowerCase(),
+        documento: digits(doc),
+        telefone: digits(tel),
+        telefone_whatsapp: zap,
+        cep: digits(cep),
+        rua: (addr?.rua ?? "").trim(),
+        bairro: (addr?.bairro ?? "").trim(),
+        cidade: (addr?.cidade ?? "").trim(),
+        uf: (addr?.uf ?? "").trim().toUpperCase().slice(0, 2),
+        sem_numero: semNumero,
+        numero: semNumero ? null : numero.trim(),
+        complemento: compl.trim() || null,
+      }).select("id").single();
+      if (error) {
+        setSaveErr(error.code === "23505" ? `Você já cadastrou um comércio com este ${docType}.` : "Não foi possível salvar o comércio. Verifique sua internet e tente novamente.");
+        return;
+      }
+      setSavedId(data.id);
+      if (mode === "add") onFinish?.(build(data.id)); else setDone(true);
+    } catch {
+      setSaveErr("Não foi possível salvar o comércio. Verifique sua internet e tente novamente.");
+    } finally { setSaving(false); }
+  };
   const next = () => {
     if (!valid) return;
-    if (step === 3) { if (mode === "add") return finish(); return setDone(true); }
+    if (step === 3) return void save();
     if (fromReview) { setFromReview(false); return go(3); }
     go(step + 1);
   };
   const edit = (s: number) => { setFromReview(true); go(s); };
   const tipoNome = TIPOS.find((t) => t.id === tipo)?.nome ?? "";
-  const finish = () => onFinish?.({ tipo, nome: nome.trim(), cidade: addr?.cidade ?? "", uf: addr?.uf ?? "", rua: addr?.rua ?? "", numero: semNumero ? "s/n" : numero, bairro: addr?.bairro ?? "" });
+  const build = (id?: string): StoreData => ({ id, tipo, nome: nome.trim(), cidade: addr?.cidade ?? "", uf: addr?.uf ?? "", rua: addr?.rua ?? "", numero: semNumero ? "s/n" : numero, bairro: addr?.bairro ?? "" });
+  const finish = () => onFinish?.(build(savedId));
 
   return (
     <div className="relative h-app overflow-hidden bg-app">
@@ -434,8 +473,8 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
                     <span className="flex items-center gap-1.5"><ArrowLeft size={18} />Voltar</span>
                   </button>
                 )}
-                <button type="submit" disabled={!valid} aria-disabled={!valid} className={`flex-1 ${btnPrimary(valid)}`}>
-                  {step === 3 ? "Cadastrar meu comércio" : "Continuar"}
+                <button type="submit" disabled={!valid || saving} aria-disabled={!valid || saving} className={`flex-1 ${btnPrimary(valid && !saving)}`}>
+                  {step === 3 ? (saving ? "Salvando..." : "Cadastrar meu comércio") : "Continuar"}
                 </button>
               </div>
             </form>
