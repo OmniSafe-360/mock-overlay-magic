@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
 import { Eye, EyeOff, Check, CheckCircle2, ArrowLeft, MailCheck } from "lucide-react";
 import { Logo, LogoMark } from "@/components/Logo";
+import { StoreSetup, Entering } from "@/components/StoreSetup";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -73,9 +74,9 @@ function Field({
   );
 }
 
-function GoogleButton({ children }: { children: ReactNode }) {
+function GoogleButton({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
   return (
-    <button type="button" className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-primary px-5 text-base font-semibold text-primary-foreground shadow-primary transition hover:brightness-110 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent tiny:min-h-12">
+    <button type="button" onClick={onClick} className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-primary px-5 text-base font-semibold text-primary-foreground shadow-primary transition hover:brightness-110 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent tiny:min-h-12">
       <GoogleIcon />
       {children}
     </button>
@@ -149,7 +150,7 @@ function PasswordStrength({ value }: { value: string }) {
   );
 }
 
-function LoginForm({ onForgot }: { onForgot: () => void }) {
+function LoginForm({ onForgot, onEnter }: { onForgot: () => void; onEnter: () => void }) {
   const [v, setV] = useState({ email: "", senha: "" });
   const [sub, setSub] = useState(false);
   const e = {
@@ -158,8 +159,8 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
   };
   const ready = !!v.email && !!v.senha;
   return (
-    <form noValidate onSubmit={(ev) => { ev.preventDefault(); setSub(true); }} className="space-y-4 short:space-y-2.5">
-      <GoogleButton>Entrar com Google</GoogleButton>
+    <form noValidate onSubmit={(ev) => { ev.preventDefault(); setSub(true); if (emailOk(v.email) && v.senha) onEnter(); }} className="space-y-4 short:space-y-2.5">
+      <GoogleButton onClick={onEnter}>Entrar com Google</GoogleButton>
       <Divider />
       <Field label="E-mail" name="email" type="email" autoComplete="email" inputMode="email" enterKeyHint="next" placeholder="voce@empresa.com"
         onKeyDown={nextOnEnter("senha")} value={v.email} onChange={(x) => setV({ ...v, email: x.target.value })} error={sub ? e.email : ""} />
@@ -215,7 +216,7 @@ function SignupForm({ onGoogle }: { onGoogle?: () => void }) {
   return (
     <form
       noValidate
-      onSubmit={(ev) => { ev.preventDefault(); if (!valid) return; step < 3 ? go(1) : setDone(true); }}
+      onSubmit={(ev) => { ev.preventDefault(); if (!valid) return; if (step < 3) go(1); else { setDone(true); onGoogle?.(); } }}
       className="flex flex-col"
     >
       <div className="mb-4 short:mb-2.5">
@@ -372,6 +373,10 @@ function Collapse({ hidden, children }: { hidden: boolean; children: ReactNode }
 function Index() {
   const [view, setView] = useState<"entrar" | "criar" | "recuperar">("entrar");
   const kb = useKeyboard();
+  const [phase, setPhase] = useState<"auth" | "loading" | "store">("auth");
+  const enter = () => { setPhase("loading"); setTimeout(() => setPhase("store"), 1000); };
+  if (phase === "loading") return <Entering />;
+  if (phase === "store") return <StoreSetup />;
   return (
     <div className="relative h-app overflow-hidden bg-app">
       <div className="pointer-events-none absolute inset-0 bg-dots" />
@@ -411,7 +416,7 @@ function Index() {
                 </div>
               </Collapse>
               <div className={kb ? "mt-3" : "mt-6 short:mt-4 tiny:mt-3"}>
-                {view === "entrar" ? <LoginForm onForgot={() => setView("recuperar")} /> : <SignupForm />}
+                {view === "entrar" ? <LoginForm onForgot={() => setView("recuperar")} onEnter={enter} /> : <SignupForm onGoogle={enter} />}
               </div>
             </>
           )}
