@@ -148,7 +148,7 @@ export const btnGhost =
 /* ---------- tela ---------- */
 type Addr = { rua: string; bairro: string; cidade: string; uf: string };
 
-export type StoreData = { id?: string; tipo: string; nome: string; cidade: string; uf: string; rua: string; numero: string; bairro: string };
+export type StoreData = { id?: string | undefined; tipo: string; nome: string; cidade: string; uf: string; rua: string; numero: string; bairro: string };
 export const TIPO_TO_DB: Record<string, string> = { mercado: "mercado", farmacia: "farmacia", roupas: "loja_roupas", construcao: "material_construcao", pet: "pet_shop", autopecas: "autopecas" };
 export const TIPO_FROM_DB: Record<string, string> = Object.fromEntries(Object.entries(TIPO_TO_DB).map(([a, b]) => [b, a]));
 
