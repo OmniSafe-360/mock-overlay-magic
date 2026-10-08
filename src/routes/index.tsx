@@ -525,12 +525,14 @@ function Index() {
       const nome = String(data?.nome ?? user.user_metadata?.["full_name"] ?? user.user_metadata?.["name"] ?? "").trim();
       setOwner(nome.split(/\s+/)[0] ?? "");
       setAccount({ nome, email: user.email ?? "" });
-      setPhase((p) => {
-        if (p !== "auth") return p;
-        if (!animate) return "store";
-        setTimeout(() => setPhase((q) => (q === "loading" ? "store" : q)), 1000);
-        return "loading";
-      });
+      let go = false;
+      setPhase((p) => { if (p !== "auth") return p; go = true; return "loading"; });
+      if (!go) return;
+      const t0 = Date.now();
+      const { data: rows } = await supabase.from("comercios").select("id,tipo,nome,cidade,uf,rua,numero,sem_numero,bairro").eq("ativo", true).order("created_at", { ascending: true });
+      const list = (rows ?? []).map((r) => ({ id: r.id, tipo: TIPO_FROM_DB[r.tipo] ?? r.tipo, nome: r.nome, cidade: r.cidade, uf: r.uf, rua: r.rua, numero: r.sem_numero ? "s/n" : (r.numero ?? ""), bairro: r.bairro }));
+      const wait = animate ? Math.max(0, 1000 - (Date.now() - t0)) : 0;
+      setTimeout(() => setPhase((q) => { if (q !== "loading") return q; setStores(list); return list.length ? "home" : "store"; }), wait);
     };
     supabase.auth.getSession().then(({ data }) => load(data.session?.user, false));
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {

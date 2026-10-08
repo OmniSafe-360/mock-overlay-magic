@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
 import { ArrowLeft, Check, CheckCircle2, Hammer, PawPrint, Wrench, MapPin, Pencil, Pill, Shirt, ShoppingCart, X, Loader2 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
+import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 
 /* ---------- utilidades ---------- */
 export const digits = (v: string) => v.replace(/\D/g, "");
@@ -473,6 +475,7 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
                     <span className="flex items-center gap-1.5"><ArrowLeft size={18} />Voltar</span>
                   </button>
                 )}
+                {step === 3 && saveErr && <p role="alert" className="absolute -top-6 left-0 right-0 text-center text-xs text-destructive">{saveErr}</p>}
                 <button type="submit" disabled={!valid || saving} aria-disabled={!valid || saving} className={`flex-1 ${btnPrimary(valid && !saving)}`}>
                   {step === 3 ? (saving ? "Salvando..." : "Cadastrar meu comércio") : "Continuar"}
                 </button>
