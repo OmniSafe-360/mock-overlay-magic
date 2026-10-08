@@ -1,24 +1,191 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState, type InputHTMLAttributes, type ReactNode } from "react";
+import { Eye, EyeOff, Check } from "lucide-react";
+import { Logo, LogoMark } from "@/components/Logo";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "Entrar — Omni Safe 360" },
+      { name: "description", content: "Acesse o Omni Safe 360: estoque, gôndola, PDV e antifurto para qualquer comércio." },
+      { property: "og:title", content: "Entrar — Omni Safe 360" },
+      { property: "og:description", content: "Controle inteligente de estoque, PDV e antifurto." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
+const emailOk = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
+const maskPhone = (v: string) => {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 2) return d.length ? `(${d}` : "";
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+};
+
+function GoogleIcon() {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
+    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground">
+      <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
+        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
+        <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+        <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" />
+      </svg>
+    </span>
+  );
+}
+
+function Field({
+  label, error, hint, toggle, ...props
+}: InputHTMLAttributes<HTMLInputElement> & { label: string; error?: string; hint?: string; toggle?: boolean }) {
+  const [show, setShow] = useState(false);
+  const id = props.id ?? props.name;
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="text-sm font-medium text-muted-foreground">{label}</label>
+      <div className="relative">
+        <input
+          id={id}
+          {...props}
+          type={toggle ? (show ? "text" : "password") : props.type}
+          aria-invalid={!!error}
+          className={`h-13 w-full rounded-2xl border bg-background-deep/60 px-4 text-base text-foreground outline-none transition placeholder:text-muted-foreground/60 focus-visible:ring-2 ${
+            error ? "border-destructive focus-visible:ring-destructive/40" : "border-border focus-visible:border-primary focus-visible:ring-ring/40"
+          } ${toggle ? "pr-12" : ""}`}
+        />
+        {toggle && (
+          <button
+            type="button"
+            onClick={() => setShow((s) => !s)}
+            aria-label={show ? "Ocultar senha" : "Mostrar senha"}
+            className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+          >
+            {show ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        )}
+      </div>
+      {error ? <p className="text-xs text-destructive">{error}</p> : hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+    </div>
+  );
+}
+
+function GoogleButton({ children }: { children: ReactNode }) {
+  return (
+    <button type="button" className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-primary px-5 text-base font-semibold text-primary-foreground shadow-primary transition hover:brightness-110 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+      <GoogleIcon />
+      {children}
+    </button>
+  );
+}
+
+function Divider() {
+  return (
+    <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-widest text-muted-foreground">
+      <span className="h-px flex-1 bg-border" />ou<span className="h-px flex-1 bg-border" />
+    </div>
+  );
+}
+
+const submitCls = "mt-2 h-13 w-full rounded-2xl border border-border bg-secondary text-base font-semibold text-foreground transition hover:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+
+function LoginForm() {
+  const [v, setV] = useState({ email: "", senha: "" });
+  const [sub, setSub] = useState(false);
+  const e = {
+    email: !v.email ? "Informe seu e-mail." : !emailOk(v.email) ? "E-mail inválido." : "",
+    senha: !v.senha ? "Informe sua senha." : "",
+  };
+  return (
+    <form noValidate onSubmit={(ev) => { ev.preventDefault(); setSub(true); }} className="space-y-4">
+      <GoogleButton>Entrar com Google</GoogleButton>
+      <Divider />
+      <Field label="E-mail" name="email" type="email" autoComplete="email" inputMode="email" placeholder="voce@empresa.com"
+        value={v.email} onChange={(x) => setV({ ...v, email: x.target.value })} error={sub ? e.email : ""} />
+      <Field label="Senha" name="senha" toggle autoComplete="current-password" placeholder="••••••••"
+        value={v.senha} onChange={(x) => setV({ ...v, senha: x.target.value })} error={sub ? e.senha : ""} />
+      <button type="submit" className={submitCls}>Entrar</button>
+    </form>
+  );
+}
+
+function SignupForm() {
+  const [v, setV] = useState({ nome: "", email: "", tel: "", senha: "", conf: "", termos: false });
+  const [sub, setSub] = useState(false);
+  const e = {
+    nome: v.nome.trim().split(/\s+/).length < 2 ? "Digite nome e sobrenome." : "",
+    email: !emailOk(v.email) ? "E-mail inválido." : "",
+    tel: v.tel.replace(/\D/g, "").length < 10 ? "Telefone incompleto." : "",
+    senha: v.senha.length < 8 ? "Mínimo de 8 caracteres." : "",
+    conf: !v.conf || v.conf !== v.senha ? "As senhas não coincidem." : "",
+    termos: !v.termos ? "Aceite os termos para continuar." : "",
+  };
+  const err = (k: keyof typeof e) => (sub ? e[k] : "");
+  return (
+    <form noValidate onSubmit={(ev) => { ev.preventDefault(); setSub(true); }} className="space-y-4">
+      <GoogleButton>Continuar com Google</GoogleButton>
+      <Divider />
+      <Field label="Nome completo" name="nome" autoComplete="name" placeholder="Maria Silva"
+        value={v.nome} onChange={(x) => setV({ ...v, nome: x.target.value })} error={err("nome")} />
+      <Field label="E-mail" name="email2" type="email" autoComplete="email" inputMode="email" placeholder="voce@empresa.com"
+        value={v.email} onChange={(x) => setV({ ...v, email: x.target.value })} error={err("email")} />
+      <Field label="Telefone" name="tel" type="tel" autoComplete="tel" inputMode="numeric" placeholder="(11) 99999-9999"
+        value={v.tel} onChange={(x) => setV({ ...v, tel: maskPhone(x.target.value) })} error={err("tel")} />
+      <Field label="Senha" name="senha2" toggle autoComplete="new-password" placeholder="Mínimo 8 caracteres" hint="Use letras e números."
+        value={v.senha} onChange={(x) => setV({ ...v, senha: x.target.value })} error={err("senha")} />
+      <Field label="Confirmar senha" name="conf" toggle autoComplete="new-password" placeholder="Repita a senha"
+        value={v.conf} onChange={(x) => setV({ ...v, conf: x.target.value })} error={err("conf")} />
+      <div>
+        <label className="flex cursor-pointer items-center gap-3 py-1 text-sm text-muted-foreground">
+          <input type="checkbox" className="peer sr-only" checked={v.termos} onChange={(x) => setV({ ...v, termos: x.target.checked })} />
+          <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border transition peer-focus-visible:ring-2 peer-focus-visible:ring-ring ${v.termos ? "border-accent bg-accent text-accent-foreground" : err("termos") ? "border-destructive" : "border-border"}`}>
+            {v.termos && <Check size={16} strokeWidth={3} />}
+          </span>
+          Li e aceito os <span className="font-medium text-foreground underline underline-offset-2">termos de uso</span>
+        </label>
+        {err("termos") && <p className="mt-1 text-xs text-destructive">{err("termos")}</p>}
+      </div>
+      <button type="submit" className={submitCls}>Criar conta</button>
+    </form>
+  );
+}
+
+function Index() {
+  const [tab, setTab] = useState<"entrar" | "criar">("entrar");
+  return (
+    <div className="relative min-h-dvh overflow-hidden bg-app">
+      <div className="pointer-events-none absolute inset-0 bg-dots" />
+      <div className="pointer-events-none absolute left-1/2 top-0 h-[520px] w-[520px] -translate-x-1/2 -translate-y-24 bg-glow" />
+      <main className="safe-area relative flex min-h-dvh flex-col items-center justify-center">
+        <div className="w-full max-w-[440px] sm:rounded-3xl sm:border sm:border-border sm:bg-card sm:p-8 sm:backdrop-blur-xl">
+          <div className="flex justify-center">
+            <span className="sm:hidden"><Logo size={96} /></span>
+            <span className="hidden sm:block"><Logo size={120} /></span>
+          </div>
+
+          <div role="tablist" className="mt-8 grid grid-cols-2 rounded-2xl border border-border bg-background-deep/60 p-1">
+            {(["entrar", "criar"] as const).map((t) => (
+              <button
+                key={t}
+                role="tab"
+                aria-selected={tab === t}
+                onClick={() => setTab(t)}
+                className={`h-11 rounded-xl text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-ring ${tab === t ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                {t === "entrar" ? "Entrar" : "Criar conta"}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-6">{tab === "entrar" ? <LoginForm /> : <SignupForm />}</div>
+        </div>
+        <footer className="mt-8 flex items-center gap-2 text-xs tracking-wider text-muted-foreground">
+          <LogoMark size={16} /> Omni Safe 360
+        </footer>
+      </main>
     </div>
   );
 }
