@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
 import { Eye, EyeOff, Check, CheckCircle2, ArrowLeft, MailCheck } from "lucide-react";
 import { Logo, LogoMark } from "@/components/Logo";
 import { StoreSetup, Entering } from "@/components/StoreSetup";
@@ -260,7 +260,7 @@ function LoginForm({ onForgot, oauthError, initialEmail = "" }: { onForgot: () =
           </button>
         </div>
       </div>
-      <div className="pt-2 short:pt-1"><button type="submit" className={submitCls(ready)}>Acessar minha conta</button></div>
+      <div className="pt-2 short:pt-1"><button type="submit" className={submitCls(ready)}>{busy ? "Entrando..." : "Acessar minha conta"}</button></div>
     </form>
   );
 }
