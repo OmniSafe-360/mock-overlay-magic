@@ -32,7 +32,7 @@ function Backdrop() {
   );
 }
 
-export function OwnerApp({ owner, initial }: { owner: string; initial: StoreData[] }) {
+export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }: { owner: string; initial: StoreData[]; fullName?: string; email?: string; onLogout?: () => void }) {
   const [stores, setStores] = useState<StoreData[]>(initial);
   const [tab, setTab] = useState<Tab>("inicio");
   const [adding, setAdding] = useState(false);
@@ -109,6 +109,18 @@ export function OwnerApp({ owner, initial }: { owner: string; initial: StoreData
               onBack={() => { setOpen(null); setSaved(false); }} onNew={() => setWizard({})} onEdit={(p) => setWizard({ initial: p })} onDismissSaved={() => setSaved(false)} />
           ) : tab === "inicio" ? (
             <HomeContent stores={stores} onAdd={() => setAdding(true)} onOpen={setOpen} />
+          ) : tab === "conta" ? (
+            <div className="mx-auto max-w-md space-y-4 animate-in fade-in duration-300">
+              <div className="rounded-3xl border border-border bg-secondary/70 p-5">
+                <UserCircle size={40} className="text-primary" />
+                <p className="mt-3 text-lg font-bold">{fullName || owner || "Sua conta"}</p>
+                <p className="mt-1 break-all text-sm text-muted-foreground">{email}</p>
+              </div>
+              <button type="button" onClick={onLogout}
+                className="h-12 w-full rounded-2xl border border-destructive/50 text-sm font-semibold text-destructive transition hover:bg-destructive/10 focus-visible:outline-2 focus-visible:outline-ring">
+                Sair
+              </button>
+            </div>
           ) : (
             <Soon title={NAV.find((n) => n.id === tab)!.label} />
           )}

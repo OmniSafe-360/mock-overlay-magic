@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
 import { Eye, EyeOff, Check, CheckCircle2, ArrowLeft, MailCheck } from "lucide-react";
 import { Logo, LogoMark } from "@/components/Logo";
 import { StoreSetup, Entering } from "@/components/StoreSetup";
@@ -162,20 +162,74 @@ function PasswordStrength({ value }: { value: string }) {
   );
 }
 
-function LoginForm({ onForgot, onEnter, oauthError }: { onForgot: () => void; onEnter: () => void; oauthError?: string }) {
-  const [v, setV] = useState({ email: "", senha: "" });
+const authMsg = (err: unknown): string => {
+  const m = String((err as { message?: string })?.message ?? "");
+  const code = String((err as { code?: string })?.code ?? "");
+  if ((typeof navigator !== "undefined" && !navigator.onLine) || /failed to fetch|network|load failed/i.test(m)) return "Sem conexão, tente novamente.";
+  if (/rate_limit/.test(code) || /rate limit|too many|security purposes/i.test(m)) return "Muitas tentativas, tente novamente em alguns minutos.";
+  if (code === "email_not_confirmed" || /not confirmed/i.test(m)) return "Confirme seu e-mail antes de entrar.";
+  if (code === "invalid_credentials" || /invalid login/i.test(m)) return "E-mail ou senha incorretos.";
+  if (code === "user_already_exists" || /already registered/i.test(m)) return "Este e-mail já está cadastrado. Tente entrar.";
+  if (code === "weak_password") return "Senha fraca. Use uma senha mais forte.";
+  return "Algo deu errado, tente novamente.";
+};
+
+async function googleLogin() {
+  const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: OAUTH_REDIRECT } });
+  if (error) throw error;
+}
+
+function ResendButton({ email, start }: { email: string; start?: boolean }) {
+  const [wait, setWait] = useState(start ? 60 : 0);
+  const [msg, setMsg] = useState("");
+  useEffect(() => {
+    if (wait <= 0) return;
+    const t = setTimeout(() => setWait((w) => w - 1), 1000);
+    return () => clearTimeout(t);
+  }, [wait]);
+  const resend = async () => {
+    setMsg("");
+    const { error } = await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo: window.location.origin } });
+    setMsg(error ? authMsg(error) : "E-mail reenviado!");
+    setWait(60);
+  };
+  return (
+    <div className="mt-2">
+      <button type="button" disabled={wait > 0} onClick={() => void resend()}
+        className="rounded-md text-sm font-semibold text-primary hover:underline disabled:text-muted-foreground disabled:no-underline focus-visible:outline-2 focus-visible:outline-ring">
+        {wait > 0 ? `Reenviar e-mail (${wait}s)` : "Reenviar e-mail"}
+      </button>
+      {msg && <p className="mt-1 text-xs text-muted-foreground">{msg}</p>}
+    </div>
+  );
+}
+
+function LoginForm({ onForgot, oauthError, initialEmail = "" }: { onForgot: () => void; oauthError?: string; initialEmail?: string }) {
+  const [v, setV] = useState({ email: initialEmail, senha: "" });
   const [gLoading, setGLoading] = useState(false);
   const [gError, setGError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [lError, setLError] = useState("");
+  const [unconfirmed, setUnconfirmed] = useState(false);
   useEffect(() => { if (oauthError) setGError(oauthError); }, [oauthError]);
   const loginGoogle = async () => {
     setGError("");
     setGLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: OAUTH_REDIRECT } });
-      if (error) throw error;
+      await googleLogin();
     } catch (err) {
       setGError(err instanceof Error ? err.message : "Não foi possível entrar com Google.");
       setGLoading(false);
+    }
+  };
+  const loginEmail = async () => {
+    setBusy(true); setLError(""); setUnconfirmed(false);
+    const { error } = await supabase.auth.signInWithPassword({ email: v.email.trim(), password: v.senha });
+    setBusy(false);
+    if (error) {
+      const m = authMsg(error);
+      setLError(m);
+      setUnconfirmed(m.startsWith("Confirme"));
     }
   };
   const [sub, setSub] = useState(false);
@@ -183,11 +237,17 @@ function LoginForm({ onForgot, onEnter, oauthError }: { onForgot: () => void; on
     email: !v.email ? "Informe seu e-mail." : !emailOk(v.email) ? "E-mail inválido." : "",
     senha: !v.senha ? "Informe sua senha." : "",
   };
-  const ready = !!v.email && !!v.senha;
+  const ready = !!v.email && !!v.senha && !busy;
   return (
-    <form noValidate onSubmit={(ev) => { ev.preventDefault(); setSub(true); if (emailOk(v.email) && v.senha) onEnter(); }} className="space-y-4 short:space-y-2.5">
+    <form noValidate onSubmit={(ev) => { ev.preventDefault(); setSub(true); if (emailOk(v.email) && v.senha && !busy) void loginEmail(); }} className="space-y-4 short:space-y-2.5">
       <GoogleButton onClick={loginGoogle} disabled={gLoading}>{gLoading ? "Abrindo Google..." : "Entrar com Google"}</GoogleButton>
       {gError && <p role="alert" className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">Erro ao entrar com Google: {gError}</p>}
+      {lError && (
+        <div role="alert" className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {lError}
+          {unconfirmed && <ResendButton email={v.email.trim()} />}
+        </div>
+      )}
       <Divider />
       <Field label="E-mail" name="email" type="email" autoComplete="email" inputMode="email" enterKeyHint="next" placeholder="voce@empresa.com"
         onKeyDown={nextOnEnter("senha")} value={v.email} onChange={(x) => setV({ ...v, email: x.target.value })} error={sub ? e.email : ""} />
@@ -200,17 +260,18 @@ function LoginForm({ onForgot, onEnter, oauthError }: { onForgot: () => void; on
           </button>
         </div>
       </div>
-      <div className="pt-2 short:pt-1"><button type="submit" className={submitCls(ready)}>Acessar minha conta</button></div>
+      <div className="pt-2 short:pt-1"><button type="submit" className={submitCls(ready)}>{busy ? "Entrando..." : "Acessar minha conta"}</button></div>
     </form>
   );
 }
 
 const stepTitles = ["Seus dados", "Seu e-mail", "Crie sua senha", "Confirme e finalize"];
 
-function SignupForm({ onGoogle }: { onGoogle?: (nome?: string) => void }) {
+function SignupForm({ onCreated }: { onCreated: (email: string) => void }) {
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState<1 | -1>(1);
-  const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const [v, setV] = useState({ nome: "", email: "", tel: "", senha: "", conf: "", termos: false });
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const strong = passRules.every((r) => r.test(v.senha));
@@ -229,21 +290,24 @@ function SignupForm({ onGoogle }: { onGoogle?: (nome?: string) => void }) {
   ][step]!;
   const [nav, setNav] = useState(false);
   const go = (d: 1 | -1) => { setDir(d); setNav(true); setStep((s) => s + d); };
-
-  if (done) {
-    return (
-      <div className="flex flex-col items-center gap-3 py-6 text-center animate-in fade-in zoom-in-95 duration-300">
-        <CheckCircle2 size={56} className="text-accent" />
-        <p className="text-lg font-semibold text-foreground">Conta criada!</p>
-        <p className="text-sm text-muted-foreground">Em breve você poderá entrar.</p>
-      </div>
-    );
-  }
+  const create = async () => {
+    setBusy(true); setError("");
+    const email = v.email.trim();
+    const { error: er } = await supabase.auth.signUp({
+      email,
+      password: v.senha,
+      options: { emailRedirectTo: window.location.origin, data: { full_name: v.nome.trim(), phone: v.tel } },
+    });
+    if (er) { setError(authMsg(er)); setBusy(false); return; }
+    await supabase.auth.signOut();
+    setBusy(false);
+    onCreated(email);
+  };
 
   return (
     <form
       noValidate
-      onSubmit={(ev) => { ev.preventDefault(); if (!valid) return; if (step < 3) go(1); else { setDone(true); onGoogle?.(v.nome); } }}
+      onSubmit={(ev) => { ev.preventDefault(); if (!valid || busy) return; if (step < 3) go(1); else void create(); }}
       className="flex flex-col"
     >
       <div className="mb-4 short:mb-2.5">
@@ -302,13 +366,14 @@ function SignupForm({ onGoogle }: { onGoogle?: (nome?: string) => void }) {
             <span className="flex items-center gap-1.5"><ArrowLeft size={18} />Voltar</span>
           </button>
         )}
-        <button type="submit" disabled={!valid} aria-disabled={!valid} className={`flex-1 ${submitCls(valid)}`}>
-          {step < 3 ? "Continuar" : "Criar conta"}
+        <button type="submit" disabled={!valid || busy} aria-disabled={!valid || busy} className={`flex-1 ${submitCls(valid && !busy)}`}>
+          {step < 3 ? "Continuar" : busy ? "Criando conta..." : "Criar conta"}
         </button>
       </div>
 
+      {error && <p role="alert" className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
       {step === 0 && (
-        <button type="button" onClick={() => onGoogle?.()} className="mx-auto mt-4 flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-muted-foreground transition hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring short:mt-3">
+        <button type="button" onClick={() => { setError(""); googleLogin().catch((x) => setError(authMsg(x))); }} className="mx-auto mt-4 flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-muted-foreground transition hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring short:mt-3">
           <GoogleIcon small /> Ou continuar com Google
         </button>
       )}
@@ -316,11 +381,53 @@ function SignupForm({ onGoogle }: { onGoogle?: (nome?: string) => void }) {
   );
 }
 
+function NewPasswordForm({ onDone }: { onDone: () => void }) {
+  const [v, setV] = useState({ senha: "", conf: "" });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const strong = passRules.every((r) => r.test(v.senha));
+  const ok = strong && v.conf === v.senha;
+  const submit = async () => {
+    if (!ok || busy) return;
+    setBusy(true); setError("");
+    const { error: err } = await supabase.auth.updateUser({ password: v.senha });
+    if (err) { setError(/same|different/i.test(err.message) ? "A nova senha precisa ser diferente da anterior." : authMsg(err)); setBusy(false); return; }
+    await supabase.auth.signOut();
+    onDone();
+  };
+  return (
+    <div className="animate-in fade-in slide-in-from-right-8 duration-300">
+      <h1 className="text-lg font-semibold text-foreground">Criar nova senha</h1>
+      <p className="mt-1 text-sm text-muted-foreground">Escolha uma senha forte para sua conta.</p>
+      <form noValidate onSubmit={(ev) => { ev.preventDefault(); void submit(); }} className="mt-5 space-y-4 short:mt-3 short:space-y-3">
+        <div>
+          <Field label="Nova senha" name="nova" toggle autoComplete="new-password" enterKeyHint="next" placeholder="Crie uma senha forte"
+            value={v.senha} onChange={(x) => setV({ ...v, senha: x.target.value })} />
+          <PasswordStrength value={v.senha} />
+        </div>
+        <Field label="Confirmar senha" name="nova2" toggle autoComplete="new-password" enterKeyHint="done" placeholder="Repita a senha"
+          value={v.conf} onChange={(x) => setV({ ...v, conf: x.target.value })} error={v.conf && v.conf !== v.senha ? "As senhas não conferem" : ""} />
+        {error && <p role="alert" className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
+        <button type="submit" disabled={!ok || busy} aria-disabled={!ok || busy} className={submitCls(ok && !busy)}>{busy ? "Salvando..." : "Salvar nova senha"}</button>
+      </form>
+    </div>
+  );
+}
+
 function RecoverForm({ onBack }: { onBack: () => void }) {
   const [email, setEmail] = useState("");
   const [touched, setTouched] = useState(false);
   const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const ok = emailOk(email);
+  const send = async () => {
+    if (!ok || busy) return;
+    setBusy(true); setError("");
+    const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin });
+    setBusy(false);
+    if (err) setError(authMsg(err)); else setSent(true);
+  };
   return (
     <div className="animate-in fade-in slide-in-from-right-8 duration-300">
       <h1 className="text-lg font-semibold text-foreground">Recuperar senha</h1>
@@ -331,7 +438,8 @@ function RecoverForm({ onBack }: { onBack: () => void }) {
           Se o e-mail estiver cadastrado, você receberá o link em instantes.
         </div>
       ) : (
-        <form noValidate onSubmit={(ev) => { ev.preventDefault(); if (ok) setSent(true); }} className="mt-5 space-y-4 short:mt-3 short:space-y-3">
+        <form noValidate onSubmit={(ev) => { ev.preventDefault(); void send(); }} className="mt-5 space-y-4 short:mt-3 short:space-y-3">
+          {error && <p role="alert" className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
           <Field label="E-mail" name="recover" type="email" autoComplete="email" inputMode="email" enterKeyHint="done" placeholder="voce@empresa.com"
             value={email} onChange={(x) => setEmail(x.target.value)} onBlur={() => setTouched(true)}
             error={touched && !ok ? (email ? "E-mail inválido." : "Informe seu e-mail.") : ""} />
@@ -402,26 +510,40 @@ function Index() {
   const kb = useKeyboard();
   const [phase, setPhase] = useState<"auth" | "loading" | "store" | "home">("auth");
   const [owner, setOwner] = useState("");
+  const [account, setAccount] = useState({ nome: "", email: "" });
   const [first, setFirst] = useState<import("@/components/StoreSetup").StoreData | null>(null);
-  const enter = (nome?: string) => { if (nome) setOwner(nome.trim().split(/\s+/)[0] ?? ""); setPhase("loading"); setTimeout(() => setPhase("store"), 1000); };
   const [oauthError] = useState(readOAuthError);
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const [okMsg, setOkMsg] = useState("");
+  const [recovery, setRecovery] = useState(false);
+  const recoveryRef = useRef(false);
   useEffect(() => {
-    const fromSession = (user: { user_metadata?: Record<string, unknown> } | null | undefined) => {
-      if (!user) return;
-      const nome = String(user.user_metadata?.["full_name"] ?? user.user_metadata?.["name"] ?? "");
-      if (nome) setOwner(nome.trim().split(/\s+/)[0] ?? "");
-      setPhase((p) => (p === "auth" ? "store" : p));
+    if (window.location.hash.includes("type=recovery")) { recoveryRef.current = true; setRecovery(true); }
+    const load = async (user: { id: string; email?: string; user_metadata?: Record<string, unknown> } | null | undefined, animate: boolean) => {
+      if (!user || recoveryRef.current) return;
+      const { data } = await supabase.from("profiles").select("nome").eq("id", user.id).maybeSingle();
+      const nome = String(data?.nome ?? user.user_metadata?.["full_name"] ?? user.user_metadata?.["name"] ?? "").trim();
+      setOwner(nome.split(/\s+/)[0] ?? "");
+      setAccount({ nome, email: user.email ?? "" });
+      setPhase((p) => {
+        if (p !== "auth") return p;
+        if (!animate) return "store";
+        setTimeout(() => setPhase((q) => (q === "loading" ? "store" : q)), 1000);
+        return "loading";
+      });
     };
-    supabase.auth.getSession().then(({ data }) => fromSession(data.session?.user));
+    supabase.auth.getSession().then(({ data }) => load(data.session?.user, false));
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN") fromSession(session?.user);
-      if (event === "SIGNED_OUT") setPhase("auth");
+      if (event === "PASSWORD_RECOVERY") { recoveryRef.current = true; setRecovery(true); setPhase("auth"); return; }
+      if (event === "SIGNED_IN") setTimeout(() => load(session?.user, true), 0);
+      if (event === "SIGNED_OUT") { setPhase("auth"); setFirst(null); setAccount({ nome: "", email: "" }); setOwner(""); }
     });
     return () => sub.subscription.unsubscribe();
   }, []);
+  const logout = () => { void supabase.auth.signOut(); setPhase("auth"); setView("entrar"); };
   if (phase === "loading") return <Entering />;
   if (phase === "store") return <StoreSetup onFinish={(s) => { setFirst(s); setPhase("home"); }} />;
-  if (phase === "home") return <OwnerApp owner={owner} initial={first ? [first] : []} />;
+  if (phase === "home") return <OwnerApp owner={owner} fullName={account.nome} email={account.email} onLogout={logout} initial={first ? [first] : []} />;
   return (
     <div className="relative h-app overflow-hidden bg-app">
       <div className="pointer-events-none absolute inset-0 bg-dots" />
@@ -440,7 +562,14 @@ function Index() {
             </div>
           )}
 
-          {view === "recuperar" ? (
+          {recovery ? (
+            <div className={kb ? "mt-3" : "mt-6 short:mt-4 tiny:mt-3"}>
+              <NewPasswordForm onDone={() => {
+                recoveryRef.current = false; setRecovery(false); setView("entrar"); setOkMsg("Senha alterada!");
+                window.history.replaceState(null, "", window.location.pathname);
+              }} />
+            </div>
+          ) : view === "recuperar" ? (
             <div className={kb ? "mt-3" : "mt-6 short:mt-4 tiny:mt-3"}><RecoverForm onBack={() => setView("entrar")} /></div>
           ) : (
             <>
@@ -461,7 +590,19 @@ function Index() {
                 </div>
               </Collapse>
               <div className={kb ? "mt-3" : "mt-6 short:mt-4 tiny:mt-3"}>
-                {view === "entrar" ? <LoginForm onForgot={() => setView("recuperar")} onEnter={() => enter()} oauthError={oauthError} /> : <SignupForm onGoogle={enter} />}
+                {view === "entrar" && confirmEmail && (
+                  <div className="mb-4 rounded-2xl border border-accent/40 bg-accent/10 p-4 text-sm text-foreground animate-in fade-in duration-300">
+                    <p className="flex items-center gap-2 font-semibold"><MailCheck size={18} className="text-accent" /> Confirme seu e-mail</p>
+                    <p className="mt-1 text-muted-foreground">Enviamos um link para <span className="break-all text-foreground">{confirmEmail}</span>. Depois de confirmar, entre aqui.</p>
+                    <ResendButton email={confirmEmail} start />
+                  </div>
+                )}
+                {view === "entrar" && okMsg && !confirmEmail && (
+                  <p role="status" className="mb-4 flex items-center gap-2 rounded-2xl border border-accent/40 bg-accent/10 px-3 py-2 text-sm text-foreground"><CheckCircle2 size={18} className="text-accent" /> {okMsg}</p>
+                )}
+                {view === "entrar"
+                  ? <LoginForm key={confirmEmail} initialEmail={confirmEmail} onForgot={() => setView("recuperar")} oauthError={oauthError} />
+                  : <SignupForm onCreated={(email) => { setOkMsg(""); setConfirmEmail(email); setView("entrar"); }} />}
               </div>
             </>
           )}
