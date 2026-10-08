@@ -408,7 +408,7 @@ function Index() {
   useEffect(() => {
     const fromSession = (user: { user_metadata?: Record<string, unknown> } | null | undefined) => {
       if (!user) return;
-      const nome = String(user.user_metadata?.full_name ?? user.user_metadata?.name ?? "");
+      const nome = String(user.user_metadata?.["full_name"] ?? user.user_metadata?.["name"] ?? "");
       if (nome) setOwner(nome.trim().split(/\s+/)[0] ?? "");
       setPhase((p) => (p === "auth" ? "store" : p));
     };
