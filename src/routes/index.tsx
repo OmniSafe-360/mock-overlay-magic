@@ -4,6 +4,17 @@ import { Eye, EyeOff, Check, CheckCircle2, ArrowLeft, MailCheck } from "lucide-r
 import { Logo, LogoMark } from "@/components/Logo";
 import { StoreSetup, Entering } from "@/components/StoreSetup";
 import { OwnerApp } from "@/components/OwnerHome";
+import { supabase } from "@/integrations/supabase/client";
+
+const OAUTH_REDIRECT = "https://mock-overlay-magic.lovable.app";
+
+function readOAuthError(): string {
+  if (typeof window === "undefined") return "";
+  const q = new URLSearchParams(window.location.search);
+  const h = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const msg = q.get("error_description") || h.get("error_description") || q.get("error") || h.get("error") || "";
+  return msg ? decodeURIComponent(msg.replace(/\+/g, " ")) : "";
+}
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -75,9 +86,9 @@ function Field({
   );
 }
 
-function GoogleButton({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
+function GoogleButton({ children, onClick, disabled }: { children: ReactNode; onClick?: () => void; disabled?: boolean }) {
   return (
-    <button type="button" onClick={onClick} className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-primary px-5 text-base font-semibold text-primary-foreground shadow-primary transition hover:brightness-110 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent tiny:min-h-12">
+    <button type="button" onClick={onClick} disabled={disabled} className="disabled:opacity-60 flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-primary px-5 text-base font-semibold text-primary-foreground shadow-primary transition hover:brightness-110 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent tiny:min-h-12">
       <GoogleIcon />
       {children}
     </button>
@@ -151,8 +162,22 @@ function PasswordStrength({ value }: { value: string }) {
   );
 }
 
-function LoginForm({ onForgot, onEnter }: { onForgot: () => void; onEnter: () => void }) {
+function LoginForm({ onForgot, onEnter, oauthError }: { onForgot: () => void; onEnter: () => void; oauthError?: string }) {
   const [v, setV] = useState({ email: "", senha: "" });
+  const [gLoading, setGLoading] = useState(false);
+  const [gError, setGError] = useState("");
+  useEffect(() => { if (oauthError) setGError(oauthError); }, [oauthError]);
+  const loginGoogle = async () => {
+    setGError("");
+    setGLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: OAUTH_REDIRECT } });
+      if (error) throw error;
+    } catch (err) {
+      setGError(err instanceof Error ? err.message : "Não foi possível entrar com Google.");
+      setGLoading(false);
+    }
+  };
   const [sub, setSub] = useState(false);
   const e = {
     email: !v.email ? "Informe seu e-mail." : !emailOk(v.email) ? "E-mail inválido." : "",
@@ -161,7 +186,8 @@ function LoginForm({ onForgot, onEnter }: { onForgot: () => void; onEnter: () =>
   const ready = !!v.email && !!v.senha;
   return (
     <form noValidate onSubmit={(ev) => { ev.preventDefault(); setSub(true); if (emailOk(v.email) && v.senha) onEnter(); }} className="space-y-4 short:space-y-2.5">
-      <GoogleButton onClick={onEnter}>Entrar com Google</GoogleButton>
+      <GoogleButton onClick={loginGoogle} disabled={gLoading}>{gLoading ? "Abrindo Google..." : "Entrar com Google"}</GoogleButton>
+      {gError && <p role="alert" className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">Erro ao entrar com Google: {gError}</p>}
       <Divider />
       <Field label="E-mail" name="email" type="email" autoComplete="email" inputMode="email" enterKeyHint="next" placeholder="voce@empresa.com"
         onKeyDown={nextOnEnter("senha")} value={v.email} onChange={(x) => setV({ ...v, email: x.target.value })} error={sub ? e.email : ""} />
@@ -378,6 +404,21 @@ function Index() {
   const [owner, setOwner] = useState("");
   const [first, setFirst] = useState<import("@/components/StoreSetup").StoreData | null>(null);
   const enter = (nome?: string) => { if (nome) setOwner(nome.trim().split(/\s+/)[0] ?? ""); setPhase("loading"); setTimeout(() => setPhase("store"), 1000); };
+  const [oauthError] = useState(readOAuthError);
+  useEffect(() => {
+    const fromSession = (user: { user_metadata?: Record<string, unknown> } | null | undefined) => {
+      if (!user) return;
+      const nome = String(user.user_metadata?.["full_name"] ?? user.user_metadata?.["name"] ?? "");
+      if (nome) setOwner(nome.trim().split(/\s+/)[0] ?? "");
+      setPhase((p) => (p === "auth" ? "store" : p));
+    };
+    supabase.auth.getSession().then(({ data }) => fromSession(data.session?.user));
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN") fromSession(session?.user);
+      if (event === "SIGNED_OUT") setPhase("auth");
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
   if (phase === "loading") return <Entering />;
   if (phase === "store") return <StoreSetup onFinish={(s) => { setFirst(s); setPhase("home"); }} />;
   if (phase === "home") return <OwnerApp owner={owner} initial={first ? [first] : []} />;
@@ -420,7 +461,7 @@ function Index() {
                 </div>
               </Collapse>
               <div className={kb ? "mt-3" : "mt-6 short:mt-4 tiny:mt-3"}>
-                {view === "entrar" ? <LoginForm onForgot={() => setView("recuperar")} onEnter={() => enter()} /> : <SignupForm onGoogle={enter} />}
+                {view === "entrar" ? <LoginForm onForgot={() => setView("recuperar")} onEnter={() => enter()} oauthError={oauthError} /> : <SignupForm onGoogle={enter} />}
               </div>
             </>
           )}
