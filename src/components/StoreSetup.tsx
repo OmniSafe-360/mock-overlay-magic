@@ -469,7 +469,7 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
                 )}
               </div>
 
-              <div className={`flex shrink-0 gap-2 ${kb ? "pt-2" : "pt-4 short:pt-3"}`}>
+              <div className={`relative flex shrink-0 gap-2 ${kb ? "pt-2" : "pt-4 short:pt-3"}`}>
                 {step > 0 && (
                   <button type="button" onClick={() => { setFromReview(false); go(step - 1); }} className={btnGhost} aria-label="Voltar">
                     <span className="flex items-center gap-1.5"><ArrowLeft size={18} />Voltar</span>
