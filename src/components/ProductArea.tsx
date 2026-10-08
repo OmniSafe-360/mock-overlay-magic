@@ -196,7 +196,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
               </div>
             </div>
 
-            <div key={step} className={`mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto animate-in fade-in duration-300 short:mt-3 short:space-y-2.5 ${dir === 1 ? "slide-in-from-right-8" : "slide-in-from-left-8"}`}>
+            <div key={step} data-kb-scroll className={`min-h-0 flex-1 overflow-y-auto overscroll-contain animate-in fade-in duration-300 ${kb ? "mt-2 space-y-2 pb-1 [&_.field-hint]:hidden" : "mt-4 space-y-3 short:mt-3 short:space-y-2.5"} ${dir === 1 ? "slide-in-from-right-8" : "slide-in-from-left-8"}`}>
               {step === 0 && (
                 <>
                   {codeMode === "choose" && !codigo ? (
@@ -301,7 +301,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
               )}
             </div>
 
-            <div className="flex shrink-0 gap-2 pt-4 short:pt-3">
+            <div className={`flex shrink-0 gap-2 ${kb ? "pt-2" : "pt-4 short:pt-3"}`}>
               {step > 0 && (
                 <button type="button" onClick={() => { setFromReview(false); go(step - 1); }} className={btnGhost}><span className="flex items-center gap-1.5"><ArrowLeft size={18} />Voltar</span></button>
               )}
