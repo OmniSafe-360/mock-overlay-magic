@@ -268,7 +268,7 @@ export function StoreSetup() {
                     </div>
                     {tipo === "outro" ? (
                       <Field label="Qual é o seu tipo de comércio?" name="outro" autoComplete="off" enterKeyHint="done" placeholder="Ex.: Pet shop" autoFocus
-                        value={outro} onChange={(x) => setOutro(x.target.value)} onBlur={blur("outro")} error={touched.outro ? errs.outro : ""}
+                        value={outro} onChange={(x) => setOutro(x.target.value)} onBlur={blur("outro")} error={touched["outro"] ? errs.outro : ""}
                         hint="Isso adapta o sistema ao seu negócio." />
                     ) : (
                       <p className="text-xs text-muted-foreground">Isso adapta o sistema ao seu negócio: unidades de medida e variações dos produtos.</p>
@@ -280,12 +280,12 @@ export function StoreSetup() {
                   <>
                     <Field label="Nome do comércio" name="nome" autoComplete="organization" enterKeyHint="next" placeholder="Ex.: Mercado Bom Preço"
                       onKeyDown={nextOnEnter("doc")} value={nome} onChange={(x) => setNome(x.target.value)} onBlur={blur("nome")}
-                      error={touched.nome ? errs.nome : ""} hint="O nome que seus clientes conhecem." />
+                      error={touched["nome"] ? errs.nome : ""} hint="O nome que seus clientes conhecem." />
                     <Field label="Documento" name="doc" inputMode="numeric" autoComplete="off" enterKeyHint="next"
                       placeholder={docType === "CNPJ" ? "00.000.000/0000-00" : "000.000.000-00"}
                       onKeyDown={nextOnEnter("tel")} value={doc}
                       onChange={(x) => setDoc(docType === "CNPJ" ? maskCNPJ(x.target.value) : maskCPF(x.target.value))}
-                      onBlur={blur("doc")} error={touched.doc ? errs.doc : ""}
+                      onBlur={blur("doc")} error={touched["doc"] ? errs.doc : ""}
                       extra={
                         <div role="radiogroup" className="flex rounded-xl border border-border bg-background-deep/60 p-0.5">
                           {(["CNPJ", "CPF"] as const).map((t) => (
@@ -302,7 +302,7 @@ export function StoreSetup() {
                       ) : "Use seu CPF enquanto não tem CNPJ."} />
                     <Field label="Telefone do comércio" name="tel" type="tel" inputMode="tel" autoComplete="tel" enterKeyHint="done" placeholder="(11) 99999-9999"
                       value={tel} onChange={(x) => setTel(maskPhone(x.target.value))} onBlur={blur("tel")}
-                      error={touched.tel ? errs.tel : ""} hint="Para contato com o comércio." />
+                      error={touched["tel"] ? errs.tel : ""} hint="Para contato com o comércio." />
                     <CheckBox checked={zap} onChange={setZap}>Este número tem WhatsApp</CheckBox>
                   </>
                 )}
@@ -332,7 +332,7 @@ export function StoreSetup() {
                       <Field label="Número" name="numero" inputMode="numeric" autoComplete="address-line2" enterKeyHint="next" placeholder="123"
                         disabled={semNumero} onKeyDown={nextOnEnter("compl")} value={semNumero ? "" : numero}
                         onChange={(x) => setNumero(x.target.value)} onBlur={blur("numero")}
-                        error={touched.numero ? errs.numero : ""} hint="Da fachada." />
+                        error={touched["numero"] ? errs.numero : ""} hint="Da fachada." />
                       <Field label="Complemento" name="compl" autoComplete="address-line3" enterKeyHint="done" placeholder="Opcional"
                         value={compl} onChange={(x) => setCompl(x.target.value)} hint="Sala, loja..." />
                     </div>
