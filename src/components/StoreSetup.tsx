@@ -3,8 +3,8 @@ import { ArrowLeft, Check, CheckCircle2, Hammer, PawPrint, Wrench, MapPin, Penci
 import { LogoMark } from "@/components/Logo";
 
 /* ---------- utilidades ---------- */
-const digits = (v: string) => v.replace(/\D/g, "");
-const maskPhone = (v: string) => {
+export const digits = (v: string) => v.replace(/\D/g, "");
+export const maskPhone = (v: string) => {
   const d = digits(v).slice(0, 11);
   if (d.length <= 2) return d.length ? `(${d}` : "";
   if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
@@ -53,14 +53,14 @@ export const TIPOS = [
 
 const stepTitles = ["Qual é o seu tipo de comércio?", "Dados do comércio", "Onde fica o seu comércio?", "Confira os dados"];
 
-const nextOnEnter = (id: string) => (ev: KeyboardEvent<HTMLInputElement>) => {
+export const nextOnEnter = (id: string) => (ev: KeyboardEvent<HTMLInputElement>) => {
   if (ev.key !== "Enter") return;
   ev.preventDefault();
   document.getElementById(id)?.focus();
 };
 
 /* ---------- teclado ---------- */
-function useKeyboard() {
+export function useKeyboard() {
   const [open, setOpen] = useState(false);
   useEffect(() => {
     const vv = window.visualViewport;
@@ -95,12 +95,12 @@ function useKeyboard() {
 }
 
 /* ---------- peças visuais ---------- */
-const inputCls = (err?: boolean) =>
+export const inputCls = (err?: boolean) =>
   `h-13 w-full rounded-2xl border bg-background-deep/60 px-4 text-base text-foreground outline-none transition placeholder:text-muted-foreground/60 focus-visible:ring-2 tiny:h-12 ${
     err ? "border-destructive focus-visible:ring-destructive/40" : "border-border focus-visible:border-primary focus-visible:ring-ring/40"
   }`;
 
-function Field({ label, hint, error, extra, ...props }: InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: ReactNode; error?: string; extra?: ReactNode }) {
+export function Field({ label, hint, error, extra, ...props }: InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: ReactNode; error?: string; extra?: ReactNode }) {
   const id = props.id ?? props.name;
   return (
     <div className="space-y-1 min-w-0">
@@ -126,11 +126,11 @@ function CheckBox({ checked, onChange, children }: { checked: boolean; onChange:
   );
 }
 
-const btnPrimary = (ready: boolean) =>
+export const btnPrimary = (ready: boolean) =>
   `min-h-13 w-full rounded-2xl px-4 text-base font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
     ready ? "bg-primary text-primary-foreground shadow-primary hover:brightness-110 active:scale-[0.98]" : "cursor-not-allowed border border-border bg-secondary text-muted-foreground opacity-60"
   }`;
-const btnGhost =
+export const btnGhost =
   "min-h-13 shrink-0 rounded-2xl border border-border px-5 text-base font-semibold text-foreground transition hover:border-primary focus-visible:outline-2 focus-visible:outline-ring";
 
 /* ---------- tela ---------- */
@@ -380,7 +380,7 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
   );
 }
 
-function Collapse({ show, children }: { show: boolean; children: ReactNode }) {
+export function Collapse({ show, children }: { show: boolean; children: ReactNode }) {
   return (
     <div className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${show ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
       <div className="min-h-0 overflow-hidden">{children}</div>
