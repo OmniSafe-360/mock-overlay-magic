@@ -14,6 +14,209 @@ export type Database = {
   }
   public: {
     Tables: {
+      comercios: {
+        Row: {
+          ativo: boolean
+          bairro: string
+          cep: string
+          cidade: string
+          complemento: string | null
+          created_at: string
+          documento: string
+          documento_tipo: string
+          dono_id: string
+          id: string
+          nome: string
+          numero: string | null
+          rua: string
+          sem_numero: boolean
+          telefone: string
+          telefone_whatsapp: boolean
+          tipo: Database["public"]["Enums"]["tipo_comercio"]
+          uf: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          bairro: string
+          cep: string
+          cidade: string
+          complemento?: string | null
+          created_at?: string
+          documento: string
+          documento_tipo: string
+          dono_id: string
+          id?: string
+          nome: string
+          numero?: string | null
+          rua: string
+          sem_numero?: boolean
+          telefone: string
+          telefone_whatsapp?: boolean
+          tipo: Database["public"]["Enums"]["tipo_comercio"]
+          uf: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          bairro?: string
+          cep?: string
+          cidade?: string
+          complemento?: string | null
+          created_at?: string
+          documento?: string
+          documento_tipo?: string
+          dono_id?: string
+          id?: string
+          nome?: string
+          numero?: string | null
+          rua?: string
+          sem_numero?: boolean
+          telefone?: string
+          telefone_whatsapp?: boolean
+          tipo?: Database["public"]["Enums"]["tipo_comercio"]
+          uf?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fornecedores: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          dono_id: string
+          email: string | null
+          id: string
+          nome: string
+          telefone: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          dono_id: string
+          email?: string | null
+          id?: string
+          nome: string
+          telefone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          dono_id?: string
+          email?: string | null
+          id?: string
+          nome?: string
+          telefone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      produto_variacoes: {
+        Row: {
+          codigo_barras: string | null
+          comercio_id: string
+          cor: string | null
+          created_at: string
+          id: string
+          produto_id: string
+          tamanho: string | null
+        }
+        Insert: {
+          codigo_barras?: string | null
+          comercio_id: string
+          cor?: string | null
+          created_at?: string
+          id?: string
+          produto_id: string
+          tamanho?: string | null
+        }
+        Update: {
+          codigo_barras?: string | null
+          comercio_id?: string
+          cor?: string | null
+          created_at?: string
+          id?: string
+          produto_id?: string
+          tamanho?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "variacoes_produto_fk"
+            columns: ["produto_id", "comercio_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id", "comercio_id"]
+          },
+        ]
+      }
+      produtos: {
+        Row: {
+          ativo: boolean
+          categoria: string | null
+          codigo_barras: string | null
+          comercio_id: string
+          created_at: string
+          detalhes: Json
+          fornecedor_id: string | null
+          id: string
+          marca: string | null
+          nome: string
+          preco_compra: number
+          preco_venda: number
+          unidade: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          categoria?: string | null
+          codigo_barras?: string | null
+          comercio_id: string
+          created_at?: string
+          detalhes?: Json
+          fornecedor_id?: string | null
+          id?: string
+          marca?: string | null
+          nome: string
+          preco_compra: number
+          preco_venda: number
+          unidade: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          categoria?: string | null
+          codigo_barras?: string | null
+          comercio_id?: string
+          created_at?: string
+          detalhes?: Json
+          fornecedor_id?: string | null
+          id?: string
+          marca?: string | null
+          nome?: string
+          preco_compra?: number
+          preco_venda?: number
+          unidade?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "produtos_comercio_id_fkey"
+            columns: ["comercio_id"]
+            isOneToOne: false
+            referencedRelation: "comercios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produtos_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -80,6 +283,13 @@ export type Database = {
     }
     Enums: {
       app_role: "dono" | "gerente" | "repositor"
+      tipo_comercio:
+        | "mercado"
+        | "farmacia"
+        | "loja_roupas"
+        | "material_construcao"
+        | "pet_shop"
+        | "autopecas"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -208,6 +418,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["dono", "gerente", "repositor"],
+      tipo_comercio: [
+        "mercado",
+        "farmacia",
+        "loja_roupas",
+        "material_construcao",
+        "pet_shop",
+        "autopecas",
+      ],
     },
   },
 } as const
