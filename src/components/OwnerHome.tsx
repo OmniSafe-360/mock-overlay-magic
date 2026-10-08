@@ -1,7 +1,9 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { AlertTriangle, ArrowLeft, Bell, CalendarClock, ChevronRight, Home, PackageX, Plus, ShoppingBag, Store, UserCircle, Users, CheckCircle2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { AlertTriangle, Bell, CalendarClock, ChevronRight, Home, PackageX, Plus, ShoppingBag, Store, UserCircle, Users, CheckCircle2 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import { StoreSetup, TIPOS, type StoreData } from "@/components/StoreSetup";
+import { StoreSpace } from "@/components/StoreSpace";
+import { ProductWizard, type Product, type Supplier } from "@/components/ProductArea";
 
 type Tab = "inicio" | "comercios" | "alertas" | "equipe" | "conta";
 const NAV: { id: Tab; label: string; Icon: typeof Home }[] = [
@@ -36,6 +38,10 @@ export function OwnerApp({ owner, initial }: { owner: string; initial: StoreData
   const [adding, setAdding] = useState(false);
   const [open, setOpen] = useState<number | null>(null);
   const [toast, setToast] = useState("");
+  const [products, setProducts] = useState<Record<number, Product[]>>({});
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [wizard, setWizard] = useState<{ initial?: Product | undefined } | null>(null);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -49,7 +55,17 @@ export function OwnerApp({ owner, initial }: { owner: string; initial: StoreData
         onFinish={(s) => { setStores((l) => [...l, s]); setAdding(false); setTab("inicio"); setToast("Comércio adicionado!"); }} />
     );
 
-  if (open !== null && stores[open]) return <StoreDetail store={stores[open]} onBack={() => setOpen(null)} />;
+  const cur = open !== null ? stores[open] : undefined;
+  if (wizard && cur && open !== null)
+    return (
+      <ProductWizard store={cur} products={products[open] ?? []} initial={wizard.initial} suppliers={suppliers}
+        onAddSupplier={(f) => { const id = Date.now(); setSuppliers((l) => [...l, { ...f, id }]); return id; }}
+        onCancel={() => setWizard(null)}
+        onSave={(p) => {
+          setProducts((m) => { const l = m[open] ?? []; return { ...m, [open]: l.some((x) => x.id === p.id) ? l.map((x) => (x.id === p.id ? p : x)) : [p, ...l] }; });
+          setSaved(!wizard.initial); setWizard(null); if (wizard.initial) setToast("Produto atualizado!");
+        }} />
+    );
 
   return (
     <div className="relative min-h-dvh bg-app text-foreground">
@@ -63,7 +79,7 @@ export function OwnerApp({ owner, initial }: { owner: string; initial: StoreData
         </div>
         <nav className="space-y-1">
           {NAV.map(({ id, label, Icon }) => (
-            <button key={id} type="button" onClick={() => setTab(id)} aria-current={tab === id ? "page" : undefined}
+            <button key={id} type="button" onClick={() => { setTab(id); if (id !== "inicio") setOpen(null); }} aria-current={tab === id ? "page" : undefined}
               className={`flex min-h-12 w-full items-center gap-3 rounded-2xl px-3 text-sm font-semibold transition ${tab === id ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
               <Icon size={20} className={tab === id ? "text-accent" : ""} /> {label}
             </button>
@@ -88,7 +104,10 @@ export function OwnerApp({ owner, initial }: { owner: string; initial: StoreData
         </header>
 
         <main className="mx-auto max-w-[1100px] px-5 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 md:pb-10">
-          {tab === "inicio" ? (
+          {tab === "inicio" && cur && open !== null ? (
+            <StoreSpace key={open} store={cur} products={products[open] ?? []} suppliers={suppliers} saved={saved}
+              onBack={() => { setOpen(null); setSaved(false); }} onNew={() => setWizard({})} onEdit={(p) => setWizard({ initial: p })} onDismissSaved={() => setSaved(false)} />
+          ) : tab === "inicio" ? (
             <HomeContent stores={stores} onAdd={() => setAdding(true)} onOpen={setOpen} />
           ) : (
             <Soon title={NAV.find((n) => n.id === tab)!.label} />
@@ -102,7 +121,7 @@ export function OwnerApp({ owner, initial }: { owner: string; initial: StoreData
           {NAV.map(({ id, label, Icon }) => {
             const on = tab === id;
             return (
-              <button key={id} type="button" onClick={() => setTab(id)} aria-current={on ? "page" : undefined}
+              <button key={id} type="button" onClick={() => { setTab(id); if (id !== "inicio") setOpen(null); }} aria-current={on ? "page" : undefined}
                 className={`flex min-h-16 flex-col items-center justify-center gap-1 text-[11px] font-semibold transition ${on ? "text-accent" : "text-muted-foreground"}`}>
                 <Icon size={22} /> {label}
               </button>
@@ -196,36 +215,6 @@ function Soon({ title }: { title: string }) {
     <div className="flex flex-col items-center justify-center gap-2 py-24 text-center animate-in fade-in duration-300">
       <h1 className="text-2xl font-bold">{title}</h1>
       <p className="text-muted-foreground">Em breve</p>
-    </div>
-  );
-}
-
-function StoreDetail({ store, onBack }: { store: StoreData; onBack: () => void }) {
-  const Icon = iconOf(store.tipo);
-  return (
-    <Screen>
-      <button type="button" onClick={onBack} className="flex min-h-12 items-center gap-2 rounded-2xl pr-3 text-sm font-semibold text-primary">
-        <ArrowLeft size={18} /> Voltar
-      </button>
-      <div className="mt-6 flex flex-col items-center text-center">
-        <span className="flex h-20 w-20 items-center justify-center rounded-3xl bg-secondary text-primary"><Icon size={40} /></span>
-        <h1 className="mt-4 text-2xl font-bold">{store.nome}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {store.rua}, {store.numero} · {store.bairro}<br />{store.cidade} - {store.uf}
-        </p>
-        <p className="mt-8 rounded-3xl border border-border bg-secondary/60 p-5 text-sm text-muted-foreground">
-          O espaço deste comércio será criado na próxima etapa.
-        </p>
-      </div>
-    </Screen>
-  );
-}
-
-function Screen({ children }: { children: ReactNode }) {
-  return (
-    <div className="relative min-h-dvh bg-app text-foreground">
-      <Backdrop />
-      <div className="safe-area relative mx-auto max-w-[480px] animate-in fade-in slide-in-from-right-8 duration-300">{children}</div>
     </div>
   );
 }
