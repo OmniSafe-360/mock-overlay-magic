@@ -232,7 +232,7 @@ export function StoreSetup() {
             <form noValidate onSubmit={(ev) => { ev.preventDefault(); next(); }} className="flex min-h-0 flex-1 flex-col">
               {!kb && (
                 <div className="mt-5 shrink-0 text-center short:mt-3 tiny:mt-2">
-                  <h1 className="text-xl font-bold text-foreground short:text-lg">Vamos cadastrar o seu comércio</h1>
+                  <h1 className="text-xl font-bold text-foreground short:text-lg tiny:text-base">Vamos cadastrar o seu comércio</h1>
                   <p className="mt-1 text-sm text-muted-foreground tiny:hidden">Leva menos de 2 minutos. Você pode mudar tudo depois.</p>
                 </div>
               )}
@@ -246,7 +246,7 @@ export function StoreSetup() {
                 </div>
               </div>
 
-              <div key={step} className={`mt-4 min-h-0 space-y-3 animate-in fade-in duration-300 short:mt-3 short:space-y-2.5 tiny:space-y-2 ${dir === 1 ? "slide-in-from-right-8" : "slide-in-from-left-8"}`}>
+              <div key={step} className={`mt-4 min-h-0 space-y-3 animate-in tiny:mt-2.5 fade-in duration-300 short:mt-3 short:space-y-2.5 tiny:space-y-2 ${dir === 1 ? "slide-in-from-right-8" : "slide-in-from-left-8"}`}>
                 {step === 0 && (
                   <>
                     <div className="grid grid-cols-2 gap-2.5 tiny:gap-2">
