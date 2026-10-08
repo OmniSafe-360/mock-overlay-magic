@@ -249,16 +249,16 @@ export function StoreSetup() {
               <div key={step} className={`mt-4 min-h-0 space-y-3 animate-in tiny:mt-2.5 fade-in duration-300 short:mt-3 short:space-y-2.5 tiny:space-y-2 ${dir === 1 ? "slide-in-from-right-8" : "slide-in-from-left-8"}`}>
                 {step === 0 && (
                   <>
-                    <div className="grid grid-cols-2 gap-2.5 tiny:gap-2">
+                    <div className="grid grid-cols-2 gap-3 tiny:gap-2">
                       {TIPOS.map(({ id, nome: n, Icon }) => {
                         const on = tipo === id;
                         return (
                           <button key={id} type="button" aria-pressed={on} onClick={() => setTipo(id)}
-                            className={`relative flex min-h-[84px] flex-col items-center justify-center gap-1.5 rounded-2xl border bg-background-deep/60 px-2 py-3 text-center text-sm font-semibold text-foreground transition focus-visible:outline-2 focus-visible:outline-ring short:min-h-[68px] short:py-2 tiny:min-h-[52px] tiny:flex-row tiny:justify-start tiny:gap-2 tiny:px-3 tiny:text-left tiny:text-xs ${on ? "border-accent bg-accent/10" : "border-border hover:border-primary"}`}>
-                            <Icon size={26} className={`shrink-0 short:h-5 short:w-5 ${on ? "text-accent" : "text-primary"}`} />
+                            className={`relative flex min-h-[100px] flex-col items-center justify-center gap-2 rounded-2xl border bg-background-deep/60 px-2 py-3 text-center text-sm font-semibold text-foreground transition focus-visible:outline-2 focus-visible:outline-ring short:min-h-[76px] short:gap-1.5 short:py-2 tiny:min-h-[60px] tiny:gap-1 tiny:text-xs ${on ? "border-accent bg-accent/10" : "border-border hover:border-primary"}`}>
+                            <Icon size={28} className={`shrink-0 short:h-6 short:w-6 tiny:h-5 tiny:w-5 ${on ? "text-accent" : "text-primary"}`} />
                             <span className="leading-tight">{n}</span>
                             {on && (
-                              <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-accent-foreground tiny:top-1/2 tiny:-translate-y-1/2">
+                              <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-accent-foreground tiny:h-4 tiny:w-4">
                                 <Check size={13} strokeWidth={3} />
                               </span>
                             )}
@@ -266,13 +266,12 @@ export function StoreSetup() {
                         );
                       })}
                     </div>
-                    {tipo === "outro" ? (
-                      <Field label="Qual é o seu tipo de comércio?" name="outro" autoComplete="off" enterKeyHint="done" placeholder="Ex.: Pet shop" autoFocus
-                        value={outro} onChange={(x) => setOutro(x.target.value)} onBlur={blur("outro")} error={touched["outro"] ? errs.outro : ""}
-                        hint="Isso adapta o sistema ao seu negócio." />
-                    ) : (
-                      <p className="text-xs text-muted-foreground">Isso adapta o sistema ao seu negócio: unidades de medida e variações dos produtos.</p>
-                    )}
+                    <Collapse show={!!tipo}>
+                      <p key={tipo} className="text-center text-sm font-medium text-accent animate-in fade-in duration-300 tiny:text-xs">
+                        {TIPOS.find((t) => t.id === tipo)?.desc}
+                      </p>
+                    </Collapse>
+                    <p className="text-center text-xs text-muted-foreground">Isso adapta o sistema ao seu negócio: unidades de medida e variações dos produtos.</p>
                   </>
                 )}
 
