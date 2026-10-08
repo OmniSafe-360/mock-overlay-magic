@@ -130,7 +130,7 @@ function Row({ t, children }: { t: string; children: ReactNode }) {
 const TITLES = ["Qual é o código do produto?", "Preço e unidade", "Detalhes do produto", "Quem é o fornecedor?", "Conferir e salvar"];
 
 export function ProductWizard({ store, products, initial, suppliers, onAddSupplier, onCancel, onSave }: {
-  store: StoreData; products: Product[]; initial?: Product; suppliers: Supplier[];
+  store: StoreData; products: Product[]; initial?: Product | undefined; suppliers: Supplier[];
   onAddSupplier: (s: Omit<Supplier, "id">) => number; onCancel: () => void; onSave: (p: Product) => void;
 }) {
   const kb = useKeyboard();

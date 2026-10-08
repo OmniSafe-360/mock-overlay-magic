@@ -40,7 +40,7 @@ export function OwnerApp({ owner, initial }: { owner: string; initial: StoreData
   const [toast, setToast] = useState("");
   const [products, setProducts] = useState<Record<number, Product[]>>({});
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [wizard, setWizard] = useState<{ initial?: Product } | null>(null);
+  const [wizard, setWizard] = useState<{ initial?: Product | undefined } | null>(null);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
