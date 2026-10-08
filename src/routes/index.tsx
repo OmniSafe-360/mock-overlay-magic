@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
 import { Eye, EyeOff, Check, CheckCircle2, ArrowLeft, MailCheck } from "lucide-react";
 import { Logo, LogoMark } from "@/components/Logo";
-import { StoreSetup, Entering } from "@/components/StoreSetup";
+import { StoreSetup, Entering, TIPO_FROM_DB, type StoreData } from "@/components/StoreSetup";
 import { OwnerApp } from "@/components/OwnerHome";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -511,7 +511,7 @@ function Index() {
   const [phase, setPhase] = useState<"auth" | "loading" | "store" | "home">("auth");
   const [owner, setOwner] = useState("");
   const [account, setAccount] = useState({ nome: "", email: "" });
-  const [first, setFirst] = useState<import("@/components/StoreSetup").StoreData | null>(null);
+  const [stores, setStores] = useState<StoreData[]>([]);
   const [oauthError] = useState(readOAuthError);
   const [confirmEmail, setConfirmEmail] = useState("");
   const [okMsg, setOkMsg] = useState("");
@@ -538,14 +538,14 @@ function Index() {
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") { recoveryRef.current = true; setRecovery(true); setPhase("auth"); return; }
       if (event === "SIGNED_IN") setTimeout(() => load(session?.user, true), 0);
-      if (event === "SIGNED_OUT") { setPhase("auth"); setFirst(null); setAccount({ nome: "", email: "" }); setOwner(""); }
+      if (event === "SIGNED_OUT") { setPhase("auth"); setStores([]); setAccount({ nome: "", email: "" }); setOwner(""); }
     });
     return () => sub.subscription.unsubscribe();
   }, []);
-  const logout = () => { void supabase.auth.signOut(); setPhase("auth"); setView("entrar"); };
+  const logout = () => { void supabase.auth.signOut(); setStores([]); setPhase("auth"); setView("entrar"); };
   if (phase === "loading") return <Entering />;
-  if (phase === "store") return <StoreSetup onFinish={(s) => { setFirst(s); setPhase("home"); }} />;
-  if (phase === "home") return <OwnerApp owner={owner} fullName={account.nome} email={account.email} onLogout={logout} initial={first ? [first] : []} />;
+  if (phase === "store") return <StoreSetup onFinish={(s) => { setStores([s]); setPhase("home"); }} />;
+  if (phase === "home") return <OwnerApp owner={owner} fullName={account.nome} email={account.email} onLogout={logout} initial={stores} />;
   return (
     <div className="relative h-app overflow-hidden bg-app">
       <div className="pointer-events-none absolute inset-0 bg-dots" />
