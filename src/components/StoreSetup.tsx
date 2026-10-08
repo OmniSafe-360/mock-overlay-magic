@@ -74,7 +74,17 @@ export function useKeyboard() {
       setOpen(kb);
       if (kb) {
         window.scrollTo(0, 0);
-        setTimeout(() => el?.scrollIntoView({ block: "center", behavior: "smooth" }), 60);
+        setTimeout(() => {
+          if (!el) return;
+          const box = el.closest("[data-kb-scroll]");
+          if (box) {
+            const next = Array.from(box.querySelectorAll('label:has(input[type="checkbox"])')).find(
+              (c) => !!(el.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING),
+            );
+            next?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          }
+          el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }, 80);
       }
     };
     const out = () => setTimeout(update, 50);
@@ -109,7 +119,7 @@ export function Field({ label, hint, error, extra, ...props }: InputHTMLAttribut
         {extra}
       </div>
       <input id={id} {...props} aria-invalid={!!error} className={inputCls(!!error)} />
-      {error ? <p className="text-xs text-destructive">{error}</p> : hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+      {error ? <p className="text-xs text-destructive">{error}</p> : hint ? <p className="field-hint text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }
@@ -243,15 +253,15 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
       <div className="pointer-events-none absolute inset-0 bg-dots" />
       <div className="pointer-events-none absolute left-1/2 top-0 h-[520px] w-[520px] -translate-x-1/2 -translate-y-24 bg-glow" />
       <main className={`app-top relative flex h-full flex-col items-center overflow-hidden ${kb ? "app-top-kb" : ""}`}>
-        <div className="flex max-h-full w-full max-w-[480px] flex-col sm:relative sm:rounded-3xl sm:border sm:border-border sm:bg-card sm:p-8 sm:backdrop-blur-xl short:sm:p-6">
+        <div className="flex h-full max-h-full w-full max-w-[480px] flex-col sm:relative sm:h-auto sm:rounded-3xl sm:border sm:border-border sm:bg-card sm:p-8 sm:backdrop-blur-xl short:sm:p-6">
           {/* logo mini fixa */}
           {mode === "add" && (
             <button type="button" onClick={onCancel} aria-label="Cancelar" className="absolute right-3 top-3 z-10 flex h-12 w-12 items-center justify-center rounded-2xl text-muted-foreground hover:text-foreground sm:right-4 sm:top-4" style={{ marginTop: "env(safe-area-inset-top)" }}>
               <X size={22} />
             </button>
           )}
-          <div className="flex shrink-0 items-center justify-center gap-2.5">
-            <LogoMark size={kb ? 28 : 40} />
+          <div className={`flex shrink-0 items-center justify-center gap-2.5 overflow-hidden transition-all duration-300 ${kb ? "max-h-0 opacity-0" : "max-h-16 opacity-100"}`}>
+            <LogoMark size={40} />
             <span className="whitespace-nowrap text-base font-bold tracking-[0.16em] text-foreground">
               OMNI SAFE <span className="text-accent">360</span>
             </span>
@@ -261,14 +271,13 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
             <Success nome={nome} onContinue={finish} />
           ) : (
             <form noValidate onSubmit={(ev) => { ev.preventDefault(); next(); }} className="flex min-h-0 flex-1 flex-col">
-              {!kb && (
-                <div className="mt-5 shrink-0 text-center short:mt-3 tiny:mt-2">
+              <div className={`shrink-0 overflow-hidden text-center transition-all duration-300 ${kb ? "max-h-0 opacity-0" : "mt-5 max-h-24 opacity-100 short:mt-3 tiny:mt-2"}`}>
                   <h1 className="text-xl font-bold text-foreground short:text-lg tiny:text-base">{mode === "add" ? "Adicionar comércio" : "Vamos cadastrar o seu comércio"}</h1>
                   <p className="mt-1 text-sm text-muted-foreground tiny:hidden">Leva menos de 2 minutos. Você pode mudar tudo depois.</p>
-                </div>
-              )}
-              <div className={`shrink-0 ${kb ? "mt-3" : "mt-5 short:mt-3 tiny:mt-2"}`}>
-                <div className="mb-2 flex items-baseline justify-between gap-2">
+              </div>
+              <div className={`shrink-0 transition-all duration-300 ${kb ? "mt-0" : "mt-5 short:mt-3 tiny:mt-2"}`}>
+                <div className={`flex items-center justify-between gap-2 ${kb ? "mb-1.5" : "mb-2"}`}>
+                  {kb && <span className="shrink-0"><LogoMark size={20} /></span>}
                   <span className="min-w-0 truncate text-base font-semibold text-foreground short:text-sm">{stepTitles[step]}</span>
                   <span className="shrink-0 text-xs text-muted-foreground">Passo {step + 1} de 4</span>
                 </div>
@@ -277,7 +286,7 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
                 </div>
               </div>
 
-              <div key={step} className={`mt-4 min-h-0 space-y-3 animate-in tiny:mt-2.5 fade-in duration-300 short:mt-3 short:space-y-2.5 tiny:space-y-2 ${dir === 1 ? "slide-in-from-right-8" : "slide-in-from-left-8"}`}>
+              <div key={step} data-kb-scroll className={`min-h-0 flex-1 overflow-y-auto overscroll-contain animate-in fade-in duration-300 ${kb ? "mt-2 space-y-2 pb-1 [&_.field-hint]:hidden" : "mt-4 space-y-3 short:mt-3 short:space-y-2.5 tiny:mt-2.5 tiny:space-y-2"} ${dir === 1 ? "slide-in-from-right-8" : "slide-in-from-left-8"}`}>
                 {step === 0 && (
                   <>
                     <div className="grid grid-cols-2 gap-3 tiny:gap-2">
@@ -419,7 +428,7 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
                 )}
               </div>
 
-              <div className="mt-auto flex shrink-0 gap-2 pt-4 short:pt-3">
+              <div className={`flex shrink-0 gap-2 ${kb ? "pt-2" : "pt-4 short:pt-3"}`}>
                 {step > 0 && (
                   <button type="button" onClick={() => { setFromReview(false); go(step - 1); }} className={btnGhost} aria-label="Voltar">
                     <span className="flex items-center gap-1.5"><ArrowLeft size={18} />Voltar</span>
