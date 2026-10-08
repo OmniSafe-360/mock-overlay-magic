@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
-import { ArrowLeft, Beef, Check, CheckCircle2, Croissant, MapPin, Pencil, Pill, Shirt, ShoppingCart, Store, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, CheckCircle2, Hammer, PawPrint, Wrench, MapPin, Pencil, Pill, Shirt, ShoppingCart, X, Loader2 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 
 /* ---------- utilidades ---------- */
@@ -43,12 +43,12 @@ function cnpjOk(v: string) {
 const UFS = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
 
 const TIPOS = [
-  { id: "mercado", nome: "Mercado", Icon: ShoppingCart },
-  { id: "farmacia", nome: "Farmácia", Icon: Pill },
-  { id: "roupas", nome: "Loja de roupas", Icon: Shirt },
-  { id: "acougue", nome: "Açougue", Icon: Beef },
-  { id: "padaria", nome: "Padaria", Icon: Croissant },
-  { id: "outro", nome: "Outro tipo de comércio", Icon: Store },
+  { id: "mercado", nome: "Mercado", Icon: ShoppingCart, desc: "Controle de estoque, gôndola, validade e caixa." },
+  { id: "farmacia", nome: "Farmácia", Icon: Pill, desc: "Controle de validade, lote e estoque de medicamentos." },
+  { id: "roupas", nome: "Loja de roupas", Icon: Shirt, desc: "Variações de tamanho e cor em cada produto." },
+  { id: "construcao", nome: "Material de construção", Icon: Hammer, desc: "Produtos por unidade, metro, caixa ou saco." },
+  { id: "pet", nome: "Pet shop", Icon: PawPrint, desc: "Rações, acessórios e produtos com validade." },
+  { id: "autopecas", nome: "Autopeças", Icon: Wrench, desc: "Peças por código, aplicação e localização." },
 ] as const;
 
 const stepTitles = ["Qual é o seu tipo de comércio?", "Dados do comércio", "Onde fica o seu comércio?", "Confira os dados"];
@@ -145,7 +145,6 @@ export function StoreSetup() {
   const [notice, setNotice] = useState(false);
 
   const [tipo, setTipo] = useState<string>("");
-  const [outro, setOutro] = useState("");
   const [nome, setNome] = useState("");
   const [docType, setDocType] = useState<"CNPJ" | "CPF">("CNPJ");
   const [doc, setDoc] = useState("");
@@ -188,7 +187,6 @@ export function StoreSetup() {
   const docValid = docType === "CNPJ" ? cnpjOk(doc) : cpfOk(doc);
   const docLen = docType === "CNPJ" ? 14 : 11;
   const errs = {
-    outro: tipo === "outro" && !outro.trim() ? "Conte qual é o seu tipo de comércio." : "",
     nome: !nome.trim() ? "Informe o nome do comércio." : "",
     doc: !digits(doc) ? `Informe o ${docType}.` : digits(doc).length < docLen ? `${docType} incompleto.` : !docValid ? `${docType} inválido, confira os números` : "",
     tel: digits(tel).length < 10 ? "Telefone incompleto." : "",
@@ -196,7 +194,7 @@ export function StoreSetup() {
   };
   const addrOk = !!addr && !!addr.rua.trim() && !!addr.bairro.trim() && !!addr.cidade.trim() && !!addr.uf;
   const valid = [
-    !!tipo && !errs.outro,
+    !!tipo,
     !errs.nome && !errs.doc && !errs.tel,
     digits(cep).length === 8 && addrOk && !errs.numero,
     true,
@@ -210,7 +208,7 @@ export function StoreSetup() {
     go(step + 1);
   };
   const edit = (s: number) => { setFromReview(true); go(s); };
-  const tipoNome = tipo === "outro" ? outro : TIPOS.find((t) => t.id === tipo)?.nome ?? "";
+  const tipoNome = TIPOS.find((t) => t.id === tipo)?.nome ?? "";
 
   return (
     <div className="relative h-app overflow-hidden bg-app">
@@ -249,16 +247,16 @@ export function StoreSetup() {
               <div key={step} className={`mt-4 min-h-0 space-y-3 animate-in tiny:mt-2.5 fade-in duration-300 short:mt-3 short:space-y-2.5 tiny:space-y-2 ${dir === 1 ? "slide-in-from-right-8" : "slide-in-from-left-8"}`}>
                 {step === 0 && (
                   <>
-                    <div className="grid grid-cols-2 gap-2.5 tiny:gap-2">
+                    <div className="grid grid-cols-2 gap-3 tiny:gap-2">
                       {TIPOS.map(({ id, nome: n, Icon }) => {
                         const on = tipo === id;
                         return (
                           <button key={id} type="button" aria-pressed={on} onClick={() => setTipo(id)}
-                            className={`relative flex min-h-[84px] flex-col items-center justify-center gap-1.5 rounded-2xl border bg-background-deep/60 px-2 py-3 text-center text-sm font-semibold text-foreground transition focus-visible:outline-2 focus-visible:outline-ring short:min-h-[68px] short:py-2 tiny:min-h-[52px] tiny:flex-row tiny:justify-start tiny:gap-2 tiny:px-3 tiny:text-left tiny:text-xs ${on ? "border-accent bg-accent/10" : "border-border hover:border-primary"}`}>
-                            <Icon size={26} className={`shrink-0 short:h-5 short:w-5 ${on ? "text-accent" : "text-primary"}`} />
+                            className={`relative flex min-h-[100px] flex-col items-center justify-center gap-2 rounded-2xl border bg-background-deep/60 px-2 py-3 text-center text-sm font-semibold text-foreground transition focus-visible:outline-2 focus-visible:outline-ring short:min-h-[76px] short:gap-1.5 short:py-2 tiny:min-h-[60px] tiny:gap-1 tiny:text-xs ${on ? "border-accent bg-accent/10" : "border-border hover:border-primary"}`}>
+                            <Icon size={28} className={`shrink-0 short:h-6 short:w-6 tiny:h-5 tiny:w-5 ${on ? "text-accent" : "text-primary"}`} />
                             <span className="leading-tight">{n}</span>
                             {on && (
-                              <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-accent-foreground tiny:top-1/2 tiny:-translate-y-1/2">
+                              <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-accent-foreground tiny:h-4 tiny:w-4">
                                 <Check size={13} strokeWidth={3} />
                               </span>
                             )}
@@ -266,13 +264,12 @@ export function StoreSetup() {
                         );
                       })}
                     </div>
-                    {tipo === "outro" ? (
-                      <Field label="Qual é o seu tipo de comércio?" name="outro" autoComplete="off" enterKeyHint="done" placeholder="Ex.: Pet shop" autoFocus
-                        value={outro} onChange={(x) => setOutro(x.target.value)} onBlur={blur("outro")} error={touched["outro"] ? errs.outro : ""}
-                        hint="Isso adapta o sistema ao seu negócio." />
-                    ) : (
-                      <p className="text-xs text-muted-foreground">Isso adapta o sistema ao seu negócio: unidades de medida e variações dos produtos.</p>
-                    )}
+                    <Collapse show={!!tipo}>
+                      <p key={tipo} className="text-center text-sm font-medium text-accent animate-in fade-in duration-300 tiny:text-xs">
+                        {TIPOS.find((t) => t.id === tipo)?.desc}
+                      </p>
+                    </Collapse>
+                    <p className="text-center text-xs text-muted-foreground">Isso adapta o sistema ao seu negócio: unidades de medida e variações dos produtos.</p>
                   </>
                 )}
 
@@ -372,6 +369,14 @@ export function StoreSetup() {
       {sheet && addr && (
         <AddressSheet initial={addr} onClose={() => setSheet(false)} onSave={(a) => { setAddr(a); setSheet(false); setCepState("idle"); }} />
       )}
+    </div>
+  );
+}
+
+function Collapse({ show, children }: { show: boolean; children: ReactNode }) {
+  return (
+    <div className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${show ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+      <div className="min-h-0 overflow-hidden">{children}</div>
     </div>
   );
 }
