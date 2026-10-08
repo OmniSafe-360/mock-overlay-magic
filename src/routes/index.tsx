@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
 import { Eye, EyeOff, Check, CheckCircle2, ArrowLeft, MailCheck } from "lucide-react";
 import { Logo, LogoMark } from "@/components/Logo";
-import { StoreSetup, Entering } from "@/components/StoreSetup";
+import { StoreSetup, Entering, TIPO_FROM_DB, type StoreData } from "@/components/StoreSetup";
 import { OwnerApp } from "@/components/OwnerHome";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -508,42 +508,70 @@ function Collapse({ hidden, children }: { hidden: boolean; children: ReactNode }
 function Index() {
   const [view, setView] = useState<"entrar" | "criar" | "recuperar">("entrar");
   const kb = useKeyboard();
-  const [phase, setPhase] = useState<"auth" | "loading" | "store" | "home">("auth");
+  const [phase, setPhase] = useState<"auth" | "loading" | "store" | "home" | "error">("auth");
   const [owner, setOwner] = useState("");
   const [account, setAccount] = useState({ nome: "", email: "" });
-  const [first, setFirst] = useState<import("@/components/StoreSetup").StoreData | null>(null);
+  const [stores, setStores] = useState<StoreData[]>([]);
   const [oauthError] = useState(readOAuthError);
   const [confirmEmail, setConfirmEmail] = useState("");
   const [okMsg, setOkMsg] = useState("");
   const [recovery, setRecovery] = useState(false);
   const recoveryRef = useRef(false);
+  const loadingRef = useRef(false);
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
+  const fetchRef = useRef<(animate: boolean) => Promise<void>>(async () => {});
   useEffect(() => {
     if (window.location.hash.includes("type=recovery")) { recoveryRef.current = true; setRecovery(true); }
+    const fetchStores = async (animate: boolean) => {
+      const t0 = Date.now();
+      let list: StoreData[] | null = null;
+      try {
+        const { data: rows, error } = await supabase.from("comercios").select("id,tipo,nome,cidade,uf,rua,numero,sem_numero,bairro").eq("ativo", true).order("created_at", { ascending: true });
+        if (!error) list = (rows ?? []).map((r) => ({ id: r.id, tipo: TIPO_FROM_DB[r.tipo] ?? r.tipo, nome: r.nome, cidade: r.cidade, uf: r.uf, rua: r.rua, numero: r.sem_numero ? "s/n" : (r.numero ?? ""), bairro: r.bairro }));
+      } catch { list = null; }
+      const wait = animate ? Math.max(0, 1000 - (Date.now() - t0)) : 0;
+      setTimeout(() => {
+        if (!loadingRef.current) return;
+        if (!list) { setPhase("error"); return; }
+        setStores(list);
+        setPhase(list.length ? "home" : "store");
+      }, wait);
+    };
+    fetchRef.current = fetchStores;
     const load = async (user: { id: string; email?: string; user_metadata?: Record<string, unknown> } | null | undefined, animate: boolean) => {
       if (!user || recoveryRef.current) return;
+      if (loadingRef.current) return;
+      loadingRef.current = true;
+      if (phaseRef.current === "auth") setPhase("loading");
       const { data } = await supabase.from("profiles").select("nome").eq("id", user.id).maybeSingle();
       const nome = String(data?.nome ?? user.user_metadata?.["full_name"] ?? user.user_metadata?.["name"] ?? "").trim();
       setOwner(nome.split(/\s+/)[0] ?? "");
       setAccount({ nome, email: user.email ?? "" });
-      setPhase((p) => {
-        if (p !== "auth") return p;
-        if (!animate) return "store";
-        setTimeout(() => setPhase((q) => (q === "loading" ? "store" : q)), 1000);
-        return "loading";
-      });
+      await fetchStores(animate);
     };
     supabase.auth.getSession().then(({ data }) => load(data.session?.user, false));
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") { recoveryRef.current = true; setRecovery(true); setPhase("auth"); return; }
       if (event === "SIGNED_IN") setTimeout(() => load(session?.user, true), 0);
-      if (event === "SIGNED_OUT") { setPhase("auth"); setFirst(null); setAccount({ nome: "", email: "" }); setOwner(""); }
+      if (event === "SIGNED_OUT") { loadingRef.current = false; setPhase("auth"); setStores([]); setAccount({ nome: "", email: "" }); setOwner(""); }
     });
     return () => sub.subscription.unsubscribe();
   }, []);
-  const logout = () => { void supabase.auth.signOut(); setPhase("auth"); setView("entrar"); };
+  const logout = () => { loadingRef.current = false; void supabase.auth.signOut(); setStores([]); setPhase("auth"); setView("entrar"); };
   if (phase === "loading") return <Entering />;
-  if (phase === "store") return <StoreSetup onFinish={(s) => { setFirst(s); setPhase("home"); }} />;
-  if (phase === "home") return <OwnerApp owner={owner} fullName={account.nome} email={account.email} onLogout={logout} initial={first ? [first] : []} />;
+  if (phase === "error")
+    return (
+      <div className="relative flex h-app flex-col items-center justify-center gap-5 overflow-hidden bg-app px-6 text-center">
+        <div className="pointer-events-none absolute inset-0 bg-dots" />
+        <LogoMark size={56} />
+        <p className="relative max-w-xs text-base text-foreground">Não foi possível carregar seus comércios. Verifique sua internet.</p>
+        <button type="button" onClick={() => { setPhase("loading"); void fetchRef.current(true); }}
+          className="relative h-12 rounded-2xl bg-primary px-6 font-semibold text-primary-foreground">Tentar de novo</button>
+      </div>
+    );
+  if (phase === "store") return <StoreSetup onFinish={(s) => { setStores([s]); setPhase("home"); }} />;
+  if (phase === "home") return <OwnerApp owner={owner} fullName={account.nome} email={account.email} onLogout={logout} initial={stores} />;
   return (
     <div className="relative h-app overflow-hidden bg-app">
       <div className="pointer-events-none absolute inset-0 bg-dots" />
