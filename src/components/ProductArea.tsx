@@ -10,6 +10,7 @@ import {
   rotuloSoltas, totalContado, type Embalagem,
 } from "@/lib/embalagem";
 import { ImprimirEtiquetaSheet } from "@/components/Etiqueta";
+import { avisoCodigo } from "@/lib/codigoBarras";
 import { AUTOPECAS_VARS_MSG, POSICAO_MSG, CONSTRUCAO_VARS_MSG, CONTROLADO_MSG, ESPECIE_MSG, PET_VARS_MSG, FARMACIA_VARS_MSG, firstInvalidStep, typeRuleError, type TypeRules, mainCodeError, usedCodes, variationErrors, variationOk } from "@/lib/variations";
 import {
   ACIMA_MAX, LOCAL_DUP, LOCAL_PENDENTE, REMOCAO_BLOQUEADA, SEM_CONFIG, TEMPORARIO, aceitaFracao, fmtQ, limitesErro, limitesStatus, localDuplicado,
@@ -814,7 +815,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                     <Field label="Código do produto" name="codigo" inputMode="numeric" autoComplete="off" enterKeyHint="next" placeholder="Ex.: 7891234567890"
                       autoFocus={!codigo} onKeyDown={nextOnEnter("pnome")} value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\s/g, "").slice(0, 60))}
                       error={codeErr}
-                      hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : gerador.criado && codigo === gerador.criado ? CODIGO_CRIADO : "Os números abaixo do código de barras."}
+                      hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : gerador.criado && codigo === gerador.criado ? CODIGO_CRIADO : ajudaCodigo(codigo, "Os números abaixo do código de barras.")}
                       extra={<button type="button" onClick={() => { setDenied(false); setScan(true); }} className="flex min-h-9 items-center gap-1 text-sm font-semibold text-primary"><ScanLine size={16} /> Escanear</button>} />
                   )}
                   {onGerarCodigo && codeMode === "type" && !codigo.trim() && (
@@ -1366,6 +1367,12 @@ function LimitesAjuda() {
   );
 }
 
+/** Ajuda do campo de código: o aviso de "parece digitado errado" tem prioridade sobre o texto normal. */
+const ajudaCodigo = (codigo: string, normal: ReactNode): ReactNode => {
+  const a = avisoCodigo(codigo);
+  return a ? <span className="text-warning">{a}</span> : normal;
+};
+
 export const CODIGO_CRIADO = "Código criado pelo sistema para este produto.";
 export const CODIGO_ERRO = "Não foi possível criar o código. Verifique sua internet e tente de novo.";
 
@@ -1461,7 +1468,7 @@ function VariationSheet({ index, vars, mainCode, used, onGerarCodigo, onClose, o
           <Field label="Código de barras" name="vcod" id="vcod" inputMode="numeric" autoComplete="off" enterKeyHint="next" onKeyDown={nextOnEnter("vqtd")} placeholder="Ex.: 7891234567890"
             value={cod} onChange={(e) => setCod(e.target.value.replace(/\s/g, "").slice(0, 60))}
             error={cod.trim() || init ? errs.codigo ?? "" : ""}
-            hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : gerador.criado && cod === gerador.criado ? CODIGO_CRIADO : "Código próprio deste tamanho e cor."}
+            hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : gerador.criado && cod === gerador.criado ? CODIGO_CRIADO : ajudaCodigo(cod, "Código próprio deste tamanho e cor.")}
             extra={<button type="button" onClick={() => { setDenied(false); setScan(true); }} className="flex min-h-9 items-center gap-1 text-sm font-semibold text-primary"><ScanLine size={16} /> Escanear</button>} />
           {onGerarCodigo && !cod.trim() && (
             <button type="button" disabled={gerador.gerando} className="-mt-1 flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary disabled:opacity-60"
@@ -1514,7 +1521,7 @@ function EmbalagemSheet({ index, lista, unidade, codigoProduto, usados, compra, 
             error={qErr} hint={`Ex.: caixa com 12 ${nomeUn === "unidade" ? "unidades" : nomeUn}.`} />
           <Field label="Código de barras da embalagem (opcional)" name="ecod" id="ecod" inputMode="numeric" autoComplete="off" enterKeyHint="next" onKeyDown={nextOnEnter("epreco")}
             placeholder="Ex.: 17891234567890" value={cod} onChange={(e) => setCod(e.target.value.replace(/\s/g, "").slice(0, 60))} error={errs.codigo ?? ""}
-            hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : gerador.criado && cod === gerador.criado ? CODIGO_CRIADO : "O código impresso na caixa, se tiver."}
+            hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : gerador.criado && cod === gerador.criado ? CODIGO_CRIADO : ajudaCodigo(cod, "O código impresso na caixa, se tiver.")}
             extra={<button type="button" onClick={() => { setDenied(false); setScan(true); }} className="flex min-h-9 items-center gap-1 text-sm font-semibold text-primary"><ScanLine size={16} /> Escanear</button>} />
           {onGerarCodigo && !cod.trim() && (
             <button type="button" disabled={gerador.gerando} className="-mt-1 flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary disabled:opacity-60"
