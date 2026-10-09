@@ -239,7 +239,7 @@ describe("pendências registradas: proteção por origem", () => {
     { id: "p1", qtd: 10, data: "2027-04-12", lote: null, pendConf: true }, { id: "p2", qtd: 10, data: "2027-05-12", lote: null, pendConf: true },
   ] } };
   const msg1 = /A pendência registrada de 10 Caixa \(vence 12\/04\/2027\) agora soma 15 Caixa/;
-  const irDep = (t: { submit: () => void }) => { for (let i = 0; i < 10; i++) t.submit(); expect(screen.getByText("Validades no depósito")).toBeTruthy(); };
+  const irDep = (t: { submit: () => void }) => { for (let i = 0; i < 12; i++) t.submit(); expect(screen.getByText("Validades no depósito")).toBeTruthy(); };
 
   it("duas pendências de 10 não podem virar 15 e 5, mesmo com o total da área correto", () => {
     const t = setup("farmacia", farmBase(duas));
@@ -290,7 +290,7 @@ describe("pendências registradas: proteção por origem", () => {
 
   it("editar pelo resumo não contorna a proteção", () => {
     const t = setup("farmacia", farmBase(duas));
-    for (let i = 0; i < 12; i++) t.submit();
+    for (let i = 0; i < 14; i++) t.submit();
     expect(screen.getByText("Salvar produto")).toBeTruthy();
     const sec = screen.getByText("Validades por área").closest("div")!.parentElement!;
     fireEvent.click(sec.querySelector("button")!);
@@ -346,7 +346,7 @@ describe("variações e lotes não se misturam", () => {
 
   it("mudar a ordem das variações mantém as validades no uid certo; mesmo lote em variações diferentes não é conflito", () => {
     const t = setup("roupas", roupa([vB, vA]));
-    for (let i = 0; i < 12; i++) t.submit();
+    for (let i = 0; i < 13; i++) t.submit();
     expect(t.onSave).toHaveBeenCalledTimes(1);
     const v = saved(t.onSave).validade!;
     expect(v.dep["uA"]![0]!.data).toBe("2026-12-10");
@@ -358,7 +358,7 @@ describe("variações e lotes não se misturam", () => {
     const onSave = vi.fn();
     render(<ProductWizard store={{ id: "s", nome: "Loja", tipo: "roupas" } as never} products={[roupa([vA, vB]), outro]} initial={roupa([vA, vB])}
       suppliers={[]} onAddSupplier={() => 1} onCancel={() => {}} onSave={onSave} />);
-    for (let i = 0; i < 12; i++) fireEvent.submit(document.querySelector("form")!);
+    for (let i = 0; i < 13; i++) fireEvent.submit(document.querySelector("form")!);
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(saved(onSave).validade).toEqual(val);
   });
