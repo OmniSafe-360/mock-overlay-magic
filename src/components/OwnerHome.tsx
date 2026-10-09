@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { carregarFornecedores, carregarProdutos, criarFornecedor, gerarCodigoInterno, salvarProduto, type LocaisCadastrados } from "@/lib/banco";
+import { carregarFornecedores, carregarProdutos, atualizarFornecedor, criarFornecedor, gerarCodigoInterno, salvarProduto, type LocaisCadastrados } from "@/lib/banco";
 import { ehIncerto, mensagemErro, type Sessao } from "@/lib/persistencia";
 import { newUid } from "@/lib/deposito";
 import { AlertTriangle, Bell, CalendarClock, ChevronRight, Home, PackageX, Plus, ShoppingBag, Store, UserCircle, Users, CheckCircle2 } from "lucide-react";
@@ -89,19 +89,30 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
     sessao.current = { dbId: initial?.db?.id ?? newUid(), incerto: null };
     setSaveErro(""); setWizard({ initial });
   };
+  /** Grava no banco e só depois aparece na lista. Devolve o id local. */
+  const addSupplier = async (f: Omit<Supplier, "id">) => {
+    const dbId = newUid();
+    try { await criarFornecedor(dbId, f); }
+    catch (e) { throw new Error(`Não foi possível guardar o fornecedor. ${mensagemErro(e).replace(/^Não foi possível salvar agora\. /, "")}`); }
+    const novo = { ...f, id: Date.now(), dbId };
+    suppRef.current = [...suppRef.current, novo];
+    setSuppliers((l) => [...l, novo]);
+    return novo.id;
+  };
+  const updateSupplier = async (s: Supplier, f: Omit<Supplier, "id">) => {
+    if (!s.dbId) throw new Error("Este fornecedor ainda não foi salvo.");
+    try { await atualizarFornecedor(s.dbId, f); }
+    catch (e) { throw new Error(`Não foi possível salvar o fornecedor. ${mensagemErro(e).replace(/^Não foi possível salvar agora\. /, "")}`); }
+    const novo = { ...s, nome: f.nome.trim(), tel: f.tel.replace(/\D/g, ""), email: f.email.trim().toLowerCase() };
+    suppRef.current = suppRef.current.map((x) => (x.id === s.id ? novo : x));
+    setSuppliers((l) => l.map((x) => (x.id === s.id ? novo : x)));
+  };
+
   if (wizard && cur && sid)
     return (
       <ProductWizard store={cur} products={list} initial={wizard.initial} suppliers={suppliers} saving={saving} erro={saveErro} locaisCadastrados={locais[sid]}
         onGerarCodigo={() => gerarCodigoInterno(sid)}
-        onAddSupplier={async (f) => {
-          const dbId = newUid();
-          try { await criarFornecedor(dbId, f); }
-          catch (e) { throw new Error(`Não foi possível guardar o fornecedor. ${mensagemErro(e).replace(/^Não foi possível salvar agora\. /, "")}`); }
-          const novo = { ...f, id: Date.now(), dbId };
-          suppRef.current = [...suppRef.current, novo];
-          setSuppliers((l) => [...l, novo]);
-          return novo.id;
-        }}
+        onAddSupplier={addSupplier}
         onCancel={() => { if (!saving) setWizard(null); }}
         onSave={async (p) => {
           if (saving || !sessao.current) return;
@@ -172,6 +183,7 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
             </div>
           ) : tab === "inicio" && cur ? (
             <StoreSpace key={sid ?? "sem-id"} store={cur} products={list} suppliers={suppliers} saved={saved} locais={sid ? locais[sid] : undefined}
+              onAddSupplier={addSupplier} onUpdateSupplier={updateSupplier}
               onBack={() => { setOpen(null); setSaved(false); }} onNew={() => openWizard()} onEdit={(p) => openWizard(p)} onDismissSaved={() => setSaved(false)} />
           ) : tab === "inicio" ? (
             <HomeContent stores={stores} onAdd={() => setAdding(true)} onOpen={(s) => setOpen(s)} />

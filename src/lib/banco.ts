@@ -28,6 +28,13 @@ export async function criarFornecedor(id: string, f: { nome: string; tel: string
   if (error) throw error;
 }
 
+/** Atualiza nome, telefone e e-mail. Só resolve se o banco confirmou que alterou o fornecedor (do próprio dono). */
+export async function atualizarFornecedor(id: string, f: { nome: string; tel: string; email: string }) {
+  const { data, error } = await db.from("fornecedores").update(linhaFornecedor(f)).eq("id", id).select("id");
+  if (error) throw error;
+  if (!data?.length) throw new Error("fornecedor_nao_encontrado");
+}
+
 /** Código interno (EAN-13 começando com 29) para produto sem código de barras. Só o dono do comércio. */
 export async function gerarCodigoInterno(comercioId: string): Promise<string> {
   const { data, error } = await db.rpc("gerar_codigo_interno", { _comercio: comercioId });
