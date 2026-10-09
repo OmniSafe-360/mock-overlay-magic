@@ -8,6 +8,7 @@ import { AlertTriangle, Bell, CalendarClock, ChevronRight, Home, PackageX, Plus,
 import { LogoMark } from "@/components/Logo";
 import { StoreSetup, TIPOS, type StoreData } from "@/components/StoreSetup";
 import { StoreSpace } from "@/components/StoreSpace";
+import { PainelEquipe } from "@/components/PainelEquipe";
 import { ProductWizard, type Product, type Supplier } from "@/components/ProductArea";
 
 type Tab = "inicio" | "comercios" | "alertas" | "equipe" | "conta";
@@ -240,6 +241,14 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
                 className="h-12 w-full rounded-2xl border border-destructive/50 text-sm font-semibold text-destructive transition hover:bg-destructive/10 focus-visible:outline-2 focus-visible:outline-ring">
                 Sair
               </button>
+            </div>
+          ) : tab === "equipe" ? (
+            <div className="mx-auto max-w-3xl space-y-8">
+              <div>
+                <h1 className="text-xl font-bold">Equipe</h1>
+                <p className="text-sm text-muted-foreground">Cada comércio tem a sua equipe. Também dá para ver dentro do comércio, na aba Equipe.</p>
+              </div>
+              {stores.filter((s) => s.id).map((s) => <PainelEquipe key={s.id} comercioId={s.id!} comercioNome={s.nome} titulo />)}
             </div>
           ) : (
             <Soon title={NAV.find((n) => n.id === tab)!.label} />

@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Product, Supplier } from "@/components/ProductArea";
 import { precoUnidade as precoUnidadePedido, type CanalPedido, type FormaPagamento, type LinhaPedido, type Pedido, type RespostaPedido, type SituacaoPedido } from "@/lib/pedido";
+import type { Funcao, Funcionario } from "@/lib/funcionario";
 import { enviarCadastro, linhaFornecedor, montarCadastro, montarFornecedores, montarProdutos, type Bruto, type Sessao } from "@/lib/persistencia";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -165,4 +166,70 @@ export async function responderPedido(token: string, r: RespostaFornecedor): Pro
   } });
   if (error) throw error;
   return data?.situacao;
+}
+
+/* ---------- equipe (E1) ---------- */
+export async function carregarFuncionarios(comercioId: string): Promise<Funcionario[]> {
+  const [fs, aps] = await Promise.all([
+    todos("funcionarios", "id,nome,funcao,codigo,codigo_gerado_em,pin_criado_em,bloqueado_em,ultimo_acesso,travado_ate,created_at", (q) => q.eq("comercio_id", comercioId).order("created_at")),
+    todos("funcionario_aparelhos", "funcionario_id", (q) => q.eq("comercio_id", comercioId).is("encerrado_em", null)),
+  ]);
+  return fs.map((f) => ({
+    id: f.id, nome: f.nome, funcao: f.funcao, codigo: f.codigo, codigoGeradoEm: f.codigo_gerado_em, primeiroAcessoEm: f.pin_criado_em ?? null,
+    bloqueadoEm: f.bloqueado_em ?? null, ultimoAcesso: f.ultimo_acesso ?? null, travadoAte: f.travado_ate ?? null,
+    celulares: aps.filter((a) => a.funcionario_id === f.id).length,
+  }));
+}
+export async function criarFuncionario(comercioId: string, nome: string, funcao: Funcao): Promise<{ id: string; codigo: string }> {
+  const { data, error } = await db.rpc("criar_funcionario", { _comercio: comercioId, _nome: nome, _funcao: funcao });
+  if (error) throw error;
+  return { id: data.id, codigo: data.codigo };
+}
+export async function atualizarFuncionario(id: string, nome: string, funcao: Funcao) {
+  const { error } = await db.rpc("atualizar_funcionario", { _id: id, _nome: nome, _funcao: funcao });
+  if (error) throw error;
+}
+/** Bloquear desliga os celulares; desbloquear devolve um código novo (o funcionário cria outro PIN). */
+export async function bloquearFuncionario(id: string, bloquear: boolean): Promise<string | null> {
+  const { data, error } = await db.rpc("bloquear_funcionario", { _id: id, _bloquear: bloquear });
+  if (error) throw error;
+  return data?.codigo ?? null;
+}
+export async function novoAcessoFuncionario(id: string): Promise<string> {
+  const { data, error } = await db.rpc("novo_acesso_funcionario", { _id: id });
+  if (error) throw error;
+  return String(data.codigo);
+}
+
+/* ---------- app do funcionário (sem login) ---------- */
+export type InicioFuncionario = {
+  nome: string; funcao: Funcao; comercio: { nome: string; tipo: string };
+  avisos: { entregas: number; entregasHoje: number; repor: number };
+};
+/** 'novo' (criar PIN), 'pin', 'expirado' ou null (código não vale). */
+export async function conferirCodigoFuncionario(codigo: string): Promise<"novo" | "pin" | "expirado" | null> {
+  const { data, error } = await db.rpc("conferir_codigo_funcionario", { _codigo: codigo });
+  if (error) throw error;
+  return data ?? null;
+}
+/** Devolve a chave do celular. PIN errado vem como erro com a mensagem do banco (pin_errado:N / muitas_tentativas:N). */
+export async function entrarFuncionario(codigo: string, pin: string, aparelho: string): Promise<string> {
+  const { data, error } = await db.rpc("entrar_funcionario", { _codigo: codigo, _pin: pin, _aparelho: aparelho });
+  if (error) throw error;
+  if (data?.erro) throw new Error(String(data.erro));
+  return String(data.chave);
+}
+/** null = este celular foi desligado (bloqueio ou novo acesso). */
+export async function inicioFuncionario(chave: string): Promise<InicioFuncionario | null> {
+  const { data, error } = await db.rpc("funcionario_inicio", { _chave: chave });
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    nome: data.nome, funcao: data.funcao, comercio: { nome: data.comercio?.nome ?? "", tipo: data.comercio?.tipo ?? "" },
+    avisos: { entregas: Number(data.avisos?.entregas ?? 0), entregasHoje: Number(data.avisos?.entregas_hoje ?? 0), repor: Number(data.avisos?.repor ?? 0) },
+  };
+}
+export async function sairFuncionario(chave: string) {
+  const { error } = await db.rpc("sair_funcionario", { _chave: chave });
+  if (error) throw error;
 }
