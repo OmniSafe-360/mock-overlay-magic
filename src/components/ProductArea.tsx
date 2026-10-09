@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { ArrowLeft, Check, CheckCircle2, Keyboard, Package, Pencil, Plus, ScanLine, Search, Truck, X } from "lucide-react";
 import { Field, btnGhost, btnPrimary, digits, maskPhone, nextOnEnter, useKeyboard, type StoreData } from "@/components/StoreSetup";
 import { Scanner } from "@/components/Scanner";
-import { mainCodeError, usedCodes, variationErrors, variationOk } from "@/lib/variations";
+import { firstInvalidStep, mainCodeError, usedCodes, variationErrors, variationOk } from "@/lib/variations";
 
 /* ---------- tipos e dados por comércio ---------- */
 export type Supplier = { id: number; nome: string; tel: string; email: string };
@@ -155,9 +155,10 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const [suppSheet, setSuppSheet] = useState(false);
 
   const used = useMemo(() => usedCodes(products, initial?.id), [products, initial?.id]);
-  const codeErr = mainCodeError(codigo, used);
-  const dup = !!codeErr;
   const isRoupas = tipo === "roupas";
+  const codeErr = mainCodeError(codigo, used, isRoupas ? vars : []);
+  const [saveErr, setSaveErr] = useState("");
+  const dup = !!codeErr;
   const varsOk = vars.length > 0 && vars.every((v, i) => variationOk(v, i, vars, codigo, used));
   const valid = [
     !!codigo.trim() && !dup && !!nome.trim(),
@@ -171,7 +172,12 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const fornNome = forn ? suppliers.find((s) => s.id === forn)?.nome : "Definir depois";
 
   const go = (to: number) => { setDir(to > step ? 1 : -1); setStep(to); };
-  const save = () => onSave({ id: initial?.id ?? Date.now(), codigo: codigo.trim(), nome: nome.trim(), compra, venda, unidade, categoria, detalhes: det, variacoes: vars, fornecedor: forn ?? null });
+  const save = () => {
+    const bad = firstInvalidStep({ codigo, nome, compra, venda, unidade, categoria, variacoes: vars, fornecedor: forn }, isRoupas, used);
+    if (bad) { setSaveErr(bad.msg); setFromReview(true); return go(bad.step); }
+    setSaveErr("");
+    onSave({ id: initial?.id ?? Date.now(), codigo: codigo.trim(), nome: nome.trim(), compra, venda, unidade, categoria, detalhes: det, variacoes: vars, fornecedor: forn ?? null });
+  };
   const next = () => {
     if (!valid) return;
     if (step === 4) return save();
@@ -201,6 +207,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
             </div>
 
             <div key={step} data-kb-scroll className={`min-h-0 flex-1 overflow-y-auto overscroll-contain animate-in fade-in duration-300 ${kb ? "mt-2 space-y-2 pb-1 [&_.field-hint]:hidden" : "mt-4 space-y-3 short:mt-3 short:space-y-2.5"} ${dir === 1 ? "slide-in-from-right-8" : "slide-in-from-left-8"}`}>
+              {saveErr && step !== 4 && <p role="alert" className="text-sm font-semibold text-destructive">{saveErr}</p>}
               {step === 0 && (
                 <>
                   {codeMode === "choose" && !codigo ? (

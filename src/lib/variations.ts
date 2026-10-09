@@ -16,8 +16,11 @@ export function usedCodes(products: ProdLike[], selfId?: number): Set<string> {
 }
 
 /** Erro do código principal: repetido em outro produto ou em variação de outro produto. */
-export function mainCodeError(code: string, used: Set<string>): string {
-  return code.trim() && used.has(code.trim()) ? "Este código já está cadastrado" : "";
+export function mainCodeError(code: string, used: Set<string>, ownVars: VarLike[] = []): string {
+  const c = code.trim();
+  if (!c) return "";
+  if (ownVars.some((v) => (v.codigo ?? "").trim() === c)) return "Este código já pertence a uma variação deste produto.";
+  return used.has(c) ? "Este código já está cadastrado" : "";
 }
 
 /** Erros de uma variação. `index` = posição dela em `vars` (-1 se for nova). */
@@ -37,3 +40,27 @@ export const variationOk = (v: VarLike, i: number, vars: VarLike[], main: string
   const e = variationErrors(v, i, vars, main, used);
   return !e.combo && !e.codigo;
 };
+
+export type ProductDraft = {
+  codigo: string; nome: string; compra: number; venda: number; unidade: string; categoria: string;
+  variacoes: (VarLike & { qtd?: number })[]; fornecedor: number | null | undefined;
+};
+
+/** Valida todas as etapas antes de salvar. Retorna a primeira etapa inválida e a orientação, ou null. */
+export function firstInvalidStep(d: ProductDraft, isRoupas: boolean, used: Set<string>): { step: number; msg: string } | null {
+  if (!d.codigo.trim()) return { step: 0, msg: "Informe o código do produto." };
+  const ce = mainCodeError(d.codigo, used, isRoupas ? d.variacoes : []);
+  if (ce) return { step: 0, msg: ce };
+  if (!d.nome.trim()) return { step: 0, msg: "Informe o nome do produto." };
+  if (!(d.compra > 0) || !(d.venda > 0)) return { step: 1, msg: "Informe os preços de compra e de venda." };
+  if (!d.unidade) return { step: 1, msg: "Escolha a unidade." };
+  if (!d.categoria) return { step: 1, msg: "Escolha a categoria." };
+  if (isRoupas) {
+    const vs = d.variacoes;
+    if (!vs.length) return { step: 2, msg: "Adicione pelo menos uma variação." };
+    const bad = vs.some((v, i) => !v.tam || !v.cor.trim() || !(Number(v.qtd) > 0) || !variationOk(v, i, vs, d.codigo, used));
+    if (bad) return { step: 2, msg: "Corrija as variações marcadas em vermelho." };
+  }
+  if (d.fornecedor === undefined) return { step: 3, msg: "Escolha um fornecedor ou \"Definir depois\"." };
+  return null;
+}
