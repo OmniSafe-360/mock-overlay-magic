@@ -1,11 +1,13 @@
 /* Aba Pedidos (D2a): montar o pedido sozinho por fornecedor, enviar pelo WhatsApp ou e-mail com um toque e acompanhar. */
 import { useMemo, useState } from "react";
-import { ArrowLeft, Check, CheckCircle2, ClipboardList, Copy, Link2, Mail, MessageCircle, Minus, Plus, RefreshCw, Search, Send, Trash2, Truck, X, XCircle } from "lucide-react";
+import { ArrowLeft, Banknote, CalendarClock, Check, CheckCircle2, ClipboardList, Copy, Link2, Mail, MessageCircle, Minus, Plus, RefreshCw, Search, Send, Trash2, Truck, X, XCircle } from "lucide-react";
 import { Sheet, type Product, type Supplier, type Variation } from "@/components/ProductArea";
 import { linkWhatsApp } from "@/components/PainelFornecedores";
 import { btnGhost, btnPrimary, type StoreData } from "@/components/StoreSetup";
 import { aceitaFracao, fmtQ, qtdUn, unPlural } from "@/lib/deposito";
 import { descricaoEmbalagem } from "@/lib/embalagem";
+import { estadoPagamento, ordemPagamento, resumoPagamentos, somaDias, textoPagamento, valorConta, type EstadoPagamento } from "@/lib/pagamento";
+import { hojeEm } from "@/lib/validade";
 import {
   CANAL_TXT, SITUACAO_TXT, chaveLinha, dataEntregaTexto, formaTexto, linkPedido, respostaItem, resumoResposta, linhaManual, linhasDoPedido, nomeLinha, pedidoAberto, pedidoFechado, quantidadeTexto,
   sugerirPedido, textoPedido, totalLinha, totalLinhas, totalPedido, unidadesDaLinha, type CanalPedido, type LinhaPedido, type Pedido, type SituacaoPedido,
@@ -19,13 +21,19 @@ const COR_SITUACAO: Record<SituacaoPedido, string> = {
   recebido: "border-primary/60 text-primary", cancelado: "border-border text-muted-foreground line-through",
 };
 
+export type DadosPagamento = { situacao: "a_pagar" | "pago"; vencimento?: string | null; pagoEm?: string | null; valor?: number | null };
+const COR_PAGAMENTO: Record<EstadoPagamento, string> = {
+  atrasado: "text-destructive", hoje: "text-warning", em_breve: "text-warning", a_pagar: "text-foreground", pago: "text-accent",
+};
 export type SalvarPedido = (a: { fornecedor: Supplier; linhas: LinhaPedido[]; observacao: string }) => Promise<{ id: string; numero: number; token?: string | undefined }>;
 
-export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora = false, onSalvar, onEnviado, onCancelar, onNovoLink, onOpenProduto }: {
-  products: Product[]; store: StoreData; suppliers: Supplier[]; pedidos: Pedido[]; montarAgora?: boolean;
+export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora = false, soAPagar = false, onSalvar, onEnviado, onCancelar, onNovoLink, onPagamento, onOpenProduto }: {
+  products: Product[]; store: StoreData; suppliers: Supplier[]; pedidos: Pedido[]; montarAgora?: boolean; soAPagar?: boolean;
   onSalvar: SalvarPedido; onEnviado: (id: string, canal: CanalPedido) => Promise<unknown>; onCancelar: (id: string) => Promise<unknown>;
-  onNovoLink: (id: string) => Promise<string>; onOpenProduto: (p: Product) => void;
+  onNovoLink: (id: string) => Promise<string>; onPagamento: (id: string, d: DadosPagamento) => Promise<unknown>; onOpenProduto: (p: Product) => void;
 }) {
+  const hoje = useMemo(() => hojeEm(), []);
+  const [filtro, setFiltro] = useState<"todos" | "pagar">(soAPagar ? "pagar" : "todos");
   const [view, setView] = useState<{ t: "lista" } | { t: "montar" } | { t: "detalhe"; id: string }>(montarAgora ? { t: "montar" } : { t: "lista" });
   const fornecedorDe = (dbId: string) => suppliers.find((s) => s.dbId === dbId);
 
@@ -33,15 +41,36 @@ export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora
     return <MontarPedidos products={products} store={store} suppliers={suppliers} pedidos={pedidos} onSalvar={onSalvar} onEnviado={onEnviado} onVoltar={() => setView({ t: "lista" })} />;
   const sel = view.t === "detalhe" ? pedidos.find((p) => p.id === view.id) : undefined;
   if (sel)
-    return <DetalhePedido pedido={sel} products={products} store={store} fornecedor={fornecedorDe(sel.fornecedorId)} onEnviado={onEnviado} onCancelar={onCancelar} onNovoLink={onNovoLink}
+    return <DetalhePedido pedido={sel} products={products} store={store} fornecedor={fornecedorDe(sel.fornecedorId)} onEnviado={onEnviado} onCancelar={onCancelar} onNovoLink={onNovoLink} onPagamento={onPagamento} hoje={hoje}
       onOpenProduto={onOpenProduto} onVoltar={() => setView({ t: "lista" })} />;
 
   const abertos = pedidos.filter(pedidoAberto);
+  const contas = resumoPagamentos(pedidos, hoje);
+  const lista = filtro === "pagar" ? pedidos.filter((p) => p.pagamento?.situacao === "a_pagar").sort(ordemPagamento) : pedidos;
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
       <button type="button" onClick={() => setView({ t: "montar" })} className={`flex w-full items-center justify-center gap-2 ${btnPrimary(true)}`}><Plus size={20} /> Novo pedido</button>
       {pedidos.length > 0 && (
         <p className="text-sm text-muted-foreground">{abertos.length === 0 ? "Nenhum pedido em andamento." : abertos.length === 1 ? "1 pedido em andamento." : `${abertos.length} pedidos em andamento.`}</p>
+      )}
+      {contas.aPagar.n > 0 && (
+        <section aria-label="Contas a pagar" className="rounded-3xl border border-border bg-secondary/60 p-4">
+          <p className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><Banknote size={18} className="text-primary" /> Contas a pagar</p>
+          <p className="mt-1 text-3xl font-bold tabular-nums">{brl(contas.aPagar.total)}</p>
+          <p className="text-sm text-muted-foreground">{contas.aPagar.n === 1 ? "1 pedido" : `${contas.aPagar.n} pedidos`}{contas.esteMes.n && contas.esteMes.total !== contas.aPagar.total ? ` · ${brl(contas.esteMes.total)} este mês` : ""}</p>
+          <ul className="mt-2 space-y-1 text-sm font-semibold">
+            {contas.atrasados.n > 0 && <li className="text-destructive">{contas.atrasados.n === 1 ? "1 atrasado" : `${contas.atrasados.n} atrasados`} · {brl(contas.atrasados.total)}</li>}
+            {contas.hoje.n > 0 && <li className="text-warning">{contas.hoje.n === 1 ? "1 vence hoje" : `${contas.hoje.n} vencem hoje`} · {brl(contas.hoje.total)}</li>}
+            {contas.semana.n > 0 && <li className="text-warning">{contas.semana.n === 1 ? "1 vence nos próximos 7 dias" : `${contas.semana.n} vencem nos próximos 7 dias`} · {brl(contas.semana.total)}</li>}
+          </ul>
+          {contas.pagoEsteMes.n > 0 && <p className="mt-2 text-xs text-muted-foreground">Pago este mês: {brl(contas.pagoEsteMes.total)}</p>}
+          <div role="group" aria-label="Mostrar" className="mt-3 grid grid-cols-2 gap-2">
+            {([["todos", "Todos os pedidos"], ["pagar", `Só a pagar (${contas.aPagar.n})`]] as const).map(([f, t]) => (
+              <button key={f} type="button" aria-pressed={filtro === f} onClick={() => setFiltro(f)}
+                className={`min-h-11 rounded-xl border px-2 text-sm font-semibold ${filtro === f ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground"}`}>{t}</button>
+            ))}
+          </div>
+        </section>
       )}
       {!pedidos.length && (
         <div className="flex flex-col items-center gap-2 rounded-3xl border border-dashed border-border px-4 py-10 text-center">
@@ -51,8 +80,9 @@ export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora
         </div>
       )}
       <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        {pedidos.map((p) => {
+        {lista.map((p) => {
           const f = fornecedorDe(p.fornecedorId);
+          const pg = estadoPagamento(p, hoje);
           return (
             <li key={p.id}>
               <button type="button" onClick={() => setView({ t: "detalhe", id: p.id })}
@@ -72,6 +102,11 @@ export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora
                   <span className="flex items-start gap-1.5 text-sm font-semibold text-accent"><CheckCircle2 size={16} className="mt-0.5 shrink-0" /> {resumoResposta(p.resposta, brl)}</span>
                 )}
                 {p.situacao === "recusado" && <span className="flex items-start gap-1.5 text-sm font-semibold text-destructive"><XCircle size={16} className="mt-0.5 shrink-0" /> O fornecedor não pode atender</span>}
+                {pg && (
+                  <span className={`flex items-start gap-1.5 text-sm font-semibold ${COR_PAGAMENTO[pg.estado]}`}>
+                    <Banknote size={16} className="mt-0.5 shrink-0" /> {pg.estado === "pago" ? "" : `A pagar ${brl(valorConta(p).valor)} · `}{textoPagamento(p, hoje)}
+                  </span>
+                )}
               </button>
             </li>
           );
@@ -320,10 +355,10 @@ function EnviarSheet({ numero, fornecedor, texto, novo, onCanal, onClose }: {
 }
 
 /* ---------- detalhe ---------- */
-function DetalhePedido({ pedido, products, store, fornecedor, onEnviado, onCancelar, onNovoLink, onOpenProduto, onVoltar }: {
+function DetalhePedido({ pedido, products, store, fornecedor, hoje, onEnviado, onCancelar, onNovoLink, onPagamento, onOpenProduto, onVoltar }: {
   pedido: Pedido; products: Product[]; store: StoreData; fornecedor: Supplier | undefined;
   onEnviado: (id: string, canal: CanalPedido) => Promise<unknown>; onCancelar: (id: string) => Promise<unknown>; onNovoLink: (id: string) => Promise<string>;
-  onOpenProduto: (p: Product) => void; onVoltar: () => void;
+  onPagamento: (id: string, d: DadosPagamento) => Promise<unknown>; hoje: string; onOpenProduto: (p: Product) => void; onVoltar: () => void;
 }) {
   const linhas = useMemo(() => linhasDoPedido(pedido, products), [pedido, products]);
   const [enviar, setEnviar] = useState(false);
@@ -367,6 +402,8 @@ function DetalhePedido({ pedido, products, store, fornecedor, onEnviado, onCance
           {recusado && !pedidoFechado(pedido) && <p className="mt-2 text-sm text-muted-foreground">Você pode cancelar este pedido e pedir para outro fornecedor.</p>}
         </section>
       )}
+
+      <PagamentoPedido pedido={pedido} hoje={hoje} onPagamento={(d) => onPagamento(pedido.id, d)} />
 
       <section aria-label="Produtos do pedido" className="rounded-3xl border border-border bg-secondary/60 p-4">
         <ul className="divide-y divide-border">
@@ -438,4 +475,132 @@ function DetalhePedido({ pedido, products, store, fornecedor, onEnviado, onCance
 
 function Dado({ t, v }: { t: string; v: string }) {
   return <div className="flex justify-between gap-3"><dt className="text-muted-foreground">{t}</dt><dd className="text-right font-semibold">{v}</dd></div>;
+}
+
+/* ---------- pagamento (D2c) ---------- */
+function PagamentoPedido({ pedido, hoje, onPagamento }: { pedido: Pedido; hoje: string; onPagamento: (d: DadosPagamento) => Promise<unknown> }) {
+  const [sheet, setSheet] = useState<"pagar" | "corrigir" | null>(null);
+  const [desfazer, setDesfazer] = useState(false);
+  const [erro, setErro] = useState("");
+  const e = estadoPagamento(pedido, hoje);
+  const pg = pedido.pagamento;
+  const { valor, estimado } = valorConta(pedido);
+  const forma = pedido.resposta ? formaTexto(pedido.resposta.forma, pedido.resposta.prazoDias) : "";
+  const semConta = ["rascunho", "cancelado", "recusado"].includes(pedido.situacao);
+  if (!e && semConta) return null;
+  const cor = e ? ({ atrasado: "border-destructive/50 bg-destructive/10", hoje: "border-warning/50 bg-warning/10", em_breve: "border-warning/50 bg-warning/10", a_pagar: "border-border bg-secondary/60", pago: "border-accent/50 bg-accent/10" } as const)[e.estado] : "border-dashed border-border";
+  const enviar = (d: DadosPagamento) => { setErro(""); return onPagamento(d); };
+  return (
+    <section aria-label="Pagamento" className={`rounded-3xl border p-4 ${cor}`}>
+      <p className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><Banknote size={18} className="text-primary" /> Pagamento</p>
+      {!e ? (
+        <>
+          <p className="mt-1 text-sm">Ainda sem conta registrada. Quando o fornecedor confirmar pelo link, o vencimento aparece aqui sozinho.</p>
+          <button type="button" onClick={() => setSheet("corrigir")} className={`mt-3 w-full ${btnGhost}`}>Registrar conta a pagar</button>
+        </>
+      ) : (
+        <>
+          <p className={`mt-1 text-xl font-bold ${COR_PAGAMENTO[e.estado]}`}>{textoPagamento(pedido, hoje)}</p>
+          <dl className="mt-2 space-y-1.5 text-sm">
+            <Dado t="Valor" v={`${brl(valor)}${estimado ? " (estimado)" : ""}`} />
+            {pg?.vencimento && <Dado t="Vencimento" v={dataEntregaTexto(pg.vencimento)} />}
+            {forma && <Dado t="Forma" v={forma} />}
+          </dl>
+          {e.estado !== "pago" ? (
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <button type="button" onClick={() => setSheet("pagar")} className={`flex items-center justify-center gap-2 ${btnPrimary(true)}`}><Check size={18} /> Marcar como pago</button>
+              <button type="button" onClick={() => setSheet("corrigir")} className={`flex items-center justify-center gap-2 ${btnGhost}`}><CalendarClock size={18} /> Corrigir vencimento ou valor</button>
+            </div>
+          ) : !desfazer ? (
+            <button type="button" onClick={() => setDesfazer(true)} className="mt-3 min-h-12 w-full text-sm font-semibold text-muted-foreground underline-offset-2 hover:underline">Marquei por engano: desfazer pagamento</button>
+          ) : (
+            <div className="mt-3 space-y-2">
+              <p className="text-sm">O pedido volta para "a pagar".</p>
+              <button type="button" onClick={() => enviar({ situacao: "a_pagar" }).then(() => setDesfazer(false)).catch((x) => setErro(String(x?.message ?? "Não foi possível desfazer.")))}
+                className="flex min-h-13 w-full items-center justify-center rounded-2xl border border-warning/60 px-4 text-base font-semibold text-warning">Confirmar: ainda não foi pago</button>
+              <button type="button" onClick={() => setDesfazer(false)} className={`w-full ${btnGhost}`}>Voltar</button>
+            </div>
+          )}
+        </>
+      )}
+      {erro && <p role="alert" className="mt-2 text-sm font-semibold text-destructive">{erro}</p>}
+      {sheet === "pagar" && <MarcarPagoSheet valor={valor} estimado={estimado} hoje={hoje} onClose={() => setSheet(null)}
+        onConfirmar={(data) => enviar({ situacao: "pago", pagoEm: data }).then(() => setSheet(null))} />}
+      {sheet === "corrigir" && <CorrigirPagamentoSheet vencimento={pg?.vencimento ?? null} valor={pg?.valor ?? pedido.resposta?.valorTotal ?? null} estimado={totalPedido(pedido)}
+        novo={!e} hoje={hoje} onClose={() => setSheet(null)} onSalvar={(venc, v) => enviar({ situacao: "a_pagar", vencimento: venc, valor: v }).then(() => setSheet(null))} />}
+    </section>
+  );
+}
+
+function MarcarPagoSheet({ valor, estimado, hoje, onClose, onConfirmar }: {
+  valor: number; estimado: boolean; hoje: string; onClose: () => void; onConfirmar: (data: string) => Promise<unknown>;
+}) {
+  const [data, setData] = useState(hoje);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState("");
+  const atalhos: [string, string][] = [["Hoje", hoje], ["Ontem", somaDias(hoje, -1)]];
+  return (
+    <Sheet title="Marcar como pago" onClose={onClose}>
+      <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3">
+        <p className="text-base">Valor: <b>{brl(valor)}</b>{estimado ? " (estimado)" : ""}</p>
+        <div role="group" aria-label="Quando foi pago?" className="space-y-1">
+          <span className="text-sm font-medium">Quando foi pago?</span>
+          <span className="grid grid-cols-2 gap-2">
+            {atalhos.map(([t, d]) => (
+              <button key={t} type="button" aria-pressed={data === d} onClick={() => setData(d)}
+                className={`min-h-11 rounded-xl border px-2 text-sm font-semibold ${data === d ? "border-primary bg-primary/15 text-primary" : "border-border"}`}>{t}</button>
+            ))}
+          </span>
+          <input type="date" value={data} max={hoje} onChange={(e) => setData(e.target.value)} aria-label="Data do pagamento"
+            className="h-13 w-full rounded-2xl border border-border bg-background-deep/60 px-4 text-base text-foreground outline-none [color-scheme:dark] focus-visible:border-primary" />
+        </div>
+      </div>
+      <div className="px-5 pt-2">
+        {erro && <p role="alert" className="mb-2 text-sm font-semibold text-destructive">{erro}</p>}
+        <button type="button" disabled={!data || data > hoje || salvando} onClick={() => { setSalvando(true); onConfirmar(data).catch((x) => { setSalvando(false); setErro(String(x?.message ?? "Não foi possível salvar.")); }); }}
+          className={`flex items-center justify-center gap-2 ${btnPrimary(!!data && data <= hoje && !salvando)}`}><Check size={18} /> {salvando ? "Salvando…" : "Confirmar pagamento"}</button>
+      </div>
+    </Sheet>
+  );
+}
+
+function CorrigirPagamentoSheet({ vencimento, valor, estimado, novo, hoje, onClose, onSalvar }: {
+  vencimento: string | null; valor: number | null; estimado: number; novo: boolean; hoje: string; onClose: () => void;
+  onSalvar: (vencimento: string, valor: number | null) => Promise<unknown>;
+}) {
+  const [venc, setVenc] = useState(vencimento ?? "");
+  const [v, setV] = useState<number | null>(valor);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState("");
+  const atalhos: [string, string][] = [["Hoje", hoje], ["Em 7 dias", somaDias(hoje, 7)], ["Em 28 dias", somaDias(hoje, 28)]];
+  return (
+    <Sheet title={novo ? "Registrar conta a pagar" : "Corrigir vencimento ou valor"} onClose={onClose}>
+      <div className="min-h-0 space-y-4 overflow-y-auto px-5 py-3">
+        <div role="group" aria-label="Vencimento" className="space-y-1">
+          <span className="text-sm font-medium">Vencimento</span>
+          <span className="grid grid-cols-3 gap-1.5">
+            {atalhos.map(([t, d]) => (
+              <button key={t} type="button" aria-pressed={venc === d} onClick={() => setVenc(d)}
+                className={`min-h-11 rounded-xl border px-1 text-sm font-semibold ${venc === d ? "border-primary bg-primary/15 text-primary" : "border-border"}`}>{t}</button>
+            ))}
+          </span>
+          <input type="date" value={venc} onChange={(e) => setVenc(e.target.value)} aria-label="Data de vencimento"
+            className="h-13 w-full rounded-2xl border border-border bg-background-deep/60 px-4 text-base text-foreground outline-none [color-scheme:dark] focus-visible:border-primary" />
+          {venc && <span className="block text-sm text-muted-foreground">{dataEntregaTexto(venc)}</span>}
+        </div>
+        <label className="block space-y-1">
+          <span className="text-sm font-medium">Valor da conta</span>
+          <input inputMode="numeric" value={v ? brl(v) : ""} placeholder={brl(estimado)} aria-label="Valor da conta"
+            onChange={(e) => { const c = Number(e.target.value.replace(/\D/g, "").slice(0, 10) || 0); setV(c > 0 ? c : null); }}
+            className="h-13 w-full rounded-2xl border border-border bg-background-deep/60 px-4 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus-visible:border-primary" />
+          <span className="block text-xs text-muted-foreground">Em branco, vale o total estimado do pedido ({brl(estimado)}).</span>
+        </label>
+      </div>
+      <div className="px-5 pt-2">
+        {erro && <p role="alert" className="mb-2 text-sm font-semibold text-destructive">{erro}</p>}
+        <button type="button" disabled={!venc || salvando} onClick={() => { setSalvando(true); onSalvar(venc, v).catch((x) => { setSalvando(false); setErro(String(x?.message ?? "Não foi possível salvar.")); }); }}
+          className={`flex items-center justify-center gap-2 ${btnPrimary(!!venc && !salvando)}`}><Check size={18} /> {salvando ? "Salvando…" : "Salvar"}</button>
+      </div>
+    </Sheet>
+  );
 }

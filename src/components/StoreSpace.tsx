@@ -7,15 +7,17 @@ import { ListaProdutos } from "@/components/ListaProdutos";
 import { PainelLocais } from "@/components/PainelLocais";
 import { AtencaoHoje } from "@/components/AtencaoHoje";
 import { PainelFornecedores } from "@/components/PainelFornecedores";
-import { PainelPedidos, type SalvarPedido } from "@/components/PainelPedidos";
+import { PainelPedidos, type DadosPagamento, type SalvarPedido } from "@/components/PainelPedidos";
+import { resumoPagamentos } from "@/lib/pagamento";
+import { hojeEm } from "@/lib/validade";
 import { pedidoAberto, type CanalPedido, type Pedido } from "@/lib/pedido";
 import type { LocaisCadastrados } from "@/lib/banco";
 
 const TABS = ["Produtos", "Depósito", "Gôndolas", "Pedidos", "Fornecedores", "Equipe", "Vendas"] as const;
 
-export function StoreSpace({ store, products, suppliers, saved, locais, pedidos = [], onSalvarPedido, onPedidoEnviado, onCancelarPedido, onNovoLinkPedido, onAddSupplier, onUpdateSupplier, onBack, onNew, onEdit, onDismissSaved }: {
+export function StoreSpace({ store, products, suppliers, saved, locais, pedidos = [], onSalvarPedido, onPedidoEnviado, onCancelarPedido, onNovoLinkPedido, onPagamentoPedido, onAddSupplier, onUpdateSupplier, onBack, onNew, onEdit, onDismissSaved }: {
   store: StoreData; products: Product[]; suppliers: Supplier[]; saved: boolean; locais?: LocaisCadastrados | undefined;
-  pedidos?: Pedido[] | undefined; onSalvarPedido: SalvarPedido; onPedidoEnviado: (id: string, canal: CanalPedido) => Promise<unknown>; onCancelarPedido: (id: string) => Promise<unknown>; onNovoLinkPedido: (id: string) => Promise<string>;
+  pedidos?: Pedido[] | undefined; onSalvarPedido: SalvarPedido; onPedidoEnviado: (id: string, canal: CanalPedido) => Promise<unknown>; onCancelarPedido: (id: string) => Promise<unknown>; onNovoLinkPedido: (id: string) => Promise<string>; onPagamentoPedido: (id: string, d: DadosPagamento) => Promise<unknown>;
   onAddSupplier: (f: Omit<Supplier, "id">) => Promise<unknown>; onUpdateSupplier: (s: Supplier, f: Omit<Supplier, "id">) => Promise<unknown>;
   onBack: () => void; onNew: () => void; onEdit: (p: Product) => void; onDismissSaved: () => void;
 }) {
@@ -23,6 +25,9 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
   const [view, setView] = useState<Product | null>(null);
   /** Muda a cada "Fazer pedido" para abrir a aba Pedidos já na montagem. */
   const [montar, setMontar] = useState(0);
+  /** Muda a cada toque nas contas do "Atenção hoje" para abrir a aba Pedidos em "Só a pagar". */
+  const [verPagar, setVerPagar] = useState(0);
+  const contas = useMemo(() => resumoPagamentos(pedidos, hojeEm()), [pedidos]);
   const jaPedidos = useMemo(() => new Set(pedidos.filter(pedidoAberto).flatMap((p) => p.itens.map((i) => i.produtoId))), [pedidos]);
   const Icon = TIPOS.find((t) => t.id === store.tipo)?.Icon ?? Store;
   const current = view ? products.find((p) => p.id === view.id) ?? null : null;
@@ -44,7 +49,7 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
       <div className="-mx-5 overflow-x-auto px-5 [scrollbar-width:none]">
         <div className="flex w-max gap-2">
           {TABS.map((t) => (
-            <button key={t} type="button" onClick={() => { setTab(t); setMontar(0); }} aria-current={tab === t ? "page" : undefined}
+            <button key={t} type="button" onClick={() => { setTab(t); setMontar(0); setVerPagar(0); }} aria-current={tab === t ? "page" : undefined}
               className={`min-h-12 rounded-2xl px-4 text-base font-semibold transition ${tab === t ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground hover:text-foreground"}`}>{t === "Gôndolas" ? nomeAreaVenda(store.tipo) : textoDoTipo(store.tipo)(t)}</button>
           ))}
         </div>
@@ -54,15 +59,16 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
         <>
           {saved && <SavedBanner onAnother={() => { onDismissSaved(); onNew(); }} onList={onDismissSaved} />}
           <AtencaoHoje products={products} tipo={store.tipo} suppliers={suppliers} onOpen={(p) => { onDismissSaved(); setView(p); }}
-            jaPedidos={jaPedidos} onFazerPedido={() => { onDismissSaved(); setMontar((n) => n + 1); setTab("Pedidos"); }} />
+            jaPedidos={jaPedidos} onFazerPedido={() => { onDismissSaved(); setVerPagar(0); setMontar((n) => n + 1); setTab("Pedidos"); }}
+            contas={contas} onVerContas={() => { onDismissSaved(); setMontar(0); setVerPagar((n) => n + 1); setTab("Pedidos"); }} />
           <ListaProdutos products={products} tipo={store.tipo} suppliers={suppliers} onNew={onNew} onOpen={(p) => { onDismissSaved(); setView(p); }} />
         </>
       ) : tab === "Depósito" || tab === "Gôndolas" ? (
         <PainelLocais products={products} tipo={store.tipo} area={tab === "Depósito" ? "dep" : "ven"}
           locaisCadastrados={tab === "Depósito" ? locais?.deposito : locais?.venda} onOpen={(p) => { onDismissSaved(); setView(p); }} />
       ) : tab === "Pedidos" ? (
-        <PainelPedidos key={montar} products={products} store={store} suppliers={suppliers} pedidos={pedidos} montarAgora={montar > 0}
-          onSalvar={onSalvarPedido} onEnviado={onPedidoEnviado} onCancelar={onCancelarPedido} onNovoLink={onNovoLinkPedido} onOpenProduto={(p) => { onDismissSaved(); setView(p); }} />
+        <PainelPedidos key={`${montar}-${verPagar}`} products={products} store={store} suppliers={suppliers} pedidos={pedidos} montarAgora={montar > 0} soAPagar={verPagar > 0}
+          onSalvar={onSalvarPedido} onEnviado={onPedidoEnviado} onCancelar={onCancelarPedido} onNovoLink={onNovoLinkPedido} onPagamento={onPagamentoPedido} onOpenProduto={(p) => { onDismissSaved(); setView(p); }} />
       ) : tab === "Fornecedores" ? (
         <PainelFornecedores products={products} tipo={store.tipo} suppliers={suppliers} onOpen={(p) => { onDismissSaved(); setView(p); }}
           onAdd={onAddSupplier} onUpdate={onUpdateSupplier} />

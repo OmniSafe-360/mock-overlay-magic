@@ -2,6 +2,7 @@
 import { useMemo, useState } from "react";
 import { ChevronRight, CircleCheck } from "lucide-react";
 import type { Product, Supplier } from "@/components/ProductArea";
+import type { ResumoPagamentos } from "@/lib/pagamento";
 import { atencaoHoje, type GrupoAtencao } from "@/lib/situacao";
 import { hojeEm } from "@/lib/validade";
 
@@ -22,15 +23,23 @@ const maiuscula = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const linhaItem = (titulo: string, detalhe: string | undefined, assunto: string) =>
   titulo.toLowerCase() === assunto.toLowerCase() ? detalhe ?? "" : detalhe ? `${titulo} — ${detalhe}` : titulo;
 
-export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFazerPedido }: {
+export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFazerPedido, contas, onVerContas }: {
   products: Product[]; tipo: string; suppliers: Supplier[]; onOpen: (p: Product) => void;
   /** Produtos (id do banco) já num pedido em andamento. */ jaPedidos?: Set<string> | undefined;
   /** Abre a montagem do pedido de compra. */ onFazerPedido?: (() => void) | undefined;
+  /** Contas dos pedidos (D2c); tocar abre a aba Pedidos em "Só a pagar". */ contas?: ResumoPagamentos | undefined; onVerContas?: (() => void) | undefined;
 }) {
   const hoje = useMemo(() => hojeEm(), []);
   const grupos = useMemo(() => atencaoHoje(products, tipo, hoje, (p) => suppliers.find((f) => f.id === p.fornecedor)?.nome, jaPedidos), [products, tipo, hoje, suppliers, jaPedidos]);
   const [aberto, setAberto] = useState<string | null>(null);
-  if (!products.length) return null;
+  const brl = (c: number) => (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const restoMes = contas ? contas.esteMes.n - contas.atrasados.n - contas.hoje.n : 0;
+  const quadrosContas: { k: string; nivel: GrupoAtencao["nivel"]; n: number; titulo: string; total: number }[] = !contas ? [] : [
+    { k: "atrasadas", nivel: "urgente" as const, n: contas.atrasados.n, titulo: contas.atrasados.n === 1 ? "Conta atrasada" : "Contas atrasadas", total: contas.atrasados.total },
+    { k: "hoje", nivel: "atencao" as const, n: contas.hoje.n, titulo: contas.hoje.n === 1 ? "Conta vence hoje" : "Contas vencem hoje", total: contas.hoje.total },
+    { k: "mes", nivel: "info" as const, n: restoMes, titulo: "A pagar este mês", total: contas.esteMes.total - contas.atrasados.total - contas.hoje.total },
+  ].filter((q) => q.n > 0);
+  if (!products.length && !quadrosContas.length) return null;
   const sel = grupos.find((g) => g.tipo === aberto);
   const importantes = grupos.filter((g) => g.nivel !== "info").reduce((n, g) => n + g.itens.length, 0);
 
@@ -41,15 +50,22 @@ export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFa
         <span className="text-xs text-muted-foreground">{maiuscula(dataPorExtenso(hoje))}</span>
       </div>
 
-      {!grupos.some((g) => g.nivel !== "info") && (
+      {!grupos.some((g) => g.nivel !== "info") && !quadrosContas.some((q) => q.nivel !== "info") && (
         <p className="mt-3 flex items-center gap-2 rounded-2xl border border-accent/50 bg-accent/10 p-3 text-sm font-semibold text-accent">
           <CircleCheck size={18} className="shrink-0" /> Tudo certo! Nenhum produto precisa de atenção agora.
         </p>
       )}
       {importantes > 0 && <p className="mt-1 text-sm text-muted-foreground">Toque num quadro para ver os produtos.</p>}
 
-      {grupos.length > 0 && (
+      {(grupos.length > 0 || quadrosContas.length > 0) && (
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {quadrosContas.map((q) => (
+            <button key={q.k} type="button" onClick={onVerContas}
+              className={`flex min-h-[84px] flex-col justify-between rounded-2xl border p-3 text-left transition hover:border-primary ${COR[q.nivel].quadro}`}>
+              <span className={`text-3xl font-bold leading-none tabular-nums ${COR[q.nivel].numero}`}>{q.n}</span>
+              <span className="mt-2 text-sm font-semibold leading-tight">{q.titulo}<span className="block text-xs font-normal text-muted-foreground">{brl(q.total)}</span></span>
+            </button>
+          ))}
           {grupos.map((g) => {
             const c = COR[g.nivel];
             const on = aberto === g.tipo;

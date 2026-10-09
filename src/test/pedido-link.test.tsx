@@ -153,7 +153,7 @@ const respondido: Pedido = {
 function abrirDono(pedidos: Pedido[], extra = {}) {
   const props = { products: [arroz, feijao], store: comercio, suppliers: [sol], pedidos,
     onSalvar: vi.fn(async () => ({ id: "novo", numero: 8, token: TOKEN })), onEnviado: vi.fn(async () => {}), onCancelar: vi.fn(async () => {}),
-    onNovoLink: vi.fn(async () => "b".repeat(64)), onOpenProduto: vi.fn(), ...extra };
+    onNovoLink: vi.fn(async () => "b".repeat(64)), onPagamento: vi.fn(async () => {}), onOpenProduto: vi.fn(), ...extra };
   render(<PainelPedidos {...props} />);
   return props;
 }
