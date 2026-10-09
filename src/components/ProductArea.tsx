@@ -4,6 +4,7 @@ import { ArrowLeft, Check, CheckCircle2, Keyboard, Package, Pencil, Plus, ScanLi
 import { Field, btnGhost, btnPrimary, digits, maskPhone, nextOnEnter, useKeyboard, type StoreData } from "@/components/StoreSetup";
 import { Scanner } from "@/components/Scanner";
 import { ganhoSobreCompra, lerPct, mostrarPct, vendaPorGanho } from "@/lib/preco";
+import { escolhasDoUltimo } from "@/lib/ultimaEscolha";
 import { AUTOPECAS_VARS_MSG, POSICAO_MSG, CONSTRUCAO_VARS_MSG, CONTROLADO_MSG, ESPECIE_MSG, PET_VARS_MSG, FARMACIA_VARS_MSG, firstInvalidStep, typeRuleError, type TypeRules, mainCodeError, usedCodes, variationErrors, variationOk } from "@/lib/variations";
 import {
   ACIMA_MAX, LOCAL_DUP, LOCAL_PENDENTE, REMOCAO_BLOQUEADA, SEM_CONFIG, TEMPORARIO, aceitaFracao, fmtQ, limitesErro, limitesStatus, localDuplicado,
@@ -309,17 +310,21 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const [codeMode, setCodeMode] = useState<"choose" | "type">(initial ? "type" : "choose");
   const [scan, setScan] = useState(false);
   const [denied, setDenied] = useState(false);
+  /** Produto novo começa com as escolhas do último produto do comércio (a lista vem do mais novo para o mais antigo). */
+  const [ini] = useState(() => (initial ? {} : escolhasDoUltimo(products[0], {
+    unidades: UNIDADES[tipo] ?? [], categorias: CATEGORIAS[tipo] ?? [], fornecedores: suppliers.map((s) => s.id),
+  })));
   const [codigo, setCodigo] = useState(initial?.codigo ?? "");
   const [nome, setNome] = useState(initial?.nome ?? "");
   const [compra, setCompra] = useState(initial?.compra ?? 0);
   const [venda, setVenda] = useState(initial?.venda ?? 0);
   /** % digitado em "Ganho sobre a compra". Enquanto valer, mudar a compra recalcula a venda. */
   const [pctDigitado, setPctDigitado] = useState<string | null>(null);
-  const [unidade, setUnidade] = useState(initial?.unidade ?? "");
-  const [categoria, setCategoria] = useState(initial?.categoria ?? "");
+  const [unidade, setUnidade] = useState(initial?.unidade ?? ini.unidade ?? "");
+  const [categoria, setCategoria] = useState(initial?.categoria ?? ini.categoria ?? "");
   const [det, setDet] = useState<Record<string, string>>(initial?.detalhes ?? {});
   const [vars, setVars] = useState<Variation[]>(() => (initial?.variacoes ?? []).map((v) => (v.uid ? v : { ...v, uid: newUid() })));
-  const [forn, setForn] = useState<number | null | undefined>(initial ? initial.fornecedor : undefined);
+  const [forn, setForn] = useState<number | null | undefined>(initial ? initial.fornecedor : ini.fornecedor);
   const [varSheet, setVarSheet] = useState<number | null>(null);
   const [suppSheet, setSuppSheet] = useState(false);
   const [varMsg, setVarMsg] = useState("");
@@ -329,7 +334,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const initDep = initial?.deposito;
   const configSalva = !!initDep;
   const locais = useMemo(() => juntarLocais(locaisCadastrados?.deposito ?? [], locaisDoComercio(products)), [products, locaisCadastrados]);
-  const [dLocal, setDLocal] = useState<string | null | undefined>(initDep ? initDep.local : undefined);
+  const [dLocal, setDLocal] = useState<string | null | undefined>(initDep ? initDep.local : ini.localDeposito);
   const [manterSem, setManterSem] = useState(!!initial && !initDep);
   const [novoLocal, setNovoLocal] = useState<string | null>(null);
   const [localMsg, setLocalMsg] = useState("");
@@ -345,7 +350,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const vendaSalva = !!initVen;
   const locaisV = useMemo(() => juntarLocais(locaisCadastrados?.venda ?? [], locaisVendaDoComercio(products)), [products, locaisCadastrados]);
   const [confVenc, setConfVenc] = useState(false);
-  const [vLocal, setVLocal] = useState<string | null | undefined>(initVen ? initVen.local : undefined);
+  const [vLocal, setVLocal] = useState<string | null | undefined>(initVen ? initVen.local : ini.localVenda);
   const [vManter, setVManter] = useState(!!initial && !initVen);
   const [vNovo, setVNovo] = useState<string | null>(null);
   const [vLocalMsg, setVLocalMsg] = useState("");
@@ -359,9 +364,9 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const isFarm = tipo === "farmacia";
   const initVal = initial?.validade;
   const hoje = useMemo(() => hojeEm(TZ_PADRAO), []);
-  const [vControla, setVControla] = useState<boolean | undefined>(isFarm ? true : initVal?.controla);
+  const [vControla, setVControla] = useState<boolean | undefined>(isFarm ? true : initVal?.controla ?? ini.validade?.controla);
   const [valManter, setValManter] = useState(!!initial && !initVal);
-  const [avisos, setAvisos] = useState<number[]>(initVal?.avisos ?? []);
+  const [avisos, setAvisos] = useState<number[]>(initVal?.avisos ?? ini.validade?.avisos ?? []);
   const [valMsg, setValMsg] = useState("");
   const [lin, setLin] = useState<Record<string, LinhaEd[]>>(() => linhasIniciais(initVal, isFarm));
   const desligarBloq = temQtdValidade(initVal);
@@ -804,7 +809,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                       <option value="">Selecione</option>
                       {(CATEGORIAS[tipo] ?? []).map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
-                    <p className="text-xs text-muted-foreground">Ajuda a organizar a lista.</p>
+                    <p className="text-xs text-muted-foreground">{ini.categoria && categoria === ini.categoria ? "Igual ao último produto. Pode trocar." : "Ajuda a organizar a lista."}</p>
                   </div>
                 </>
               )}
@@ -851,7 +856,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                     <button type="button" onClick={() => setSuppSheet(true)} className="flex min-h-13 items-center gap-2 rounded-2xl border-2 border-dashed border-accent/70 px-4 text-base font-semibold text-accent"><Plus size={18} /> Novo fornecedor</button>
                     <Pick on={forn === null} onClick={() => setForn(null)}><span>Definir depois</span></Pick>
                   </div>
-                  <p className="text-xs text-muted-foreground">De quem você compra este produto.</p>
+                  <p className="text-xs text-muted-foreground">{ini.fornecedor != null && forn === ini.fornecedor ? "Mesmo fornecedor do último produto. Pode trocar." : "De quem você compra este produto."}</p>
                 </>
               )}
 
