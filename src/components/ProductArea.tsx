@@ -12,6 +12,7 @@ import {
 import { ImprimirEtiquetaSheet } from "@/components/Etiqueta";
 import { avisoCodigo } from "@/lib/codigoBarras";
 import { LOCAIS_SUGERIDOS, exemplos, textoDoTipo } from "@/lib/exemplos";
+import { acimaPmcMsg, localNaoCombina, localPelaTarja, pmcCentavos, pmcTexto } from "@/lib/farmacia";
 import { CATEGORIAS, DETALHES, GRUPOS_TAMANHO, UNICO, UNIDADES, grupoInicial } from "@/lib/listas";
 import { AUTOPECAS_VARS_MSG, CONSTRUCAO_VARS_MSG, PET_VARS_MSG, FARMACIA_VARS_MSG, msgDetalheFixo, firstInvalidStep, typeRuleError, type TypeRules, mainCodeError, usedCodes, variationErrors, variationOk } from "@/lib/variations";
 import {
@@ -537,6 +538,10 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   ][step]!;
   const lucro = venda - compra;
   const prejuizo = compra > 0 && venda > 0 && venda < compra;
+  /* Farmácia: preço máximo (PMC) e local de acordo com a tarja. São avisos; não impedem salvar. */
+  const avisoPmc = isFarm ? acimaPmcMsg(venda, pmcCentavos(det)) : "";
+  const tarjaInfo = isFarm ? localPelaTarja(det["tarja"]) : undefined;
+  const avisoLocalTarja = isFarm ? localNaoCombina(det["tarja"], vManter ? null : vLocal) : "";
   const chavePrejuizo = `${compra}-${venda}`;
   const prejuizoConfirmado = prejuizoOk === chavePrejuizo;
   const ganho = ganhoSobreCompra(compra, venda);
@@ -850,6 +855,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                     <Field label="Preço de venda" name="venda" inputMode="numeric" enterKeyHint="done"
                       value={venda ? brl2(venda) : ""} placeholder="R$ 0,00" onChange={(e) => mudarVenda(moneyIn(e.target.value))} hint="Quanto o cliente paga." />
                   </div>
+                  {avisoPmc && <p role="alert" className="text-sm font-semibold text-destructive">{avisoPmc}</p>}
                   <div className="grid grid-cols-2 gap-2.5 rounded-2xl border border-border bg-background-deep/60 p-3">
                     <div><p className="text-xs text-muted-foreground">Lucro por unidade</p><p className={`text-base font-bold ${lucro < 0 ? "text-destructive" : "text-accent"}`}>{brl2(lucro)}</p></div>
                     <label htmlFor="ganho" className="block min-w-0 cursor-text">
@@ -889,9 +895,10 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                       <Chips key={f.k} label={f.label} hint={f.hint} opts={f.opts} value={det[f.k] ?? ""} onChange={(v) => setDet({ ...det, [f.k]: v })} />
                     ) : (
                       <Field key={f.k} label={f.label} name={`d-${f.k}`} autoComplete="off" placeholder={f.ph} hint={f.hint}
+                        inputMode={f.dinheiro ? "numeric" : undefined} error={f.k === "pmc" ? avisoPmc : ""}
                         enterKeyHint={arr.slice(i + 1).some((x) => !x.opts) ? "next" : "done"}
                         onKeyDown={(() => { const n = arr.slice(i + 1).find((x) => !x.opts); return n ? nextOnEnter(`d-${n.k}`) : undefined; })()}
-                        value={det[f.k] ?? ""} onChange={(e) => setDet({ ...det, [f.k]: e.target.value })} />
+                        value={det[f.k] ?? ""} onChange={(e) => setDet({ ...det, [f.k]: f.dinheiro ? pmcTexto(e.target.value) : e.target.value })} />
                     ),
                   )}
                   {extrasDet.length > 0 && !maisDet && (
@@ -1120,6 +1127,8 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                   {sub === 0 && (
                     <>
                       <p className="text-base font-semibold">Onde este produto fica para venda?</p>
+                      {tarjaInfo && <p className="rounded-2xl border border-accent/50 bg-accent/10 p-3 text-sm">{tarjaInfo.motivo}</p>}
+                      {avisoLocalTarja && <p role="alert" className="text-sm font-semibold text-destructive">{avisoLocalTarja}</p>}
                       <div className="grid grid-cols-1 gap-2">
                         {listaVLocais.map((l) => (
                           <Pick key={l} on={!vManter && vLocal === l} onClick={() => pickVLocal(l)}><span className="truncate">{l}</span></Pick>
@@ -1132,7 +1141,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                               value={vNovo} onChange={(e) => setVNovo(e.target.value.slice(0, 60))}
                               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addVLocal(); } }}
                               error={vNovoDup ? VEN_LOCAL_DUP : ""} hint="Um nome simples. Corredor e nível não são obrigatórios." />
-                            {!vNovo && <LocaisSugeridos opts={LOCAIS_SUGERIDOS[tipo]?.ven ?? []} campo="vlocal" onPick={setVNovo} />}
+                            {!vNovo && <LocaisSugeridos opts={primeiro(LOCAIS_SUGERIDOS[tipo]?.ven ?? [], tarjaInfo?.local)} campo="vlocal" onPick={setVNovo} />}
                             <div className="flex gap-2">
                               <button type="button" onClick={() => setVNovo(null)} className={`flex-1 ${btnGhost}`}>Cancelar</button>
                               <button type="button" disabled={!vNovo.trim() || vNovoDup} onClick={addVLocal} className={`flex-1 ${btnPrimary(!!vNovo.trim() && !vNovoDup)}`}>Usar este local de venda</button>
@@ -1277,7 +1286,8 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
               {step === STEP_REV && (
                 <div className="divide-y divide-border rounded-2xl border border-border bg-background-deep/60">
                   <Sum t="Código e nome" onEdit={() => edit(0)}>{nome}<br />Cód. {codigo}</Sum>
-                  <Sum t="Preços" onEdit={() => edit(1)}>{brl2(compra)} → {brl2(venda)} / {unidade}<br />{categoria}{ganho != null && ganhoTexto ? (ganho < 0 ? ` · prejuízo de ${mostrarPct(-ganho)}% sobre a compra` : ` · ganho de ${ganhoTexto}% sobre a compra`) : ""}</Sum>
+                  <Sum t="Preços" onEdit={() => edit(1)}>{brl2(compra)} → {brl2(venda)} / {unidade}<br />{categoria}{ganho != null && ganhoTexto ? (ganho < 0 ? ` · prejuízo de ${mostrarPct(-ganho)}% sobre a compra` : ` · ganho de ${ganhoTexto}% sobre a compra`) : ""}
+                    {avisoPmc && <span role="alert" className="block font-semibold text-destructive">{avisoPmc}</span>}</Sum>
                   <Sum t="Detalhes" onEdit={() => edit(2)}>
                     {Object.entries(det).filter(([, v]) => v).map(([k, v]) => `${labelOf(tipo, k)}: ${v}`).join(" · ") || (vars.length ? "" : "Nenhum")}
                     {vars.length > 0 && <><br />{vars.map((v) => `${v.tam}/${v.cor}/Cód. ${v.codigo || "—"}/${v.qtd}`).join(", ")}</>}
@@ -1297,7 +1307,8 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                     <Sum t="Área de venda" onEdit={() => edit(STEP_VEN, 0)}>{VEN_SEM_CONFIG}</Sum>
                   ) : (
                     <>
-                      <Sum t="Local de venda" onEdit={() => edit(STEP_VEN, 0)}>{resumoVLocal}</Sum>
+                      <Sum t="Local de venda" onEdit={() => edit(STEP_VEN, 0)}>{resumoVLocal}
+                        {avisoLocalTarja && <span role="alert" className="block font-semibold text-destructive">{avisoLocalTarja}</span>}</Sum>
                       <Sum t="Quantidade na área de venda" onEdit={() => edit(STEP_VEN, 1)}>{resumoVQtd}</Sum>
                       <Sum t="Limites da área de venda" onEdit={() => edit(STEP_VEN, 2)}>{resumoVLim}</Sum>
                     </>
@@ -1387,6 +1398,8 @@ function LimitesVendaAjuda() {
     </div>
   );
 }
+/** Põe a sugestão (ex.: o local pela tarja) no começo da lista. */
+const primeiro = (l: string[], x?: string) => (x ? [x, ...l.filter((o) => o !== x)] : l);
 /** Atalhos para o nome do local: um toque preenche o começo e o comerciante completa ("Gôndola 3"). */
 function LocaisSugeridos({ opts, campo, onPick }: { opts: string[]; campo: string; onPick: (v: string) => void }) {
   if (!opts.length) return null;
