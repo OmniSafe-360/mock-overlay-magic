@@ -72,8 +72,18 @@ describe("como chega do fornecedor (embalagens)", () => {
     typeIn(/Código de barras da embalagem/, tiss.codigo);
     salvarSheet();
     expect(screen.getByText(/inteiro/)).toBeTruthy();
-    expect(screen.getByText(/diferente do código do produto/)).toBeTruthy();
+    expect(screen.getByText(/Este é o código de cada unidade \(o mesmo do produto\)/)).toBeTruthy();
     expect(screen.getByRole("dialog")).toBeTruthy();
+  });
+
+  it("escanear o código do produto na embalagem explica e oferece apagar", () => {
+    editar(tiss);
+    click(/Em caixa, fardo ou pacote/);
+    typeIn(/Código de barras da embalagem/, tiss.codigo);
+    expect(screen.getByText(/O caixa fechado|A caixa fechada tem um código próprio/)).toBeTruthy();
+    click(/Apagar e deixar sem código/);
+    expect((screen.getByLabelText(/Código de barras da embalagem/) as HTMLInputElement).value).toBe("");
+    expect(screen.getByText("O código impresso na caixa fechada, se tiver. Não é o código de cada unidade.")).toBeTruthy();
   });
 
   it("produto que já tem caixa: voltar para 'Por unidade' remove ao salvar", () => {

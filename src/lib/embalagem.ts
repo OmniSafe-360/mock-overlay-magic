@@ -1,6 +1,6 @@
 /* Embalagens de compra: o fornecedor entrega Caixa/Fardo/Pacote/Display/Saco; a loja vende na unidade do produto.
  * O estoque fica sempre na unidade de venda; a embalagem só diz quanto vem dentro. Preços em centavos. */
-import { aceitaFracao, fmtQ, parseNum, qtdUn, unPlural } from "@/lib/deposito";
+import { aceitaFracao, fmtQ, parseNum, qtdUn, unPlural, unSingular } from "@/lib/deposito";
 
 export type Embalagem = { uid: string; tipo: string; qtd: number; codigo: string; preco: number };
 /** Todas as embalagens que o banco aceita (função _salvar_embalagens). */
@@ -50,12 +50,23 @@ export function lerQtdEmbalagem(txt: string, unidade: string): { v: number | nul
 }
 
 /** Erros de uma embalagem dentro da lista do produto. `index` = posição dela (-1 se for nova). */
-export function errosEmbalagem(e: Pick<Embalagem, "tipo" | "qtd" | "codigo">, index: number, lista: Embalagem[], codigoProduto: string, usados: Set<string>) {
+/** "o display fechado", "a caixa fechada" — para as frases de ajuda. */
+export const embalagemFechada = (tipo: string) => (tipo === "Caixa" ? "a caixa fechada" : `o ${tipo.toLowerCase()} fechado`);
+/** Ajuda do campo de código da embalagem: deixa claro que não é o código de cada unidade vendida. */
+export const ajudaCodigoEmbalagem = (tipo: string, unidade: string) =>
+  `O código impresso ${tipo === "Caixa" ? "na" : "no"} ${embalagemFechada(tipo).slice(2)}, se tiver. Não é o código de cada ${unSingular(unidade) || "unidade"}.`;
+/** Quando escaneiam o código do produto (de cada unidade) no lugar do código da embalagem. */
+export const codigoIgualProdutoMsg = (tipo: string, unidade: string) => {
+  const e = embalagemFechada(tipo);
+  return `Este é o código de cada ${unSingular(unidade) || "unidade"} (o mesmo do produto). ${e.charAt(0).toUpperCase()}${e.slice(1)} tem um código próprio, impresso ${tipo === "Caixa" ? "nela" : "nele"}. Se não tiver, deixe este campo em branco.`;
+};
+
+export function errosEmbalagem(e: Pick<Embalagem, "tipo" | "qtd" | "codigo">, index: number, lista: Embalagem[], codigoProduto: string, usados: Set<string>, unidade = "Unidade") {
   const out: { repetida?: string; codigo?: string } = {};
   if (lista.some((o, i) => i !== index && o.tipo === e.tipo && o.qtd === e.qtd)) out.repetida = "Já existe esta embalagem neste produto.";
   const c = e.codigo.trim();
   if (c) {
-    if (c === codigoProduto.trim()) out.codigo = "O código da embalagem precisa ser diferente do código do produto.";
+    if (c === codigoProduto.trim()) out.codigo = codigoIgualProdutoMsg(e.tipo, unidade);
     else if (lista.some((o, i) => i !== index && o.codigo.trim() === c)) out.codigo = "Outra embalagem deste produto já usa este código.";
     else if (usados.has(c)) out.codigo = "Este código já está cadastrado";
   }

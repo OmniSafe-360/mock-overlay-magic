@@ -131,7 +131,7 @@ const MSG: [string, string][] = [
   ["sem_acesso_ao_comercio", "Você não tem acesso a este comércio."],
   ["operacao_reutilizada", "Este envio já foi registrado com outro conteúdo. Feche o cadastro e tente de novo."],
   ["codigo_em_uso", "Este código de barras já está cadastrado neste comércio."],
-  ["codigo_igual_ao_principal", "O código da variação ou da embalagem precisa ser diferente do código do produto."],
+  ["codigo_igual_ao_principal", "O código da embalagem (ou da variação) não pode ser o mesmo do produto: cada uma tem um código próprio. Se não tiver, deixe em branco."],
   ["embalagem_repetida", "Já existe esta embalagem neste produto (mesmo tipo e quantidade)."],
   ["tipo_de_embalagem_invalido", "Escolha o tipo de embalagem na lista."],
   ["preco_da_embalagem_invalido", "O preço da embalagem precisa ser maior que zero."],

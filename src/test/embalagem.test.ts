@@ -28,7 +28,7 @@ describe("embalagens", () => {
     const usados = new Set(["7891000100103"]);
     expect(errosEmbalagem({ tipo: "Caixa", qtd: 12, codigo: "" }, -1, [cx], "789", usados).repetida).toBeTruthy();
     expect(errosEmbalagem({ tipo: "Caixa", qtd: 12, codigo: "" }, 0, [cx], "789", usados)).toEqual({});
-    expect(errosEmbalagem({ tipo: "Fardo", qtd: 72, codigo: "789" }, -1, [cx], "789", usados).codigo).toMatch(/diferente do código do produto/);
+    expect(errosEmbalagem({ tipo: "Fardo", qtd: 72, codigo: "789" }, -1, [cx], "789", usados).codigo).toBe("Este é o código de cada unidade (o mesmo do produto). O fardo fechado tem um código próprio, impresso nele. Se não tiver, deixe este campo em branco.");
     expect(errosEmbalagem({ tipo: "Fardo", qtd: 72, codigo: cx.codigo }, -1, [cx], "789", usados).codigo).toMatch(/Outra embalagem/);
     expect(errosEmbalagem({ tipo: "Fardo", qtd: 72, codigo: "7891000100103" }, -1, [cx], "789", usados).codigo).toBe("Este código já está cadastrado");
   });
@@ -62,5 +62,15 @@ describe("contar por embalagem no depósito", () => {
     expect(rotuloFechadas({ tipo: "Saco", qtd: 25.5 }, "Kg")).toBe("Sacos com 25,5 Kg fechados");
     expect(rotuloSoltas("Unidade")).toBe("Unidades soltas");
     expect(rotuloSoltas("Kg")).toBe("Soltos (em Kg)");
+  });
+});
+
+describe("código da embalagem igual ao do produto: explicação clara", () => {
+  it("fala o nome da unidade e da embalagem", async () => {
+    const { codigoIgualProdutoMsg, ajudaCodigoEmbalagem } = await import("@/lib/embalagem");
+    expect(codigoIgualProdutoMsg("Display", "Cartela")).toBe("Este é o código de cada cartela (o mesmo do produto). O display fechado tem um código próprio, impresso nele. Se não tiver, deixe este campo em branco.");
+    expect(codigoIgualProdutoMsg("Caixa", "Frasco")).toContain("A caixa fechada tem um código próprio, impresso nela.");
+    expect(ajudaCodigoEmbalagem("Display", "Cartela")).toBe("O código impresso no display fechado, se tiver. Não é o código de cada cartela.");
+    expect(ajudaCodigoEmbalagem("Caixa", "Unidade")).toBe("O código impresso na caixa fechada, se tiver. Não é o código de cada unidade.");
   });
 });
