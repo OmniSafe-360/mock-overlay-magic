@@ -113,7 +113,8 @@ export function mensagemErro(e: unknown): string {
 }
 
 /* ---------- carregar ---------- */
-type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Row = any;
 export type Bruto = { produtos: Row[]; variacoes: Row[]; areas: Row[]; locais: Row[]; contagens: Row[]; saldos: Row[]; lotes: Row[] };
 
 export function montarProdutos(b: Bruto, suppliers: Supplier[]): Product[] {
