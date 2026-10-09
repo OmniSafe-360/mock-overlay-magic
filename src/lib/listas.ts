@@ -52,7 +52,7 @@ export const OPCOES_DETALHE: Record<string, Record<string, string[]>> = {
 };
 
 /** `opcional`: fica em "Mais detalhes (opcional)", fechado por padrão, para a tela não precisar rolar. */
-export type DField = { k: string; label: string; hint: string; ph?: string; opts?: string[]; opcional?: boolean };
+export type DField = { k: string; label: string; hint: string; ph?: string; opts?: string[]; opcional?: boolean; /** Valor em reais ("R$ 45,90"). */ dinheiro?: boolean };
 const op = (tipo: string, k: string) => OPCOES_DETALHE[tipo]![k]!;
 
 /** Campos da etapa "Detalhes do produto", na ordem da tela. Todos podem ficar em branco. */
@@ -67,6 +67,7 @@ export const DETALHES: Record<string, DField[]> = {
     { k: "marca", label: "Marca", hint: "Laboratório ou marca.", ph: "Ex.: EMS" },
     { k: "tarja", label: "Tarja", hint: "A faixa colorida da caixa. Tarja preta e a que retém receita são controlados.", opts: op("farmacia", "tarja") },
     { k: "registro", label: "Registro na Anvisa", hint: "O número \"Reg. MS\" impresso na caixa.", ph: "Ex.: 1.0235.0045", opcional: true },
+    { k: "pmc", label: "Preço máximo (PMC)", hint: "Preço máximo ao consumidor, impresso na caixa ou na tabela do governo (CMED).", ph: "R$ 0,00", opcional: true, dinheiro: true },
   ],
   roupas: [
     { k: "marca", label: "Marca", hint: "Marca da peça.", ph: "Ex.: Hering" },
