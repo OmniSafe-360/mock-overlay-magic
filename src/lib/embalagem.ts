@@ -1,6 +1,6 @@
 /* Embalagens de compra: o fornecedor entrega Caixa/Fardo/Pacote/Display/Saco; a loja vende na unidade do produto.
  * O estoque fica sempre na unidade de venda; a embalagem só diz quanto vem dentro. Preços em centavos. */
-import { aceitaFracao, fmtQ, parseNum } from "@/lib/deposito";
+import { aceitaFracao, fmtQ, parseNum, qtdUn, unPlural } from "@/lib/deposito";
 
 export type Embalagem = { uid: string; tipo: string; qtd: number; codigo: string; preco: number };
 export const TIPOS_EMBALAGEM = ["Caixa", "Fardo", "Pacote", "Display", "Saco"] as const;
@@ -11,13 +11,13 @@ export const EMB_VAZIA = "Adicione pelo menos uma embalagem ou escolha \"Por uni
 export function descricaoEmbalagem(e: Pick<Embalagem, "tipo" | "qtd">, unidade: string) {
   const q = fmtQ(e.qtd);
   if (unidade === "Unidade" || !unidade) return `${e.tipo} com ${q}`;
-  return `${e.tipo} com ${q} ${unidade}`;
+  return `${e.tipo} com ${qtdUn(e.qtd, unidade)}`;
 }
 
 /** Pergunta da quantidade conforme a unidade de venda. */
 export function perguntaQtd(unidade: string) {
   if (unidade === "Unidade" || !unidade) return "Quantas unidades vêm dentro?";
-  return `Quanto vem dentro? (em ${unidade})`;
+  return `Quanto vem dentro? (em ${unPlural(unidade)})`;
 }
 
 /** Preço de compra de 1 unidade de venda (centavos), a partir do preço da embalagem. */
@@ -57,7 +57,7 @@ export function rotuloFechadas(e: Pick<Embalagem, "tipo" | "qtd">, unidade: stri
 /** Nome do modo de contagem: "Caixas + soltas" (uma só embalagem) ou "Embalagens + soltas". */
 export const rotuloContarPor = (embs: Pick<Embalagem, "tipo">[]) =>
   `${embs.length === 1 ? PLURAL[embs[0]!.tipo] ?? "Embalagens" : "Embalagens"} + soltas`;
-export const rotuloSoltas = (unidade: string) => (unidade === "Unidade" || !unidade ? "Unidades soltas" : `Soltos (em ${unidade})`);
+export const rotuloSoltas = (unidade: string) => (unidade === "Unidade" || !unidade ? "Unidades soltas" : `Soltos (em ${unPlural(unidade)})`);
 
 /** Soma "N embalagens fechadas + soltas" na unidade de venda. Campos vazios contam como zero; tudo vazio = sem contagem. */
 export function totalContado(
