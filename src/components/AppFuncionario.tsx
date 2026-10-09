@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { ArrowLeft, Delete, LogOut, PackageOpen, RefreshCw, ShoppingBasket } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import { ReceberMercadoria, type ApiReceber } from "@/components/ReceberMercadoria";
+import { ReporGondola, type ApiRepor } from "@/components/ReporGondola";
 import { TIPO_FROM_DB, btnGhost, btnPrimary } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";
 import {
@@ -16,6 +17,7 @@ export type ApiFuncionario = {
   inicio: typeof banco.inicioFuncionario;
   sair: typeof banco.sairFuncionario;
   receber?: ApiReceber | undefined;
+  repor?: ApiRepor | undefined;
 };
 const API_PADRAO: ApiFuncionario = { conferir: banco.conferirCodigoFuncionario, entrar: banco.entrarFuncionario, inicio: banco.inicioFuncionario, sair: banco.sairFuncionario };
 
@@ -25,6 +27,7 @@ type Tela =
   | { t: "pin"; codigo: string; novo: boolean }
   | { t: "inicio"; dados: banco.InicioFuncionario }
   | { t: "receber" }
+  | { t: "repor" }
   | { t: "erro" };
 
 export function AppFuncionario({ codigoInicial, api = API_PADRAO }: { codigoInicial?: string | undefined; api?: ApiFuncionario }) {
@@ -68,8 +71,12 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO }: { codigoInic
           <ReceberMercadoria chave={lerChave() ?? ""} api={api.receber}
             onVoltar={() => { const c = lerChave(); if (c) void abrirInicio(c); else setTela({ t: "codigo" }); }} />
         )}
+        {tela.t === "repor" && (
+          <ReporGondola chave={lerChave() ?? ""} api={api.repor}
+            onVoltar={() => { const c = lerChave(); if (c) void abrirInicio(c); else setTela({ t: "codigo" }); }} />
+        )}
         {tela.t === "inicio" && (
-          <TelaInicio dados={tela.dados} onReceber={() => setTela({ t: "receber" })} onAtualizar={async () => { const c = lerChave(); if (c) await abrirInicio(c); }}
+          <TelaInicio dados={tela.dados} onReceber={() => setTela({ t: "receber" })} onRepor={() => setTela({ t: "repor" })} onAtualizar={async () => { const c = lerChave(); if (c) await abrirInicio(c); }}
             onSair={async () => { const c = lerChave(); apagarChave(); if (c) await api.sair(c).catch(() => {}); setTela({ t: "codigo" }); }} />
         )}
       </main>
@@ -181,8 +188,7 @@ function TelaPin({ codigo, novo, api, onVoltar, onEntrou }: {
   );
 }
 
-function TelaInicio({ dados, onAtualizar, onSair, onReceber }: { dados: banco.InicioFuncionario; onAtualizar: () => Promise<void>; onSair: () => Promise<void>; onReceber: () => void }) {
-  const [emBreve, setEmBreve] = useState<string | null>(null);
+function TelaInicio({ dados, onAtualizar, onSair, onReceber, onRepor }: { dados: banco.InicioFuncionario; onAtualizar: () => Promise<void>; onSair: () => Promise<void>; onReceber: () => void; onRepor: () => void }) {
   const [sair, setSair] = useState(false);
   const [atualizando, setAtualizando] = useState(false);
   const tipo = TIPO_FROM_DB[dados.comercio.tipo] ?? dados.comercio.tipo;
@@ -215,17 +221,10 @@ function TelaInicio({ dados, onAtualizar, onSair, onReceber }: { dados: banco.In
         )}
         {fazRepor(dados.funcao) && (
           <BotaoGrande icone={<ShoppingBasket size={40} />} titulo={nomeRepor} detalhe={reporTxt} destaque={a.repor > 0 ? "urgente" : null}
-            numero={a.repor} onClick={() => setEmBreve(nomeRepor)} />
+            numero={a.repor} onClick={onRepor} />
         )}
       </div>
 
-      {emBreve && (
-        <div role="status" className="rounded-2xl border border-primary/50 bg-primary/10 p-4 text-sm">
-          <p className="font-bold">{emBreve}</p>
-          <p className="mt-1 text-muted-foreground">Esta parte chega na próxima atualização do app. Por enquanto, os números aqui já mostram o que está esperando por você.</p>
-          <button type="button" onClick={() => setEmBreve(null)} className="mt-2 min-h-11 font-semibold text-primary">Entendi</button>
-        </div>
-      )}
 
       <footer className="space-y-2 pt-2">
         {!sair ? (
