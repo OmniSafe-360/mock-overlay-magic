@@ -32,6 +32,7 @@ const MSG_RECEBER: [string, string][] = [
   ["pedido_fechado", "Este pedido foi cancelado ou já recebido."],
   ["rodada_desatualizada", "A contagem foi atualizada em outro celular. Abra a entrega de novo."],
   ["acesso_encerrado", "Este celular saiu do app. Entre de novo com o código do dono."],
+  ["pin_necessario", "Por segurança, o app travou. Volte ao início e digite seu PIN."],
   ["funcao_nao_permite_receber", "Sua função não inclui receber mercadoria. Fale com o dono."],
 ];
 const erroTexto = (e: unknown) => {

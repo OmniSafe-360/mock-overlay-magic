@@ -5,9 +5,15 @@ import { tipoAparelho } from "@/lib/instalar";
 
 const CHAVE = "c".repeat(64);
 const api = () => ({
-  conferir: vi.fn(async () => "pin" as const), entrar: vi.fn(async () => CHAVE), sair: vi.fn(async () => {}),
+  conferir: vi.fn(async () => "pin" as const), entrar: vi.fn(async () => CHAVE), sair: vi.fn(async () => {}), desbloquear: vi.fn(async () => {}),
   inicio: vi.fn(async () => ({ nome: "Maria Souza", funcao: "ambos" as const, comercio: { nome: "Mercado Bom Preço", tipo: "mercado" }, avisos: { entregas: 0, entregasHoje: 0, repor: 0 } })),
 });
+
+/** Ao abrir, o app pede o PIN. */
+async function destravar() {
+  await screen.findByText("Digite seu PIN");
+  for (const d of "2580") fireEvent.click(screen.getByRole("button", { name: d }));
+}
 
 describe("instalar o Omni Operação", () => {
   beforeEach(() => { localStorage.clear(); localStorage.setItem("omni.funcionario.chave", CHAVE); });
@@ -18,6 +24,7 @@ describe("instalar o Omni Operação", () => {
   });
   it("depois do acesso oferece instalar; sem o aviso do navegador, mostra o passo a passo", async () => {
     render(<AppFuncionario api={api()} />);
+    await destravar();
     const card = within(await screen.findByRole("region", { name: "Instalar o app" }));
     fireEvent.click(card.getByRole("button", { name: /Instalar o app/ }));
     const dlg = within(screen.getByRole("dialog", { name: "Instalar o Omni Operação" }));
@@ -29,17 +36,20 @@ describe("instalar o Omni Operação", () => {
     const ev = Object.assign(new Event("beforeinstallprompt"), { prompt, userChoice: Promise.resolve({ outcome: "accepted" as const }) });
     act(() => { window.dispatchEvent(ev); });
     render(<AppFuncionario api={api()} />);
+    await destravar();
     fireEvent.click(within(await screen.findByRole("region", { name: "Instalar o app" })).getByRole("button", { name: /Instalar o app/ }));
     await waitFor(() => expect(prompt).toHaveBeenCalled());
     expect(await screen.findByText(/está na tela inicial do seu celular/)).toBeTruthy();
   });
   it("Agora não esconde e lembra", async () => {
     const { unmount } = render(<AppFuncionario api={api()} />);
+    await destravar();
     fireEvent.click(within(await screen.findByRole("region", { name: "Instalar o app" })).getByRole("button", { name: "Agora não" }));
     expect(screen.queryByRole("region", { name: "Instalar o app" })).toBeNull();
     unmount();
     render(<AppFuncionario api={api()} />);
-    expect(await screen.findByText("Olá, Maria!")).toBeTruthy();
+    await destravar();
+    expect(await screen.findByRole("button", { name: /Receber mercadoria/ })).toBeTruthy();
     expect(screen.queryByRole("region", { name: "Instalar o app" })).toBeNull();
   });
   it("botão de instalar já na tela do código", async () => {
@@ -54,6 +64,7 @@ describe("instalar o Omni Operação", () => {
     sessionStorage.setItem("omni.funcionario.dentro_do_app_dono", "1");
     try {
       render(<AppFuncionario api={api()} />);
+      await destravar();
       fireEvent.click(within(await screen.findByRole("region", { name: "Instalar o app" })).getByRole("button", { name: /Instalar o app/ }));
       const dlg = within(screen.getByRole("dialog", { name: "Instalar o Omni Operação" }));
       expect(dlg.getByText(/dentro do/)).toBeTruthy();

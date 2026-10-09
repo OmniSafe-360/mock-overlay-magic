@@ -121,6 +121,7 @@ function apiFunc(over: Partial<ApiFuncionario> = {}) {
     entrar: vi.fn(async (_c: string, _p: string, _a: string) => CHAVE),
     inicio: vi.fn(async (_c: string): Promise<InicioFuncionario | null> => inicio()),
     sair: vi.fn(async (_c: string) => {}),
+    desbloquear: vi.fn(async (_c: string, _p: string) => {}),
     repor: { lista: vi.fn(async () => ({ tipo: "mercado", produtos: [] })), contar: vi.fn(), concluir: vi.fn(), buscar: vi.fn() },
     ...over,
   };
@@ -168,14 +169,58 @@ describe("app do funcionário (Omni Operação)", () => {
     fireEvent.change(campo, { target: { value: "111222" } });
     expect(await screen.findByText(/Este código venceu/)).toBeTruthy();
   });
-  it("celular já ligado abre direto; só o botão da função dele", async () => {
+  it("celular já ligado pede o PIN ao abrir; só o botão da função dele", async () => {
     localStorage.setItem("omni.funcionario.chave", CHAVE);
     const api = apiFunc({ inicio: vi.fn(async () => inicio({ funcao: "repor", comercio: { nome: "Farmácia Vida", tipo: "farmacia" }, avisos: { entregas: 0, entregasHoje: 0, repor: 0 } })) });
     render(<AppFuncionario api={api} />);
-    expect(await screen.findByText("Farmácia Vida")).toBeTruthy();
-    expect(api.inicio).toHaveBeenCalledWith(CHAVE);
+    expect(await screen.findByText("Digite seu PIN")).toBeTruthy();
+    expect(screen.getByText("Olá, Maria!")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Repor área de venda/ })).toBeNull();
+    digitar("2580");
+    await waitFor(() => expect(api.desbloquear).toHaveBeenCalledWith(CHAVE, "2580"));
+    expect(await screen.findByRole("button", { name: /Repor área de venda/ })).toBeTruthy();
+    expect(screen.getByText("Farmácia Vida")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Receber mercadoria/ })).toBeNull();
     expect(screen.getByRole("button", { name: /Repor área de venda/ }).textContent).toMatch(/Tudo abastecido/);
+  });
+  it("PIN errado não abre; esqueci o PIN explica o que pedir ao dono", async () => {
+    localStorage.setItem("omni.funcionario.chave", CHAVE);
+    const api = apiFunc({ desbloquear: vi.fn(async () => { throw new Error("pin_errado:4"); }) });
+    render(<AppFuncionario api={api} />);
+    await screen.findByText("Digite seu PIN");
+    digitar("9112");
+    expect(await screen.findByText("PIN errado. Você ainda tem 4 tentativas.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Receber mercadoria/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Esqueci meu PIN" }));
+    expect(screen.getByRole("status").textContent).toMatch(/Esqueceu o PIN ou trocou de celular/);
+  });
+  it("o banco pedindo o PIN (12 horas depois) também trava", async () => {
+    localStorage.setItem("omni.funcionario.chave", CHAVE);
+    const api = apiFunc({ inicio: vi.fn(async () => inicio({ pinNecessario: true })) });
+    render(<AppFuncionario api={api} />);
+    await screen.findByText("Digite seu PIN");
+    vi.mocked(api.inicio).mockImplementation(async () => inicio());
+    digitar("2580");
+    expect(await screen.findByRole("button", { name: /Receber mercadoria/ })).toBeTruthy();
+  });
+  it("fora da tela por 5 minutos pede o PIN de novo", async () => {
+    const api = apiFunc();
+    render(<AppFuncionario codigoInicial="255392" api={api} />);
+    await screen.findByText("Agora crie seu PIN");
+    digitar("2580"); digitar("2580");
+    expect(await screen.findByRole("button", { name: /Receber mercadoria/ })).toBeTruthy();
+    const agora = Date.now();
+    const visivel = (v: "hidden" | "visible") => { Object.defineProperty(document, "visibilityState", { value: v, configurable: true }); document.dispatchEvent(new Event("visibilitychange")); };
+    const spy = vi.spyOn(Date, "now");
+    try {
+      spy.mockReturnValue(agora); visivel("hidden");
+      spy.mockReturnValue(agora + 60_000); visivel("visible");
+      expect(screen.getByRole("button", { name: /Receber mercadoria/ })).toBeTruthy();
+      spy.mockReturnValue(agora + 2 * 60_000); visivel("hidden");
+      spy.mockReturnValue(agora + 8 * 60_000); visivel("visible");
+      expect(await screen.findByText("Digite seu PIN")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: /Receber mercadoria/ })).toBeNull();
+    } finally { spy.mockRestore(); Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true }); }
   });
   it("celular desligado pelo dono volta para o código com aviso", async () => {
     localStorage.setItem("omni.funcionario.chave", CHAVE);
@@ -187,7 +232,7 @@ describe("app do funcionário (Omni Operação)", () => {
     localStorage.setItem("omni.funcionario.chave", CHAVE);
     const api = apiFunc();
     render(<AppFuncionario api={api} />);
-    fireEvent.click(await screen.findByRole("button", { name: /Sair deste celular/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /sair deste celular/ }));
     fireEvent.click(screen.getByRole("button", { name: "Sim, sair" }));
     await waitFor(() => expect(api.sair).toHaveBeenCalledWith(CHAVE));
     expect(lerChave()).toBeNull();
