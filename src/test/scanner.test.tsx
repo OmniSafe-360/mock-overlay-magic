@@ -9,7 +9,7 @@ vi.mock("@zxing/browser", () => ({
   BrowserMultiFormatReader: class { decodeFromConstraints(...a: unknown[]) { return z.decode(...a); } },
 }));
 
-const flush = () => act(async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); await new Promise((r) => setTimeout(r, 0)); });
+const flush = () => act(async () => { for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 20)); });
 const res = (t: string) => ({ getText: () => t });
 
 beforeEach(() => {
