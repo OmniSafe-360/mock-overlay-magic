@@ -318,7 +318,9 @@ select t_ok((select variacao_id from codigos_barras where codigo = '702') = u('w
 set role authenticated;
 select t_erro($$select salvar_produto(t_p('op26','R4','cr1','Peça',null,'[]','[{"id":"'||u('w4')||'","tamanho":"P","cor":"Azul","codigo_barras":"702","qtd_informada":1}]','704'))$$, 'codigo_em_uso');
 select t_erro($$select salvar_produto(t_p('op26','R4','cr1','Peça',null,'[]','[{"id":"'||u('w4')||'","tamanho":"P","cor":"Azul","codigo_barras":"x1","qtd_informada":1}]','700'))$$, 'codigo_em_uso');
-select t_erro($$select salvar_produto(t_p('op26','P9','cm1','Pacote',null,'[]','[]','701'))$$, 'codigo_em_uso');
+-- 701 é de uma variação em cr1; o principal de outro produto no MESMO comércio não pode usá-lo
+-- (antes este caso usava cm1, outro comércio, e só "passava" pela falha do verificador)
+select t_erro($$select salvar_produto(t_p('op26','R6','cr1','Peça',null,'[]','[{"id":"'||u('w6')||'","tamanho":"P","cor":"Azul","codigo_barras":"706","qtd_informada":1}]','701'))$$, 'codigo_em_uso');
 select 'OK codigos ativos seguem unicos entre produtos e variacoes';
 
 -- ---------- Roupas: regras das variações ----------
