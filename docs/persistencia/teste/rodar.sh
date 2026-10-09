@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Sobe um PostgreSQL descartável em /tmp (nunca toca produção) e roda todos os testes.
 set -euo pipefail
-if [ "$(id -u)" = 0 ]; then id pgtest >/dev/null 2>&1 || useradd -M pgtest 2>/dev/null || true; U=$(id -u pgtest >/dev/null 2>&1 && echo pgtest || echo nobody); exec setpriv --reuid=$(id -u $U) --regid=$(id -g $U) --clear-groups env HOME=/tmp bash "$0" "$@"; fi
+if [ "$(id -u)" = 0 ]; then rm -rf /tmp/omni_pg; exec setpriv --reuid=65534 --regid=65534 --clear-groups env HOME=/tmp bash "$0" "$@"; fi
 D=$(cd "$(dirname "$0")" && pwd)
 PGD=/tmp/omni_pg; PORT=55432
 rm -rf "$PGD"; initdb -D "$PGD" -U postgres -A trust >/dev/null
