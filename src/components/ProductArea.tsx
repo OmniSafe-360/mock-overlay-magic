@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { ArrowLeft, Check, CheckCircle2, Keyboard, Package, Pencil, Plus, ScanLine, Search, Truck, X } from "lucide-react";
 import { Field, btnGhost, btnPrimary, digits, maskPhone, nextOnEnter, useKeyboard, type StoreData } from "@/components/StoreSetup";
 import { Scanner } from "@/components/Scanner";
-import { CONSTRUCAO_VARS_MSG, CONTROLADO_MSG, ESPECIE_MSG, PET_VARS_MSG, FARMACIA_VARS_MSG, firstInvalidStep, typeRuleError, type TypeRules, mainCodeError, usedCodes, variationErrors, variationOk } from "@/lib/variations";
+import { AUTOPECAS_VARS_MSG, POSICAO_MSG, CONSTRUCAO_VARS_MSG, CONTROLADO_MSG, ESPECIE_MSG, PET_VARS_MSG, FARMACIA_VARS_MSG, firstInvalidStep, typeRuleError, type TypeRules, mainCodeError, usedCodes, variationErrors, variationOk } from "@/lib/variations";
 
 /* ---------- tipos e dados por comércio ---------- */
 export type Supplier = { id: number; nome: string; tel: string; email: string };
@@ -165,6 +165,8 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     : tipo === "construcao" ? { unidades: UNIDADES["construcao"]!, categorias: CATEGORIAS["construcao"]!, semVariacoes: true, varsMsg: CONSTRUCAO_VARS_MSG }
     : tipo === "pet" ? { unidades: UNIDADES["pet"]!, categorias: CATEGORIAS["pet"]!, semVariacoes: true, varsMsg: PET_VARS_MSG,
         detalhesFixos: [{ k: "especie", opts: DETALHES["pet"]!.find((f) => f.k === "especie")?.opts ?? [], msg: ESPECIE_MSG }] }
+    : tipo === "autopecas" ? { unidades: UNIDADES["autopecas"]!, categorias: CATEGORIAS["autopecas"]!, semVariacoes: true, varsMsg: AUTOPECAS_VARS_MSG,
+        detalhesFixos: [{ k: "posicao", opts: DETALHES["autopecas"]!.find((f) => f.k === "posicao")?.opts ?? [], msg: POSICAO_MSG }] }
     : undefined;
   const ruleErr = typeRuleError({ unidade, categoria, variacoes: vars, detalhes: det }, rules);
   const dup = !!codeErr;
