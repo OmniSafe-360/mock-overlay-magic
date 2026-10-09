@@ -3,6 +3,7 @@ import { lotesAConfirmar } from "@/lib/persistencia";
 import { ArrowLeft, Check, CheckCircle2, Keyboard, Package, Pencil, Plus, ScanLine, Search, Truck, X } from "lucide-react";
 import { Field, btnGhost, btnPrimary, digits, maskPhone, nextOnEnter, useKeyboard, type StoreData } from "@/components/StoreSetup";
 import { Scanner } from "@/components/Scanner";
+import { ganhoSobreCompra, lerPct, mostrarPct, vendaPorGanho } from "@/lib/preco";
 import { AUTOPECAS_VARS_MSG, POSICAO_MSG, CONSTRUCAO_VARS_MSG, CONTROLADO_MSG, ESPECIE_MSG, PET_VARS_MSG, FARMACIA_VARS_MSG, firstInvalidStep, typeRuleError, type TypeRules, mainCodeError, usedCodes, variationErrors, variationOk } from "@/lib/variations";
 import {
   ACIMA_MAX, LOCAL_DUP, LOCAL_PENDENTE, REMOCAO_BLOQUEADA, SEM_CONFIG, TEMPORARIO, aceitaFracao, fmtQ, limitesErro, limitesStatus, localDuplicado,
@@ -312,6 +313,8 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const [nome, setNome] = useState(initial?.nome ?? "");
   const [compra, setCompra] = useState(initial?.compra ?? 0);
   const [venda, setVenda] = useState(initial?.venda ?? 0);
+  /** % digitado em "Ganho sobre a compra". Enquanto valer, mudar a compra recalcula a venda. */
+  const [pctDigitado, setPctDigitado] = useState<string | null>(null);
   const [unidade, setUnidade] = useState(initial?.unidade ?? "");
   const [categoria, setCategoria] = useState(initial?.categoria ?? "");
   const [det, setDet] = useState<Record<string, string>>(initial?.detalhes ?? {});
@@ -484,7 +487,19 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     true,
   ][step]!;
   const lucro = venda - compra;
-  const margem = venda > 0 ? (lucro / venda) * 100 : 0;
+  const ganho = ganhoSobreCompra(compra, venda);
+  const ganhoTexto = ganho != null && venda > 0 ? mostrarPct(ganho) : "";
+  const mudarCompra = (c: number) => {
+    setCompra(c);
+    const pct = pctDigitado != null ? lerPct(pctDigitado).valor : null;
+    if (pct != null && c > 0) setVenda(vendaPorGanho(c, pct));
+  };
+  const mudarVenda = (v: number) => { setVenda(v); setPctDigitado(null); };
+  const mudarPct = (t: string) => {
+    const { texto, valor } = lerPct(t);
+    setPctDigitado(texto);
+    if (valor != null && compra > 0) setVenda(vendaPorGanho(compra, valor));
+  };
   const fornNome = forn ? suppliers.find((s) => s.id === forn)?.nome : "Definir depois";
 
   /** Ao abrir as validades de uma área com contagem positiva, começa com uma linha simples. Nunca cria linha para zero ou sem contagem. */
@@ -758,13 +773,23 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                 <>
                   <div className="grid grid-cols-2 gap-2.5">
                     <Field label="Preço de compra" name="compra" inputMode="numeric" enterKeyHint="next" onKeyDown={nextOnEnter("venda")}
-                      value={compra ? brl2(compra) : ""} placeholder="R$ 0,00" onChange={(e) => setCompra(moneyIn(e.target.value))} hint="Quanto você paga." />
+                      value={compra ? brl2(compra) : ""} placeholder="R$ 0,00" onChange={(e) => mudarCompra(moneyIn(e.target.value))} hint="Quanto você paga." />
                     <Field label="Preço de venda" name="venda" inputMode="numeric" enterKeyHint="done"
-                      value={venda ? brl2(venda) : ""} placeholder="R$ 0,00" onChange={(e) => setVenda(moneyIn(e.target.value))} hint="Quanto o cliente paga." />
+                      value={venda ? brl2(venda) : ""} placeholder="R$ 0,00" onChange={(e) => mudarVenda(moneyIn(e.target.value))} hint="Quanto o cliente paga." />
                   </div>
                   <div className="grid grid-cols-2 gap-2.5 rounded-2xl border border-border bg-background-deep/60 p-3">
                     <div><p className="text-xs text-muted-foreground">Lucro por unidade</p><p className={`text-base font-bold ${lucro < 0 ? "text-destructive" : "text-accent"}`}>{brl2(lucro)}</p></div>
-                    <div><p className="text-xs text-muted-foreground">Margem %</p><p className={`text-base font-bold ${lucro < 0 ? "text-destructive" : "text-accent"}`}>{margem.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</p></div>
+                    <label htmlFor="ganho" className="block min-w-0 cursor-text">
+                      <span className="block text-xs text-muted-foreground">Quero ganhar</span>
+                      <span className="relative block">
+                        <input id="ganho" name="ganho" inputMode="decimal" autoComplete="off" enterKeyHint="done" disabled={compra <= 0}
+                          placeholder={compra > 0 ? "Ex.: 30" : "Falta a compra"} aria-describedby="ganho-dica"
+                          value={pctDigitado ?? ganhoTexto} onChange={(e) => mudarPct(e.target.value)}
+                          className={`mt-0.5 h-8 w-full rounded-xl border border-border bg-background-deep/60 pl-3 pr-8 text-base font-bold outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60 ${lucro < 0 ? "text-destructive" : "text-accent"}`} />
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-base font-bold text-muted-foreground">%</span>
+                      </span>
+                      <span id="ganho-dica" className="sr-only">Digite quanto quer ganhar em cima do preço de compra. O preço de venda é calculado sozinho.</span>
+                    </label>
                   </div>
                   {compra > 0 && venda > 0 && venda < compra && (
                     <p className="-mt-1 text-xs text-warning">O preço de venda está menor que o de compra. Você terá prejuízo.</p>
@@ -1115,7 +1140,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
               {step === STEP_REV && (
                 <div className="divide-y divide-border rounded-2xl border border-border bg-background-deep/60">
                   <Sum t="Código e nome" onEdit={() => edit(0)}>{nome}<br />Cód. {codigo}</Sum>
-                  <Sum t="Preços" onEdit={() => edit(1)}>{brl2(compra)} → {brl2(venda)} / {unidade}<br />{categoria} · margem {margem.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</Sum>
+                  <Sum t="Preços" onEdit={() => edit(1)}>{brl2(compra)} → {brl2(venda)} / {unidade}<br />{categoria}{ganhoTexto ? ` · ganho de ${ganhoTexto}% sobre a compra` : ""}</Sum>
                   <Sum t="Detalhes" onEdit={() => edit(2)}>
                     {Object.entries(det).filter(([, v]) => v).map(([k, v]) => `${labelOf(tipo, k)}: ${v}`).join(" · ") || (vars.length ? "" : "Nenhum")}
                     {vars.length > 0 && <><br />{vars.map((v) => `${v.tam}/${v.cor}/Cód. ${v.codigo || "—"}/${v.qtd}`).join(", ")}</>}

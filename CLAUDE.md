@@ -20,4 +20,5 @@
 - Busca de CEP usa ViaCEP e, como reserva, BrasilAPI (seção 8 cita só ViaCEP).
 - 09/10/2026: o Lovable criou sozinho (sem desenho aprovado) as tabelas de estoque: locais, produto_areas, contagens, lotes, saldos, movimentos, codigos_barras, operacoes, e as funções salvar_cadastro/salvar_produto/resolver_pendencia. Produto e variações só são gravados por essas funções. Revisado pelo Claude (seguro). **O dono decidiu manter tudo como o Lovable fez**, inclusive: variação de roupas com código de barras e quantidade obrigatórios; avisos de validade 30/60/90 dias (em vez de 90/30/15); área "venda" no lugar de gôndola.
 - 09/10/2026: corrigido fornecedor com telefone (ia com máscara; o banco só aceita números).
+- 09/10/2026: **preço pela margem** = "quanto quero ganhar em cima da compra" (ex.: compra R$ 10,00 + 30% = venda R$ 13,00). O quadro do preço mostra "Lucro por unidade" e o campo "Quero ganhar %"; a antiga "Margem %" (lucro ÷ venda) saiu da tela. Decisão do dono. Regras em `src/lib/preco.ts`.
 - Etapa B1 (comércios no banco) testada e aprovada pelo dono. Prompt A aprovado, exceto "Esqueci minha senha", que falhou por limite de e-mails do Supabase (refazer).
