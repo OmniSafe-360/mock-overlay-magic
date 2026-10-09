@@ -16,14 +16,17 @@ end $$;
 create function public.t_ok(_cond boolean, _nome text) returns text language plpgsql as $$
 begin if _cond is not true then raise exception 'FALHOU: %', _nome; end if; return 'OK ' || _nome; end $$;
 create function public.t_p(op text, prod text, com text, un text, ctrl boolean, areas text,
-  vars text default '[]', cod text default null, forn uuid default null, preco numeric default 2) returns jsonb
+  vars text default '[]', cod text default null, forn uuid default null, preco numeric default 2,
+  cat text default null, det text default '{}') returns jsonb
 language sql immutable as $$
   select jsonb_build_object('operacao_id', u(op), 'produto', jsonb_build_object(
     'id', u(prod), 'comercio_id', u(com), 'nome', 'Produto ' || prod, 'unidade', un,
-    'preco_compra', 1, 'preco_venda', preco, 'controla_validade', ctrl, 'codigo_barras', cod,
+    'preco_compra', 1, 'preco_venda', preco, 'detalhes', det::jsonb,
+    'categoria', coalesce(cat, case left(com, 2) when 'cf' then 'Medicamentos' when 'cr' then 'Camisetas' when 'cc' then 'Básico'
+      when 'cp' then 'Ração' when 'ca' then 'Motor' else 'Mercearia' end), 'controla_validade', ctrl, 'codigo_barras', cod,
     'fornecedor_id', forn, 'avisos_dias', '[30,60]'::jsonb), 'variacoes', vars::jsonb, 'areas', areas::jsonb) $$;
 grant execute on function public.u(text), public.t_erro(text, text), public.t_ok(boolean, text),
-  public.t_p(text, text, text, text, boolean, text, text, text, uuid, numeric) to authenticated, anon;
+  public.t_p(text, text, text, text, boolean, text, text, text, uuid, numeric, text, text) to authenticated, anon;
 
 -- ---------- Dados ----------
 insert into auth.users values (u('A'), 'a@x'), (u('B'), 'b@x');
@@ -31,7 +34,8 @@ insert into public.user_roles (user_id, role) values (u('A'), 'dono'), (u('B'), 
 insert into public.comercios (id, dono_id, tipo, nome) values
   (u('cm1'), u('A'), 'mercado', 'Mercado A'), (u('cm2'), u('A'), 'mercado', 'Mercado A2'),
   (u('cf1'), u('A'), 'farmacia', 'Farmácia A'), (u('cr1'), u('A'), 'loja_roupas', 'Roupas A'),
-  (u('cb1'), u('B'), 'mercado', 'Mercado B');
+  (u('cc1'), u('A'), 'material_construcao', 'Construção A'), (u('cp1'), u('A'), 'pet_shop', 'Pet A'),
+  (u('ca1'), u('A'), 'autopecas', 'Autopeças A'), (u('cb1'), u('B'), 'mercado', 'Mercado B');
 insert into public.fornecedores (id, dono_id, nome) values (u('fa'), u('A'), 'Forn A'), (u('fb'), u('B'), 'Forn B');
 
 -- ---------- Permissões e autenticação ----------
@@ -95,7 +99,7 @@ set role authenticated;
 select t_erro($$select salvar_produto(t_p('op5','P3','cm1','Pacote',null,'[]','[]','789001'))$$, 'codigo_em_uso');
 select salvar_produto(t_p('op5','P3','cm2','Pacote',null,'[]','[]','789001'));
 select 'OK mesmo codigo permitido em outro comercio';
-select t_erro($$select salvar_produto(t_p('op6','R1','cr1','Unidade',null,
+select t_erro($$select salvar_produto(t_p('op6','R1','cr1','Peça',null,
   '[{"area":"deposito","variacao_id":"'||u('v1')||'","contagem":{"quantidade":5}}]',
   '[{"id":"'||u('v1')||'","tamanho":"M","cor":"Azul","codigo_barras":"555"}]','555'))$$, 'codigo_em_uso');
 reset role;
@@ -184,7 +188,7 @@ select set_config('request.jwt.claim.sub', u('A')::text, false);
 select 'OK pendencia protegida contra outro dono';
 
 -- ---------- Roupas: variações ----------
-select salvar_produto(t_p('op20','R2','cr1','Unidade',null,
+select salvar_produto(t_p('op20','R2','cr1','Peça',null,
   ('[{"area":"deposito","variacao_id":"'||u('w1')||'","local":{"nome":"Estoque"},"contagem":{"quantidade":5}},
      {"area":"deposito","variacao_id":"'||u('w2')||'","local":{"nome":"Estoque"},"contagem":{"quantidade":0}}]'),
   ('[{"id":"'||u('w1')||'","tamanho":"M","cor":"Azul","codigo_barras":"701","qtd_informada":7},
@@ -193,8 +197,8 @@ reset role;
 select t_ok((select qtd_informada from produto_variacoes where id = u('w1')) = 7 and (select sum(quantidade) from saldos where variacao_id = u('w1')) = 5,
   'quantidade informada no cadastro separada da contada');
 set role authenticated;
-select t_erro($$select salvar_produto(t_p('op21','R2','cr1','Unidade',null,'[]','[{"id":"'||u('w2')||'","tamanho":"G","cor":"Azul","codigo_barras":"702"}]','700'))$$, 'remocao_bloqueada');
-select salvar_produto(t_p('op22','R2','cr1','Unidade',null,'[]','[{"id":"'||u('w1')||'","tamanho":"M","cor":"Azul","codigo_barras":"701","qtd_informada":7}]','700'));
+select t_erro($$select salvar_produto(t_p('op21','R2','cr1','Peça',null,'[]','[{"id":"'||u('w2')||'","tamanho":"G","cor":"Azul","codigo_barras":"702"}]','700'))$$, 'remocao_bloqueada');
+select salvar_produto(t_p('op22','R2','cr1','Peça',null,'[]','[{"id":"'||u('w1')||'","tamanho":"M","cor":"Azul","codigo_barras":"701","qtd_informada":7}]','700'));
 reset role;
 select t_ok((select removida_em is not null from produto_variacoes where id = u('w2')) and not exists (select 1 from codigos_barras where codigo = '702')
   and exists (select 1 from contagens where variacao_id = u('w2')), 'variacao sem saldo removida sem apagar historico; codigo liberado');
@@ -202,9 +206,108 @@ set role authenticated;
 select set_config('request.jwt.claim.sub', u('B')::text, false);
 select t_erro($$select salvar_produto(t_p('op23','B3','cb1','Unidade',null,'[]','[{"id":"'||u('w1')||'","tamanho":"M","cor":"X"}]'))$$, 'variacao_de_outro_produto');
 select set_config('request.jwt.claim.sub', u('A')::text, false);
-select t_erro($$select salvar_produto(t_p('op24','R3','cr1','Unidade',null,'[{"area":"deposito","variacao_id":"'||u('w1')||'","contagem":{"quantidade":1}}]','[{"id":"'||u('w9')||'","tamanho":"P","cor":"Preto"}]'))$$, 'variacao_invalida');
-select t_erro($$select salvar_produto(t_p('op24','R3','cr1','Unidade',null,'[]'))$$, 'roupas_exige_variacao');
+select t_erro($$select salvar_produto(t_p('op24','R3','cr1','Peça',null,'[{"area":"deposito","variacao_id":"'||u('w1')||'","contagem":{"quantidade":1}}]','[{"id":"'||u('w9')||'","tamanho":"P","cor":"Preto","codigo_barras":"709","qtd_informada":1}]'))$$, 'variacao_invalida');
+select t_erro($$select salvar_produto(t_p('op24','R3','cr1','Peça',null,'[]'))$$, 'roupas_exige_variacao');
 select 'OK variacoes isoladas por produto e por dono';
+
+-- ---------- Reuso de código de variação removida (w2 / 702) ----------
+select salvar_produto(t_p('op25','R2','cr1','Peça',null,'[]','[{"id":"'||u('w1')||'","tamanho":"M","cor":"Azul","codigo_barras":"701","qtd_informada":7},
+  {"id":"'||u('w3')||'","tamanho":"G","cor":"Azul","codigo_barras":"702","qtd_informada":2}]','700'));
+reset role;
+select t_ok((select variacao_id from codigos_barras where codigo = '702') = u('w3')
+  and (select count(*) from produto_variacoes where codigo_barras = '702') = 2, 'codigo da variacao removida reutilizado por outra variacao');
+set role authenticated;
+select t_erro($$select salvar_produto(t_p('op26','R4','cr1','Peça',null,'[]','[{"id":"'||u('w4')||'","tamanho":"P","cor":"Azul","codigo_barras":"702","qtd_informada":1}]','704'))$$, 'codigo_em_uso');
+select t_erro($$select salvar_produto(t_p('op26','R4','cr1','Peça',null,'[]','[{"id":"'||u('w4')||'","tamanho":"P","cor":"Azul","codigo_barras":"x1","qtd_informada":1}]','700'))$$, 'codigo_em_uso');
+select t_erro($$select salvar_produto(t_p('op26','P9','cm1','Pacote',null,'[]','[]','701'))$$, 'codigo_em_uso');
+select 'OK codigos ativos seguem unicos entre produtos e variacoes';
+
+-- ---------- Roupas: regras das variações ----------
+select t_erro($$select salvar_produto(t_p('op27','R5','cr1','Unidade',null,'[]','[{"id":"'||u('y1')||'","tamanho":"P","cor":"Azul","codigo_barras":"801","qtd_informada":1}]','800'))$$, 'unidade_incompativel');
+select t_erro($$select salvar_produto(t_p('op27','R5','cr1','Par',null,'[]','[{"id":"'||u('y1')||'","tamanho":"XL","cor":"Azul","codigo_barras":"801","qtd_informada":1}]','800'))$$, 'tamanho_invalido');
+select t_erro($$select salvar_produto(t_p('op27','R5','cr1','Par',null,'[]','[{"id":"'||u('y1')||'","tamanho":"P","cor":" ","codigo_barras":"801","qtd_informada":1}]','800'))$$, 'cor_obrigatoria');
+select t_erro($$select salvar_produto(t_p('op27','R5','cr1','Par',null,'[]','[{"id":"'||u('y1')||'","tamanho":"P","cor":"Azul","qtd_informada":1}]','800'))$$, 'codigo_da_variacao_obrigatorio');
+select t_erro($$select salvar_produto(t_p('op27','R5','cr1','Par',null,'[]','[{"id":"'||u('y1')||'","tamanho":"P","cor":"Azul","codigo_barras":"800","qtd_informada":1}]','800'))$$, 'codigo_igual_ao_principal');
+select t_erro($$select salvar_produto(t_p('op27','R5','cr1','Par',null,'[]','[{"id":"'||u('y1')||'","tamanho":"P","cor":"Azul","codigo_barras":"801"}]','800'))$$, 'quantidade_informada_obrigatoria');
+select t_erro($$select salvar_produto(t_p('op27','R5','cr1','Par',null,'[]','[{"id":"'||u('y1')||'","tamanho":"P","cor":"Azul","codigo_barras":"801","qtd_informada":1},
+  {"id":"'||u('y2')||'","tamanho":"p","cor":" azul ","codigo_barras":"802","qtd_informada":1}]','800'))$$, 'combinacao_repetida');
+select salvar_produto(t_p('op27','R5','cr1','Par',null,'[]','[{"id":"'||u('y1')||'","tamanho":"38","cor":"Preto","codigo_barras":"801","qtd_informada":2}]','800', null, 2, 'Calçados'));
+select 'OK roupas: tamanho, cor, codigo, quantidade e combinacao conferidos; Par valido';
+
+-- ---------- Seis tipos: unidade, categoria e detalhes fixos ----------
+select t_erro($$select salvar_produto(t_p('op30','T1','cm1','Metro',null,'[]'))$$, 'unidade_incompativel');
+select t_erro($$select salvar_produto(t_p('op30','T1','cm1','Kg',null,'[]','[]',null,null,2,'Ração'))$$, 'categoria_incompativel');
+select t_erro($$select salvar_produto(t_p('op30','T1','cm1','Kg',null,'[]','[]',null,null,2,null))$$, 'categoria_incompativel');
+select salvar_produto(t_p('op30','T1','cm1','Litro',null,'[]','[]',null,null,2,'Bebidas'));
+select t_erro($$select salvar_produto(t_p('op31','T2','cf1','Kg',true,'[]'))$$, 'unidade_incompativel');
+select t_erro($$select salvar_produto(t_p('op31','T2','cf1','Frasco',true,'[]','[]',null,null,2,'Bebidas'))$$, 'categoria_incompativel');
+select t_erro($$select salvar_produto(t_p('op31','T2','cf1','Frasco',true,'[]','[]',null,null,2,null,'{"controlado":"Talvez"}'))$$, 'controlado_invalido');
+select salvar_produto(t_p('op31','T2','cf1','Frasco',true,'[]','[]',null,null,2,'Genéricos','{"controlado":"Não"}'));
+select salvar_produto(t_p('op32','T3','cf1','Cartela',true,'[]','[]',null,null,2,null,'{"controlado":""}'));
+select t_erro($$select salvar_produto(t_p('op33','T4','cc1','Pacote',null,'[]'))$$, 'unidade_incompativel');
+select t_erro($$select salvar_produto(t_p('op33','T4','cc1','Lata',null,'[]','[]',null,null,2,'Motor'))$$, 'categoria_incompativel');
+select salvar_produto(t_p('op33','T4','cc1','m²',null,'[]','[]',null,null,2,'Acabamento'));
+select t_erro($$select salvar_produto(t_p('op34','T5','cp1','Saco',null,'[]'))$$, 'unidade_incompativel');
+select t_erro($$select salvar_produto(t_p('op34','T5','cp1','Kg',null,'[]','[]',null,null,2,'Freios'))$$, 'categoria_incompativel');
+select t_erro($$select salvar_produto(t_p('op34','T5','cp1','Kg',null,'[]','[]',null,null,2,null,'{"especie":"Peixe"}'))$$, 'especie_invalido');
+select salvar_produto(t_p('op34','T5','cp1','Kg',null,'[]','[]',null,null,2,'Petiscos','{"especie":"Gato"}'));
+select salvar_produto(t_p('op35','T6','cp1','Pacote',null,'[]'));
+select t_erro($$select salvar_produto(t_p('op36','T7','ca1','Kg',null,'[]'))$$, 'unidade_incompativel');
+select t_erro($$select salvar_produto(t_p('op36','T7','ca1','Kit',null,'[]','[]',null,null,2,'Ração'))$$, 'categoria_incompativel');
+select t_erro($$select salvar_produto(t_p('op36','T7','ca1','Kit',null,'[]','[]',null,null,2,null,'{"posicao":"Cima"}'))$$, 'posicao_invalido');
+select salvar_produto(t_p('op36','T7','ca1','Jogo',null,'[]','[]',null,null,2,'Freios','{"posicao":"Não se aplica"}'));
+select salvar_produto(t_p('op37','T8','ca1','Par',null,'[]'));
+select t_erro($$select salvar_produto(t_p('op38','T9','cc1','Saco',null,'[]','[{"id":"'||u('z1')||'","tamanho":"P","cor":"Azul","codigo_barras":"901","qtd_informada":1}]'))$$, 'tipo_sem_variacoes');
+select 'OK seis tipos: opcoes invalidas recusadas, validas aceitas, detalhes fixos opcionais';
+
+-- ---------- Local pendente definido depois, com saldo ----------
+select salvar_produto(t_p('op40','L1','cm1','Pacote',null,'[{"area":"deposito","local":null,"contagem":{"quantidade":10}}]'));
+select salvar_produto(t_p('op41','L1','cm1','Pacote',null,'[{"area":"deposito","local":{"nome":"Estante C"}}]'));
+reset role;
+select t_ok((select l.nome from produto_areas pa join locais l on l.id = pa.local_id where pa.produto_id = u('L1')) = 'Estante C'
+  and (select local_definido_por from produto_areas where produto_id = u('L1')) = u('A')
+  and (select count(*) from movimentos where produto_id = u('L1')) = 1
+  and (select sum(quantidade) from saldos where produto_id = u('L1')) = 10, 'pendente -> local valido com saldo, sem movimento de estoque');
+set role authenticated;
+select t_erro($$select salvar_produto(t_p('op42','L1','cm1','Pacote',null,'[{"area":"deposito","local":{"nome":"Estante D"}}]'))$$, 'troca_de_local_exige_transferencia');
+select t_erro($$select salvar_produto(t_p('op42','L1','cm1','Pacote',null,'[{"area":"deposito","local":null}]'))$$, 'troca_de_local_exige_transferencia');
+select 'OK local definido continua travado com saldo';
+
+-- ---------- Lote com número conhecido e vencimento desconhecido ----------
+select salvar_produto(t_p('op50','P8','cm1','Pacote',true,
+  '[{"area":"deposito","contagem":{"quantidade":10,"partes":[{"numero":"M5","quantidade":10}]}},
+    {"area":"venda","contagem":{"quantidade":4,"partes":[{"numero":" m5 ","quantidade":4}]}}]'));
+reset role;
+select set_config('local.m5d', (select id::text from saldos where produto_id = u('P8') and area = 'deposito'), false);
+select set_config('local.m5v', (select id::text from saldos where produto_id = u('P8') and area = 'venda'), false);
+select set_config('local.m5l', (select id::text from lotes where produto_id = u('P8')), false);
+set role authenticated;
+select t_erro(format($$select resolver_pendencia(jsonb_build_object('operacao_id',u('r50'),'comercio_id',u('cm1'),'produto_id',u('P8'),'origem_id','%s',
+  'partes','[{"vencimento":"2027-03-03","quantidade":6},{"quantidade":4}]'::jsonb))$$, current_setting('local.m5d')), 'confirmar_vencimento_do_lote');
+select t_erro(format($$select resolver_pendencia(jsonb_build_object('operacao_id',u('r50'),'comercio_id',u('cm1'),'produto_id',u('P8'),'origem_id','%s','confirmar_vencimento',true,
+  'partes','[{"vencimento":"2027-03-03","quantidade":6},{"vencimento":"2027-04-04","quantidade":4}]'::jsonb))$$, current_setting('local.m5d')), 'datas_diferentes_para_o_mesmo_lote');
+select resolver_pendencia(jsonb_build_object('operacao_id',u('r50'),'comercio_id',u('cm1'),'produto_id',u('P8'),'origem_id',current_setting('local.m5d'),'confirmar_vencimento',true,
+  'partes','[{"vencimento":"2027-03-03","quantidade":6},{"quantidade":4}]'::jsonb));
+reset role;
+select t_ok((select count(*) from lotes where produto_id = u('P8')) = 1
+  and (select vencimento from lotes where id = current_setting('local.m5l')::uuid) = '2027-03-03'
+  and (select vencimento_definido_por from lotes where id = current_setting('local.m5l')::uuid) = u('A')
+  and (select count(*) from saldos where origem_id = current_setting('local.m5d')::uuid and lote_id = current_setting('local.m5l')::uuid and not pendente) = 2
+  and (select lote_id from saldos where id = current_setting('local.m5v')::uuid) = current_setting('local.m5l')::uuid
+  and (select sum(quantidade) from saldos where produto_id = u('P8')) = 14
+  and (select sum(quantidade) from movimentos where produto_id = u('P8')) = 14
+  and (select count(*) from movimentos where operacao_id = u('r50') and criado_por = u('A')) = 3,
+  'data preenchida com confirmacao e dividida 6 + 4: mesmo lote nas duas areas, total 14, autoria');
+set role authenticated;
+select resolver_pendencia(jsonb_build_object('operacao_id',u('r51'),'comercio_id',u('cm1'),'produto_id',u('P8'),'origem_id',current_setting('local.m5v'),
+  'partes','[{"quantidade":4}]'::jsonb));
+reset role;
+select t_ok((select count(*) from saldos s join lotes l on l.id = s.lote_id where s.origem_id = current_setting('local.m5v')::uuid
+  and l.vencimento = '2027-03-03' and not s.pendente and s.quantidade = 4) = 1
+  and (select sum(quantidade) from saldos where produto_id = u('P8')) = 14, 'pendencia da area de venda completada com a data ja conhecida do lote');
+select t_erro(format($$update lotes set vencimento = '2028-01-01', vencimento_definido_por = u('A') where id = '%s'$$, current_setting('local.m5l')), 'historico_imutavel');
+select 'OK data ja conhecida nunca substituida';
+set role authenticated;
 
 -- ---------- Integridade direta (como dono do banco) ----------
 reset role;
