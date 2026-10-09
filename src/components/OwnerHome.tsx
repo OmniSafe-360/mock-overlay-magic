@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { conferirEnvio, carregarFornecedores, carregarProdutos, atualizarFornecedor, criarFornecedor, gerarCodigoInterno, salvarProduto, carregarPedidos, salvarPedido, marcarPedidoEnviado, cancelarPedido, novoLinkPedido, atualizarPagamento, type LocaisCadastrados } from "@/lib/banco";
+import { conferirEnvio, carregarFornecedores, carregarProdutos, atualizarFornecedor, criarFornecedor, gerarCodigoInterno, salvarProduto, carregarPedidos, salvarPedido, marcarPedidoEnviado, cancelarPedido, novoLinkPedido, atualizarPagamento, resolverItemRecebimento, carregarRecebimentos, type LocaisCadastrados } from "@/lib/banco";
 import type { CanalPedido, LinhaPedido, Pedido } from "@/lib/pedido";
 import type { DadosPagamento } from "@/components/PainelPedidos";
+import type { Recebimento } from "@/lib/recebimento";
 import { ehIncerto, mensagemErro, type Sessao } from "@/lib/persistencia";
 import { ERRO_REGISTRO, registroEnvio, type TipoEnvio } from "@/lib/envios";
 import { newUid } from "@/lib/deposito";
@@ -202,6 +203,12 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
     const ps = await recarregarPedidos(comercioId);
     return { ...r, token: ps?.find((x) => x.id === r.id)?.token };
   };
+  const resolverRecebimento = (comercioId: string) => async (itemId: string, acao: "aceitar" | "recusar", tentativa: number | null) => {
+    await comMensagem(() => resolverItemRecebimento(itemId, acao, tentativa), "Não foi possível salvar a decisão.");
+    await recarregar(comercioId);
+  };
+  const semPedidoCache = useRef<Record<string, () => Promise<Recebimento[]>>>({});
+  const semPedido = (comercioId: string) => (semPedidoCache.current[comercioId] ??= () => carregarRecebimentos(comercioId, false));
   const pedidoPagamento = (comercioId: string) => async (id: string, d: DadosPagamento) => {
     await comMensagem(() => atualizarPagamento(id, d), "Não foi possível salvar o pagamento.");
     await recarregarPedidos(comercioId);
@@ -334,6 +341,8 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
               onPedidoEnviado={sid ? pedidoEnviado(sid) : async () => {}} onCancelarPedido={sid ? pedidoCancelado(sid) : async () => {}}
               onNovoLinkPedido={sid ? pedidoNovoLink(sid) : async () => { throw new Error(NO_ID); }}
               onPagamentoPedido={sid ? pedidoPagamento(sid) : async () => { throw new Error(NO_ID); }}
+              onResolverRecebimento={sid ? resolverRecebimento(sid) : undefined}
+              onCarregarSemPedido={sid ? semPedido(sid) : undefined}
               onBack={() => { setOpen(null); setSaved(false); }} onNew={() => openWizard()} onEdit={(p) => openWizard(p)} onDismissSaved={() => setSaved(false)} />
           ) : tab === "inicio" ? (
             <HomeContent stores={stores} onAdd={() => setAdding(true)} onOpen={(s) => setOpen(s)} />

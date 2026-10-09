@@ -1,7 +1,7 @@
 import type { EntityId } from "@/lib/identidade";
 /* Aba Pedidos (D2a): montar o pedido sozinho por fornecedor, enviar pelo WhatsApp ou e-mail com um toque e acompanhar. */
-import { useMemo, useState } from "react";
-import { ArrowLeft, Banknote, CalendarClock, Check, CheckCircle2, ClipboardList, Copy, Link2, Mail, MessageCircle, Minus, Plus, RefreshCw, Search, Send, Trash2, Truck, X, XCircle } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Banknote, PackageCheck, CalendarClock, Check, CheckCircle2, ClipboardList, Copy, Link2, Mail, MessageCircle, Minus, Plus, RefreshCw, Search, Send, Trash2, Truck, X, XCircle } from "lucide-react";
 import { Sheet, type Product, type Supplier, type Variation } from "@/components/ProductArea";
 import { linkWhatsApp } from "@/components/PainelFornecedores";
 import { btnGhost, btnPrimary, type StoreData } from "@/components/StoreSetup";
@@ -9,6 +9,7 @@ import { aceitaFracao, fmtQ, qtdUn, unPlural } from "@/lib/deposito";
 import { descricaoEmbalagem } from "@/lib/embalagem";
 import { estadoPagamento, ordemPagamento, resumoPagamentos, somaDias, textoPagamento, valorConta, type EstadoPagamento } from "@/lib/pagamento";
 import { hojeEm } from "@/lib/validade";
+import { precisaDecidir, resultadoItem, resumoRecebimento, type ItemRecebido, type Recebimento, type TipoResultado } from "@/lib/recebimento";
 import {
   CANAL_TXT, SITUACAO_TXT, chaveLinha, dataEntregaTexto, formaTexto, linkPedido, respostaItem, resumoResposta, linhaManual, linhasDoPedido, nomeLinha, pedidoAberto, pedidoFechado, quantidadeTexto,
   sugerirPedido, textoPedido, totalLinha, totalLinhas, totalPedido, unidadesDaLinha, type CanalPedido, type LinhaPedido, type Pedido, type SituacaoPedido,
@@ -28,10 +29,12 @@ const COR_PAGAMENTO: Record<EstadoPagamento, string> = {
 };
 export type SalvarPedido = (a: { fornecedor: Supplier; linhas: LinhaPedido[]; observacao: string }) => Promise<{ id: string; numero: number; token?: string | undefined; recuperado?: boolean }>;
 
-export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora = false, soAPagar = false, onSalvar, onEnviado, onCancelar, onNovoLink, onPagamento, onOpenProduto }: {
+export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora = false, soAPagar = false, onSalvar, onEnviado, onCancelar, onNovoLink, onPagamento, onOpenProduto, onResolverRecebimento, onCarregarSemPedido }: {
   products: Product[]; store: StoreData; suppliers: Supplier[]; pedidos: Pedido[]; montarAgora?: boolean; soAPagar?: boolean;
   onSalvar: SalvarPedido; onEnviado: (id: string, canal: CanalPedido) => Promise<unknown>; onCancelar: (id: string) => Promise<unknown>;
   onNovoLink: (id: string) => Promise<string>; onPagamento: (id: string, d: DadosPagamento) => Promise<unknown>; onOpenProduto: (p: Product) => void;
+  /** Dono decide um item recebido (E2). */ onResolverRecebimento?: ((itemId: string, acao: "aceitar" | "recusar", tentativa: number | null) => Promise<unknown>) | undefined;
+  /** Entregas que chegaram sem pedido (E2). */ onCarregarSemPedido?: (() => Promise<Recebimento[]>) | undefined;
 }) {
   const hoje = useMemo(() => hojeEm(), []);
   const [filtro, setFiltro] = useState<"todos" | "pagar">(soAPagar ? "pagar" : "todos");
@@ -43,7 +46,7 @@ export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora
   const sel = view.t === "detalhe" ? pedidos.find((p) => p.id === view.id) : undefined;
   if (sel)
     return <DetalhePedido pedido={sel} products={products} store={store} fornecedor={fornecedorDe(sel.fornecedorId)} onEnviado={onEnviado} onCancelar={onCancelar} onNovoLink={onNovoLink} onPagamento={onPagamento} hoje={hoje}
-      onOpenProduto={onOpenProduto} onVoltar={() => setView({ t: "lista" })} />;
+      onResolver={onResolverRecebimento} onOpenProduto={onOpenProduto} onVoltar={() => setView({ t: "lista" })} />;
 
   const abertos = pedidos.filter(pedidoAberto);
   const contas = resumoPagamentos(pedidos, hoje);
@@ -103,6 +106,10 @@ export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora
                   <span className="flex items-start gap-1.5 text-sm font-semibold text-accent"><CheckCircle2 size={16} className="mt-0.5 shrink-0" /> {resumoResposta(p.resposta, brl)}</span>
                 )}
                 {p.situacao === "recusado" && <span className="flex items-start gap-1.5 text-sm font-semibold text-destructive"><XCircle size={16} className="mt-0.5 shrink-0" /> O fornecedor não pode atender</span>}
+                {p.recebimento && (() => { const rr = resumoRecebimento(p.recebimento); return (
+                  <span className={`flex items-start gap-1.5 text-sm font-semibold ${rr.alerta === "decidir" ? "text-destructive" : rr.alerta ? "text-warning" : "text-accent"}`}>
+                    <PackageCheck size={16} className="mt-0.5 shrink-0" /> {rr.texto}
+                  </span>); })()}
                 {pg && (
                   <span className={`flex items-start gap-1.5 text-sm font-semibold ${COR_PAGAMENTO[pg.estado]}`}>
                     <Banknote size={16} className="mt-0.5 shrink-0" /> {pg.estado === "pago" ? "" : `A pagar ${brl(valorConta(p).valor)} · `}{textoPagamento(p, hoje)}
@@ -113,6 +120,7 @@ export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora
           );
         })}
       </ul>
+      {onCarregarSemPedido && <EntregasSemPedido carregar={onCarregarSemPedido} products={products} suppliers={suppliers} />}
     </div>
   );
 }
@@ -361,10 +369,11 @@ function EnviarSheet({ numero, fornecedor, texto, novo, onCanal, onClose }: {
 }
 
 /* ---------- detalhe ---------- */
-function DetalhePedido({ pedido, products, store, fornecedor, hoje, onEnviado, onCancelar, onNovoLink, onPagamento, onOpenProduto, onVoltar }: {
+function DetalhePedido({ pedido, products, store, fornecedor, hoje, onEnviado, onCancelar, onNovoLink, onPagamento, onResolver, onOpenProduto, onVoltar }: {
   pedido: Pedido; products: Product[]; store: StoreData; fornecedor: Supplier | undefined;
   onEnviado: (id: string, canal: CanalPedido) => Promise<unknown>; onCancelar: (id: string) => Promise<unknown>; onNovoLink: (id: string) => Promise<string>;
   onPagamento: (id: string, d: DadosPagamento) => Promise<unknown>; hoje: string; onOpenProduto: (p: Product) => void; onVoltar: () => void;
+  onResolver?: ((itemId: string, acao: "aceitar" | "recusar", tentativa: number | null) => Promise<unknown>) | undefined;
 }) {
   const linhas = useMemo(() => linhasDoPedido(pedido, products), [pedido, products]);
   const [enviar, setEnviar] = useState(false);
@@ -409,6 +418,8 @@ function DetalhePedido({ pedido, products, store, fornecedor, hoje, onEnviado, o
         </section>
       )}
 
+      {pedido.recebimento && <RecebimentoPedido rec={pedido.recebimento} products={products} onResolver={onResolver} />}
+
       <PagamentoPedido pedido={pedido} hoje={hoje} onPagamento={(d) => onPagamento(pedido.id, d)} />
 
       <section aria-label="Produtos do pedido" className="rounded-3xl border border-border bg-secondary/60 p-4">
@@ -438,7 +449,7 @@ function DetalhePedido({ pedido, products, store, fornecedor, hoje, onEnviado, o
 
       {pedido.situacao === "enviado" && <p className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">Aguardando a resposta do fornecedor. Ele responde pelo link que foi junto na mensagem, e a resposta aparece aqui.</p>}
 
-      {!pedidoFechado(pedido) && (
+      {!pedidoFechado(pedido) && !pedido.recebimento && (
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           <button type="button" onClick={() => setEnviar(true)} className={`flex items-center justify-center gap-2 ${r ? btnGhost : btnPrimary(true)}`}><Send size={18} /> {pedido.situacao === "rascunho" ? "Enviar" : "Enviar de novo"}</button>
           {!confirmar ? (
@@ -451,7 +462,7 @@ function DetalhePedido({ pedido, products, store, fornecedor, hoje, onEnviado, o
       )}
       {confirmar && <p className="text-sm text-muted-foreground">Avise o fornecedor que o pedido foi cancelado.</p>}
 
-      {!pedidoFechado(pedido) && (
+      {!pedidoFechado(pedido) && !pedido.recebimento && (
         <section aria-label="Link do fornecedor" className="rounded-3xl border border-border p-4">
           <p className="flex items-center gap-2 text-base font-bold"><Link2 size={18} className="text-primary" /> Link do fornecedor</p>
           <p className="text-sm text-muted-foreground">O fornecedor abre este link no celular ou no computador para confirmar o pedido. Ele já vai junto na mensagem.</p>
@@ -608,5 +619,105 @@ function CorrigirPagamentoSheet({ vencimento, valor, estimado, novo, hoje, onClo
           className={`flex items-center justify-center gap-2 ${btnPrimary(!!venc && !salvando)}`}><Check size={18} /> {salvando ? "Salvando…" : "Salvar"}</button>
       </div>
     </Sheet>
+  );
+}
+
+/* ---------- recebimento (E2) ---------- */
+const COR_RESULTADO: Record<TipoResultado, string> = {
+  ok: "text-accent", falta: "text-warning", sobra: "text-warning", nao_veio: "text-destructive", inconsistente: "text-destructive",
+  fora: "text-warning", recusado: "text-muted-foreground", contando: "text-muted-foreground",
+};
+const dataHoraCurta = (ts: string) => new Date(ts).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+const nomeDoItem = (i: Pick<ItemRecebido, "produtoId" | "variacaoId">, products: Product[]) => {
+  const p = products.find((x) => x.db?.id === i.produtoId);
+  if (!p) return { nome: "Produto removido", unidade: "Unidade" };
+  const v = i.variacaoId ? p.variacoes.find((x) => x.uid === i.variacaoId) : null;
+  return { nome: v ? `${p.nome} — ${v.tam} · ${v.cor}` : p.nome, unidade: p.unidade };
+};
+
+function RecebimentoPedido({ rec, products, onResolver }: {
+  rec: Recebimento; products: Product[];
+  onResolver?: ((itemId: string, acao: "aceitar" | "recusar", tentativa: number | null) => Promise<unknown>) | undefined;
+}) {
+  const decidir = rec.itens.filter(precisaDecidir).length;
+  return (
+    <section aria-label="Recebimento" className={`rounded-3xl border p-4 ${decidir ? "border-destructive/50 bg-destructive/5" : "border-border bg-secondary/40"}`}>
+      <p className="flex items-center gap-2 text-base font-bold"><PackageCheck size={20} className="text-primary" /> Mercadoria recebida</p>
+      <p className="text-xs text-muted-foreground">Conferida por {rec.funcionario}{rec.concluidoEm ? ` em ${dataHoraCurta(rec.concluidoEm)}` : ""} · contagem cega</p>
+      {decidir > 0 && <p className="mt-2 text-sm font-semibold text-destructive">{decidir === 1 ? "1 produto precisa" : `${decidir} produtos precisam`} da sua decisão.</p>}
+      <ul className="mt-2 divide-y divide-border">
+        {rec.itens.map((i) => <LinhaRecebida key={i.id} i={i} products={products} onResolver={onResolver} />)}
+      </ul>
+    </section>
+  );
+}
+
+function LinhaRecebida({ i, products, onResolver }: {
+  i: ItemRecebido; products: Product[]; onResolver?: ((itemId: string, acao: "aceitar" | "recusar", tentativa: number | null) => Promise<unknown>) | undefined;
+}) {
+  const { nome, unidade } = nomeDoItem(i, products);
+  const res = resultadoItem(i, unidade);
+  const [escolha, setEscolha] = useState<number | null>(null);
+  const [trabalhando, setTrabalhando] = useState(false);
+  const [erro, setErro] = useState("");
+  const fazer = (acao: "aceitar" | "recusar", t: number | null) => {
+    if (!onResolver) return;
+    setTrabalhando(true); setErro("");
+    onResolver(i.id, acao, t).catch((e) => setErro(String(e?.message ?? "Não foi possível salvar."))).finally(() => setTrabalhando(false));
+  };
+  return (
+    <li className="py-2.5">
+      <p className="break-words text-sm font-semibold">{nome}</p>
+      <p className={`text-sm ${COR_RESULTADO[res.tipo]}`}>{res.texto}</p>
+      {i.avaria > 0 && <p className="text-xs text-warning">{qtdUn(i.avaria, unidade)} quebrado(s) ou vencido(s): não entraram no estoque.</p>}
+      {i.entrouEstoque > 0 && <p className="text-xs text-muted-foreground">Entrou no estoque: {qtdUn(i.entrouEstoque, unidade)}</p>}
+      {i.situacao === "inconsistente" && onResolver && (
+        <div className="mt-2 space-y-2">
+          <p className="text-xs text-muted-foreground">Qual contagem está certa? Ela entra no estoque.</p>
+          <div className="flex flex-wrap gap-2">
+            {i.tentativas.map((t, k) => (
+              <button key={k} type="button" aria-pressed={escolha === k} onClick={() => setEscolha(k)}
+                className={`min-h-11 rounded-xl border px-3 text-sm font-semibold ${escolha === k ? "border-primary bg-primary/15 text-primary" : "border-border"}`}>{qtdUn(t.total, unidade)}</button>
+            ))}
+          </div>
+          {escolha != null && (
+            <button type="button" disabled={trabalhando} onClick={() => fazer("aceitar", escolha)} className={`flex items-center justify-center gap-2 ${btnPrimary(!trabalhando)}`}>
+              <Check size={18} /> Confirmar {qtdUn(i.tentativas[escolha]!.total, unidade)}
+            </button>
+          )}
+        </div>
+      )}
+      {i.situacao === "fora_do_pedido" && onResolver && (
+        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <button type="button" disabled={trabalhando} onClick={() => fazer("aceitar", null)} className={`flex items-center justify-center gap-2 ${btnGhost}`}><Check size={18} /> Ficar com ele (entra no estoque)</button>
+          <button type="button" disabled={trabalhando} onClick={() => fazer("recusar", null)} className="flex min-h-13 items-center justify-center gap-2 rounded-2xl border border-destructive/50 px-4 text-base font-semibold text-destructive"><X size={18} /> Devolver</button>
+        </div>
+      )}
+      {erro && <p role="alert" className="mt-1 text-sm font-semibold text-destructive">{erro}</p>}
+    </li>
+  );
+}
+
+function EntregasSemPedido({ carregar, products, suppliers }: { carregar: () => Promise<Recebimento[]>; products: Product[]; suppliers: Supplier[] }) {
+  const [lista, setLista] = useState<Recebimento[] | null>(null);
+  const [falhou, setFalhou] = useState(false);
+  useEffect(() => { carregar().then(setLista).catch(() => setFalhou(true)); }, [carregar]);
+  if (falhou) return <p className="text-sm text-muted-foreground">Não foi possível carregar as entregas sem pedido.</p>;
+  if (!lista?.length) return null;
+  return (
+    <section aria-label="Entregas sem pedido" className="space-y-2 pt-2">
+      <h3 className="text-base font-bold">Entregas sem pedido</h3>
+      <ul className="space-y-2">
+        {lista.slice(0, 10).map((r) => (
+          <li key={r.id} className="rounded-2xl border border-border bg-secondary/40 p-3">
+            <p className="text-sm font-semibold">{suppliers.find((x) => x.dbId === r.fornecedorId)?.nome ?? "Fornecedor não informado"}</p>
+            <p className="text-xs text-muted-foreground">Recebida por {r.funcionario}{r.concluidoEm ? ` em ${dataHoraCurta(r.concluidoEm)}` : ""}</p>
+            <ul className="mt-1 text-sm">
+              {r.itens.map((i) => { const n = nomeDoItem(i, products); return <li key={i.id}>• {n.nome}: {qtdUn(i.quantidadeAceita ?? 0, n.unidade)}{i.avaria > 0 ? ` (${fmtQ(i.avaria)} quebrado/vencido)` : ""}</li>; })}
+            </ul>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
