@@ -54,6 +54,8 @@ export type TypeRules = {
 };
 export const FARMACIA_VARS_MSG = "Este produto de Farmácia contém variações incompatíveis. O salvamento foi bloqueado.";
 export const CONSTRUCAO_VARS_MSG = "Este produto de Material de construção contém variações incompatíveis. O salvamento foi bloqueado.";
+export const PET_VARS_MSG = "Este produto de Pet shop contém variações incompatíveis. O salvamento foi bloqueado.";
+export const ESPECIE_MSG = "Escolha Cão, Gato ou Outros para informar a espécie.";
 export const CONTROLADO_MSG = "Escolha Sim ou Não para informar se o medicamento é controlado.";
 export const MERCADO_VARS_MSG = "Este produto de Mercado contém variações incompatíveis. O salvamento foi bloqueado.";
 
