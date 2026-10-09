@@ -294,8 +294,9 @@ begin
   -- lotes: só preencher uma data que era desconhecida (nunca substituir).
   if tg_table_name = 'lotes' and n is not null and o->>'vencimento' is null and n->>'vencimento' is not null
      and n->>'vencimento_definido_por' is not null
-     and (n - 'vencimento' - 'vencimento_definido_por' - 'vencimento_definido_em')
-       = (o - 'vencimento' - 'vencimento_definido_por' - 'vencimento_definido_em') then return new; end if;
+     -- numero_norm é gerado e ainda vem vazio no gatilho; o número em si é comparado.
+     and (n - 'vencimento' - 'vencimento_definido_por' - 'vencimento_definido_em' - 'numero_norm')
+       = (o - 'vencimento' - 'vencimento_definido_por' - 'vencimento_definido_em' - 'numero_norm') then return new; end if;
   -- saldos: só a quantidade muda (identidade e vínculos fixos).
   if tg_table_name = 'saldos' and n is not null
      and (n - 'quantidade' - 'updated_at') = (o - 'quantidade' - 'updated_at') then return new; end if;
