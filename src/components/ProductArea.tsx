@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { lotesAConfirmar } from "@/lib/persistencia";
 import { ArrowLeft, Check, CheckCircle2, Keyboard, Package, Pencil, Plus, ScanLine, Search, Truck, X } from "lucide-react";
 import { Field, btnGhost, btnPrimary, digits, maskPhone, nextOnEnter, useKeyboard, type StoreData } from "@/components/StoreSetup";
 import { Scanner } from "@/components/Scanner";
@@ -18,6 +19,12 @@ import {
 } from "@/lib/validade";
 
 /* ---------- tipos e dados por comércio ---------- */
+/** Junta listas de locais sem repetir (maiúsculas e espaços ignorados), mantendo a primeira grafia. */
+function juntarLocais(...listas: string[][]): string[] {
+  const m = new Map<string, string>();
+  for (const l of listas.flat()) { const k = l.trim().toLowerCase().replace(/\s+/g, " "); if (k && !m.has(k)) m.set(k, l); }
+  return [...m.values()];
+}
 export type Supplier = { id: number; nome: string; tel: string; email: string; dbId?: string | undefined };
 /** `uid` liga a variação à sua configuração de depósito, sem depender da posição na lista. */
 export type Variation = { tam: string; cor: string; qtd: number; codigo?: string | undefined; uid?: string | undefined };
@@ -31,6 +38,8 @@ export type Product = {
   validade?: Validade | undefined;
   /** Vínculo com o banco: id real e áreas cuja contagem inicial já foi registrada ("deposito:_", "venda:<uid>"). */
   db?: { id: string; contadas: string[] } | undefined;
+  /** Só true depois que o usuário marcou a confirmação do vencimento do lote. */
+  confirmarVencimento?: boolean | undefined;
 };
 
 const UNIDADES: Record<string, string[]> = {
@@ -283,10 +292,12 @@ function linhasIniciais(v: Validade | undefined, farm: boolean): Record<string, 
 
 type VarDep = { qtd?: string | undefined; min: string; max: string };
 
-export function ProductWizard({ store, products, initial, suppliers, onAddSupplier, onCancel, onSave, saving = false, erro = "" }: {
+export function ProductWizard({ store, products, initial, suppliers, onAddSupplier, onCancel, onSave, saving = false, erro = "", locaisCadastrados }: {
   store: StoreData; products: Product[]; initial?: Product | undefined; suppliers: Supplier[];
-  onAddSupplier: (s: Omit<Supplier, "id">) => number; onCancel: () => void; onSave: (p: Product) => void;
+  onAddSupplier: (s: Omit<Supplier, "id">) => number | Promise<number>; onCancel: () => void; onSave: (p: Product) => void;
   saving?: boolean; erro?: string;
+  /** Todos os locais cadastrados do comércio, por área, inclusive os sem produto. */
+  locaisCadastrados?: { deposito: string[]; venda: string[] } | undefined;
 }) {
   const kb = useKeyboard();
   const tipo = store.tipo;
@@ -314,7 +325,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   /* ----- depósito (em memória) ----- */
   const initDep = initial?.deposito;
   const configSalva = !!initDep;
-  const locais = useMemo(() => locaisDoComercio(products), [products]);
+  const locais = useMemo(() => juntarLocais(locaisCadastrados?.deposito ?? [], locaisDoComercio(products)), [products, locaisCadastrados]);
   const [dLocal, setDLocal] = useState<string | null | undefined>(initDep ? initDep.local : undefined);
   const [manterSem, setManterSem] = useState(!!initial && !initDep);
   const [novoLocal, setNovoLocal] = useState<string | null>(null);
@@ -329,7 +340,8 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   /* ----- área de venda (em memória, conjunto de locais separado do depósito) ----- */
   const initVen = initial?.areaVenda;
   const vendaSalva = !!initVen;
-  const locaisV = useMemo(() => locaisVendaDoComercio(products), [products]);
+  const locaisV = useMemo(() => juntarLocais(locaisCadastrados?.venda ?? [], locaisVendaDoComercio(products)), [products, locaisCadastrados]);
+  const [confVenc, setConfVenc] = useState(false);
   const [vLocal, setVLocal] = useState<string | null | undefined>(initVen ? initVen.local : undefined);
   const [vManter, setVManter] = useState(!!initial && !initVen);
   const [vNovo, setVNovo] = useState<string | null>(null);
@@ -518,11 +530,14 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
         ...(r.pend ? { pendConf: true } : {}), ...(l.origem && l.origem !== l.id ? { origem: l.origem } : {}) }))]));
     return { controla: true, avisos: [...avisos].sort((a, b) => a - b), dep: area(gDep), ven: area(gVen) };
   };
+  const lotesConf = valAtivo ? lotesAConfirmar(initVal, buildValidade(), isFarm) : [];
   const save = () => {
     if (saving) return;
+    if (!bad && lotesConf.length && !confVenc) { setTriedSave(true); return; }
     if (bad) { setTriedSave(true); setFromReview(true); return go(bad.step, bad.sub ?? 0); }
     onSave({ id: initial?.id ?? Date.now(), codigo: codigo.trim(), nome: nome.trim(), compra, venda, unidade, categoria, detalhes: det, variacoes: vars,
-      fornecedor: forn ?? null, deposito: buildDeposito(), areaVenda: buildVenda(), validade: buildValidade(), db: initial?.db });
+      fornecedor: forn ?? null, deposito: buildDeposito(), areaVenda: buildVenda(), validade: buildValidade(), db: initial?.db,
+      ...(lotesConf.length && confVenc ? { confirmarVencimento: true } : {}) });
   };
   const next = () => {
     if (!valid) { if (hasSub) setSubTried(true); return; }
@@ -1140,6 +1155,13 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
               )}
             </div>
 
+            {step === STEP_REV && lotesConf.length > 0 && (
+              <label className="flex shrink-0 items-start gap-3 pt-3 text-sm">
+                <input type="checkbox" className="mt-1 h-5 w-5" checked={confVenc} onChange={(e) => setConfVenc(e.target.checked)} />
+                <span>Confirmo o vencimento informado para o lote {lotesConf.filter(Boolean).join(", ")}. Depois de salvo, ele não poderá ser trocado.</span>
+              </label>
+            )}
+            {step === STEP_REV && triedSave && lotesConf.length > 0 && !confVenc && <p role="alert" className="shrink-0 pt-2 text-sm font-semibold text-destructive">Confirme o vencimento do lote para salvar.</p>}
             {erro && step === STEP_REV && <p role="alert" className="shrink-0 pt-3 text-sm font-semibold text-destructive">{erro}</p>}
             <div className={`flex shrink-0 gap-2 ${kb ? "pt-2" : "pt-4 short:pt-3"}`}>
               {step > 0 && (
@@ -1167,7 +1189,11 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
           setVars(varSheet < 0 ? [...vars, nv] : vars.map((x, j) => (j === varSheet ? nv : x)));
           setVarSheet(null);
         }} />}
-      {suppSheet && <SupplierSheet onClose={() => setSuppSheet(false)} onSave={(s) => { setForn(onAddSupplier(s)); setSuppSheet(false); }} />}
+      {suppSheet && <SupplierSheet onClose={() => setSuppSheet(false)} onSave={(s) => {
+        const r = onAddSupplier(s);
+        if (typeof r === "number") { setForn(r); setSuppSheet(false); return; }
+        return r.then((id) => { setForn(id); setSuppSheet(false); });
+      }} />}
     </div>
   );
 }
@@ -1279,19 +1305,28 @@ function VariationSheet({ index, vars, mainCode, used, onClose, onSave }: {
     </Sheet>
   );
 }
-function SupplierSheet({ onClose, onSave }: { onClose: () => void; onSave: (s: Omit<Supplier, "id">) => void }) {
+function SupplierSheet({ onClose, onSave }: { onClose: () => void; onSave: (s: Omit<Supplier, "id">) => void | Promise<void> }) {
   const [nome, setNome] = useState(""); const [tel, setTel] = useState(""); const [email, setEmail] = useState("");
+  const [salvando, setSalvando] = useState(false); const [erro, setErro] = useState("");
+  const enviar = () => {
+    if (salvando) return;
+    const r = onSave({ nome: nome.trim(), tel, email });
+    if (!r) return;
+    setSalvando(true); setErro("");
+    r.catch((e: unknown) => { setErro(String((e as { message?: string })?.message ?? "Não foi possível guardar o fornecedor.")); setSalvando(false); });
+  };
   const emailOk = !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const ok = !!nome.trim() && emailOk && (!tel || digits(tel).length >= 10);
   return (
-    <Sheet title="Novo fornecedor" onClose={onClose}>
-      <form noValidate onSubmit={(e) => { e.preventDefault(); if (ok) onSave({ nome: nome.trim(), tel, email }); }} className="flex min-h-0 flex-col">
+    <Sheet title="Novo fornecedor" onClose={() => { if (!salvando) onClose(); }}>
+      <form noValidate onSubmit={(e) => { e.preventDefault(); if (ok) enviar(); }} className="flex min-h-0 flex-col">
         <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3">
           <Field label="Nome" name="fnome" autoComplete="organization" enterKeyHint="next" onKeyDown={nextOnEnter("ftel")} placeholder="Ex.: Distribuidora Sol" value={nome} onChange={(e) => setNome(e.target.value)} hint="Nome da empresa ou do vendedor." />
           <Field label="Telefone / WhatsApp" name="ftel" type="tel" inputMode="tel" autoComplete="tel" enterKeyHint="next" onKeyDown={nextOnEnter("femail")} placeholder="(11) 99999-9999" value={tel} onChange={(e) => setTel(maskPhone(e.target.value))} hint="Para fazer pedidos." />
           <Field label="E-mail" name="femail" type="email" inputMode="email" autoComplete="email" enterKeyHint="done" placeholder="Opcional" value={email} onChange={(e) => setEmail(e.target.value)} error={!emailOk ? "E-mail inválido." : ""} hint="Opcional." />
         </div>
-        <div className="px-5 pt-2"><button type="submit" disabled={!ok} className={btnPrimary(ok)}>Salvar fornecedor</button></div>
+        {erro && <p role="alert" className="px-5 pt-2 text-sm font-semibold text-destructive">{erro}</p>}
+        <div className="px-5 pt-2"><button type="submit" disabled={!ok || salvando} className={btnPrimary(ok && !salvando)}>{salvando ? "Salvando…" : "Salvar fornecedor"}</button></div>
       </form>
     </Sheet>
   );
