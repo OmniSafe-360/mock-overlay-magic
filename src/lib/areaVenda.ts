@@ -8,7 +8,6 @@ export const VEN_SEM_CONFIG = "Área de venda não configurada";
 export const VEN_LOCAL_PENDENTE = "Área de venda não configurada completamente · Local não definido · Sem reposição automática";
 export const VEN_LOCAL_DUP = "Já existe um local de venda com este nome neste comércio. Escolha-o na lista.";
 export const VEN_ACIMA_MAX = "A contagem passou do quanto cabe neste local. Tudo bem: a contagem real será registrada. Uma reposição futura nunca sugerirá passar do máximo.";
-export const VEN_REMOCAO_BLOQUEADA = "Esta variação tem quantidade confirmada no depósito ou na área de venda. Removê-la não é permitido nesta versão.";
 export const SEM_REPOSICAO = "Nenhuma reposição automática funciona nesta versão.";
 export const TOTAL_INDISPONIVEL = "Total ainda não disponível";
 export const venLocalTravadoMsg = (l: string) =>

@@ -8,7 +8,7 @@ import {
   localTravadoMsg, locaisDoComercio, newUid, parseNum, temQtdPositiva, toInput, unidadeTravadaMsg, type Deposito,
 } from "@/lib/deposito";
 import {
-  EXEMPLO_LOCAL, SEM_REPOSICAO, VEN_ACIMA_MAX, VEN_LOCAL_DUP, VEN_LOCAL_PENDENTE, VEN_REMOCAO_BLOQUEADA, VEN_SEM_CONFIG, limitesVendaStatus,
+  EXEMPLO_LOCAL, SEM_REPOSICAO, VEN_ACIMA_MAX, VEN_LOCAL_DUP, VEN_LOCAL_PENDENTE, VEN_SEM_CONFIG, limitesVendaStatus,
   locaisVendaDoComercio, totalTexto, venLocalTravadoMsg, type AreaVenda,
 } from "@/lib/areaVenda";
 
@@ -420,7 +420,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const showErr = (txt: string, err: string) => (txt.trim() || subTried ? err : "");
   const removeVar = (i: number) => {
     const x = varsDep[i], y = varsVen[i];
-    if ((x && (x.q.v ?? 0) > 0) || (y && (y.q.v ?? 0) > 0)) { setVarMsg(VEN_REMOCAO_BLOQUEADA); return; }
+    if ((x && (x.q.v ?? 0) > 0) || (y && (y.q.v ?? 0) > 0)) { setVarMsg(REMOCAO_BLOQUEADA); return; }
     setVarMsg("");
     setVars(vars.filter((_, j) => j !== i));
     if (x?.v.uid) { const k = x.v.uid; const del = (m: Record<string, VarDep>) => { const n = { ...m }; delete n[k]; return n; }; setDVar(del); setVVar(del); }

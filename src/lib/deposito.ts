@@ -19,9 +19,9 @@ export const SEM_CONFIG = "Depósito não configurado";
 export const LOCAL_PENDENTE = "Depósito não configurado completamente · Local não definido";
 export const TEMPORARIO = "Configuração temporária: não permanece ao atualizar a página.";
 export const ACIMA_MAX = "Você tem mais que o desejado. Tudo bem: a contagem real será registrada.";
-export const REMOCAO_BLOQUEADA = "Esta variação tem quantidade confirmada no depósito. Removê-la não é permitido nesta versão.";
+export const REMOCAO_BLOQUEADA = "Esta variação tem quantidade confirmada no depósito ou na área de venda. Removê-la não é permitido nesta versão.";
 export const unidadeTravadaMsg = (u: string) =>
-  `Este produto já tem depósito configurado em ${u}. Para não mudar o sentido das quantidades, a unidade não pode ser alterada nesta versão.`;
+  `Este produto já tem depósito ou área de venda configurados em ${u}. Para não mudar o sentido das quantidades, a unidade não pode ser alterada nesta versão.`;
 export const localTravadoMsg = (l: string) =>
   `Há quantidade no depósito em “${l}”. Mudar de local exigirá uma transferência, que virá numa etapa futura.`;
 
