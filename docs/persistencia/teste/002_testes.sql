@@ -101,7 +101,7 @@ select salvar_produto(t_p('op5','P3','cm2','Pacote',null,'[]','[]','789001'));
 select 'OK mesmo codigo permitido em outro comercio';
 select t_erro($$select salvar_produto(t_p('op6','R1','cr1','Peça',null,
   '[{"area":"deposito","variacao_id":"'||u('v1')||'","contagem":{"quantidade":5}}]',
-  '[{"id":"'||u('v1')||'","tamanho":"M","cor":"Azul","codigo_barras":"555"}]','555'))$$, 'codigo_em_uso');
+  '[{"id":"'||u('v1')||'","tamanho":"M","cor":"Azul","codigo_barras":"555"}]','555'))$$, 'codigo_igual_ao_principal');
 reset role;
 select t_ok(not exists (select 1 from produtos where id = u('R1')) and not exists (select 1 from codigos_barras where codigo = '555')
   and not exists (select 1 from operacoes where id = u('op6')), 'falha no meio desfaz tudo (produto, codigo, operacao)');
