@@ -41,6 +41,18 @@ export function parseNum(txt: string, unidade: string, opcional: boolean): { v: 
 
 export const limitesErro = (min: number | null, max: number | null) => (min != null && max != null && max < min ? MAX_MENOR : "");
 export const fmtQ = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
+/** Plural das unidades de venda (Kg e m² não mudam). Singular de 1 até menos de 2 ("1,5 litro"), como se fala. */
+const PALAVRA_UN: Record<string, [string, string]> = {
+  Unidade: ["unidade", "unidades"], Peça: ["peça", "peças"], Par: ["par", "pares"], Pacote: ["pacote", "pacotes"],
+  Caixa: ["caixa", "caixas"], Cartela: ["cartela", "cartelas"], Frasco: ["frasco", "frascos"], Saco: ["saco", "sacos"],
+  Lata: ["lata", "latas"], Jogo: ["jogo", "jogos"], Kit: ["kit", "kits"], Litro: ["litro", "litros"], Metro: ["metro", "metros"],
+};
+/** "100 unidades", "1 unidade", "1,5 litro", "2,5 Kg", "3 pacotes". */
+export function qtdUn(n: number, unidade: string): string {
+  const p = PALAVRA_UN[unidade];
+  const palavra = !p ? unidade : Math.abs(n) >= 1 && Math.abs(n) < 2 ? p[0] : p[1];
+  return `${fmtQ(n)} ${palavra}`.trim();
+}
 export const toInput = (n: number | null | undefined) => (n == null ? "" : String(n).replace(".", ","));
 
 export function limitesStatus(min: number | null, max: number | null): string {

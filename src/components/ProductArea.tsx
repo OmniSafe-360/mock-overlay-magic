@@ -14,7 +14,7 @@ import { avisoCodigo } from "@/lib/codigoBarras";
 import { AUTOPECAS_VARS_MSG, POSICAO_MSG, CONSTRUCAO_VARS_MSG, CONTROLADO_MSG, ESPECIE_MSG, PET_VARS_MSG, FARMACIA_VARS_MSG, firstInvalidStep, typeRuleError, type TypeRules, mainCodeError, usedCodes, variationErrors, variationOk } from "@/lib/variations";
 import {
   ACIMA_MAX, LOCAL_DUP, LOCAL_PENDENTE, REMOCAO_BLOQUEADA, SEM_CONFIG, TEMPORARIO, aceitaFracao, fmtQ, limitesErro, limitesStatus, localDuplicado,
-  localTravadoMsg, locaisDoComercio, newUid, parseNum, temQtdPositiva, toInput, unidadeTravadaMsg, type Deposito,
+  localTravadoMsg, locaisDoComercio, newUid, parseNum, qtdUn, temQtdPositiva, toInput, unidadeTravadaMsg, type Deposito,
 } from "@/lib/deposito";
 import {
   EXEMPLO_LOCAL, SEM_REPOSICAO, VEN_ACIMA_MAX, VEN_LOCAL_DUP, VEN_LOCAL_PENDENTE, VEN_SEM_CONFIG, limitesVendaStatus,
@@ -199,7 +199,7 @@ export function DepositoInfo({ p }: { p: Product }) {
         })
       ) : (
         <>
-          <span className="block">Quantidade confirmada no depósito: {d.qtd != null ? `${fmtQ(d.qtd)} ${p.unidade}` : "não informada"}</span>
+          <span className="block">Quantidade confirmada no depósito: {d.qtd != null ? `${qtdUn(d.qtd, p.unidade)}` : "não informada"}</span>
           <span className="block">{limitesStatus(d.min, d.max)}</span>
         </>
       )}
@@ -225,7 +225,7 @@ export function AreaVendaInfo({ p }: { p: Product }) {
         })
       ) : (
         <>
-          <span className="block">Quantidade na área de venda: {a.qtd != null ? `${fmtQ(a.qtd)} ${p.unidade}` : "não informada"}</span>
+          <span className="block">Quantidade na área de venda: {a.qtd != null ? `${qtdUn(a.qtd, p.unidade)}` : "não informada"}</span>
           <span className="block">{limitesVendaStatus(a.min, a.max)}</span>
         </>
       )}
@@ -259,7 +259,7 @@ export function validadeLinhas(v: Validade | undefined, farm: boolean, unidade: 
       const pre = k === CHAVE_PRODUTO ? nome : `${nome} · ${nomeVar(k)}`;
       if (c == null) { out.push(`${pre}: ${AGUARDANDO}`); faltas.push(`${pre} aguardando contagem`); continue; }
       if (mil(c) === 0) { out.push(`${pre}: ${AREA_SEM_ESTOQUE}`); continue; }
-      if (!ls.length) { out.push(`${pre}: ${VAL_AREA_PENDENTE} (${fmtQ(c)} ${unidade} contados)`); faltas.push(`${pre} com validade pendente`); continue; }
+      if (!ls.length) { out.push(`${pre}: ${VAL_AREA_PENDENTE} (${qtdUn(c, unidade)} contados)`); faltas.push(`${pre} com validade pendente`); continue; }
       todas.push(...ls);
       out.push(`${pre}: ${ls.map((l) => linhaTexto(l, unidade, hoje, farm)).join("; ")}`);
     }
@@ -267,11 +267,11 @@ export function validadeLinhas(v: Validade | undefined, farm: boolean, unidade: 
   const c = conferencia(todas, hoje, farm);
   const soma = `não vencida ${fmtQ(c.conhecida)} + vencida ${fmtQ(c.vencida)} + sem data ${fmtQ(c.semData)} = ${fmtQ(c.fisica)} (${unidade})`;
   out.push(faltas.length ? `${CONF_INCOMPLETA}: ${faltas.join("; ")}. Só nas partes com validade: ${soma}` : `Física contada ${fmtQ(c.fisica)} = ${soma}`);
-  if (c.vencida > 0) out.push(`Vencidos: ${fmtQ(c.vencida)} ${unidade} (continuam contados)`);
-  if (c.semData > 0) out.push(`Validade desconhecida: ${fmtQ(c.semData)} ${unidade}`);
-  if (c.lotePend > 0) out.push(`Lote pendente: ${fmtQ(c.lotePend)} ${unidade}`);
+  if (c.vencida > 0) out.push(`Vencidos: ${qtdUn(c.vencida, unidade)} (continuam contados)`);
+  if (c.semData > 0) out.push(`Validade desconhecida: ${qtdUn(c.semData, unidade)}`);
+  if (c.lotePend > 0) out.push(`Lote pendente: ${qtdUn(c.lotePend, unidade)}`);
   const pr = proximoVencimento(todas, hoje);
-  out.push(pr ? `Próximo vencimento não vencido: ${fmtData(pr.data)} (${fmtQ(pr.qtd)} ${unidade})` : "Sem próximo vencimento não vencido");
+  out.push(pr ? `Próximo vencimento não vencido: ${fmtData(pr.data)} (${qtdUn(pr.qtd, unidade)})` : "Sem próximo vencimento não vencido");
   return out;
 }
 export function ValidadeInfo({ p, tipo }: { p: Product; tipo: string }) {
@@ -503,7 +503,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     const originais = Object.fromEntries((initVal?.[area][k] ?? []).filter((l) => !l.data || lotePendente(l, isFarm)).map((l) => [l.id, l.qtd]));
     const quebradas = conferirOrigens(vs.map((x) => ({ origem: x.l.origem, qtd: x.r.qv })), originais).map((o) => {
       const l = initVal![area][k]!.find((y) => y.id === o.id)!;
-      return { ...o, msg: origemMsg(`${fmtQ(o.original)} ${unidade}`, `${fmtQ(o.atual)} ${unidade}`, l.data ? ` (vence ${fmtData(l.data)})` : l.lote ? ` (lote ${l.lote})` : "") };
+      return { ...o, msg: origemMsg(`${qtdUn(o.original, unidade)}`, `${qtdUn(o.atual, unidade)}`, l.data ? ` (vence ${fmtData(l.data)})` : l.lote ? ` (lote ${l.lote})` : "") };
     });
     const err = cont == null ? (ls.length ? LINHAS_SEM_CONTAGEM : "")
       : vs.some((x) => x.r.qErr || x.r.dErr || x.r.pErr) ? "Corrija as validades marcadas em vermelho."
@@ -665,11 +665,11 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const resumoLocal = manterSem ? SEM_CONFIG : dLocal ? dLocal : LOCAL_PENDENTE;
   const resumoQtd = isRoupas
     ? varsDep.map((x) => `${x.v.tam}/${x.v.cor}: ${x.q.v != null ? fmtQ(x.q.v) : "—"}`).join(", ")
-    : q.v != null ? `${fmtQ(q.v)} ${unidade}` : "—";
+    : q.v != null ? `${qtdUn(q.v, unidade)}` : "—";
   const resumoVLocal = vManter ? VEN_SEM_CONFIG : vLocal ? vLocal : VEN_LOCAL_PENDENTE;
   const resumoVQtd = isRoupas
     ? varsVen.map((x) => `${x.v.tam}/${x.v.cor}: ${x.q.v != null && !x.q.err ? fmtQ(x.q.v) : "—"}`).join(", ")
-    : vq.v != null && !vq.err ? `${fmtQ(vq.v)} ${unidade}` : "—";
+    : vq.v != null && !vq.err ? `${qtdUn(vq.v, unidade)}` : "—";
   const resumoVLim = isRoupas ? varsVen.map((x) => `${x.v.tam}/${x.v.cor}: ${limitesVendaStatus(x.mn.v, x.mx.v)}`).join(" · ") : limitesVendaStatus(vmn.v, vmx.v);
   /* total visual: só com as duas contagens confirmadas; nunca usa a quantidade do cadastro */
   const okQ = (r: { v: number | null; err: string }) => (r.err ? null : r.v);
@@ -751,7 +751,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
             <div key={key} className="space-y-2 rounded-2xl border border-border bg-background-deep/60 p-3">
               {isRoupas && <p className="text-sm font-semibold">{varNome(g.k)}</p>}
               {g.cont == null ? <p className="text-sm text-warning">{AGUARDANDO}</p> : (
-                <p className="text-sm">Contado: <b>{fmtQ(g.cont)} {unidade}</b> · Distribuído: {fmtQ(g.soma!.distribuido)} · Falta distribuir: {fmtQ(g.soma!.falta)}</p>
+                <p className="text-sm">Contado: <b>{qtdUn(g.cont, unidade)}</b> · Distribuído: {fmtQ(g.soma!.distribuido)} · Falta distribuir: {fmtQ(g.soma!.falta)}</p>
               )}
               {g.cont != null && mil(g.cont) === 0 && !g.ls.length && <p className="text-xs text-muted-foreground">{SEM_ESTOQUE}</p>}
               {g.vs.map(({ l, r }, i) => renderLinha(key, l, r, i))}
@@ -987,7 +987,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                     <>
                       {qtdTravada ? (
                         <div className="rounded-2xl border border-border bg-background-deep/60 p-3 text-sm">
-                          <p>Quantidade confirmada no depósito: <b>{q.v != null ? `${fmtQ(q.v)} ${unidade}` : "—"}</b></p>
+                          <p>Quantidade confirmada no depósito: <b>{q.v != null ? `${qtdUn(q.v, unidade)}` : "—"}</b></p>
                           <p className="mt-1 text-xs text-muted-foreground">Alterar a contagem ficará para uma etapa futura.</p>
                         </div>
                       ) : (
@@ -1007,7 +1007,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                               <Field label={rotuloSoltas(unidade)} name="soltas" {...numProps} placeholder="0" enterKeyHint="done"
                                 value={soltas} onChange={(ev) => setSoltas(numIn(ev.target.value))} />
                               <div className="rounded-2xl border border-border bg-background-deep/60 p-3 text-sm">
-                                Total no depósito: <b>{cont.total != null ? `${fmtQ(cont.total)} ${unidade === "Unidade" ? (cont.total === 1 ? "unidade" : "unidades") : unidade}` : "—"}</b>
+                                Total no depósito: <b>{cont.total != null ? qtdUn(cont.total, unidade) : "—"}</b>
                               </div>
                               {(cont.err || (subTried && q.err)) && <p role="alert" className="text-sm text-destructive">{cont.err || q.err}</p>}
                             </>
@@ -1028,7 +1028,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                         <div className="space-y-2 rounded-2xl border border-accent/50 bg-accent/10 p-3">
                           <p className="text-base font-semibold">Essas quantidades estão no depósito?</p>
                           {pendentes.map((x) => (
-                            <p key={x.v.uid} className="text-sm">{x.v.tam} · {x.v.cor} · Quantidade informada no cadastro: {x.v.qtd} {unidade}</p>
+                            <p key={x.v.uid} className="text-sm">{x.v.tam} · {x.v.cor} · Quantidade informada no cadastro: {qtdUn(x.v.qtd, unidade)}</p>
                           ))}
                           <div className="flex flex-col gap-2">
                             <button type="button" onClick={() => setDVar((m) => { const n = { ...m }; for (const x of pendentes) n[x.v.uid!] = { ...(n[x.v.uid!] ?? { min: "", max: "" }), qtd: String(x.v.qtd) }; return n; })}
@@ -1044,7 +1044,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                           <p className="text-xs text-muted-foreground">Quantidade informada no cadastro: {x.v.qtd}</p>
                           {x.travada ? (
                             <>
-                              <p className="text-sm">Quantidade confirmada no depósito: <b>{fmtQ(x.q.v ?? 0)} {unidade}</b></p>
+                              <p className="text-sm">Quantidade confirmada no depósito: <b>{qtdUn(x.q.v ?? 0, unidade)}</b></p>
                               <p className="text-xs text-muted-foreground">Alterar a contagem ficará para uma etapa futura.</p>
                             </>
                           ) : (
@@ -1135,7 +1135,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                     <>
                       {vQtdTravada ? (
                         <div className="rounded-2xl border border-border bg-background-deep/60 p-3 text-sm">
-                          <p>Quantidade confirmada na área de venda: <b>{vq.v != null ? `${fmtQ(vq.v)} ${unidade}` : "—"}</b></p>
+                          <p>Quantidade confirmada na área de venda: <b>{vq.v != null ? `${qtdUn(vq.v, unidade)}` : "—"}</b></p>
                           <p className="mt-1 text-xs text-muted-foreground">Alterar a contagem ficará para uma etapa futura.</p>
                         </div>
                       ) : (
@@ -1155,7 +1155,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                           <p className="text-sm font-semibold">{x.v.tam} · {x.v.cor}</p>
                           {x.travada ? (
                             <>
-                              <p className="text-sm">Quantidade confirmada na área de venda: <b>{fmtQ(x.q.v ?? 0)} {unidade}</b></p>
+                              <p className="text-sm">Quantidade confirmada na área de venda: <b>{qtdUn(x.q.v ?? 0, unidade)}</b></p>
                               <p className="text-xs text-muted-foreground">Alterar a contagem ficará para uma etapa futura.</p>
                             </>
                           ) : (

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { AreaVendaInfo, ProductWizard, TotalInfo, type Product } from "@/components/ProductArea";
-import { REMOCAO_BLOQUEADA, MAX_MENOR, NEGATIVO, QTD_VAZIA } from "@/lib/deposito";
+import { REMOCAO_BLOQUEADA, MAX_MENOR, NEGATIVO, QTD_VAZIA, qtdUn } from "@/lib/deposito";
 import { TOTAL_INDISPONIVEL, VEN_ACIMA_MAX, VEN_LOCAL_DUP, VEN_LOCAL_PENDENTE, VEN_SEM_CONFIG, locaisVendaDoComercio, totalTexto } from "@/lib/areaVenda";
 
 vi.mock("@/components/Scanner", () => ({ Scanner: () => null }));
@@ -62,7 +62,7 @@ describe("produto novo, do formulário vazio até salvar, nos seis tipos", () =>
     expect(screen.queryByRole("button", { name: "Estante A" })).toBeNull(); // locais do depósito não aparecem aqui
     novoLocalVenda("Estante A"); t.submit(); // mesmo nome é permitido: conjunto diferente
     typeIn(/Quanto deste produto já está neste local/, "8");
-    expect(screen.getByText(`Depósito 40 + Área de venda 8 = 48 ${u} no total`)).toBeTruthy();
+    expect(screen.getByText(`Depósito 40 + Área de venda 8 = ${qtdUn(48, u)} no total`)).toBeTruthy();
     t.submit();
     typeIn(/^Mínimo/, "4"); typeIn(/^Máximo que cabe/, "12"); t.submit();
     passarValidade(tipo, t);
@@ -79,7 +79,7 @@ describe("produto novo, do formulário vazio até salvar, nos seis tipos", () =>
     expect(campo.value).toBe("");
     t.submit(); expect(screen.getByText(QTD_VAZIA)).toBeTruthy();
     fireEvent.change(campo, { target: { value: "3" } });
-    expect(screen.getByText("M · Azul: Depósito 5 + Área de venda 3 = 8 Peça no total")).toBeTruthy();
+    expect(screen.getByText("M · Azul: Depósito 5 + Área de venda 3 = 8 peças no total")).toBeTruthy();
     t.submit(); t.submit(); passarValidade("roupas", t); t.submit();
     const p = saved(t.onSave); const uid = p.variacoes[0]!.uid!;
     expect(p.areaVenda).toEqual({ local: "Arara 2", qtd: null, min: null, max: null, vars: { [uid]: { qtd: 3, min: null, max: null } } });
@@ -123,7 +123,7 @@ describe("quantidade e limites", () => {
 
 describe("total para conferência", () => {
   it("só soma contagens confirmadas", () => {
-    expect(totalTexto(40, 8, "Pacote")).toBe("Depósito 40 + Área de venda 8 = 48 Pacote no total");
+    expect(totalTexto(40, 8, "Pacote")).toBe("Depósito 40 + Área de venda 8 = 48 pacotes no total");
     expect(totalTexto(null, 8, "Pacote")).toBe(TOTAL_INDISPONIVEL);
     expect(totalTexto(1.2, 0.1, "Kg")).toBe("Depósito 1,2 + Área de venda 0,1 = 1,3 Kg no total");
   });
@@ -132,7 +132,7 @@ describe("total para conferência", () => {
       deposito: { local: "X", qtd: null, min: null, max: null, vars: { a: { qtd: 2, min: null, max: null }, b: { qtd: 1, min: null, max: null } } },
       areaVenda: { local: "Arara", qtd: null, min: null, max: null, vars: { a: { qtd: 3, min: null, max: null } } } });
     render(<TotalInfo p={p} />);
-    expect(screen.getByText("M · Azul: Depósito 2 + Área de venda 3 = 5 Peça no total")).toBeTruthy();
+    expect(screen.getByText("M · Azul: Depósito 2 + Área de venda 3 = 5 peças no total")).toBeTruthy();
     expect(screen.getByText(`G · Azul: ${TOTAL_INDISPONIVEL}`)).toBeTruthy();
   });
 });
