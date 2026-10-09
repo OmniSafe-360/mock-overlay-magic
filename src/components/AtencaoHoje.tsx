@@ -22,11 +22,13 @@ const maiuscula = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const linhaItem = (titulo: string, detalhe: string | undefined, assunto: string) =>
   titulo.toLowerCase() === assunto.toLowerCase() ? detalhe ?? "" : detalhe ? `${titulo} — ${detalhe}` : titulo;
 
-export function AtencaoHoje({ products, tipo, suppliers, onOpen }: {
+export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFazerPedido }: {
   products: Product[]; tipo: string; suppliers: Supplier[]; onOpen: (p: Product) => void;
+  /** Produtos (id do banco) já num pedido em andamento. */ jaPedidos?: Set<string> | undefined;
+  /** Abre a montagem do pedido de compra. */ onFazerPedido?: (() => void) | undefined;
 }) {
   const hoje = useMemo(() => hojeEm(), []);
-  const grupos = useMemo(() => atencaoHoje(products, tipo, hoje, (p) => suppliers.find((f) => f.id === p.fornecedor)?.nome), [products, tipo, hoje, suppliers]);
+  const grupos = useMemo(() => atencaoHoje(products, tipo, hoje, (p) => suppliers.find((f) => f.id === p.fornecedor)?.nome, jaPedidos), [products, tipo, hoje, suppliers, jaPedidos]);
   const [aberto, setAberto] = useState<string | null>(null);
   if (!products.length) return null;
   const sel = grupos.find((g) => g.tipo === aberto);
@@ -66,6 +68,11 @@ export function AtencaoHoje({ products, tipo, suppliers, onOpen }: {
         <div className="mt-3 rounded-2xl border border-border bg-background-deep/60 p-3 animate-in fade-in duration-200">
           <p className="text-sm font-bold">{sel.titulo}</p>
           <p className="text-xs text-muted-foreground">{sel.ajuda}</p>
+          {onFazerPedido && (sel.tipo === "comprar" || sel.tipo === "acabou") && (
+            <button type="button" onClick={onFazerPedido} className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-base font-semibold text-primary-foreground">
+              Fazer pedido
+            </button>
+          )}
           <ul className="mt-2 divide-y divide-border">
             {sel.itens.map((i) => (
               <li key={i.p.id}>

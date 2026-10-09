@@ -208,10 +208,12 @@ export function porLocal(products: Product[], area: "dep" | "ven", hoje: string,
 
 /* ---------- Atenção hoje (resumo do comércio) ---------- */
 export type ItemAtencao = { p: Product; titulo: string; detalhe?: string | undefined };
-export type GrupoAtencao = { tipo: TipoAlerta; nivel: Alerta["nivel"]; titulo: string; ajuda: string; itens: ItemAtencao[] };
+export type GrupoAtencao = { tipo: TipoAlerta | "aguardando"; nivel: Alerta["nivel"]; titulo: string; ajuda: string; itens: ItemAtencao[] };
 
 /** Junta os avisos de todos os produtos por assunto, do mais grave para o menos grave. Cada produto conta uma vez por assunto. */
-export function atencaoHoje(products: Product[], tipo: string, hoje: string, fornecedorDe: (p: Product) => string | undefined = () => undefined): GrupoAtencao[] {
+export function atencaoHoje(products: Product[], tipo: string, hoje: string, fornecedorDe: (p: Product) => string | undefined = () => undefined,
+  /** Produtos (id do banco) que já estão num pedido em andamento: saem de "Comprar"/"Acabaram" e vão para "Já pedidos". */
+  jaPedidos: Set<string> = new Set()): GrupoAtencao[] {
   const T = textoDoTipo(tipo);
   const ven = nomeVenda(tipo).toLowerCase();
   const defs: Omit<GrupoAtencao, "itens">[] = [
@@ -223,12 +225,20 @@ export function atencaoHoje(products: Product[], tipo: string, hoje: string, for
     { tipo: "comprar", nivel: "atencao", titulo: "Comprar", ajuda: T("Chegaram ao mínimo no depósito.") },
     { tipo: "vencendo", nivel: "atencao", titulo: "Vencem em breve", ajuda: "Venda primeiro ou combine a troca." },
     { tipo: "conferir", nivel: "atencao", titulo: "Validade a conferir", ajuda: "Falta data ou lote." },
+    { tipo: "aguardando", nivel: "info", titulo: "Já pedidos", ajuda: "Estão num pedido em andamento. Aguardando a entrega." },
     { tipo: "completar", nivel: "info", titulo: "Falta completar", ajuda: "Cadastro com local, validade ou fornecedor faltando." },
   ];
   const grupos = defs.map((d) => ({ ...d, itens: [] as ItemAtencao[] }));
   for (const p of [...products].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))) {
     const s = situacaoProduto(p, tipo, hoje, { fornecedor: fornecedorDe(p) });
+    const pedido = !!p.db?.id && jaPedidos.has(p.db.id);
     for (const g of grupos) {
+      if (g.tipo === "aguardando") {
+        const c = s.alertas.filter((x) => x.tipo === "comprar" || x.tipo === "acabou");
+        if (pedido && c.length) g.itens.push({ p, titulo: c.map((x) => x.titulo).join(" · ") });
+        continue;
+      }
+      if (pedido && (g.tipo === "comprar" || g.tipo === "acabou")) continue;
       const a = s.alertas.filter((x) => x.tipo === g.tipo);
       if (!a.length) continue;
       if (g.tipo === "completar" && s.alertas.some((x) => x.tipo !== "completar")) continue; // já aparece num assunto mais importante

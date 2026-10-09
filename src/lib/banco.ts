@@ -1,6 +1,7 @@
 /* Acesso ao Supabase do cadastro de produtos. As regras de acesso do banco garantem que só o dono vê o próprio comércio. */
 import { supabase } from "@/integrations/supabase/client";
 import type { Product, Supplier } from "@/components/ProductArea";
+import { precoUnidade as precoUnidadePedido, type CanalPedido, type LinhaPedido, type Pedido } from "@/lib/pedido";
 import { enviarCadastro, linhaFornecedor, montarCadastro, montarFornecedores, montarProdutos, type Bruto, type Sessao } from "@/lib/persistencia";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -68,4 +69,41 @@ export async function carregarProdutos(comercioId: string, suppliers: Supplier[]
 export function salvarProduto(s: Sessao, p: Product, antes: Product | undefined, comercioId: string, farm: boolean, suppliers: Supplier[], novoId: () => string) {
   return enviarCadastro(s, () => montarCadastro(p, antes, comercioId, farm, suppliers, novoId),
     async (pedido) => { const { error } = await db.rpc("salvar_cadastro", { p: pedido }); return { error }; });
+}
+
+/* ---------- pedidos de compra (D2a) ---------- */
+const centavosDe = (v: unknown) => (v == null ? null : Math.round(Number(v) * 100));
+export async function carregarPedidos(comercioId: string): Promise<Pedido[]> {
+  const doComercio = (q: any) => q.eq("comercio_id", comercioId);
+  const [ped, itens] = await Promise.all([
+    todos("pedidos_compra", "id,numero,fornecedor_id,situacao,canal,enviado_em,observacao,token,created_at", (q) => doComercio(q).order("created_at", { ascending: false })),
+    todos("pedido_itens", "pedido_id,produto_id,variacao_id,embalagem_id,qtd_embalagens,qtd_unidades,preco_estimado,qtd_confirmada,qtd_recebida,created_at", (q) => doComercio(q).order("created_at")),
+  ]);
+  return ped.map((r) => ({
+    id: r.id, numero: Number(r.numero), fornecedorId: r.fornecedor_id, situacao: r.situacao, canal: r.canal ?? null,
+    enviadoEm: r.enviado_em ?? null, observacao: r.observacao ?? "", token: r.token, criadoEm: r.created_at,
+    itens: itens.filter((i) => i.pedido_id === r.id).map((i) => ({
+      produtoId: i.produto_id, variacaoId: i.variacao_id ?? null, embalagemId: i.embalagem_id ?? null,
+      qtdEmbalagens: Number(i.qtd_embalagens), qtdUnidades: Number(i.qtd_unidades), precoEstimado: centavosDe(i.preco_estimado),
+      qtdConfirmada: i.qtd_confirmada == null ? null : Number(i.qtd_confirmada), qtdRecebida: i.qtd_recebida == null ? null : Number(i.qtd_recebida),
+    })),
+  }));
+}
+/** Grava o pedido pronto. Repetir com o mesmo id não duplica. Preço estimado vai em reais por unidade de venda. */
+export async function salvarPedido(a: { id: string; comercioId: string; fornecedorId: string; observacao: string; linhas: LinhaPedido[] }): Promise<{ id: string; numero: number }> {
+  const itens = a.linhas.map((l) => {
+    if (!l.p.db?.id) throw new Error("produto_nao_salvo");
+    return { produto_id: l.p.db.id, variacao_id: l.variacao?.uid ?? null, embalagem_id: l.embalagem?.uid ?? null, qtd_embalagens: l.qtd, preco_estimado: precoUnidadePedido(l) / 100 };
+  });
+  const { data, error } = await db.rpc("salvar_pedido", { p: { id: a.id, comercio_id: a.comercioId, fornecedor_id: a.fornecedorId, observacao: a.observacao, itens } });
+  if (error) throw error;
+  return { id: data.id, numero: Number(data.numero) };
+}
+export async function marcarPedidoEnviado(id: string, canal: CanalPedido) {
+  const { error } = await db.rpc("marcar_pedido_enviado", { _pedido: id, _canal: canal });
+  if (error) throw error;
+}
+export async function cancelarPedido(id: string) {
+  const { error } = await db.rpc("cancelar_pedido", { _pedido: id });
+  if (error) throw error;
 }
