@@ -13,6 +13,9 @@ $P -d t -f "$D/000_base_simulada.sql"
 $P -d t -f "$D/../001_estoque_proposta.sql"
 echo "== migração aplicada no banco de teste =="
 $P -d t -f "$D/002_testes.sql" | grep -E '^(OK|CONTAGEM)'
+$P -d t -f "$D/../003_salvar_cadastro.sql"
+echo "== salvar_cadastro aplicado no banco de teste =="
+$P -d t -f "$D/004_testes_cadastro.sql" | grep -E '^(OK|CONTAGEM)'
 
 echo "== prova: a suíte para quando o verificador reprova =="
 for caso in "select t_erro(\$\$select 1\$\$, 'quantidade_vazia')" \
