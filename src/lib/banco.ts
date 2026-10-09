@@ -85,7 +85,7 @@ export async function carregarPedidos(comercioId: string): Promise<Pedido[]> {
     enviadoEm: r.enviado_em ?? null, observacao: r.observacao ?? "", token: r.token, criadoEm: r.created_at,
     resposta: r.resposta_em ? { em: r.resposta_em, previsaoEntrega: r.previsao_entrega ?? null, valorTotal: centavosDe(r.valor_total), forma: r.forma_pagamento ?? null,
       prazoDias: r.prazo_dias ?? null, recado: r.recado_fornecedor ?? "" } : null,
-    pagamento: { situacao: r.pagamento_situacao ?? null, vencimento: r.vencimento ?? null, pagoEm: r.pago_em ?? null },
+    pagamento: { situacao: r.pagamento_situacao ?? null, vencimento: r.vencimento ?? null, pagoEm: r.pago_em ?? null, valor: centavosDe(r.valor_total) },
     itens: itens.filter((i) => i.pedido_id === r.id).map((i) => ({
       produtoId: i.produto_id, variacaoId: i.variacao_id ?? null, embalagemId: i.embalagem_id ?? null,
       qtdEmbalagens: Number(i.qtd_embalagens), qtdUnidades: Number(i.qtd_unidades), precoEstimado: centavosDe(i.preco_estimado),
@@ -105,6 +105,13 @@ export async function salvarPedido(a: { id: string; comercioId: string; forneced
 }
 export async function marcarPedidoEnviado(id: string, canal: CanalPedido) {
   const { error } = await db.rpc("marcar_pedido_enviado", { _pedido: id, _canal: canal });
+  if (error) throw error;
+}
+/** Dono: marca como pago (com a data), desfaz (volta para a pagar) ou corrige vencimento e valor. Valor em centavos; undefined = não muda. */
+export async function atualizarPagamento(id: string, a: { situacao: "a_pagar" | "pago"; vencimento?: string | null; pagoEm?: string | null; valor?: number | null }) {
+  const p: Record<string, unknown> = { situacao: a.situacao, vencimento: a.vencimento ?? null, pago_em: a.pagoEm ?? null };
+  if (a.valor !== undefined) p["valor_total"] = a.valor == null ? null : a.valor / 100;
+  const { error } = await db.rpc("atualizar_pagamento", { _pedido: id, p });
   if (error) throw error;
 }
 export async function cancelarPedido(id: string) {

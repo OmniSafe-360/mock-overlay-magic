@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { carregarFornecedores, carregarProdutos, atualizarFornecedor, criarFornecedor, gerarCodigoInterno, salvarProduto, carregarPedidos, salvarPedido, marcarPedidoEnviado, cancelarPedido, novoLinkPedido, type LocaisCadastrados } from "@/lib/banco";
+import { carregarFornecedores, carregarProdutos, atualizarFornecedor, criarFornecedor, gerarCodigoInterno, salvarProduto, carregarPedidos, salvarPedido, marcarPedidoEnviado, cancelarPedido, novoLinkPedido, atualizarPagamento, type LocaisCadastrados } from "@/lib/banco";
 import type { CanalPedido, LinhaPedido, Pedido } from "@/lib/pedido";
+import type { DadosPagamento } from "@/components/PainelPedidos";
 import { ehIncerto, mensagemErro, type Sessao } from "@/lib/persistencia";
 import { newUid } from "@/lib/deposito";
 import { AlertTriangle, Bell, CalendarClock, ChevronRight, Home, PackageX, Plus, ShoppingBag, Store, UserCircle, Users, CheckCircle2 } from "lucide-react";
@@ -118,6 +119,10 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
     const ps = await recarregarPedidos(comercioId).catch(() => null);
     return { ...r, token: ps?.find((x) => x.id === r.id)?.token };
   };
+  const pedidoPagamento = (comercioId: string) => async (id: string, d: DadosPagamento) => {
+    await comMensagem(() => atualizarPagamento(id, d), "Não foi possível salvar o pagamento.");
+    await recarregarPedidos(comercioId).catch(() => {});
+  };
   const pedidoNovoLink = (comercioId: string) => async (id: string) => {
     const t = await comMensagem(() => novoLinkPedido(id), "Não foi possível gerar o novo link.");
     await recarregarPedidos(comercioId).catch(() => {});
@@ -220,6 +225,7 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
               onSalvarPedido={sid ? salvarPedidoNovo(sid) : async () => { throw new Error(NO_ID); }}
               onPedidoEnviado={sid ? pedidoEnviado(sid) : async () => {}} onCancelarPedido={sid ? pedidoCancelado(sid) : async () => {}}
               onNovoLinkPedido={sid ? pedidoNovoLink(sid) : async () => { throw new Error(NO_ID); }}
+              onPagamentoPedido={sid ? pedidoPagamento(sid) : async () => { throw new Error(NO_ID); }}
               onBack={() => { setOpen(null); setSaved(false); }} onNew={() => openWizard()} onEdit={(p) => openWizard(p)} onDismissSaved={() => setSaved(false)} />
           ) : tab === "inicio" ? (
             <HomeContent stores={stores} onAdd={() => setAdding(true)} onOpen={(s) => setOpen(s)} />

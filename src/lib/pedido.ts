@@ -20,7 +20,8 @@ export type Pedido = {
   id: string; numero: number; fornecedorId: string; situacao: SituacaoPedido; canal: CanalPedido | null;
   enviadoEm: string | null; observacao: string; token: string; criadoEm: string; itens: ItemPedido[];
   resposta?: RespostaPedido | null | undefined;
-  pagamento?: { situacao: "a_pagar" | "pago" | null; vencimento: string | null; pagoEm: string | null } | undefined;
+  /** Conta a pagar (D2c). valor em centavos: o informado pelo fornecedor ou corrigido pelo dono. */
+  pagamento?: { situacao: "a_pagar" | "pago" | null; vencimento: string | null; pagoEm: string | null; valor?: number | null | undefined } | undefined;
 };
 export const FORMA_TXT: Record<FormaPagamento, string> = { a_vista: "À vista", pix: "Pix", boleto: "Boleto", a_prazo: "A prazo" };
 /** "Boleto 30 dias", "Pix". */
