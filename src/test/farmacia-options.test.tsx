@@ -65,13 +65,12 @@ describe("opções da Farmácia", () => {
 
   it("editar pelo resumo não contorna as validações", () => {
     const t = setup(ok); run(t.submit, 4);
+    expect(screen.getByText("Salvar produto")).toBeTruthy();
     const edits = screen.getAllByRole("button").filter((b) => /editar/i.test(b.textContent ?? "") || /editar/i.test(b.getAttribute("aria-label") ?? ""));
-    fireEvent.click(edits[2]!); // Detalhes
-    fireEvent.change(document.querySelector('input[name="d-principio"]')!, { target: { value: "" } });
-    fireEvent.click(screen.getByRole("button", { name: "Não" })); // segue válido
-    fireEvent.click(edits.length ? screen.getByRole("button", { name: "Voltar" }) : document.body);
-    fireEvent.click(screen.getByRole("button", { name: "Pacote" }) ?? document.body);
+    fireEvent.click(edits[1]!); // Preços
+    fireEvent.change(document.getElementById("cat")!, { target: { value: "" } });
     run(t.submit, 6);
     expect(t.onSave).not.toHaveBeenCalled();
+    expect(screen.queryByText("Salvar produto")).toBeNull();
   });
 });
