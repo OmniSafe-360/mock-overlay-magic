@@ -103,3 +103,30 @@ export const FRACAO = ["Kg", "Metro", "m²", "m³", "Litro"];
 export const TIPO_BANCO: Record<string, string> = {
   mercado: "mercado", farmacia: "farmacia", roupas: "loja_roupas", construcao: "material_construcao", pet: "pet_shop", autopecas: "autopecas",
 };
+
+/* Tamanhos de roupa (Entrega 3), em grupos para o comerciante achar rápido.
+   O banco aceita a mesma lista (função `tamanho_valido`); o teste listas-banco confere os dois lados. */
+const seq = (de: number, ate: number, passo = 1) => Array.from({ length: Math.floor((ate - de) / passo) + 1 }, (_, i) => String(de + i * passo));
+export const UNICO = "Único";
+export type GrupoTamanho = { id: string; nome: string; dica: string; tamanhos: string[] };
+export const GRUPOS_TAMANHO: GrupoTamanho[] = [
+  { id: "letras", nome: "Letras", dica: "Camisetas, blusas, casacos.", tamanhos: ["PP", "P", "M", "G", "GG", "XG", "XXG"] },
+  { id: "numeros", nome: "Números", dica: "Calças, bermudas, saias.", tamanhos: seq(34, 56, 2) },
+  { id: "infantil", nome: "Infantil", dica: "Roupa de criança (RN = recém-nascido).", tamanhos: ["RN", ...seq(1, 4), ...seq(6, 16, 2)] },
+  { id: "calcados", nome: "Calçados", dica: "Número do sapato, tênis ou chinelo.", tamanhos: seq(17, 45) },
+  { id: "unico", nome: "Tamanho único", dica: "Serve em todos (bonés, bolsas, meias).", tamanhos: [UNICO] },
+];
+export const TAMANHOS: string[] = [...new Set(GRUPOS_TAMANHO.flatMap((g) => g.tamanhos))];
+
+/** Grupo que a tela abre primeiro: o do tamanho já escolhido; senão o da categoria; senão o da última variação; senão Letras. */
+export function grupoInicial(tam: string, categoria: string, ultimoTam?: string): string {
+  const pela = (t: string) => {
+    if (categoria === "Calçados" && GRUPOS_TAMANHO[3]!.tamanhos.includes(t)) return "calcados";
+    if (categoria === "Infantil" && GRUPOS_TAMANHO[2]!.tamanhos.includes(t)) return "infantil";
+    return GRUPOS_TAMANHO.find((g) => g.tamanhos.includes(t))?.id;
+  };
+  if (tam) return pela(tam) ?? "letras";
+  if (categoria === "Calçados") return "calcados";
+  if (categoria === "Infantil") return "infantil";
+  return (ultimoTam && pela(ultimoTam)) || "letras";
+}

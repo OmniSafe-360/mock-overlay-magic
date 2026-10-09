@@ -11,7 +11,7 @@ import {
 } from "@/lib/embalagem";
 import { ImprimirEtiquetaSheet } from "@/components/Etiqueta";
 import { avisoCodigo } from "@/lib/codigoBarras";
-import { CATEGORIAS, DETALHES, UNIDADES } from "@/lib/listas";
+import { CATEGORIAS, DETALHES, GRUPOS_TAMANHO, UNICO, UNIDADES, grupoInicial } from "@/lib/listas";
 import { AUTOPECAS_VARS_MSG, CONSTRUCAO_VARS_MSG, PET_VARS_MSG, FARMACIA_VARS_MSG, msgDetalheFixo, firstInvalidStep, typeRuleError, type TypeRules, mainCodeError, usedCodes, variationErrors, variationOk } from "@/lib/variations";
 import {
   ACIMA_MAX, LOCAL_DUP, LOCAL_PENDENTE, REMOCAO_BLOQUEADA, SEM_CONFIG, TEMPORARIO, aceitaFracao, fmtQ, limitesErro, limitesStatus, localDuplicado,
@@ -53,7 +53,6 @@ export type Product = {
   confirmarVencimento?: boolean | undefined;
 };
 
-const TAMANHOS = ["P", "M", "G", "GG", "36", "38", "40", "42", "44"];
 
 export const brl2 = (cents: number) => (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const moneyIn = (v: string) => Number(digits(v).slice(0, 10) || 0);
@@ -1323,7 +1322,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
           onDenied={() => { setScan(false); setDenied(true); setCodeMode("type"); }}
           onCode={(c) => { setScan(false); setCodigo(c); setCodeMode("type"); setTimeout(() => document.getElementById("pnome")?.focus(), 80); }} />
       )}
-      {varSheet !== null && <VariationSheet index={varSheet} vars={vars} mainCode={codigo} used={used} onGerarCodigo={onGerarCodigo} onClose={() => setVarSheet(null)}
+      {varSheet !== null && <VariationSheet index={varSheet} vars={vars} categoria={categoria} mainCode={codigo} used={used} onGerarCodigo={onGerarCodigo} onClose={() => setVarSheet(null)}
         onSave={(v) => {
           const uid = varSheet < 0 ? newUid() : vars[varSheet]?.uid ?? newUid();
           const nv = { ...v, uid };
@@ -1406,6 +1405,36 @@ function Pick({ on, onClick, children }: { on: boolean; onClick: () => void; chi
     </button>
   );
 }
+/** Tamanho em dois toques: primeiro o tipo (Letras, Números...), depois o tamanho. */
+function TamanhoPicker({ value, onChange, categoria, ultimo }: { value: string; onChange: (v: string) => void; categoria: string; ultimo?: string | undefined }) {
+  const [gid, setGid] = useState(() => grupoInicial(value, categoria, ultimo));
+  const g = GRUPOS_TAMANHO.find((x) => x.id === gid) ?? GRUPOS_TAMANHO[0]!;
+  const trocar = (nome: string) => {
+    const novo = GRUPOS_TAMANHO.find((x) => x.nome === nome)!;
+    setGid(novo.id);
+    if (novo.id === "unico") onChange(UNICO);
+    else if (!novo.tamanhos.includes(value)) onChange("");
+  };
+  return (
+    <>
+      <Chips label="Tipo de tamanho" hint={g.dica} opts={GRUPOS_TAMANHO.map((x) => x.nome)} value={g.nome} onChange={trocar} />
+      {g.id === "unico" ? (
+        <p className="rounded-2xl border border-accent/50 bg-accent/10 px-3.5 py-3 text-sm">Esta peça fica com <b>tamanho único</b>.</p>
+      ) : (
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-muted-foreground">Tamanho</p>
+          <div className="flex flex-wrap gap-1.5">
+            {g.tamanhos.map((t) => (
+              <button key={t} type="button" aria-pressed={value === t} onClick={() => onChange(t)}
+                className={`min-h-12 min-w-12 rounded-2xl border px-2 text-base font-semibold transition ${value === t ? "border-accent bg-accent/10 text-foreground" : "border-border bg-background-deep/60 text-muted-foreground hover:border-primary"}`}>{t}</button>
+            ))}
+          </div>
+          {!value && <p className="text-xs text-muted-foreground">Toque no tamanho desta peça.</p>}
+        </div>
+      )}
+    </>
+  );
+}
 function Chips({ label, hint, opts, value, onChange }: { label: string; hint: string; opts: string[]; value: string; onChange: (v: string) => void }) {
   return (
     <div className="space-y-1">
@@ -1446,8 +1475,8 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
     </div>
   );
 }
-function VariationSheet({ index, vars, mainCode, used, onGerarCodigo, onClose, onSave }: {
-  index: number; vars: Variation[]; mainCode: string; used: Set<string>; onClose: () => void; onSave: (v: Variation) => void;
+function VariationSheet({ index, vars, categoria, mainCode, used, onGerarCodigo, onClose, onSave }: {
+  index: number; vars: Variation[]; categoria: string; mainCode: string; used: Set<string>; onClose: () => void; onSave: (v: Variation) => void;
   onGerarCodigo?: (() => Promise<string>) | undefined;
 }) {
   const init = index >= 0 ? vars[index] : undefined;
@@ -1461,7 +1490,7 @@ function VariationSheet({ index, vars, mainCode, used, onGerarCodigo, onClose, o
     <Sheet title={index >= 0 ? "Editar variação" : "Nova variação"} onClose={onClose}>
       <form noValidate onSubmit={(e) => { e.preventDefault(); if (ok) onSave({ tam, cor: cor.trim(), codigo: cod.trim(), qtd: Number(qtd) }); }} className="flex min-h-0 flex-col">
         <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3">
-          <Chips label="Tamanho" hint="Letra ou número." opts={TAMANHOS} value={tam} onChange={setTam} />
+          <TamanhoPicker value={tam} onChange={setTam} categoria={categoria} ultimo={vars.at(-1)?.tam} />
           <Field label="Cor" name="vcor" enterKeyHint="next" onKeyDown={nextOnEnter("vcod")} placeholder="Ex.: Azul" value={cor} onChange={(e) => setCor(e.target.value)} hint="Cor desta peça."
             error={tam && cor.trim() && errs.combo ? errs.combo : ""} />
           <Field label="Código de barras" name="vcod" id="vcod" inputMode="numeric" autoComplete="off" enterKeyHint="next" onKeyDown={nextOnEnter("vqtd")} placeholder="Ex.: 7891234567890"
