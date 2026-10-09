@@ -146,3 +146,60 @@ export function situacaoProduto(p: Product, tipo: string, hoje: string, opts: { 
     : alertas.some((x) => x.nivel === "info") ? "info" : "ok";
   return { nivel, alertas, qtd, variacoes, lotes, nomes };
 }
+
+/* ---------- Por local (abas Depósito/Estoque e Gôndola/Área de venda) ---------- */
+export type EstadoItem = "vencido" | "acabou" | "abaixo" | "ok";
+export type ItemLocal = {
+  p: Product; nome: string; variacao?: string | undefined;
+  qtd: number | null; min: number | null; max: number | null; estado: EstadoItem;
+};
+export type GrupoLocal = { local: string; itens: ItemLocal[] };
+export type PorLocal = {
+  grupos: GrupoLocal[];
+  /** Configurado, mas sem local escolhido. */
+  semLocal: ItemLocal[];
+  /** Produtos que ainda não têm esta área configurada. */
+  naoConfigurados: Product[];
+  resumo: { locais: number; produtos: number; abaixo: number; acabou: number; vencido: number };
+};
+const normLocal = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+export const precisaAtencaoItem = (i: ItemLocal) => i.estado !== "ok";
+
+/** Agrupa os produtos pelo local de uma área. Locais cadastrados sem produto aparecem vazios. */
+export function porLocal(products: Product[], area: "dep" | "ven", hoje: string, locaisCadastrados: string[] = []): PorLocal {
+  const mapa = new Map<string, GrupoLocal>();
+  for (const l of locaisCadastrados) if (l.trim() && !mapa.has(normLocal(l))) mapa.set(normLocal(l), { local: l.trim(), itens: [] });
+  const semLocal: ItemLocal[] = [];
+  const naoConfigurados: Product[] = [];
+  for (const p of products) {
+    const cfg = area === "dep" ? p.deposito : p.areaVenda;
+    if (!cfg) { naoConfigurados.push(p); continue; }
+    const linhas = p.validade?.controla ? p.validade[area] ?? {} : {};
+    const vencido = (k: string) => (linhas[k] ?? []).some((l) => l.qtd > 0 && faixa(l.data, hoje) === "vencido");
+    const estado = (q: number | null, min: number | null, k: string): EstadoItem =>
+      vencido(k) ? "vencido" : q != null && mil(q) === 0 ? "acabou" : q != null && min != null && mil(q) <= mil(min) ? "abaixo" : "ok";
+    const itens: ItemLocal[] = cfg.vars && p.variacoes.length
+      ? p.variacoes.map((v) => {
+          const c = cfg.vars?.[v.uid ?? ""];
+          return { p, nome: p.nome, variacao: `${v.tam} · ${v.cor}`, qtd: c?.qtd ?? null, min: c?.min ?? null, max: c?.max ?? null, estado: estado(c?.qtd ?? null, c?.min ?? null, v.uid ?? "") };
+        })
+      : [{ p, nome: p.nome, qtd: cfg.qtd, min: cfg.min, max: cfg.max, estado: estado(cfg.qtd, cfg.min, CHAVE_PRODUTO) }];
+    if (!cfg.local) { semLocal.push(...itens); continue; }
+    const k = normLocal(cfg.local);
+    if (!mapa.has(k)) mapa.set(k, { local: cfg.local.trim(), itens: [] });
+    mapa.get(k)!.itens.push(...itens);
+  }
+  const porNome = (a: ItemLocal, b: ItemLocal) => a.nome.localeCompare(b.nome, "pt-BR") || (a.variacao ?? "").localeCompare(b.variacao ?? "", "pt-BR");
+  const grupos = [...mapa.values()].sort((a, b) => a.local.localeCompare(b.local, "pt-BR", { numeric: true }));
+  for (const g of grupos) g.itens.sort(porNome);
+  semLocal.sort(porNome);
+  const todos = [...grupos.flatMap((g) => g.itens), ...semLocal];
+  return {
+    grupos, semLocal, naoConfigurados: naoConfigurados.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
+    resumo: {
+      locais: grupos.length, produtos: new Set(todos.map((i) => i.p.id)).size,
+      abaixo: todos.filter((i) => i.estado === "abaixo").length, acabou: todos.filter((i) => i.estado === "acabou").length,
+      vencido: todos.filter((i) => i.estado === "vencido").length,
+    },
+  };
+}
