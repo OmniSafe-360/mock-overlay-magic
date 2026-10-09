@@ -346,3 +346,25 @@ export async function sairFuncionario(chave: string) {
   const { error } = await db.rpc("sair_funcionario", { _chave: chave });
   if (error) throw error;
 }
+
+/* ---------- reposição (E3) ---------- */
+export type ItemReposicao = ProdutoFunc & { local: string | null; localDeposito: string | null; depositoVazio: boolean };
+export async function listaReposicao(chave: string): Promise<{ tipo: string; produtos: ItemReposicao[] }> {
+  const { data, error } = await db.rpc("funcionario_reposicao_lista", { _chave: chave });
+  if (error) throw error;
+  return {
+    tipo: data?.tipo ?? "",
+    produtos: (data?.produtos ?? []).map((x: any) => ({ ...produtoFunc(x), local: x.local ?? null, localDeposito: x.local_deposito ?? null, depositoVazio: !!x.deposito_vazio })),
+  };
+}
+export type RespostaContagemPrateleira = { sugerido: number; cheio: boolean; depositoVazio: boolean; localDeposito: string | null; situacao: "contado" | "concluido" };
+/** O funcionário contou a prateleira; o servidor devolve só quanto buscar no depósito. */
+export async function contarPrateleira(chave: string, id: string, produtoId: string, variacaoId: string | null, contado: number): Promise<RespostaContagemPrateleira> {
+  const { data, error } = await db.rpc("funcionario_reposicao_contar", { _chave: chave, _id: id, _produto: produtoId, _variacao: variacaoId, _contado: contado });
+  if (error) throw error;
+  return { sugerido: Number(data.sugerido), cheio: !!data.cheio, depositoVazio: !!data.deposito_vazio, localDeposito: data.local_deposito ?? null, situacao: data.situacao };
+}
+export async function concluirReposicao(chave: string, id: string, levado: number) {
+  const { error } = await db.rpc("funcionario_reposicao_concluir", { _chave: chave, _id: id, _levado: levado });
+  if (error) throw error;
+}

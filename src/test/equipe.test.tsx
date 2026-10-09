@@ -121,6 +121,7 @@ function apiFunc(over: Partial<ApiFuncionario> = {}) {
     entrar: vi.fn(async (_c: string, _p: string, _a: string) => CHAVE),
     inicio: vi.fn(async (_c: string): Promise<InicioFuncionario | null> => inicio()),
     sair: vi.fn(async (_c: string) => {}),
+    repor: { lista: vi.fn(async () => ({ tipo: "mercado", produtos: [] })), contar: vi.fn(), concluir: vi.fn(), buscar: vi.fn() },
     ...over,
   };
 }
@@ -147,7 +148,7 @@ describe("app do funcionário (Omni Operação)", () => {
     expect(screen.getByRole("button", { name: /Receber mercadoria/ }).textContent).toMatch(/1 entrega prevista para hoje/);
     expect(screen.getByRole("button", { name: /Repor gôndola/ }).textContent).toMatch(/5 produtos pedindo reposição/);
     fireEvent.click(screen.getByRole("button", { name: /Repor gôndola/ }));
-    expect(screen.getByRole("status").textContent).toMatch(/próxima atualização/);
+    expect(await screen.findByText("Tudo abastecido!")).toBeTruthy();
   });
   it("digitar o código; PIN errado mostra quantas tentativas faltam", async () => {
     const api = apiFunc({ conferir: vi.fn(async () => "pin" as const), entrar: vi.fn(async () => { throw new Error("pin_errado:3"); }) });

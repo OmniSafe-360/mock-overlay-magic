@@ -337,7 +337,7 @@ function BuscarProduto({ chave, api, onClose, onEscolher }: { chave: string; api
   );
 }
 
-function Contador({ rotulo, valor, onMudar, fracao = false }: { rotulo: string; valor: string; onMudar: (v: string) => void; fracao?: boolean }) {
+export function Contador({ rotulo, valor, onMudar, fracao = false }: { rotulo: string; valor: string; onMudar: (v: string) => void; fracao?: boolean }) {
   const n = parseNum(valor, fracao ? "Kg" : "Unidade", true).v ?? 0;
   const passo = 1;
   return (
