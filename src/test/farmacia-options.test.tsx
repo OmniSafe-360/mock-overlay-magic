@@ -17,13 +17,13 @@ function setup(initial: Product) {
 const run = (submit: () => void, n = 8) => { for (let i = 0; i < n; i++) submit(); };
 
 describe("opções da Farmácia", () => {
-  it("produto válido salva", () => { const t = setup(ok); run(t.submit, 6); expect(t.onSave).toHaveBeenCalledTimes(1); });
+  it("produto válido salva", () => { const t = setup(ok); run(t.submit, 7); expect(t.onSave).toHaveBeenCalledTimes(1); });
 
   it("controlado aceita Sim e ausência", () => {
-    const a = setup({ ...ok, detalhes: { controlado: "Sim" } }); run(a.submit, 6); expect(a.onSave).toHaveBeenCalledTimes(1);
+    const a = setup({ ...ok, detalhes: { controlado: "Sim" } }); run(a.submit, 7); expect(a.onSave).toHaveBeenCalledTimes(1);
   });
   it("produto sem detalhes salva (Pular)", () => {
-    const t = setup({ ...ok, detalhes: {} }); run(t.submit, 6); expect(t.onSave).toHaveBeenCalledTimes(1);
+    const t = setup({ ...ok, detalhes: {} }); run(t.submit, 7); expect(t.onSave).toHaveBeenCalledTimes(1);
   });
 
   it("unidade Peça e categoria Camisetas impedem salvar", () => {
@@ -48,7 +48,7 @@ describe("opções da Farmácia", () => {
     expect(screen.getByText(CONTROLADO_MSG)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Sim" }));
     expect(screen.queryByText(CONTROLADO_MSG)).toBeNull();
-    run(t.submit, 4);
+    run(t.submit, 5);
     expect(t.onSave).toHaveBeenCalledTimes(1);
     expect(t.onSave.mock.calls[0]![0].detalhes.controlado).toBe("Sim");
   });
@@ -59,17 +59,17 @@ describe("opções da Farmácia", () => {
     expect(screen.getByText(/Categoria incompatível/)).toBeTruthy();
     fireEvent.change(document.getElementById("cat")!, { target: { value: "Genéricos" } });
     expect(screen.queryByText(/incompatível/)).toBeNull();
-    run(t.submit, 5);
+    run(t.submit, 6);
     expect(t.onSave.mock.calls[0]![0]).toMatchObject({ unidade: "Frasco", categoria: "Genéricos" });
   });
 
   it("editar pelo resumo não contorna as validações", () => {
-    const t = setup(ok); run(t.submit, 5);
+    const t = setup(ok); run(t.submit, 6);
     expect(screen.getByText("Salvar produto")).toBeTruthy();
     const edits = screen.getAllByRole("button").filter((b) => /editar/i.test(b.textContent ?? "") || /editar/i.test(b.getAttribute("aria-label") ?? ""));
     fireEvent.click(edits[1]!); // Preços
     fireEvent.change(document.getElementById("cat")!, { target: { value: "" } });
-    run(t.submit, 7);
+    run(t.submit, 8);
     expect(t.onSave).not.toHaveBeenCalled();
     expect(screen.queryByText("Salvar produto")).toBeNull();
   });
