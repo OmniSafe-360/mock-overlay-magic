@@ -8,7 +8,9 @@ import { CHAVE_PRODUTO, diasAte, faixa, fmtData, mil, deMil, tipoSemValidade, ve
 
 /** urgente = vermelho; atencao = amarelo; info = falta completar o cadastro; ok = verde. */
 export type Nivel = "urgente" | "atencao" | "info" | "ok";
-export type Alerta = { nivel: Exclude<Nivel, "ok">; titulo: string; detalhe?: string | undefined };
+/** Tipo do aviso, para o resumo "Atenção hoje" contar por assunto. */
+export type TipoAlerta = "vencido" | "acabou" | "preco" | "lugar" | "repor" | "comprar" | "vencendo" | "conferir" | "completar";
+export type Alerta = { nivel: Exclude<Nivel, "ok">; tipo: TipoAlerta; titulo: string; detalhe?: string | undefined };
 
 /** Quantidades de uma linha (produto inteiro ou uma variação de roupa). null = ainda não contado. */
 export type Qtds = {
@@ -48,7 +50,7 @@ export function situacaoProduto(p: Product, tipo: string, hoje: string, opts: { 
   const farm = tipo === "farmacia";
   const un = p.unidade;
   const alertas: Alerta[] = [];
-  const add = (nivel: Alerta["nivel"], titulo: string, detalhe?: string) => alertas.push({ nivel, titulo, detalhe });
+  const add = (nivel: Alerta["nivel"], tipo: TipoAlerta, titulo: string, detalhe?: string) => alertas.push({ nivel, tipo, titulo, detalhe });
   const d = p.deposito, a = p.areaVenda;
   const porVar = p.variacoes.length > 0 && !!(d?.vars || a?.vars);
 
@@ -84,27 +86,27 @@ export function situacaoProduto(p: Product, tipo: string, hoje: string, opts: { 
   const soma = (ls: LoteVisto[]) => deMil(ls.reduce((s, l) => s + mil(l.qtd), 0));
   const vencVen = lotes.filter((l) => l.area === "ven" && faixa(l.data, hoje) === "vencido");
   const vencDep = lotes.filter((l) => l.area === "dep" && faixa(l.data, hoje) === "vencido");
-  if (vencVen.length) add("urgente", `Vencido à venda: ${qtdUn(soma(vencVen), un)}`, vencidoAVendaMsg(farm));
-  if (vencDep.length) add("urgente", `Vencido no ${nomes.dep.toLowerCase()}: ${qtdUn(soma(vencDep), un)}`, "Separe para descarte ou troca com o fornecedor.");
+  if (vencVen.length) add("urgente", "vencido", `Vencido à venda: ${qtdUn(soma(vencVen), un)}`, vencidoAVendaMsg(farm));
+  if (vencDep.length) add("urgente", "vencido", `Vencido no ${nomes.dep.toLowerCase()}: ${qtdUn(soma(vencDep), un)}`, "Separe para descarte ou troca com o fornecedor.");
   const linhasQtd: (Qtds & { prefixo: string })[] = porVar ? variacoes.map((x) => ({ ...x, prefixo: `${x.nome}: ` })) : [{ ...qtd, prefixo: "" }];
   for (const x of linhasQtd)
     if (x.dep != null && x.ven != null && mil(x.dep) === 0 && mil(x.ven) === 0)
-      add("urgente", `${x.prefixo}acabou`.replace(/^a/, "A"), `Acabou no ${nomes.dep.toLowerCase()} e na ${nomes.ven.toLowerCase()}. Hora de comprar${opts.fornecedor ? ` de ${opts.fornecedor}` : ""}.`);
-  if (p.compra > 0 && p.venda > 0 && p.venda < p.compra) add("urgente", "Vendendo com prejuízo", "O preço de venda está menor que o de compra.");
+      add("urgente", "acabou", `${x.prefixo}acabou`.replace(/^a/, "A"), `Acabou no ${nomes.dep.toLowerCase()} e na ${nomes.ven.toLowerCase()}. Hora de comprar${opts.fornecedor ? ` de ${opts.fornecedor}` : ""}.`);
+  if (p.compra > 0 && p.venda > 0 && p.venda < p.compra) add("urgente", "preco", "Vendendo com prejuízo", "O preço de venda está menor que o de compra.");
   const pmc = farm ? acimaPmcMsg(p.venda, pmcCentavos(p.detalhes)) : "";
-  if (pmc) add("urgente", "Preço acima do máximo (PMC)", pmc);
+  if (pmc) add("urgente", "preco", "Preço acima do máximo (PMC)", pmc);
   const tarja = farm ? localNaoCombina(p.detalhes["tarja"], a?.local) : "";
-  if (tarja) add("urgente", "Remédio no lugar errado", tarja);
+  if (tarja) add("urgente", "lugar", "Remédio no lugar errado", tarja);
 
   /* ---------- atenção ---------- */
   for (const x of linhasQtd) {
     const zerado = x.dep != null && x.ven != null && mil(x.dep) === 0 && mil(x.ven) === 0;
     if (zerado) continue;
     if (x.ven != null && x.venMin != null && mil(x.ven) <= mil(x.venMin))
-      add("atencao", `${x.prefixo}repor a ${nomes.ven.toLowerCase()}`.replace(/^r/, "R"),
+      add("atencao", "repor", `${x.prefixo}repor a ${nomes.ven.toLowerCase()}`.replace(/^r/, "R"),
         `Tem ${qtdUn(x.ven, un)}; o mínimo é ${qtdUn(x.venMin, un)}.${x.dep != null && mil(x.dep) > 0 ? ` Há ${qtdUn(x.dep, un)} no ${nomes.dep.toLowerCase()} para repor.` : ""}`);
     if (x.dep != null && x.depMin != null && mil(x.dep) <= mil(x.depMin))
-      add("atencao", `${x.prefixo}hora de comprar`.replace(/^h/, "H"),
+      add("atencao", "comprar", `${x.prefixo}hora de comprar`.replace(/^h/, "H"),
         `O ${nomes.dep.toLowerCase()} tem ${qtdUn(x.dep, un)}; o mínimo é ${qtdUn(x.depMin, un)}.${opts.fornecedor ? ` Fornecedor: ${opts.fornecedor}.` : ""}`);
   }
   if (val) {
@@ -113,7 +115,7 @@ export function situacaoProduto(p: Product, tipo: string, hoje: string, opts: { 
     if (logo.length) {
       const prox = logo[0]!;
       const naData = soma(logo.filter((l) => l.data === prox.data));
-      add("atencao", `${quandoVence(prox.dias!).replace(/^v/, "V")}: ${qtdUn(naData, un)}`,
+      add("atencao", "vencendo", `${quandoVence(prox.dias!).replace(/^v/, "V")}: ${qtdUn(naData, un)}`,
         `Vencimento em ${fmtData(prox.data!)}.${logo.length > 1 && logo.some((l) => l.data !== prox.data) ? ` Outras ${logo.filter((l) => l.data !== prox.data).length} validades vencem nos próximos ${janela} dias.` : ""}`);
     }
     /* Contado, mas ainda sem a validade distribuída (por área e por variação). */
@@ -127,20 +129,20 @@ export function situacaoProduto(p: Product, tipo: string, hoje: string, opts: { 
         semDividir += Math.max(mil(contado) - dividido, 0);
       }
     }
-    if (semDividir > 0) add("atencao", `Validade não informada: ${qtdUn(deMil(semDividir), un)}`, "Toque em Editar e informe as datas de vencimento.");
+    if (semDividir > 0) add("atencao", "conferir", `Validade não informada: ${qtdUn(deMil(semDividir), un)}`, "Toque em Editar e informe as datas de vencimento.");
     const semData = lotes.filter((l) => !l.data);
-    if (semData.length) add("atencao", `Sem validade informada: ${qtdUn(soma(semData), un)}`, "Confira a data na embalagem e atualize.");
+    if (semData.length) add("atencao", "conferir", `Sem validade informada: ${qtdUn(soma(semData), un)}`, "Confira a data na embalagem e atualize.");
     const semLote = farm ? lotes.filter((l) => !l.lote) : [];
-    if (semLote.length) add("atencao", `Sem número de lote: ${qtdUn(soma(semLote), un)}`, "Na farmácia, o lote é obrigatório.");
+    if (semLote.length) add("atencao", "conferir", `Sem número de lote: ${qtdUn(soma(semLote), un)}`, "Na farmácia, o lote é obrigatório.");
   }
 
   /* ---------- falta completar ---------- */
-  if (!d) add("info", `${nomes.dep} não configurado`, "Diga onde o produto fica guardado e quanto tem.");
-  else if (!d.local) add("info", `Local no ${nomes.dep.toLowerCase()} não definido`);
-  if (!a) add("info", `${nomes.ven} não configurada`, "Diga onde o produto fica exposto e quanto tem.");
-  else if (!a.local) add("info", `Local na ${nomes.ven.toLowerCase()} não definido`);
-  if (!p.validade && (farm || !tipoSemValidade(tipo))) add(farm ? "atencao" : "info", "Validade não configurada", farm ? "Na farmácia, o controle de validade é obrigatório." : undefined);
-  if (!p.fornecedor) add("info", "Fornecedor não definido");
+  if (!d) add("info", "completar", `${nomes.dep} não configurado`, "Diga onde o produto fica guardado e quanto tem.");
+  else if (!d.local) add("info", "completar", `Local no ${nomes.dep.toLowerCase()} não definido`);
+  if (!a) add("info", "completar", `${nomes.ven} não configurada`, "Diga onde o produto fica exposto e quanto tem.");
+  else if (!a.local) add("info", "completar", `Local na ${nomes.ven.toLowerCase()} não definido`);
+  if (!p.validade && (farm || !tipoSemValidade(tipo))) add(farm ? "atencao" : "info", "completar", "Validade não configurada", farm ? "Na farmácia, o controle de validade é obrigatório." : undefined);
+  if (!p.fornecedor) add("info", "completar", "Fornecedor não definido");
 
   const nivel: Nivel = alertas.some((x) => x.nivel === "urgente") ? "urgente" : alertas.some((x) => x.nivel === "atencao") ? "atencao"
     : alertas.some((x) => x.nivel === "info") ? "info" : "ok";
@@ -202,4 +204,36 @@ export function porLocal(products: Product[], area: "dep" | "ven", hoje: string,
       vencido: todos.filter((i) => i.estado === "vencido").length,
     },
   };
+}
+
+/* ---------- Atenção hoje (resumo do comércio) ---------- */
+export type ItemAtencao = { p: Product; titulo: string; detalhe?: string | undefined };
+export type GrupoAtencao = { tipo: TipoAlerta; nivel: Alerta["nivel"]; titulo: string; ajuda: string; itens: ItemAtencao[] };
+
+/** Junta os avisos de todos os produtos por assunto, do mais grave para o menos grave. Cada produto conta uma vez por assunto. */
+export function atencaoHoje(products: Product[], tipo: string, hoje: string, fornecedorDe: (p: Product) => string | undefined = () => undefined): GrupoAtencao[] {
+  const T = textoDoTipo(tipo);
+  const ven = nomeVenda(tipo).toLowerCase();
+  const defs: Omit<GrupoAtencao, "itens">[] = [
+    { tipo: "vencido", nivel: "urgente", titulo: "Vencidos", ajuda: "Separe para descarte ou troca com o fornecedor." },
+    { tipo: "acabou", nivel: "urgente", titulo: "Acabaram", ajuda: "Não há nenhuma unidade. Hora de comprar." },
+    { tipo: "preco", nivel: "urgente", titulo: "Preço a corrigir", ajuda: "Venda com prejuízo ou acima do preço máximo." },
+    { tipo: "lugar", nivel: "urgente", titulo: "No lugar errado", ajuda: "Remédio com tarja ao alcance do cliente." },
+    { tipo: "repor", nivel: "atencao", titulo: `Repor ${tipo === "mercado" || tipo === "pet" ? "a gôndola" : "a área de venda"}`, ajuda: `Chegaram ao mínimo na ${ven}.` },
+    { tipo: "comprar", nivel: "atencao", titulo: "Comprar", ajuda: T("Chegaram ao mínimo no depósito.") },
+    { tipo: "vencendo", nivel: "atencao", titulo: "Vencem em breve", ajuda: "Venda primeiro ou combine a troca." },
+    { tipo: "conferir", nivel: "atencao", titulo: "Validade a conferir", ajuda: "Falta data ou lote." },
+    { tipo: "completar", nivel: "info", titulo: "Falta completar", ajuda: "Cadastro com local, validade ou fornecedor faltando." },
+  ];
+  const grupos = defs.map((d) => ({ ...d, itens: [] as ItemAtencao[] }));
+  for (const p of [...products].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))) {
+    const s = situacaoProduto(p, tipo, hoje, { fornecedor: fornecedorDe(p) });
+    for (const g of grupos) {
+      const a = s.alertas.filter((x) => x.tipo === g.tipo);
+      if (!a.length) continue;
+      if (g.tipo === "completar" && s.alertas.some((x) => x.tipo !== "completar")) continue; // já aparece num assunto mais importante
+      g.itens.push({ p, titulo: a.length > 1 ? a.map((x) => x.titulo).join(" · ") : a[0]!.titulo, detalhe: a.length > 1 ? undefined : a[0]!.detalhe });
+    }
+  }
+  return grupos.filter((g) => g.itens.length);
 }
