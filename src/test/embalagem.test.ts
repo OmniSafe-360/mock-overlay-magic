@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { descricaoEmbalagem, errosEmbalagem, lerQtdEmbalagem, perguntaQtd, precoUnidade, type Embalagem } from "@/lib/embalagem";
+import { descricaoEmbalagem, errosEmbalagem, lerQtdEmbalagem, perguntaQtd, precoUnidade, rotuloFechadas, rotuloSoltas, totalContado, type Embalagem } from "@/lib/embalagem";
 
 const cx: Embalagem = { uid: "a", tipo: "Caixa", qtd: 12, codigo: "17896263503200", preco: 3000 };
 
@@ -31,5 +31,36 @@ describe("embalagens", () => {
     expect(errosEmbalagem({ tipo: "Fardo", qtd: 72, codigo: "789" }, -1, [cx], "789", usados).codigo).toMatch(/diferente do código do produto/);
     expect(errosEmbalagem({ tipo: "Fardo", qtd: 72, codigo: cx.codigo }, -1, [cx], "789", usados).codigo).toMatch(/Outra embalagem/);
     expect(errosEmbalagem({ tipo: "Fardo", qtd: 72, codigo: "7891000100103" }, -1, [cx], "789", usados).codigo).toBe("Este código já está cadastrado");
+  });
+});
+
+
+describe("contar por embalagem no depósito", () => {
+  const cx = { qtd: 12 }, fd = { qtd: 72 };
+  it("5 caixas de 12 + 3 soltas = 63", () => {
+    expect(totalContado([{ e: cx, fechadas: "5" }], "3", "Unidade")).toEqual({ total: 63, err: "" });
+  });
+  it("soma caixas e fardos; campo vazio conta zero", () => {
+    expect(totalContado([{ e: cx, fechadas: "2" }, { e: fd, fechadas: "1" }], "", "Unidade")).toEqual({ total: 96, err: "" });
+    expect(totalContado([{ e: cx, fechadas: "" }], "7", "Unidade")).toEqual({ total: 7, err: "" });
+    expect(totalContado([{ e: cx, fechadas: "0" }], "0", "Unidade")).toEqual({ total: 0, err: "" });
+  });
+  it("tudo vazio = ainda não contou", () => {
+    expect(totalContado([{ e: cx, fechadas: "" }], "", "Unidade")).toEqual({ total: null, err: "" });
+  });
+  it("produto por Kg: 2 sacos de 25,5 + 3,25 soltos = 54,25", () => {
+    expect(totalContado([{ e: { qtd: 25.5 }, fechadas: "2" }], "3,25", "Kg")).toEqual({ total: 54.25, err: "" });
+  });
+  it("recusa caixa quebrada e soltas inválidas", () => {
+    expect(totalContado([{ e: cx, fechadas: "1,5" }], "", "Unidade").err).toMatch(/inteiro/);
+    expect(totalContado([{ e: cx, fechadas: "1" }], "2,5", "Unidade").err).toMatch(/inteiro/);
+    expect(totalContado([{ e: cx, fechadas: "-1" }], "", "Unidade").err).toMatch(/inteiro/);
+  });
+  it("rótulos", () => {
+    expect(rotuloFechadas({ tipo: "Caixa", qtd: 12 }, "Unidade")).toBe("Caixas com 12 fechadas");
+    expect(rotuloFechadas({ tipo: "Fardo", qtd: 72 }, "Unidade")).toBe("Fardos com 72 fechados");
+    expect(rotuloFechadas({ tipo: "Saco", qtd: 25.5 }, "Kg")).toBe("Sacos com 25,5 Kg fechados");
+    expect(rotuloSoltas("Unidade")).toBe("Unidades soltas");
+    expect(rotuloSoltas("Kg")).toBe("Soltos (em Kg)");
   });
 });

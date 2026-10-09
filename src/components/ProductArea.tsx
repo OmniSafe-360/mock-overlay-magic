@@ -5,7 +5,10 @@ import { Field, btnGhost, btnPrimary, digits, maskPhone, nextOnEnter, useKeyboar
 import { Scanner } from "@/components/Scanner";
 import { ganhoSobreCompra, lerPct, mostrarPct, vendaPorGanho } from "@/lib/preco";
 import { escolhasDoUltimo } from "@/lib/ultimaEscolha";
-import { EMB_VAZIA, MAX_EMBALAGENS, TIPOS_EMBALAGEM, descricaoEmbalagem, errosEmbalagem, lerQtdEmbalagem, perguntaQtd, precoUnidade, type Embalagem } from "@/lib/embalagem";
+import {
+  EMB_VAZIA, MAX_EMBALAGENS, TIPOS_EMBALAGEM, descricaoEmbalagem, errosEmbalagem, lerQtdEmbalagem, perguntaQtd, precoUnidade, rotuloContarPor, rotuloFechadas,
+  rotuloSoltas, totalContado, type Embalagem,
+} from "@/lib/embalagem";
 import { ImprimirEtiquetaSheet } from "@/components/Etiqueta";
 import { AUTOPECAS_VARS_MSG, POSICAO_MSG, CONSTRUCAO_VARS_MSG, CONTROLADO_MSG, ESPECIE_MSG, PET_VARS_MSG, FARMACIA_VARS_MSG, firstInvalidStep, typeRuleError, type TypeRules, mainCodeError, usedCodes, variationErrors, variationOk } from "@/lib/variations";
 import {
@@ -422,7 +425,16 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const unidadeTravada = (configSalva || vendaSalva) && unidade !== initial!.unidade;
   const localTravado = !!initDep?.local && temQtdPositiva(initDep);
   const qtdTravada = configSalva && !isRoupas;
-  const q = qtdTravada ? { v: initDep!.qtd, err: "" } : parseNum(dQtd, unidade, false);
+  /* Contar "embalagens fechadas + soltas" no depósito, quando o produto chega em caixa (só antes da contagem confirmada). */
+  const caixas = !isRoupas && embModo === "embalagem" ? embs : [];
+  const [porCaixa, setPorCaixa] = useState(true);
+  const [fechadas, setFechadas] = useState<Record<string, string>>({});
+  const [soltas, setSoltas] = useState("");
+  const contarCaixa = caixas.length > 0 && porCaixa && !qtdTravada;
+  const cont = totalContado(caixas.map((e) => ({ e, fechadas: fechadas[e.uid] ?? "" })), soltas, unidade);
+  const q = qtdTravada ? { v: initDep!.qtd, err: "" }
+    : contarCaixa ? (cont.err ? { v: null, err: cont.err } : cont.total == null ? parseNum("", unidade, false) : { v: cont.total, err: "" })
+    : parseNum(dQtd, unidade, false);
   const mn = parseNum(dMin, unidade, true);
   const mx = parseNum(dMax, unidade, true);
   const limErr = limitesErro(mn.v, mx.v);
@@ -836,8 +848,8 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                           className={`mt-0.5 h-8 w-full rounded-xl border border-border bg-background-deep/60 pl-3 pr-8 text-base font-bold outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60 ${lucro < 0 ? "text-destructive" : "text-accent"}`} />
                         <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-base font-bold text-muted-foreground">%</span>
                       </span>
-                      <span id="ganho-dica" className="sr-only">Digite quanto quer ganhar em cima do preço de compra. O preço de venda é calculado sozinho.</span>
                     </label>
+                    <span id="ganho-dica" className="sr-only">Digite quanto quer ganhar em cima do preço de compra. O preço de venda é calculado sozinho.</span>
                   </div>
                   {compra > 0 && venda > 0 && venda < compra && (
                     <p className="-mt-1 text-xs text-warning">O preço de venda está menor que o de compra. Você terá prejuízo.</p>
@@ -978,9 +990,32 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                           <p className="mt-1 text-xs text-muted-foreground">Alterar a contagem ficará para uma etapa futura.</p>
                         </div>
                       ) : (
-                        <Field label={`Quanto você contou no depósito agora? (${unidade})`} name="dqtd" {...numProps} enterKeyHint="done"
-                          value={dQtd} onChange={(e) => setDQtd(numIn(e.target.value))} error={showErr(dQtd, q.err)}
-                          hint={fr ? "Aceita vírgula. Ex.: 12,5" : "Somente números inteiros."} />
+                        <>
+                          {caixas.length > 0 && (
+                            <div className="grid grid-cols-2 gap-2">
+                              <Pick on={porCaixa} onClick={() => setPorCaixa(true)}><span className="text-sm">{rotuloContarPor(caixas)}</span></Pick>
+                              <Pick on={!porCaixa} onClick={() => { if (cont.total != null) setDQtd(toInput(cont.total)); setPorCaixa(false); }}><span className="text-sm">Digitar o total</span></Pick>
+                            </div>
+                          )}
+                          {contarCaixa ? (
+                            <>
+                              {caixas.map((e) => (
+                                <Field key={e.uid} label={rotuloFechadas(e, unidade)} name={`fc-${e.uid}`} inputMode="numeric" autoComplete="off" placeholder="0"
+                                  value={fechadas[e.uid] ?? ""} onChange={(ev) => setFechadas({ ...fechadas, [e.uid]: ev.target.value.replace(/[^\d,.-]/g, "").slice(0, 6) })} />
+                              ))}
+                              <Field label={rotuloSoltas(unidade)} name="soltas" {...numProps} placeholder="0" enterKeyHint="done"
+                                value={soltas} onChange={(ev) => setSoltas(numIn(ev.target.value))} />
+                              <div className="rounded-2xl border border-border bg-background-deep/60 p-3 text-sm">
+                                Total no depósito: <b>{cont.total != null ? `${fmtQ(cont.total)} ${unidade === "Unidade" ? (cont.total === 1 ? "unidade" : "unidades") : unidade}` : "—"}</b>
+                              </div>
+                              {(cont.err || (subTried && q.err)) && <p role="alert" className="text-sm text-destructive">{cont.err || q.err}</p>}
+                            </>
+                          ) : (
+                            <Field label={`Quanto você contou no depósito agora? (${unidade})`} name="dqtd" {...numProps} enterKeyHint="done"
+                              value={dQtd} onChange={(e) => setDQtd(numIn(e.target.value))} error={showErr(dQtd, q.err)}
+                              hint={fr ? "Aceita vírgula. Ex.: 12,5" : "Somente números inteiros."} />
+                          )}
+                        </>
                       )}
                       <p className="text-xs text-muted-foreground">Não é o peso ou volume da embalagem. É quanto você tem guardado. Se não houver nenhuma, digite 0.</p>
                     </>
