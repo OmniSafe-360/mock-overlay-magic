@@ -114,12 +114,13 @@ export function ProductDetail({ p, tipo, suppliers, onBack, onEdit }: { p: Produ
         {(det.length > 0 || p.variacoes.length > 0) && (
           <Row t="Detalhes">
             {det.map(([k, v]) => <span key={k} className="block">{labelOf(tipo, k)}: {v}</span>)}
-            {p.variacoes.map((v, i) => <span key={i} className="block">{v.tam} · {v.cor} · Cód. {v.codigo || "sem código"} · {v.qtd} un.</span>)}
+            {p.variacoes.map((v, i) => <span key={v.uid ?? i} className="block">{v.tam} · {v.cor} · Cód. {v.codigo || "sem código"} · Quantidade informada no cadastro: {v.qtd}</span>)}
           </Row>
         )}
         <Row t="Fornecedor">{f ? <>{f.nome}{f.tel ? ` · ${f.tel}` : ""}</> : "Definir depois"}</Row>
+        <Row t="Depósito"><DepositoInfo p={p} /></Row>
       </div>
-      <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">Depósito e gôndola: configuraremos na próxima etapa.</p>
+      <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">{TEMPORARIO}</p>
       <button type="button" onClick={onEdit} className={`flex items-center justify-center gap-2 ${btnPrimary(true)}`}><Pencil size={18} /> Editar</button>
     </div>
   );
