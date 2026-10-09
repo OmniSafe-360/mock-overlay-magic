@@ -3,13 +3,19 @@ import { ArrowLeft, Check, CheckCircle2, Keyboard, Package, Pencil, Plus, ScanLi
 import { Field, btnGhost, btnPrimary, digits, maskPhone, nextOnEnter, useKeyboard, type StoreData } from "@/components/StoreSetup";
 import { Scanner } from "@/components/Scanner";
 import { AUTOPECAS_VARS_MSG, POSICAO_MSG, CONSTRUCAO_VARS_MSG, CONTROLADO_MSG, ESPECIE_MSG, PET_VARS_MSG, FARMACIA_VARS_MSG, firstInvalidStep, typeRuleError, type TypeRules, mainCodeError, usedCodes, variationErrors, variationOk } from "@/lib/variations";
+import {
+  ACIMA_MAX, LOCAL_DUP, LOCAL_PENDENTE, REMOCAO_BLOQUEADA, SEM_CONFIG, TEMPORARIO, aceitaFracao, fmtQ, limitesErro, limitesStatus, localDuplicado,
+  localTravadoMsg, locaisDoComercio, newUid, parseNum, temQtdPositiva, toInput, unidadeTravadaMsg, type Deposito,
+} from "@/lib/deposito";
 
 /* ---------- tipos e dados por comércio ---------- */
 export type Supplier = { id: number; nome: string; tel: string; email: string };
-export type Variation = { tam: string; cor: string; qtd: number; codigo?: string | undefined };
+/** `uid` liga a variação à sua configuração de depósito, sem depender da posição na lista. */
+export type Variation = { tam: string; cor: string; qtd: number; codigo?: string | undefined; uid?: string | undefined };
 export type Product = {
   id: number; codigo: string; nome: string; compra: number; venda: number; unidade: string; categoria: string;
   detalhes: Record<string, string>; variacoes: Variation[]; fornecedor: number | null;
+  deposito?: Deposito | undefined;
 };
 
 const UNIDADES: Record<string, string[]> = {
