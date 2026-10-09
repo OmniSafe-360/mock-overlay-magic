@@ -57,6 +57,7 @@ export type Database = {
           id: string
           nome: string
           numero: string | null
+          proximo_codigo_interno: number
           rua: string
           sem_numero: boolean
           telefone: string
@@ -78,6 +79,7 @@ export type Database = {
           id?: string
           nome: string
           numero?: string | null
+          proximo_codigo_interno?: number
           rua: string
           sem_numero?: boolean
           telefone: string
@@ -99,6 +101,7 @@ export type Database = {
           id?: string
           nome?: string
           numero?: string | null
+          proximo_codigo_interno?: number
           rua?: string
           sem_numero?: boolean
           telefone?: string
@@ -748,6 +751,7 @@ export type Database = {
         }
         Returns: string
       }
+      gerar_codigo_interno: { Args: { _comercio: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
