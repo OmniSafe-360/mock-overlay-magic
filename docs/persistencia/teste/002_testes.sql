@@ -80,8 +80,8 @@ begin
   if not (v_msg = _esperado or v_msg like _esperado || ':%' or v_msg like _esperado || ' %') then
     raise exception 'FALHOU: veio "%" (%) em vez de "%"', v_msg, v_st, _esperado; end if;
   v_estados := case when _estado is not null then array[_estado] else
-    (select array_agg(estado) from public.t_estado where token = _esperado
-       or (left(token, 1) = '_' and _esperado like '%' || token)) end;
+    (select array_agg(estado) from public.t_estado where token = split_part(_esperado, ':', 1)
+       or (left(token, 1) = '_' and split_part(_esperado, ':', 1) like '%' || token)) end;
   if v_estados is null then
     raise exception 'FALHOU: SQLSTATE esperado desconhecido para "%"', _esperado; end if;
   if not (v_st = any (v_estados)) then
