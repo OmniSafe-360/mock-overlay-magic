@@ -7,6 +7,10 @@ import {
   ACIMA_MAX, LOCAL_DUP, LOCAL_PENDENTE, REMOCAO_BLOQUEADA, SEM_CONFIG, TEMPORARIO, aceitaFracao, fmtQ, limitesErro, limitesStatus, localDuplicado,
   localTravadoMsg, locaisDoComercio, newUid, parseNum, temQtdPositiva, toInput, unidadeTravadaMsg, type Deposito,
 } from "@/lib/deposito";
+import {
+  EXEMPLO_LOCAL, SEM_REPOSICAO, VEN_ACIMA_MAX, VEN_LOCAL_DUP, VEN_LOCAL_PENDENTE, VEN_REMOCAO_BLOQUEADA, VEN_SEM_CONFIG, limitesVendaStatus,
+  locaisVendaDoComercio, totalTexto, venLocalTravadoMsg, type AreaVenda,
+} from "@/lib/areaVenda";
 
 /* ---------- tipos e dados por comércio ---------- */
 export type Supplier = { id: number; nome: string; tel: string; email: string };
@@ -16,6 +20,8 @@ export type Product = {
   id: number; codigo: string; nome: string; compra: number; venda: number; unidade: string; categoria: string;
   detalhes: Record<string, string>; variacoes: Variation[]; fornecedor: number | null;
   deposito?: Deposito | undefined;
+  /** Área de venda (gôndola, prateleira, arara...). Não confundir com `venda`, que é o preço. */
+  areaVenda?: AreaVenda | undefined;
 };
 
 const UNIDADES: Record<string, string[]> = {
@@ -119,6 +125,8 @@ export function ProductDetail({ p, tipo, suppliers, onBack, onEdit }: { p: Produ
         )}
         <Row t="Fornecedor">{f ? <>{f.nome}{f.tel ? ` · ${f.tel}` : ""}</> : "Definir depois"}</Row>
         <Row t="Depósito"><DepositoInfo p={p} /></Row>
+        <Row t="Área de venda"><AreaVendaInfo p={p} /></Row>
+        <Row t="Total para conferência"><TotalInfo p={p} /></Row>
       </div>
       <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">{TEMPORARIO}</p>
       <button type="button" onClick={onEdit} className={`flex items-center justify-center gap-2 ${btnPrimary(true)}`}><Pencil size={18} /> Editar</button>
@@ -160,11 +168,48 @@ export function DepositoInfo({ p }: { p: Product }) {
   );
 }
 
-/* ---------- cadastro em 6 etapas (Depósito tem 3 subpassos) ---------- */
-const TITLES = ["Qual é o código do produto?", "Preço e unidade", "Detalhes do produto", "Quem é o fornecedor?", "Depósito", "Conferir e salvar"];
+/** Situação da área de venda, mostrada no detalhe do produto. */
+export function AreaVendaInfo({ p }: { p: Product }) {
+  const a = p.areaVenda;
+  if (!a) return <span className="block">{VEN_SEM_CONFIG}</span>;
+  return (
+    <>
+      <span className="block">{a.local ? `Local: ${a.local}` : VEN_LOCAL_PENDENTE}</span>
+      {a.vars ? (
+        p.variacoes.map((v, i) => {
+          const c = v.uid ? a.vars?.[v.uid] : undefined;
+          return (
+            <span key={v.uid ?? i} className="block">
+              {v.tam} · {v.cor}: {c ? <>Quantidade na área de venda: {fmtQ(c.qtd)} {p.unidade} · {limitesVendaStatus(c.min, c.max)}</> : VEN_SEM_CONFIG}
+            </span>
+          );
+        })
+      ) : (
+        <>
+          <span className="block">Quantidade na área de venda: {a.qtd != null ? `${fmtQ(a.qtd)} ${p.unidade}` : "não informada"}</span>
+          <span className="block">{limitesVendaStatus(a.min, a.max)}</span>
+        </>
+      )}
+      <span className="block text-sm text-muted-foreground">{SEM_REPOSICAO}</span>
+    </>
+  );
+}
+
+/** Contagem confirmada de uma área (produto inteiro ou variação). Nunca usa a quantidade do cadastro. */
+const qtdArea = (d: Deposito | undefined, uid?: string) => (!d ? null : uid ? d.vars?.[uid]?.qtd ?? null : d.vars ? null : d.qtd);
+export function TotalInfo({ p }: { p: Product }) {
+  if (p.variacoes.length && (p.deposito?.vars || p.areaVenda?.vars))
+    return <>{p.variacoes.map((v, i) => <span key={v.uid ?? i} className="block">{v.tam} · {v.cor}: {totalTexto(qtdArea(p.deposito, v.uid), qtdArea(p.areaVenda, v.uid), p.unidade)}</span>)}</>;
+  return <span className="block">{totalTexto(qtdArea(p.deposito), qtdArea(p.areaVenda), p.unidade)}</span>;
+}
+
+/* ---------- cadastro em 7 etapas (Depósito e Área de venda têm 3 subpassos) ---------- */
+const TITLES = ["Qual é o código do produto?", "Preço e unidade", "Detalhes do produto", "Quem é o fornecedor?", "Depósito", "Área de venda", "Conferir e salvar"];
 const DEP_TITLES = ["Onde fica no depósito?", "Quanto há no depósito?", "Limites de estoque"];
+const VEN_TITLES = ["Área de venda: onde fica?", "Área de venda: quantidade", "Área de venda: limites"];
 const STEP_DEP = 4;
-const STEP_REV = 5;
+const STEP_VEN = 5;
+const STEP_REV = 6;
 const TOTAL = TITLES.length;
 
 type VarDep = { qtd?: string | undefined; min: string; max: string };
