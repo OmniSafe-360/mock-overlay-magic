@@ -44,7 +44,7 @@ describe("unidade e categoria da Loja de roupas", () => {
   });
 
   it("editar pelo resumo não contorna as validações", () => {
-    const t = setup(ok); run(t.submit, 7);
+    const t = setup(ok); run(t.submit, 6); // roupas não tem o passo de validade
     expect(screen.getByText("Salvar produto")).toBeTruthy();
     const edits = screen.getAllByRole("button").filter((b) => /editar/i.test(b.textContent ?? "") || /editar/i.test(b.getAttribute("aria-label") ?? ""));
     fireEvent.click(edits[1]!);
