@@ -42,4 +42,23 @@ describe("instalar o Omni Operação", () => {
     expect(await screen.findByText("Olá, Maria!")).toBeTruthy();
     expect(screen.queryByRole("region", { name: "Instalar o app" })).toBeNull();
   });
+  it("botão de instalar já na tela do código", async () => {
+    localStorage.clear();
+    render(<AppFuncionario api={api()} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Instalar o app no celular/ }));
+    expect(screen.getByRole("dialog", { name: "Instalar o Omni Operação" })).toBeTruthy();
+  });
+  it("dentro do app do dono instalado: explica e oferece copiar o endereço", async () => {
+    const original = window.matchMedia;
+    window.matchMedia = ((q: string) => ({ matches: q.includes("standalone"), media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia;
+    sessionStorage.setItem("omni.funcionario.dentro_do_app_dono", "1");
+    try {
+      render(<AppFuncionario api={api()} />);
+      fireEvent.click(within(await screen.findByRole("region", { name: "Instalar o app" })).getByRole("button", { name: /Instalar o app/ }));
+      const dlg = within(screen.getByRole("dialog", { name: "Instalar o Omni Operação" }));
+      expect(dlg.getByText(/dentro do/)).toBeTruthy();
+      expect(dlg.getByText(/\/funcionario$/)).toBeTruthy();
+      expect(dlg.getByRole("button", { name: "Copiar endereço" })).toBeTruthy();
+    } finally { window.matchMedia = original; sessionStorage.clear(); }
+  });
 });
