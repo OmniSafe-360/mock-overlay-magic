@@ -3,7 +3,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { CATEGORIAS, DETALHES, FRACAO, OPCOES_DETALHE, TIPO_BANCO, UNIDADES } from "@/lib/listas";
+import { CATEGORIAS, DETALHES, FRACAO, GRUPOS_TAMANHO, OPCOES_DETALHE, TAMANHOS, TIPO_BANCO, UNIDADES, grupoInicial } from "@/lib/listas";
 
 const pasta = join(process.cwd(), "supabase/migrations");
 const ultimaCom = (trecho: string) =>
@@ -52,5 +52,31 @@ describe("listas do app = listas do banco", () => {
       expect(UNIDADES[t]).toEqual(expect.arrayContaining(u));
       expect(CATEGORIAS[t]).toEqual(expect.arrayContaining(c));
     }
+  });
+});
+
+describe("tamanhos de roupa: app = banco", () => {
+  it("a lista de tamanho_valido é a mesma do app", () => {
+    const sql = ultimaCom("function public.tamanho_valido");
+    const m = sql.match(/= any \('(\{[^']+\})'::text\[\]\)/);
+    expect(m).toBeTruthy();
+    expect(lerArray(m![1]!)).toEqual(TAMANHOS);
+  });
+  it("os tamanhos antigos continuam valendo", () => {
+    for (const t of ["P", "M", "G", "GG", "36", "38", "40", "42", "44"]) expect(TAMANHOS).toContain(t);
+  });
+  it("grupos certos", () => {
+    expect(GRUPOS_TAMANHO.find((g) => g.id === "numeros")!.tamanhos).toEqual(["34", "36", "38", "40", "42", "44", "46", "48", "50", "52", "54", "56"]);
+    expect(GRUPOS_TAMANHO.find((g) => g.id === "infantil")!.tamanhos).toEqual(["RN", "1", "2", "3", "4", "6", "8", "10", "12", "14", "16"]);
+    expect(GRUPOS_TAMANHO.find((g) => g.id === "calcados")!.tamanhos).toHaveLength(29);
+  });
+  it("grupo que abre primeiro", () => {
+    expect(grupoInicial("", "Camisetas")).toBe("letras");
+    expect(grupoInicial("", "Calçados")).toBe("calcados");
+    expect(grupoInicial("", "Infantil")).toBe("infantil");
+    expect(grupoInicial("38", "Calçados")).toBe("calcados");
+    expect(grupoInicial("38", "Calças")).toBe("numeros");
+    expect(grupoInicial("", "Calças", "42")).toBe("numeros");
+    expect(grupoInicial("Único", "Acessórios")).toBe("unico");
   });
 });
