@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { ArrowLeft, Check, CheckCircle2, Keyboard, Package, Pencil, Plus, ScanLine, Search, Truck, X } from "lucide-react";
 import { Field, btnGhost, btnPrimary, digits, maskPhone, nextOnEnter, useKeyboard, type StoreData } from "@/components/StoreSetup";
 import { Scanner } from "@/components/Scanner";
-import { firstInvalidStep, typeRuleError, type TypeRules, mainCodeError, usedCodes, variationErrors, variationOk } from "@/lib/variations";
+import { CONTROLADO_MSG, FARMACIA_VARS_MSG, firstInvalidStep, typeRuleError, type TypeRules, mainCodeError, usedCodes, variationErrors, variationOk } from "@/lib/variations";
 
 /* ---------- tipos e dados por comércio ---------- */
 export type Supplier = { id: number; nome: string; tel: string; email: string };
@@ -158,8 +158,12 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const isRoupas = tipo === "roupas";
   const codeErr = mainCodeError(codigo, used, isRoupas ? vars : []);
   const [triedSave, setTriedSave] = useState(false);
-  const rules: TypeRules | undefined = tipo === "mercado" ? { unidades: UNIDADES["mercado"]!, categorias: CATEGORIAS["mercado"]!, semVariacoes: true } : undefined;
-  const ruleErr = typeRuleError({ unidade, categoria, variacoes: vars }, rules);
+  const rules: TypeRules | undefined =
+    tipo === "mercado" ? { unidades: UNIDADES["mercado"]!, categorias: CATEGORIAS["mercado"]!, semVariacoes: true }
+    : tipo === "farmacia" ? { unidades: UNIDADES["farmacia"]!, categorias: CATEGORIAS["farmacia"]!, semVariacoes: true, varsMsg: FARMACIA_VARS_MSG,
+        detalhesFixos: [{ k: "controlado", opts: DETALHES["farmacia"]!.find((f) => f.k === "controlado")?.opts ?? [], msg: CONTROLADO_MSG }] }
+    : undefined;
+  const ruleErr = typeRuleError({ unidade, categoria, variacoes: vars, detalhes: det }, rules);
   const dup = !!codeErr;
   const varsOk = vars.length > 0 && vars.every((v, i) => variationOk(v, i, vars, codigo, used));
   const valid = [
@@ -174,7 +178,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const fornNome = forn ? suppliers.find((s) => s.id === forn)?.nome : "Definir depois";
 
   const go = (to: number) => { setDir(to > step ? 1 : -1); setStep(to); };
-  const bad = firstInvalidStep({ codigo, nome, compra, venda, unidade, categoria, variacoes: vars, fornecedor: forn }, isRoupas, used, rules);
+  const bad = firstInvalidStep({ codigo, nome, compra, venda, unidade, categoria, variacoes: vars, detalhes: det, fornecedor: forn }, isRoupas, used, rules);
   const saveErr = triedSave && bad && bad.step === step ? bad.msg : ruleErr && ruleErr.step === step ? ruleErr.msg : "";
   const save = () => {
     if (bad) { setTriedSave(true); setFromReview(true); return go(bad.step); }

@@ -43,19 +43,29 @@ export const variationOk = (v: VarLike, i: number, vars: VarLike[], main: string
 
 export type ProductDraft = {
   codigo: string; nome: string; compra: number; venda: number; unidade: string; categoria: string;
-  variacoes: (VarLike & { qtd?: number })[]; fornecedor: number | null | undefined;
+  variacoes: (VarLike & { qtd?: number })[]; detalhes?: Record<string, string>; fornecedor: number | null | undefined;
 };
 
 /** Valida todas as etapas antes de salvar. Retorna a primeira etapa inválida e a orientação, ou null. */
-export type TypeRules = { unidades: string[]; categorias: string[]; semVariacoes?: boolean };
+export type TypeRules = {
+  unidades: string[]; categorias: string[]; semVariacoes?: boolean; varsMsg?: string;
+  /** Detalhes com valores fixos: se preenchidos, precisam estar em `opts`. */
+  detalhesFixos?: { k: string; opts: string[]; msg: string }[];
+};
+export const FARMACIA_VARS_MSG = "Este produto de Farmácia contém variações incompatíveis. O salvamento foi bloqueado.";
+export const CONTROLADO_MSG = "Escolha Sim ou Não para informar se o medicamento é controlado.";
 export const MERCADO_VARS_MSG = "Este produto de Mercado contém variações incompatíveis. O salvamento foi bloqueado.";
 
 /** Regras exclusivas do Mercado: unidade e categoria precisam estar nas listas; variações não são permitidas. */
-export function typeRuleError(d: Pick<ProductDraft, "unidade" | "categoria" | "variacoes">, rules?: TypeRules): { step: number; msg: string } | null {
+export function typeRuleError(d: Pick<ProductDraft, "unidade" | "categoria" | "variacoes" | "detalhes">, rules?: TypeRules): { step: number; msg: string } | null {
   if (!rules) return null;
   if (d.unidade && !rules.unidades.includes(d.unidade)) return { step: 1, msg: "Unidade incompatível com este comércio. Escolha uma opção válida." };
   if (d.categoria && !rules.categorias.includes(d.categoria)) return { step: 1, msg: "Categoria incompatível com este comércio. Escolha uma opção válida." };
-  if (rules.semVariacoes && d.variacoes.length > 0) return { step: 2, msg: MERCADO_VARS_MSG };
+  if (rules.semVariacoes && d.variacoes.length > 0) return { step: 2, msg: rules.varsMsg ?? MERCADO_VARS_MSG };
+  for (const f of rules.detalhesFixos ?? []) {
+    const v = d.detalhes?.[f.k];
+    if (v && !f.opts.includes(v)) return { step: 2, msg: f.msg };
+  }
   return null;
 }
 
