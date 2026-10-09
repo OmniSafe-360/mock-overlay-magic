@@ -171,7 +171,7 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
               )}
             </div>
           ) : tab === "inicio" && cur ? (
-            <StoreSpace key={sid ?? "sem-id"} store={cur} products={list} suppliers={suppliers} saved={saved}
+            <StoreSpace key={sid ?? "sem-id"} store={cur} products={list} suppliers={suppliers} saved={saved} locais={sid ? locais[sid] : undefined}
               onBack={() => { setOpen(null); setSaved(false); }} onNew={() => openWizard()} onEdit={(p) => openWizard(p)} onDismissSaved={() => setSaved(false)} />
           ) : tab === "inicio" ? (
             <HomeContent stores={stores} onAdd={() => setAdding(true)} onOpen={(s) => setOpen(s)} />
