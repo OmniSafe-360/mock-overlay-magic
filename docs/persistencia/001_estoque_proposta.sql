@@ -386,6 +386,9 @@ begin
      select 1 from saldos where produto_id = v_id and quantidade > 0 and (lote_id is not null or pendente)) then
     raise exception 'desligar_validade_bloqueado' using errcode = '23514'; end if;
 
+  if pr->>'codigo_barras' is not null and exists (select 1 from codigos_barras where comercio_id = v_com
+     and codigo = pr->>'codigo_barras' and not (produto_id = v_id and variacao_id is null)) then
+    raise exception 'codigo_em_uso: %', pr->>'codigo_barras' using errcode = '23505'; end if;
   if v_existe then
     update produtos set fornecedor_id = (pr->>'fornecedor_id')::uuid, codigo_barras = pr->>'codigo_barras',
       nome = pr->>'nome', categoria = pr->>'categoria', unidade = v_un,
@@ -409,6 +412,9 @@ begin
       raise exception 'variacao_de_outro_produto' using errcode = '42501'; end if;
     if found and vr.removida_em is not null then
       raise exception 'variacao_removida' using errcode = '23514'; end if;
+    if x->>'codigo_barras' is not null and exists (select 1 from codigos_barras where comercio_id = v_com
+       and codigo = x->>'codigo_barras' and variacao_id is distinct from (x->>'id')::uuid) then
+      raise exception 'codigo_em_uso: %', x->>'codigo_barras' using errcode = '23505'; end if;
     if x->>'qtd_informada' is not null then
       perform public.qtd_valida((x->>'qtd_informada')::numeric, v_un, true); end if;
     if found then
