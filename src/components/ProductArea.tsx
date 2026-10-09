@@ -1,3 +1,4 @@
+import type { EntityId } from "@/lib/identidade";
 import { useMemo, useState, type ReactNode } from "react";
 import { lotesAConfirmar } from "@/lib/persistencia";
 import { ArrowLeft, Check, CheckCircle2, Keyboard, Package, Pencil, Plus, ScanLine, Tag, Truck, X } from "lucide-react";
@@ -39,12 +40,12 @@ function juntarLocais(...listas: string[][]): string[] {
   for (const l of listas.flat()) { const k = l.trim().toLowerCase().replace(/\s+/g, " "); if (k && !m.has(k)) m.set(k, l); }
   return [...m.values()];
 }
-export type Supplier = { id: number; nome: string; tel: string; email: string; dbId?: string | undefined };
+export type Supplier = { id: EntityId; nome: string; tel: string; email: string; dbId?: string | undefined };
 /** `uid` liga a variação à sua configuração de depósito, sem depender da posição na lista. */
 export type Variation = { tam: string; cor: string; qtd: number; codigo?: string | undefined; uid?: string | undefined };
 export type Product = {
-  id: number; codigo: string; nome: string; compra: number; venda: number; unidade: string; categoria: string;
-  detalhes: Record<string, string>; variacoes: Variation[]; fornecedor: number | null;
+  id: EntityId; codigo: string; nome: string; compra: number; venda: number; unidade: string; categoria: string;
+  detalhes: Record<string, string>; variacoes: Variation[]; fornecedor: EntityId | null;
   deposito?: Deposito | undefined;
   /** Área de venda (gôndola, prateleira, arara...). Não confundir com `venda`, que é o preço. */
   areaVenda?: AreaVenda | undefined;
@@ -132,7 +133,7 @@ type VarDep = { qtd?: string | undefined; min: string; max: string };
 
 export function ProductWizard({ store, products, initial, suppliers, onAddSupplier, onCancel, onSave, saving = false, erro = "", locaisCadastrados, onGerarCodigo }: {
   store: StoreData; products: Product[]; initial?: Product | undefined; suppliers: Supplier[];
-  onAddSupplier: (s: Omit<Supplier, "id">) => number | Promise<number>; onCancel: () => void; onSave: (p: Product) => void;
+  onAddSupplier: (s: Omit<Supplier, "id">) => EntityId | Promise<EntityId>; onCancel: () => void; onSave: (p: Product) => void;
   saving?: boolean; erro?: string;
   /** Todos os locais cadastrados do comércio, por área, inclusive os sem produto. */
   locaisCadastrados?: { deposito: string[]; venda: string[] } | undefined;
@@ -174,7 +175,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const [maisDet, setMaisDet] = useState(() => extrasDet.some((f) => !!initial?.detalhes?.[f.k]));
   const camposDet = (DETALHES[tipo] ?? []).filter((f) => !f.opcional || maisDet);
   const [vars, setVars] = useState<Variation[]>(() => (initial?.variacoes ?? []).map((v) => (v.uid ? v : { ...v, uid: newUid() })));
-  const [forn, setForn] = useState<number | null | undefined>(initial ? initial.fornecedor : ini.fornecedor);
+  const [forn, setForn] = useState<EntityId | null | undefined>(initial ? initial.fornecedor : ini.fornecedor);
   const [varSheet, setVarSheet] = useState<number | null>(null);
   const [suppSheet, setSuppSheet] = useState(false);
   /* ----- como chega do fornecedor (embalagens) ----- */
@@ -196,7 +197,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const [dMin, setDMin] = useState(toInput(initDep?.min));
   const [dMax, setDMax] = useState(toInput(initDep?.max));
   const [dVar, setDVar] = useState<Record<string, VarDep>>(() =>
-    Object.fromEntries(Object.entries(initDep?.vars ?? {}).map(([k, c]) => [k, { qtd: toInput(c.qtd), min: toInput(c.min), max: toInput(c.max) }])));
+    Object.fromEntries(Object.entries(initDep?.vars ?? {}).map(([k, c]) => [k, { ...(c.qtd != null ? { qtd: toInput(c.qtd) } : {}), min: toInput(c.min), max: toInput(c.max) }])));
   const [subTried, setSubTried] = useState(false);
 
   /* ----- área de venda (em memória, conjunto de locais separado do depósito) ----- */
@@ -255,7 +256,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   /* validações do depósito */
   const unidadeTravada = (configSalva || vendaSalva) && unidade !== initial!.unidade;
   const localTravado = !!initDep?.local && temQtdPositiva(initDep);
-  const qtdTravada = configSalva && !isRoupas;
+  const qtdTravada = initDep?.qtd != null && !isRoupas;
   /* Contar "embalagens fechadas + soltas" no depósito, quando o produto chega em caixa (só antes da contagem confirmada). */
   const caixas = !isRoupas && embModo === "embalagem" ? embs : [];
   const [porCaixa, setPorCaixa] = useState(true);
@@ -271,7 +272,8 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const limErr = limitesErro(mn.v, mx.v);
   const varsDep = vars.map((v) => {
     const d = dVar[v.uid!] ?? { min: "", max: "" };
-    const saved = v.uid ? initDep?.vars?.[v.uid] : undefined;
+    const cfgSalva = v.uid ? initDep?.vars?.[v.uid] : undefined;
+    const saved = cfgSalva?.qtd != null ? cfgSalva : undefined;
     const qv = saved ? { v: saved.qtd as number | null, err: "" } : d.qtd === undefined ? { v: null, err: "pendente" } : parseNum(d.qtd, unidade, false);
     const a = parseNum(d.min, unidade, true), b = parseNum(d.max, unidade, true);
     return { v, d, travada: !!saved, q: qv, mn: a, mx: b, lim: limitesErro(a.v, b.v) };
@@ -286,14 +288,15 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
 
   /* validações da área de venda */
   const vLocalTravado = !!initVen?.local && temQtdPositiva(initVen);
-  const vQtdTravada = vendaSalva && !isRoupas;
+  const vQtdTravada = initVen?.qtd != null && !isRoupas;
   const vq = vQtdTravada ? { v: initVen!.qtd, err: "" } : parseNum(vQtd, unidade, false);
   const vmn = parseNum(vMin, unidade, true);
   const vmx = parseNum(vMax, unidade, true);
   const vLimErr = limitesErro(vmn.v, vmx.v);
   const varsVen = vars.map((v) => {
     const d = vVar[v.uid!] ?? { qtd: "", min: "", max: "" };
-    const saved = v.uid ? initVen?.vars?.[v.uid] : undefined;
+    const cfgSalva = v.uid ? initVen?.vars?.[v.uid] : undefined;
+    const saved = cfgSalva?.qtd != null ? cfgSalva : undefined;
     const qv = saved ? { v: saved.qtd as number | null, err: "" } : parseNum(d.qtd ?? "", unidade, false);
     const a = parseNum(d.min, unidade, true), b = parseNum(d.max, unidade, true);
     return { v, d, travada: !!saved, q: qv, mn: a, mx: b, lim: limitesErro(a.v, b.v) };
@@ -414,14 +417,14 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     if (manterSem) return undefined;
     if (isRoupas)
       return { local: dLocal ?? null, qtd: null, min: null, max: null,
-        vars: Object.fromEntries(varsDep.map((x) => [x.v.uid!, { qtd: x.q.v ?? 0, min: x.mn.v, max: x.mx.v }])) };
+        vars: Object.fromEntries(varsDep.map((x) => [x.v.uid!, { qtd: x.q.v, min: x.mn.v, max: x.mx.v }])) };
     return { local: dLocal ?? null, qtd: q.v, min: mn.v, max: mx.v };
   };
   const buildVenda = (): AreaVenda | undefined => {
     if (vManter) return undefined;
     if (isRoupas)
       return { local: vLocal ?? null, qtd: null, min: null, max: null,
-        vars: Object.fromEntries(varsVen.map((x) => [x.v.uid!, { qtd: x.q.v ?? 0, min: x.mn.v, max: x.mx.v }])) };
+        vars: Object.fromEntries(varsVen.map((x) => [x.v.uid!, { qtd: x.q.v, min: x.mn.v, max: x.mx.v }])) };
     return { local: vLocal ?? null, qtd: vq.v, min: vmn.v, max: vmx.v };
   };
   const buildValidade = (): Validade | undefined => {
@@ -437,7 +440,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     if (saving) return;
     if (!bad && ((lotesConf.length && !confVenc) || (prejuizo && !prejuizoConfirmado))) { setTriedSave(true); return; }
     if (bad) { setTriedSave(true); setFromReview(true); return go(bad.step, bad.sub ?? 0); }
-    onSave({ id: initial?.id ?? Date.now(), codigo: codigo.trim(), nome: nome.trim(), compra, venda, unidade, categoria, detalhes: det, variacoes: vars,
+    onSave({ id: initial?.id ?? newUid(), codigo: codigo.trim(), nome: nome.trim(), compra, venda, unidade, categoria, detalhes: det, variacoes: vars,
       fornecedor: forn ?? null, deposito: buildDeposito(), areaVenda: buildVenda(), validade: buildValidade(), db: initial?.db,
       embalagens: isRoupas || embModo === "unidade" ? [] : embs,
       ...(lotesConf.length && confVenc ? { confirmarVencimento: true } : {}) });
@@ -1209,7 +1212,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
         }} />}
       {suppSheet && <SupplierSheet tipo={tipo} onClose={() => setSuppSheet(false)} onSave={(s) => {
         const r = onAddSupplier(s);
-        if (typeof r === "number") { setForn(r); setSuppSheet(false); return; }
+        if (typeof r === "number" || typeof r === "string") { setForn(r); setSuppSheet(false); return; }
         return r.then((id) => { setForn(id); setSuppSheet(false); });
       }} />}
     </div>

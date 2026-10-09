@@ -10,3 +10,4 @@
 <!-- LOVABLE:END -->
 
 - Product saves go through the single DB function salvar_cadastro (product + pending splits in one transaction); a send with no response is retried with the exact same request and id before any new form data is sent, so retries never duplicate.
+- Loaded product/supplier IDs are database UUIDs. Current quantities come from saldos; contagens only marks an initial count. Unknown quantities stay null. Inventory mutations must insert a permanent operacoes record in the same transaction: the reader checks this revision to reject mixed snapshots. Product/order requests are stored before sending and recovered per user, commerce and module (see docs/base-consolidada.md).

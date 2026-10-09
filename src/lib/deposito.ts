@@ -1,6 +1,6 @@
 /* Regras do passo Depósito (somente em memória nesta versão). */
 import { FRACAO } from "@/lib/listas";
-export type DepVar = { qtd: number; min: number | null; max: number | null };
+export type DepVar = { qtd: number | null; min: number | null; max: number | null };
 export type Deposito = {
   /** null = "Definir depois" */
   local: string | null;
@@ -84,7 +84,7 @@ export const localDuplicado = (nome: string, locais: string[]) => locais.some((l
 
 export function temQtdPositiva(d?: Deposito): boolean {
   if (!d) return false;
-  return (d.qtd ?? 0) > 0 || Object.values(d.vars ?? {}).some((v) => v.qtd > 0);
+  return (d.qtd ?? 0) > 0 || Object.values(d.vars ?? {}).some((v) => (v.qtd ?? 0) > 0);
 }
 
 let seq = 0;

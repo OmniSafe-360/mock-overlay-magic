@@ -138,7 +138,8 @@ describe("total para conferência", () => {
     render(<FichaProduto p={p} tipo="roupas" onBack={() => {}} onEdit={() => {}} />);
     const linha = (nome: string) => [...screen.getAllByText(nome)[0]!.parentElement!.querySelectorAll("span")].map((x) => x.textContent);
     expect(linha("M · Azul")).toEqual(["M · Azul", "2", "3", "5"]);
-    expect(linha("G · Azul")).toEqual(["G · Azul", "1", "—", "1"]);
+    // A área de venda ainda não foi contada: o total não pode tratar essa ausência como zero.
+    expect(linha("G · Azul")).toEqual(["G · Azul", "1", "—", "—"]);
   });
 });
 

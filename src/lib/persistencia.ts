@@ -1,7 +1,7 @@
 /* Ponte entre o cadastro (telas) e o banco. Monta pedidos para salvar_produto/resolver_pendencia e reconstrói os produtos ao carregar. */
 import type { Product, Supplier, Variation } from "@/components/ProductArea";
 import type { Deposito, DepVar } from "@/lib/deposito";
-import { CHAVE_PRODUTO, type LinhaVal, type Validade } from "@/lib/validade";
+import { CHAVE_PRODUTO, mil, deMil, type LinhaVal, type Validade } from "@/lib/validade";
 
 export type AreaDb = "deposito" | "venda";
 const AREAS: { db: AreaDb; prod: "deposito" | "areaVenda"; val: "dep" | "ven" }[] = [
@@ -20,14 +20,16 @@ export function montarPedido(p: Product, opId: string, comercioId: string, suppl
   const detalhes = Object.fromEntries(
     Object.entries(p.detalhes).map(([k, v]) => [k, v == null ? "" : String(v).trim()]).filter(([, v]) => v !== ""),
   );
-  const forn = p.fornecedor == null ? null : suppliers.find((s) => s.id === p.fornecedor)?.dbId ?? null;
+  const fornecedor = p.fornecedor == null ? undefined : suppliers.find((s) => s.id === p.fornecedor);
+  if (p.fornecedor != null && !fornecedor?.dbId) throw new Error("fornecedor_nao_encontrado");
+  const forn = fornecedor?.dbId ?? null;
   const areas: Record<string, unknown>[] = [];
   for (const a of AREAS) {
     const d = p[a.prod];
     if (!d) continue;
     const local = d.local ? { nome: d.local } : null;
     const itens: { varId: string | null; cfg: { qtd: number | null; min: number | null; max: number | null } }[] = roupas
-      ? p.variacoes.map((v) => ({ varId: v.uid!, cfg: d.vars?.[v.uid!] ?? { qtd: 0, min: null, max: null } }))
+      ? p.variacoes.map((v) => ({ varId: v.uid!, cfg: d.vars?.[v.uid!] ?? { qtd: null, min: null, max: null } }))
       : [{ varId: null, cfg: d }];
     for (const { varId, cfg } of itens) {
       const row: Record<string, unknown> = { area: a.db, variacao_id: varId, local, minimo: cfg.min, maximo: cfg.max };
@@ -99,11 +101,21 @@ export function montarCadastro(p: Product, antes: Product | undefined, comercioI
 /* ---------- envio com resultado incerto ---------- */
 export type ErroRpc = { message?: string; code?: string } | null;
 export type Rpc = (pedido: object) => Promise<{ error: ErroRpc }>;
-export type Sessao = { dbId: string; incerto: { pedido: object } | null };
+export type Sessao = {
+  dbId: string;
+  incerto: { pedido: object } | null;
+  /** Grava ANTES de enviar; limpa somente com resposta conclusiva. */
+  guardar?: ((envio: { pedido: object } | null) => void) | undefined;
+  exclusivo?: (<T>(acao: () => Promise<T>) => Promise<T>) | undefined;
+};
 /** Sem resposta do servidor: não se sabe se gravou. */
 export const ehIncerto = (e: unknown) => {
   const m = String((e as { message?: string } | null)?.message ?? e ?? "");
-  return /fetch|network|Failed to|timeout|aborted|Load failed/i.test(m);
+  const code = String((e as { code?: string } | null)?.code ?? "");
+  if (/fetch|network|Failed to|timeout|aborted|Load failed|jwt|session.*expired|nao_autenticado|Internal Server Error|Bad Gateway|Service Unavailable/i.test(m)
+    || /^(08|53|57|58)/.test(code) || code === "PGRST301") return true;
+  // Só uma recusa reconhecida prova que o banco não gravou. Erro genérico mantém o pedido.
+  return !(/^(22|23|42)/.test(code) || code === "P0001" || MSG.some(([k]) => m.includes(k)));
 };
 /**
  * Se o envio anterior ficou sem resposta, repete EXATAMENTE o mesmo pedido (mesmo id) antes de tudo.
@@ -111,16 +123,22 @@ export const ehIncerto = (e: unknown) => {
  * Se foi recusado, o formulário atual vai com uma operação nova.
  */
 export async function enviarCadastro(s: Sessao, montar: () => object, rpc: Rpc): Promise<"gravado" | "anterior_gravado"> {
+  return s.exclusivo ? s.exclusivo(() => enviarSemTrava(s, montar, rpc)) : enviarSemTrava(s, montar, rpc);
+}
+async function enviarSemTrava(s: Sessao, montar: () => object, rpc: Rpc): Promise<"gravado" | "anterior_gravado"> {
+  const guardar = (envio: { pedido: object } | null) => { s.guardar?.(envio); s.incerto = envio; };
   if (s.incerto) {
     const r = await rpc(s.incerto.pedido);
-    if (!r.error) { s.incerto = null; return "anterior_gravado"; }
+    if (!r.error) { guardar(null); return "anterior_gravado"; }
     if (ehIncerto(r.error)) throw r.error;
-    s.incerto = null;
+    guardar(null);
   }
-  const pedido = montar();
-  let r: { error: ErroRpc };
-  try { r = await rpc(pedido); } catch (e) { s.incerto = { pedido }; throw e; }
-  if (r.error) { if (ehIncerto(r.error)) s.incerto = { pedido }; throw r.error; }
+  const pedido = JSON.parse(JSON.stringify(montar())) as object;
+  // Inclusive um encerramento da página durante o envio pode perder a resposta.
+  guardar({ pedido });
+  const r = await rpc(pedido);
+  if (r.error) { if (!ehIncerto(r.error)) guardar(null); throw r.error; }
+  guardar(null);
   return "gravado";
 }
 
@@ -218,16 +236,21 @@ export function mensagemErro(e: unknown): string {
 type Row = any;
 export type Bruto = { produtos: Row[]; variacoes: Row[]; areas: Row[]; locais: Row[]; contagens: Row[]; saldos: Row[]; lotes: Row[]; embalagens?: Row[] };
 
-export function montarProdutos(b: Bruto, suppliers: Supplier[]): Product[] {
+export function montarProdutos(b: Bruto, _suppliers: Supplier[]): Product[] {
   const local = new Map(b.locais.map((l) => [l.id as string, l.nome as string]));
   const lote = new Map(b.lotes.map((l) => [l.id as string, l]));
-  return b.produtos.map((pr, i) => {
+  return b.produtos.map((pr) => {
     const vars: Variation[] = b.variacoes.filter((v) => v.produto_id === pr.id)
       .sort((x, y) => String(x.created_at).localeCompare(String(y.created_at)))
       .map((v) => ({ tam: v.tamanho ?? "", cor: v.cor ?? "", codigo: v.codigo_barras ?? "", qtd: Number(v.qtd_informada ?? 0), uid: v.id }));
     const roupas = vars.length > 0;
     const conts = b.contagens.filter((c) => c.produto_id === pr.id);
-    const qtdDe = (a: AreaDb, v: string | null) => { const c = conts.find((x) => x.area === a && (x.variacao_id ?? null) === v); return c ? Number(c.quantidade) : null; };
+    // A contagem inicial é apenas o marcador de configuração. O saldo atual vem dos saldos.
+    const qtdDe = (a: AreaDb, v: string | null) => {
+      if (!conts.some((c) => c.area === a && (c.variacao_id ?? null) === v)) return null;
+      return deMil(b.saldos.filter((s) => s.produto_id === pr.id && s.area === a && (s.variacao_id ?? null) === v)
+        .reduce((total, s) => total + mil(Number(s.quantidade)), 0));
+    };
     const area = (a: AreaDb): Deposito | undefined => {
       const rows = b.areas.filter((r) => r.produto_id === pr.id && r.area === a && (!roupas || vars.some((v) => v.uid === r.variacao_id)));
       if (!rows.length) return undefined;
@@ -235,7 +258,7 @@ export function montarProdutos(b: Bruto, suppliers: Supplier[]): Product[] {
       const nomeLocal = rows[0]!.local_id ? local.get(rows[0]!.local_id) ?? null : null;
       if (!roupas) { const r = rows[0]!; return { local: nomeLocal, qtd: qtdDe(a, null), min: n(r.minimo), max: n(r.maximo) }; }
       const vs: Record<string, DepVar> = {};
-      for (const r of rows) vs[r.variacao_id] = { qtd: qtdDe(a, r.variacao_id) ?? 0, min: n(r.minimo), max: n(r.maximo) };
+      for (const r of rows) vs[r.variacao_id] = { qtd: qtdDe(a, r.variacao_id), min: n(r.minimo), max: n(r.maximo) };
       return { local: nomeLocal, qtd: null, min: null, max: null, vars: vs };
     };
     let validade: Validade | undefined;
@@ -249,10 +272,11 @@ export function montarProdutos(b: Bruto, suppliers: Supplier[]): Product[] {
         (alvo[s.variacao_id ?? CHAVE_PRODUTO] ??= []).push(linha);
       }
     }
-    const forn = pr.fornecedor_id ? suppliers.find((s) => s.dbId === pr.fornecedor_id)?.id ?? null : null;
+    // O vínculo não desaparece se o fornecedor estiver ausente da consulta.
+    const forn = pr.fornecedor_id ?? null;
     const det = Object.fromEntries(Object.entries((pr.detalhes ?? {}) as Record<string, unknown>).map(([k, v]) => [k, String(v)]));
     return {
-      id: i + 1, codigo: pr.codigo_barras ?? "", nome: pr.nome, compra: centavos(pr.preco_compra), venda: centavos(pr.preco_venda),
+      id: pr.id, codigo: pr.codigo_barras ?? "", nome: pr.nome, compra: centavos(pr.preco_compra), venda: centavos(pr.preco_venda),
       unidade: pr.unidade, categoria: pr.categoria ?? "", detalhes: det, variacoes: vars, fornecedor: forn,
       deposito: area("deposito"), areaVenda: area("venda"), validade,
       embalagens: (b.embalagens ?? []).filter((e) => e.produto_id === pr.id)
@@ -271,4 +295,4 @@ export const linhaFornecedor = (f: { nome: string; tel: string; email: string })
 });
 
 export const montarFornecedores = (rows: Row[]): Supplier[] =>
-  rows.map((r, i) => ({ id: i + 1, nome: r.nome, tel: r.telefone ?? "", email: r.email ?? "", dbId: r.id }));
+  rows.map((r) => ({ id: r.id, nome: r.nome, tel: r.telefone ?? "", email: r.email ?? "", dbId: r.id }));

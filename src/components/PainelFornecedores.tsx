@@ -1,3 +1,4 @@
+import type { EntityId } from "@/lib/identidade";
 /* Aba Fornecedores: quem fornece o quê, contato com um toque (WhatsApp, ligar, e-mail) e o que está para comprar. */
 import { useMemo, useState } from "react";
 import { ChevronDown, Mail, MessageCircle, Pencil, Phone, Plus, Truck } from "lucide-react";
@@ -25,7 +26,7 @@ export function PainelFornecedores({ products, tipo, suppliers, onOpen, onAdd, o
   const hoje = useMemo(() => hojeEm(), []);
   const [sheet, setSheet] = useState<Supplier | "novo" | null>(null);
   const porFornecedor = useMemo(() => {
-    const m = new Map<number | null, ItemProd[]>();
+    const m = new Map<EntityId | null, ItemProd[]>();
     for (const p of [...products].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))) {
       const t = situacaoProduto(p, tipo, hoje).alertas.map((a) => a.tipo);
       const k = suppliers.some((s) => s.id === p.fornecedor) ? p.fornecedor : null;

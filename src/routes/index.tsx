@@ -511,7 +511,7 @@ function Index() {
   const kb = useKeyboard();
   const [phase, setPhase] = useState<"auth" | "loading" | "store" | "home" | "error">("auth");
   const [owner, setOwner] = useState("");
-  const [account, setAccount] = useState({ nome: "", email: "" });
+  const [account, setAccount] = useState({ id: "", nome: "", email: "" });
   const [stores, setStores] = useState<StoreData[]>([]);
   const [oauthError] = useState(readOAuthError);
   const [confirmEmail, setConfirmEmail] = useState("");
@@ -548,14 +548,14 @@ function Index() {
       const { data } = await supabase.from("profiles").select("nome").eq("id", user.id).maybeSingle();
       const nome = String(data?.nome ?? user.user_metadata?.["full_name"] ?? user.user_metadata?.["name"] ?? "").trim();
       setOwner(nome.split(/\s+/)[0] ?? "");
-      setAccount({ nome, email: user.email ?? "" });
+      setAccount({ id: user.id, nome, email: user.email ?? "" });
       await fetchStores(animate);
     };
     supabase.auth.getSession().then(({ data }) => load(data.session?.user, false));
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") { recoveryRef.current = true; setRecovery(true); setPhase("auth"); return; }
       if (event === "SIGNED_IN") setTimeout(() => load(session?.user, true), 0);
-      if (event === "SIGNED_OUT") { loadingRef.current = false; setPhase("auth"); setStores([]); setAccount({ nome: "", email: "" }); setOwner(""); }
+      if (event === "SIGNED_OUT") { loadingRef.current = false; setPhase("auth"); setStores([]); setAccount({ id: "", nome: "", email: "" }); setOwner(""); }
     });
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -576,7 +576,7 @@ function Index() {
       </div>
     );
   if (phase === "store") return <StoreSetup onFinish={(s) => { setStores([s]); setPhase("home"); }} />;
-  if (phase === "home") return <OwnerApp owner={owner} fullName={account.nome} email={account.email} onLogout={logout} initial={stores} />;
+  if (phase === "home") return <OwnerApp key={account.id} userId={account.id} owner={owner} fullName={account.nome} email={account.email} onLogout={logout} initial={stores} />;
   return (
     <div className="relative h-app overflow-hidden bg-app">
       <div className="pointer-events-none absolute inset-0 bg-dots" />

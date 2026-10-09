@@ -1,3 +1,4 @@
+import type { EntityId } from "@/lib/identidade";
 /* Pedido de compra (etapa D2a): sugestão do que comprar, quantidade em embalagem fechada, texto da mensagem e totais.
  * O pedido não mexe no estoque. Preços em centavos. */
 import type { Product, Supplier, Variation } from "@/components/ProductArea";
@@ -104,8 +105,8 @@ export const chaveLinha = (p: Product, v: Variation | null) => `${p.id}:${v?.uid
 
 /** Sugestão de pedido: produtos que chegaram ao mínimo do depósito (ou acabaram), agrupados por fornecedor.
  *  Produtos já num pedido aberto não entram. Roupas: por variação. */
-export function sugerirPedido(products: Product[], suppliers: Supplier[], jaPedidos: Set<string>): { porFornecedor: Map<number, LinhaPedido[]>; semFornecedor: Product[] } {
-  const porFornecedor = new Map<number, LinhaPedido[]>();
+export function sugerirPedido(products: Product[], suppliers: Supplier[], jaPedidos: Set<string>): { porFornecedor: Map<EntityId, LinhaPedido[]>; semFornecedor: Product[] } {
+  const porFornecedor = new Map<EntityId, LinhaPedido[]>();
   const semFornecedor: Product[] = [];
   for (const p of [...products].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))) {
     if (!p.db?.id || jaPedidos.has(p.db.id) || !p.deposito) continue;

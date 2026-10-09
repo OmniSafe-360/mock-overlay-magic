@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { carregarFornecedores, carregarProdutos, atualizarFornecedor, criarFornecedor, gerarCodigoInterno, salvarProduto, carregarPedidos, salvarPedido, marcarPedidoEnviado, cancelarPedido, novoLinkPedido, atualizarPagamento, type LocaisCadastrados } from "@/lib/banco";
+import { conferirEnvio, carregarFornecedores, carregarProdutos, atualizarFornecedor, criarFornecedor, gerarCodigoInterno, salvarProduto, carregarPedidos, salvarPedido, marcarPedidoEnviado, cancelarPedido, novoLinkPedido, atualizarPagamento, type LocaisCadastrados } from "@/lib/banco";
 import type { CanalPedido, LinhaPedido, Pedido } from "@/lib/pedido";
 import type { DadosPagamento } from "@/components/PainelPedidos";
 import { ehIncerto, mensagemErro, type Sessao } from "@/lib/persistencia";
+import { ERRO_REGISTRO, registroEnvio, type TipoEnvio } from "@/lib/envios";
 import { newUid } from "@/lib/deposito";
 import { AlertTriangle, Bell, CalendarClock, ChevronRight, Home, PackageX, Plus, ShoppingBag, Store, UserCircle, Users, CheckCircle2 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
@@ -38,7 +39,7 @@ function Backdrop() {
   );
 }
 
-export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }: { owner: string; initial: StoreData[]; fullName?: string; email?: string; onLogout?: () => void }) {
+export function OwnerApp({ userId, owner, initial, fullName = "", email = "", onLogout }: { userId: string; owner: string; initial: StoreData[]; fullName?: string; email?: string; onLogout?: () => void }) {
   const [stores, setStores] = useState<StoreData[]>(initial);
   const [tab, setTab] = useState<Tab>("inicio");
   const [adding, setAdding] = useState(false);
@@ -50,7 +51,17 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveErro, setSaveErro] = useState("");
-  const [carga, setCarga] = useState<"ok" | "carregando" | "erro">("ok");
+  type Carga = "ok" | "carregando" | "erro";
+  const [cargas, setCargas] = useState<Record<string, Carga>>({});
+  const [cargasPedidos, setCargasPedidos] = useState<Record<string, Carga>>({});
+  const requisicoes = useRef<Record<string, number>>({});
+  const fornVersao = useRef(0);
+  const ativo = useRef(true);
+  const [, atualizarEnvios] = useState(0);
+  const [conferindo, setConferindo] = useState(false);
+  const [recuperacoes, setRecuperacoes] = useState<Record<string, number>>({});
+  const conferindoRef = useRef(false);
+  useEffect(() => { ativo.current = true; return () => { ativo.current = false; }; }, []);
   /** Identificadores estáveis do envio aberto: repetir o envio usa os mesmos e não duplica nada. */
   const sessao = useRef<Sessao | null>(null);
   const [locais, setLocais] = useState<Record<string, LocaisCadastrados>>({});
@@ -58,21 +69,56 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
   const suppRef = useRef<Supplier[]>([]);
   suppRef.current = suppliers;
 
+  const recarregarPedidos = useCallback(async (comercioId: string) => {
+    const chave = `pedidos:${comercioId}`;
+    const versao = requisicoes.current[chave] = (requisicoes.current[chave] ?? 0) + 1;
+    const vigente = () => ativo.current && requisicoes.current[chave] === versao;
+    setCargasPedidos((m) => ({ ...m, [comercioId]: "carregando" }));
+    try {
+      const ps = await carregarPedidos(comercioId);
+      if (!vigente()) return null;
+      setPedidos((m) => ({ ...m, [comercioId]: ps }));
+      setCargasPedidos((m) => ({ ...m, [comercioId]: "ok" }));
+      return ps;
+    } catch {
+      if (vigente()) setCargasPedidos((m) => ({ ...m, [comercioId]: "erro" }));
+      return null; // O erro fica visível; os dados já carregados são preservados.
+    }
+  }, []);
   const recarregar = useCallback(async (comercioId: string) => {
-    setCarga("carregando");
+    const chave = `produtos:${comercioId}`;
+    const versao = requisicoes.current[chave] = (requisicoes.current[chave] ?? 0) + 1;
+    const versaoForn = ++fornVersao.current;
+    const vigente = () => ativo.current && requisicoes.current[chave] === versao;
+    setCargas((m) => ({ ...m, [comercioId]: "carregando" }));
+    void recarregarPedidos(comercioId);
     try {
       const fs = await carregarFornecedores();
-      setSuppliers(fs); suppRef.current = fs;
       const r = await carregarProdutos(comercioId, fs);
+      if (!vigente()) return false;
+      // Publica o conjunto pronto; nunca uma lista de fornecedores parcial.
+      if (fornVersao.current === versaoForn) { setSuppliers(fs); suppRef.current = fs; }
       setProducts((m) => ({ ...m, [comercioId]: r.produtos }));
       setLocais((m) => ({ ...m, [comercioId]: r.locais }));
-      setCarga("ok");
-      // Pedidos carregam à parte: se falhar, o resto do comércio continua funcionando.
-      carregarPedidos(comercioId).then((ps) => setPedidos((m) => ({ ...m, [comercioId]: ps }))).catch(() => {});
-    } catch { setCarga("erro"); }
-  }, []);
+      setCargas((m) => ({ ...m, [comercioId]: "ok" }));
+      return true;
+    } catch {
+      if (vigente()) setCargas((m) => ({ ...m, [comercioId]: "erro" }));
+      return false;
+    }
+  }, [recarregarPedidos]);
   const openSid = typeof open?.id === "string" && open.id.trim() ? open.id : null;
   useEffect(() => { if (openSid) void recarregar(openSid); }, [openSid, recarregar]);
+  // Voltar ao app ou recuperar a internet atualiza o mesmo modelo usado pelas abas.
+  useEffect(() => {
+    const atualizar = () => { if (openSid && !wizard && !saving && !conferindoRef.current) void recarregar(openSid); };
+    const visivel = () => { if (document.visibilityState === "visible") atualizar(); };
+    const envioEmOutraAba = (e: StorageEvent) => { if (e.key?.startsWith("omni.envio.v1:")) atualizarEnvios((n) => n + 1); };
+    window.addEventListener("online", atualizar);
+    document.addEventListener("visibilitychange", visivel);
+    window.addEventListener("storage", envioEmOutraAba);
+    return () => { window.removeEventListener("online", atualizar); document.removeEventListener("visibilitychange", visivel); window.removeEventListener("storage", envioEmOutraAba); };
+  }, [openSid, wizard, saving, recarregar]);
 
   useEffect(() => {
     if (!toast) return;
@@ -89,10 +135,40 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
   const cur = open ?? undefined;
   const sid = typeof cur?.id === "string" && cur.id.trim() ? cur.id : null;
   const list = sid ? products[sid] ?? [] : [];
+  const carga = sid ? cargas[sid] ?? "carregando" : "ok";
+  const cargaPedidos = sid ? cargasPedidos[sid] ?? "carregando" : "ok";
+  const pendentes: TipoEnvio[] = [];
+  let registroErro = "";
+  if (sid) {
+    try { for (const tipo of ["produto", "pedido"] as const) if (registroEnvio(userId, sid, tipo).ler()) pendentes.push(tipo); }
+    catch { registroErro = ERRO_REGISTRO; }
+  }
+  const recuperar = async (tipo: TipoEnvio) => {
+    if (!sid || conferindoRef.current) return;
+    conferindoRef.current = true; setConferindo(true);
+    try {
+      const s = registroEnvio(userId, sid, tipo).sessao(newUid());
+      await conferirEnvio(s, tipo);
+      setRecuperacoes((m) => ({ ...m, [sid]: (m[sid] ?? 0) + 1 }));
+      setToast("Envio confirmado. Confira os dados atualizados no comércio.");
+    } catch (e) {
+      setToast(e instanceof Error && e.message === ERRO_REGISTRO ? ERRO_REGISTRO : ehIncerto(e)
+        ? "Ainda não foi possível confirmar o envio. Tente de novo quando a conexão voltar."
+        : `O envio foi recusado. ${mensagemErro(e)}`);
+    } finally {
+      atualizarEnvios((n) => n + 1);
+      await recarregar(sid);
+      conferindoRef.current = false; setConferindo(false);
+    }
+  };
   const NO_ID = "Este comércio ainda não foi salvo. Não é possível cadastrar ou editar produtos.";
   const openWizard = (initial?: Product) => {
     if (!sid) { setToast(NO_ID); return; }
-    sessao.current = { dbId: initial?.db?.id ?? newUid(), incerto: null };
+    if (carga !== "ok" || conferindoRef.current) { setToast("Atualize os dados deste comércio antes de cadastrar ou editar."); return; }
+    if (registroErro) { setToast(registroErro); return; }
+    if (pendentes.length) { setToast("Confira os envios pendentes antes de abrir outro cadastro."); return; }
+    try { sessao.current = registroEnvio(userId, sid, "produto").sessao(initial?.db?.id ?? newUid()); }
+    catch { setToast(ERRO_REGISTRO); return; }
     setSaveErro(""); setWizard({ initial });
   };
   /** Grava no banco e só depois aparece na lista. Devolve o id local. */
@@ -100,15 +176,11 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
     const dbId = newUid();
     try { await criarFornecedor(dbId, f); }
     catch (e) { throw new Error(`Não foi possível guardar o fornecedor. ${mensagemErro(e).replace(/^Não foi possível salvar agora\. /, "")}`); }
-    const novo = { ...f, id: Date.now(), dbId };
+    const novo = { ...f, id: dbId, dbId };
+    ++fornVersao.current;
     suppRef.current = [...suppRef.current, novo];
     setSuppliers((l) => [...l, novo]);
     return novo.id;
-  };
-  const recarregarPedidos = async (comercioId: string) => {
-    const ps = await carregarPedidos(comercioId);
-    setPedidos((m) => ({ ...m, [comercioId]: ps }));
-    return ps;
   };
   const comMensagem = async <T,>(acao: () => Promise<T>, inicio: string): Promise<T> => {
     try { return await acao(); }
@@ -116,32 +188,43 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
   };
   const salvarPedidoNovo = (comercioId: string) => async (a: { fornecedor: Supplier; linhas: LinhaPedido[]; observacao: string }) => {
     if (!a.fornecedor.dbId) throw new Error("Este fornecedor ainda não foi salvo.");
-    const r = await comMensagem(() => salvarPedido({ id: newUid(), comercioId, fornecedorId: a.fornecedor.dbId!, observacao: a.observacao, linhas: a.linhas }), "Não foi possível salvar o pedido.");
-    const ps = await recarregarPedidos(comercioId).catch(() => null);
+    if (conferindoRef.current) throw new Error("Aguarde a conferência do envio pendente.");
+    const s = registroEnvio(userId, comercioId, "pedido").sessao(newUid());
+    let r: Awaited<ReturnType<typeof salvarPedido>>;
+    try {
+      r = await salvarPedido({ id: s.dbId, comercioId, fornecedorId: a.fornecedor.dbId!, observacao: a.observacao, linhas: a.linhas }, s);
+    } catch (e) {
+      throw new Error(e instanceof Error && e.message === ERRO_REGISTRO ? ERRO_REGISTRO : s.incerto
+        ? "Não foi possível confirmar o pedido. Confira o envio pendente antes de montar outro pedido."
+        : mensagemErro(e));
+    } finally { atualizarEnvios((n) => n + 1); }
+    if (r.recuperado) setToast("O pedido anterior foi confirmado. Confira-o na lista de pedidos.");
+    const ps = await recarregarPedidos(comercioId);
     return { ...r, token: ps?.find((x) => x.id === r.id)?.token };
   };
   const pedidoPagamento = (comercioId: string) => async (id: string, d: DadosPagamento) => {
     await comMensagem(() => atualizarPagamento(id, d), "Não foi possível salvar o pagamento.");
-    await recarregarPedidos(comercioId).catch(() => {});
+    await recarregarPedidos(comercioId);
   };
   const pedidoNovoLink = (comercioId: string) => async (id: string) => {
     const t = await comMensagem(() => novoLinkPedido(id), "Não foi possível gerar o novo link.");
-    await recarregarPedidos(comercioId).catch(() => {});
+    await recarregarPedidos(comercioId);
     return t;
   };
   const pedidoEnviado = (comercioId: string) => async (id: string, canal: CanalPedido) => {
     await comMensagem(() => marcarPedidoEnviado(id, canal), "Não foi possível marcar o pedido como enviado.");
-    await recarregarPedidos(comercioId).catch(() => {});
+    await recarregarPedidos(comercioId);
   };
   const pedidoCancelado = (comercioId: string) => async (id: string) => {
     await comMensagem(() => cancelarPedido(id), "Não foi possível cancelar o pedido.");
-    await recarregarPedidos(comercioId).catch(() => {});
+    await recarregarPedidos(comercioId);
   };
   const updateSupplier = async (s: Supplier, f: Omit<Supplier, "id">) => {
     if (!s.dbId) throw new Error("Este fornecedor ainda não foi salvo.");
     try { await atualizarFornecedor(s.dbId, f); }
     catch (e) { throw new Error(`Não foi possível salvar o fornecedor. ${mensagemErro(e).replace(/^Não foi possível salvar agora\. /, "")}`); }
     const novo = { ...s, nome: f.nome.trim(), tel: f.tel.replace(/\D/g, ""), email: f.email.trim().toLowerCase() };
+    ++fornVersao.current;
     suppRef.current = suppRef.current.map((x) => (x.id === s.id ? novo : x));
     setSuppliers((l) => l.map((x) => (x.id === s.id ? novo : x)));
   };
@@ -155,18 +238,21 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
         onSave={async (p) => {
           if (saving || !sessao.current) return;
           setSaving(true); setSaveErro("");
-          const comDb: Product = { ...p, db: p.db ?? { id: sessao.current.dbId, contadas: [] } };
+          const comDb: Product = { ...p, id: sessao.current.dbId, db: p.db ?? { id: sessao.current.dbId, contadas: [] } };
           let res: "gravado" | "anterior_gravado";
           try {
             res = await salvarProduto(sessao.current, comDb, wizard.initial, sid, cur.tipo === "farmacia", suppRef.current, newUid);
           } catch (e) {
-            setSaveErro(ehIncerto(e)
+            atualizarEnvios((n) => n + 1);
+            setSaveErro(e instanceof Error && e.message === ERRO_REGISTRO ? ERRO_REGISTRO : sessao.current.incerto
               ? "Não foi possível confirmar se o produto foi salvo. Toque em Salvar de novo: o mesmo envio será repetido sem duplicar."
               : mensagemErro(e));
             setSaving(false); return;
           }
-          await recarregar(sid);
+          atualizarEnvios((n) => n + 1);
+          const atualizou = await recarregar(sid);
           setSaving(false); setWizard(null);
+          if (!atualizou) { setToast("Produto salvo. Não foi possível atualizar a lista; tente atualizar antes de editar."); return; }
           if (res === "anterior_gravado") setToast("O envio anterior já tinha sido salvo. Abra o produto para conferir.");
           else { setSaved(!wizard.initial); if (wizard.initial) setToast("Produto atualizado!"); }
         }} />
@@ -209,6 +295,23 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
         </header>
 
         <main className="mx-auto max-w-[1100px] px-5 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 md:pb-10">
+          {tab === "inicio" && cur && (
+            <>
+              {(pendentes.length > 0 || registroErro) && <div role="alert" className="mb-4 space-y-3 rounded-2xl border border-warning/60 bg-warning/10 p-4">
+                <p className="text-sm font-semibold">{registroErro || "Há um envio sem confirmação neste aparelho. Confira antes de cadastrar novamente."}</p>
+                {pendentes.map((tipo) => <button key={tipo} type="button" disabled={conferindo} onClick={() => void recuperar(tipo)}
+                  className="min-h-12 rounded-xl border border-border px-4 text-sm font-semibold disabled:opacity-50">
+                  {conferindo ? "Conferindo…" : `Conferir envio de ${tipo === "produto" ? "produto" : "pedido"}`}
+                </button>)}
+              </div>}
+              {list.length > 0 && carga !== "ok" && <p role="status" className="mb-4 rounded-2xl border border-warning/60 p-3 text-sm">
+                {carga === "carregando" ? "Atualizando produtos e saldos…" : "Não foi possível atualizar produtos e saldos. Os dados exibidos são da última consulta. Toque em Atualizar."}
+              </p>}
+              {cargaPedidos === "erro" && <p role="alert" className="mb-4 rounded-2xl border border-warning/60 p-3 text-sm">Não foi possível atualizar os pedidos e as contas a pagar. Toque em Atualizar.</p>}
+              {(carga === "erro" || cargaPedidos === "erro") && list.length > 0 && <button type="button" disabled={conferindo || carga === "carregando" || cargaPedidos === "carregando"}
+                onClick={() => { if (sid) void recarregar(sid); }} className="mb-4 min-h-12 rounded-2xl border border-border px-4 text-sm font-semibold disabled:opacity-50">Atualizar dados</button>}
+            </>
+          )}
           {tab === "inicio" && cur && carga !== "ok" && !list.length ? (
             <div className="flex flex-col items-center gap-4 py-24 text-center">
               <p className="text-muted-foreground">{carga === "carregando" ? "Carregando produtos…" : "Não foi possível carregar os produtos. Verifique sua internet."}</p>
@@ -220,9 +323,13 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
               )}
             </div>
           ) : tab === "inicio" && cur ? (
-            <StoreSpace key={sid ?? "sem-id"} store={cur} products={list} suppliers={suppliers} saved={saved} locais={sid ? locais[sid] : undefined}
+            <StoreSpace key={`${sid ?? "sem-id"}:${sid ? recuperacoes[sid] ?? 0 : 0}`} store={cur} products={list} suppliers={suppliers} saved={saved} locais={sid ? locais[sid] : undefined}
               onAddSupplier={addSupplier} onUpdateSupplier={updateSupplier}
               pedidos={sid ? pedidos[sid] ?? [] : []}
+              pedidosProntos={carga === "ok" && cargaPedidos === "ok" && !pendentes.length && !registroErro && !conferindo}
+              pedidosCarregados={!!sid && sid in pedidos}
+              atualizando={carga === "carregando" || cargaPedidos === "carregando" || conferindo}
+              onAtualizar={() => { if (sid) void recarregar(sid); }}
               onSalvarPedido={sid ? salvarPedidoNovo(sid) : async () => { throw new Error(NO_ID); }}
               onPedidoEnviado={sid ? pedidoEnviado(sid) : async () => {}} onCancelarPedido={sid ? pedidoCancelado(sid) : async () => {}}
               onNovoLinkPedido={sid ? pedidoNovoLink(sid) : async () => { throw new Error(NO_ID); }}

@@ -1,3 +1,4 @@
+import type { EntityId } from "@/lib/identidade";
 /* "Lembrar a última escolha" (decisão do dono, 09/10/2026): um produto NOVO começa com as escolhas
  * do último produto cadastrado no mesmo comércio. Só o que costuma se repetir; nunca código, nome,
  * preços, detalhes, quantidades, mínimos e máximos. Tudo pode ser trocado na tela. */
@@ -6,7 +7,7 @@ import type { Product } from "@/components/ProductArea";
 export type EscolhasIniciais = {
   unidade?: string;
   categoria?: string;
-  fornecedor?: number;
+  fornecedor?: EntityId;
   localDeposito?: string;
   localVenda?: string;
   validade?: { controla: boolean; avisos: number[] };
@@ -14,7 +15,7 @@ export type EscolhasIniciais = {
 
 export function escolhasDoUltimo(
   ultimo: Product | undefined,
-  validas: { unidades: string[]; categorias: string[]; fornecedores: number[] },
+  validas: { unidades: string[]; categorias: string[]; fornecedores: EntityId[] },
 ): EscolhasIniciais {
   if (!ultimo) return {};
   const e: EscolhasIniciais = {};

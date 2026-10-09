@@ -1,11 +1,12 @@
+import type { EntityId } from "@/lib/identidade";
 /* Regras das variações (Loja de roupas): códigos e combinações tamanho + cor. */
 export type VarLike = { tam: string; cor: string; codigo?: string | undefined };
-export type ProdLike = { id: number; codigo: string; variacoes: VarLike[]; embalagens?: { codigo: string }[] | undefined };
+export type ProdLike = { id: EntityId; codigo: string; variacoes: VarLike[]; embalagens?: { codigo: string }[] | undefined };
 
 const norm = (s: string | undefined) => (s ?? "").trim().toLowerCase();
 
 /** Códigos já usados por OUTROS produtos do mesmo comércio (principal + variações + embalagens). */
-export function usedCodes(products: ProdLike[], selfId?: number): Set<string> {
+export function usedCodes(products: ProdLike[], selfId?: EntityId): Set<string> {
   const set = new Set<string>();
   for (const p of products) {
     if (p.id === selfId) continue;
@@ -44,7 +45,7 @@ export const variationOk = (v: VarLike, i: number, vars: VarLike[], main: string
 
 export type ProductDraft = {
   codigo: string; nome: string; compra: number; venda: number; unidade: string; categoria: string;
-  variacoes: (VarLike & { qtd?: number })[]; detalhes?: Record<string, string>; fornecedor: number | null | undefined;
+  variacoes: (VarLike & { qtd?: number })[]; detalhes?: Record<string, string>; fornecedor: EntityId | null | undefined;
 };
 
 /** Valida todas as etapas antes de salvar. Retorna a primeira etapa inválida e a orientação, ou null. */

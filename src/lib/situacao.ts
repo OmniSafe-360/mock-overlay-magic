@@ -30,8 +30,8 @@ export type Situacao = {
   nomes: { dep: string; ven: string };
 };
 
-const somaOuNull = (xs: (number | null)[]) => (xs.every((x) => x == null) ? null : deMil(xs.reduce<number>((a, x) => a + mil(x ?? 0), 0)));
-const total = (dep: number | null, ven: number | null) => (dep == null && ven == null ? null : deMil(mil(dep ?? 0) + mil(ven ?? 0)));
+const somaOuNull = (xs: (number | null)[]) => (!xs.length || xs.some((x) => x == null) ? null : deMil(xs.reduce<number>((a, x) => a + mil(x ?? 0), 0)));
+const total = (dep: number | null, ven: number | null) => (dep == null || ven == null ? null : deMil(mil(dep) + mil(ven)));
 
 /** Nome da área de venda no singular, como se fala no dia a dia. */
 export const nomeVenda = (tipo: string) => (tipo === "mercado" || tipo === "pet" ? "Gôndola" : "Área de venda");
@@ -141,6 +141,8 @@ export function situacaoProduto(p: Product, tipo: string, hoje: string, opts: { 
   else if (!d.local) add("info", "completar", `Local no ${nomes.dep.toLowerCase()} não definido`);
   if (!a) add("info", "completar", `${nomes.ven} não configurada`, "Diga onde o produto fica exposto e quanto tem.");
   else if (!a.local) add("info", "completar", `Local na ${nomes.ven.toLowerCase()} não definido`);
+  if (d && qtd.dep == null) add("info", "completar", `Contagem no ${nomes.dep.toLowerCase()} incompleta`, "Há produtos ou variações ainda sem contagem confirmada.");
+  if (a && qtd.ven == null) add("info", "completar", `Contagem na ${nomes.ven.toLowerCase()} incompleta`, "Há produtos ou variações ainda sem contagem confirmada.");
   if (!p.validade && (farm || !tipoSemValidade(tipo))) add(farm ? "atencao" : "info", "completar", "Validade não configurada", farm ? "Na farmácia, o controle de validade é obrigatório." : undefined);
   if (!p.fornecedor) add("info", "completar", "Fornecedor não definido");
 

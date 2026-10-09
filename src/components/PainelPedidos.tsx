@@ -1,3 +1,4 @@
+import type { EntityId } from "@/lib/identidade";
 /* Aba Pedidos (D2a): montar o pedido sozinho por fornecedor, enviar pelo WhatsApp ou e-mail com um toque e acompanhar. */
 import { useMemo, useState } from "react";
 import { ArrowLeft, Banknote, CalendarClock, Check, CheckCircle2, ClipboardList, Copy, Link2, Mail, MessageCircle, Minus, Plus, RefreshCw, Search, Send, Trash2, Truck, X, XCircle } from "lucide-react";
@@ -25,7 +26,7 @@ export type DadosPagamento = { situacao: "a_pagar" | "pago"; vencimento?: string
 const COR_PAGAMENTO: Record<EstadoPagamento, string> = {
   atrasado: "text-destructive", hoje: "text-warning", em_breve: "text-warning", a_pagar: "text-foreground", pago: "text-accent",
 };
-export type SalvarPedido = (a: { fornecedor: Supplier; linhas: LinhaPedido[]; observacao: string }) => Promise<{ id: string; numero: number; token?: string | undefined }>;
+export type SalvarPedido = (a: { fornecedor: Supplier; linhas: LinhaPedido[]; observacao: string }) => Promise<{ id: string; numero: number; token?: string | undefined; recuperado?: boolean }>;
 
 export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora = false, soAPagar = false, onSalvar, onEnviado, onCancelar, onNovoLink, onPagamento, onOpenProduto }: {
   products: Product[]; store: StoreData; suppliers: Supplier[]; pedidos: Pedido[]; montarAgora?: boolean; soAPagar?: boolean;
@@ -121,7 +122,7 @@ function Etiqueta({ s }: { s: SituacaoPedido }) {
 }
 
 /* ---------- montar ---------- */
-type Grupo = { fornecedorId: number; linhas: LinhaPedido[]; obs: string };
+type Grupo = { fornecedorId: EntityId; linhas: LinhaPedido[]; obs: string };
 
 function MontarPedidos({ products, store, suppliers, pedidos, onSalvar, onEnviado, onVoltar }: {
   products: Product[]; store: StoreData; suppliers: Supplier[]; pedidos: Pedido[]; onSalvar: SalvarPedido;
@@ -130,10 +131,10 @@ function MontarPedidos({ products, store, suppliers, pedidos, onSalvar, onEnviad
   const jaPedidos = useMemo(() => new Set(pedidos.filter(pedidoAberto).flatMap((p) => p.itens.map((i) => i.produtoId))), [pedidos]);
   const sug = useMemo(() => sugerirPedido(products, suppliers, jaPedidos), [products, suppliers, jaPedidos]);
   const [grupos, setGrupos] = useState<Grupo[]>(() => [...sug.porFornecedor.entries()].map(([fornecedorId, linhas]) => ({ fornecedorId, linhas, obs: "" })));
-  const [enviados, setEnviados] = useState<number[]>([]);
+  const [enviados, setEnviados] = useState<EntityId[]>([]);
   const outros = suppliers.filter((s) => !grupos.some((g) => g.fornecedorId === s.id)).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   const nPedidos = products.filter((p) => p.db?.id && jaPedidos.has(p.db.id)).length;
-  const muda = (id: number, f: (g: Grupo) => Grupo) => setGrupos((gs) => gs.map((g) => (g.fornecedorId === id ? f(g) : g)));
+  const muda = (id: EntityId, f: (g: Grupo) => Grupo) => setGrupos((gs) => gs.map((g) => (g.fornecedorId === id ? f(g) : g)));
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
@@ -169,7 +170,7 @@ function MontarPedidos({ products, store, suppliers, pedidos, onSalvar, onEnviad
       {outros.length > 0 && (
         <label className="block space-y-1">
           <span className="text-sm font-medium text-muted-foreground">Pedir de {grupos.length ? "outro " : ""}fornecedor</span>
-          <select value="" onChange={(e) => { const id = Number(e.target.value); if (id) setGrupos((gs) => [...gs, { fornecedorId: id, linhas: [], obs: "" }]); }}
+          <select value="" onChange={(e) => { const id = suppliers.find((s) => String(s.id) === e.target.value)?.id; if (id != null) setGrupos((gs) => [...gs, { fornecedorId: id, linhas: [], obs: "" }]); }}
             className="h-13 w-full rounded-2xl border border-border bg-background-deep/60 px-4 text-base text-foreground">
             <option value="">Escolha o fornecedor…</option>
             {outros.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
@@ -193,7 +194,12 @@ function GrupoFornecedor({ fornecedor, grupo, products, store, onSalvar, onEnvia
   const salvar = async () => {
     if (salvando || !grupo.linhas.length) return;
     setSalvando(true); setErro("");
-    try { setSalvo(await onSalvar({ fornecedor, linhas: grupo.linhas, observacao: grupo.obs })); }
+    try {
+      const r = await onSalvar({ fornecedor, linhas: grupo.linhas, observacao: grupo.obs });
+      // O envio recuperado pode ter outro conteúdo. O texto atual não representa aquele pedido.
+      if (r.recuperado) onConcluido();
+      else setSalvo(r);
+    }
     catch (e) { setErro(String((e as { message?: string })?.message ?? "Não foi possível salvar o pedido.")); }
     finally { setSalvando(false); }
   };
@@ -412,7 +418,7 @@ function DetalhePedido({ pedido, products, store, fornecedor, hoje, onEnviado, o
             const s = aceito && item ? respostaItem(item.qtdEmbalagens, item.qtdConfirmada) : null;
             return (
               <li key={l.chave}>
-                <button type="button" disabled={l.p.id < 0} onClick={() => onOpenProduto(l.p)} className="flex w-full items-start justify-between gap-3 py-2.5 text-left">
+                <button type="button" disabled={!l.p.db?.id} onClick={() => onOpenProduto(l.p)} className="flex w-full items-start justify-between gap-3 py-2.5 text-left">
                   <span className="min-w-0">
                     <span className="block break-words text-sm font-semibold">{nomeLinha(l)}</span>
                     <span className="block text-xs text-muted-foreground">{s && s !== "tudo" ? "Pedido: " : ""}{quantidadeTexto(l)}</span>

@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Product, Supplier } from "@/components/ProductArea";
 import { precoUnidade as precoUnidadePedido, type CanalPedido, type FormaPagamento, type LinhaPedido, type Pedido, type RespostaPedido, type SituacaoPedido } from "@/lib/pedido";
 import type { Funcao, Funcionario } from "@/lib/funcionario";
-import { enviarCadastro, linhaFornecedor, montarCadastro, montarFornecedores, montarProdutos, type Bruto, type Sessao } from "@/lib/persistencia";
+import { ehIncerto, enviarCadastro, linhaFornecedor, montarCadastro, montarFornecedores, montarProdutos, type Bruto, type Sessao } from "@/lib/persistencia";
+import type { TipoEnvio } from "@/lib/envios";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const db = supabase as any;
@@ -11,7 +12,7 @@ const db = supabase as any;
 async function todos(tabela: string, colunas: string, filtro: (q: any) => any): Promise<any[]> {
   const out: any[] = [];
   for (let de = 0; ; de += 1000) {
-    const { data, error } = await filtro(db.from(tabela).select(colunas)).range(de, de + 999);
+    const { data, error } = await filtro(db.from(tabela).select(colunas)).order("id").range(de, de + 999);
     if (error) throw error;
     out.push(...(data ?? []));
     if (!data || data.length < 1000) return out;
@@ -47,7 +48,24 @@ export async function gerarCodigoInterno(comercioId: string): Promise<string> {
 
 export type LocaisCadastrados = { deposito: string[]; venda: string[] };
 
+async function revisaoEstoque(comercioId: string): Promise<number> {
+  const { count, error } = await db.from("operacoes").select("id", { count: "exact", head: true }).eq("comercio_id", comercioId);
+  if (error) throw error;
+  if (typeof count !== "number") throw new Error("revisao_do_estoque_indisponivel");
+  return count;
+}
+
+/** As operações e suas alterações são confirmadas na mesma transação e nunca apagadas.
+ * Se uma operação entrou durante a leitura das tabelas, descarta o conjunto e lê novamente. */
 export async function carregarProdutos(comercioId: string, suppliers: Supplier[]): Promise<{ produtos: Product[]; locais: LocaisCadastrados }> {
+  for (let tentativa = 0; tentativa < 3; tentativa++) {
+    const revisao = await revisaoEstoque(comercioId);
+    const r = await lerProdutos(comercioId, suppliers);
+    if (await revisaoEstoque(comercioId) === revisao) return r;
+  }
+  throw new Error("dados_em_atualizacao");
+}
+async function lerProdutos(comercioId: string, suppliers: Supplier[]): Promise<{ produtos: Product[]; locais: LocaisCadastrados }> {
   const doComercio = (q: any) => q.eq("comercio_id", comercioId);
   const [produtos, variacoes, areas, locais, contagens, saldos, lotes, embalagens] = await Promise.all([
     todos("produtos", "*", (q) => doComercio(q).eq("ativo", true).order("created_at", { ascending: false })),
@@ -70,6 +88,21 @@ export async function carregarProdutos(comercioId: string, suppliers: Supplier[]
 export function salvarProduto(s: Sessao, p: Product, antes: Product | undefined, comercioId: string, farm: boolean, suppliers: Supplier[], novoId: () => string) {
   return enviarCadastro(s, () => montarCadastro(p, antes, comercioId, farm, suppliers, novoId),
     async (pedido) => { const { error } = await db.rpc("salvar_cadastro", { p: pedido }); return { error }; });
+}
+
+/** Só confere o envio guardado. Nunca monta uma operação nova nem reaproveita o formulário atual. */
+export async function conferirEnvio(s: Sessao, tipo: TipoEnvio) {
+  const conferir = () => conferirSemTrava(s, tipo);
+  return s.exclusivo ? s.exclusivo(conferir) : conferir();
+}
+async function conferirSemTrava(s: Sessao, tipo: TipoEnvio) {
+  if (!s.incerto) return;
+  const { error } = await db.rpc(tipo === "produto" ? "salvar_cadastro" : "salvar_pedido", { p: s.incerto.pedido });
+  if (error) {
+    if (!ehIncerto(error)) { s.guardar?.(null); s.incerto = null; }
+    throw error;
+  }
+  s.guardar?.(null); s.incerto = null;
 }
 
 /* ---------- pedidos de compra (D2a) ---------- */
@@ -95,14 +128,18 @@ export async function carregarPedidos(comercioId: string): Promise<Pedido[]> {
   }));
 }
 /** Grava o pedido pronto. Repetir com o mesmo id não duplica. Preço estimado vai em reais por unidade de venda. */
-export async function salvarPedido(a: { id: string; comercioId: string; fornecedorId: string; observacao: string; linhas: LinhaPedido[] }): Promise<{ id: string; numero: number }> {
-  const itens = a.linhas.map((l) => {
+export async function salvarPedido(a: { id: string; comercioId: string; fornecedorId: string; observacao: string; linhas: LinhaPedido[] }, sessao?: Sessao): Promise<{ id: string; numero: number; recuperado: boolean }> {
+  const montar = () => ({ id: a.id, comercio_id: a.comercioId, fornecedor_id: a.fornecedorId, observacao: a.observacao, itens: a.linhas.map((l) => {
     if (!l.p.db?.id) throw new Error("produto_nao_salvo");
     return { produto_id: l.p.db.id, variacao_id: l.variacao?.uid ?? null, embalagem_id: l.embalagem?.uid ?? null, qtd_embalagens: l.qtd, preco_estimado: precoUnidadePedido(l) / 100 };
+  }) });
+  let resultado: { id: string; numero: number } | undefined;
+  const r = await enviarCadastro(sessao ?? { dbId: a.id, incerto: null }, montar, async (p) => {
+    const { data, error } = await db.rpc("salvar_pedido", { p });
+    if (!error) resultado = { id: data.id, numero: Number(data.numero) };
+    return { error };
   });
-  const { data, error } = await db.rpc("salvar_pedido", { p: { id: a.id, comercio_id: a.comercioId, fornecedor_id: a.fornecedorId, observacao: a.observacao, itens } });
-  if (error) throw error;
-  return { id: data.id, numero: Number(data.numero) };
+  return { ...resultado!, recuperado: r === "anterior_gravado" };
 }
 export async function marcarPedidoEnviado(id: string, canal: CanalPedido) {
   const { error } = await db.rpc("marcar_pedido_enviado", { _pedido: id, _canal: canal });

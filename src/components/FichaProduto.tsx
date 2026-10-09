@@ -76,7 +76,9 @@ export function FichaProduto({ p, tipo, fornecedor, onBack, onEdit }: {
             ))}
           </div>
         )}
-        {s.qtd.total == null && <p className="mt-3 text-sm text-muted-foreground">Ainda não foi contado. Toque em Editar para informar quanto tem.</p>}
+        {s.qtd.total == null && <p className="mt-3 text-sm text-muted-foreground">{s.qtd.dep != null || s.qtd.ven != null || s.variacoes.some((v) => v.dep != null || v.ven != null)
+          ? "Total ainda incompleto. Há áreas ou variações sem contagem."
+          : "Ainda não foi contado. Toque em Editar para informar quanto tem."}</p>}
       </Cartao>
 
       {/* Onde fica */}
