@@ -63,7 +63,7 @@ set role authenticated;
 select t_ok(salvar_produto(t_p('op1','P1','cm1','Pacote',null,
   '[{"area":"deposito","local":{"nome":" Estante  A "},"minimo":5,"maximo":60,"contagem":{"quantidade":40}},
     {"area":"venda","local":{"nome":"Gôndola 3"},"contagem":{"quantidade":8}}]', '[]', '789001', u('fa')))
-  = '{"produto_id": "' || u('P1') || '", "contagens_registradas": 2}', 'repeticao identica devolve resultado original');
+  = jsonb_build_object('produto_id', u('P1'), 'contagens_registradas', 2), 'repeticao identica devolve resultado original');
 select t_erro($$select salvar_produto(t_p('op1','P1','cm1','Pacote',null,'[]','[]','789001',u('fa'),9))$$, 'operacao_reutilizada_com_conteudo_diferente');
 select 'OK mesmo id com outro conteudo recusado';
 select salvar_produto(t_p('op2','P1','cm1','Pacote',null,
