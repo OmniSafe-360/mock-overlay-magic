@@ -167,6 +167,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
         detalhesFixos: [{ k: "especie", opts: DETALHES["pet"]!.find((f) => f.k === "especie")?.opts ?? [], msg: ESPECIE_MSG }] }
     : tipo === "autopecas" ? { unidades: UNIDADES["autopecas"]!, categorias: CATEGORIAS["autopecas"]!, semVariacoes: true, varsMsg: AUTOPECAS_VARS_MSG,
         detalhesFixos: [{ k: "posicao", opts: DETALHES["autopecas"]!.find((f) => f.k === "posicao")?.opts ?? [], msg: POSICAO_MSG }] }
+    : tipo === "roupas" ? { unidades: UNIDADES["roupas"]!, categorias: CATEGORIAS["roupas"]! } // variações continuam obrigatórias
     : undefined;
   const ruleErr = typeRuleError({ unidade, categoria, variacoes: vars, detalhes: det }, rules);
   const dup = !!codeErr;
