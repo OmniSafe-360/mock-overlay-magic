@@ -58,7 +58,7 @@ const pedidoEnviado: Pedido = { id: "ped-1", numero: 3, fornecedorId: "f-sol", s
 
 function abrir(extra: Partial<Parameters<typeof PainelPedidos>[0]> = {}) {
   const props = { products: [arroz, cafe, ok, semForn, doLua], store: comercio, suppliers: [sol, lua], pedidos: [] as Pedido[],
-    onSalvar: vi.fn(async () => ({ id: "novo", numero: 8 })), onEnviado: vi.fn(async () => {}), onCancelar: vi.fn(async () => {}), onOpenProduto: vi.fn(), ...extra };
+    onSalvar: vi.fn(async () => ({ id: "novo", numero: 8 })), onEnviado: vi.fn(async () => {}), onCancelar: vi.fn(async () => {}), onNovoLink: vi.fn(async () => "n".repeat(64)), onOpenProduto: vi.fn(), ...extra };
   render(<PainelPedidos {...props} />);
   return props;
 }

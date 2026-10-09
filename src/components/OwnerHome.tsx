@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { carregarFornecedores, carregarProdutos, atualizarFornecedor, criarFornecedor, gerarCodigoInterno, salvarProduto, carregarPedidos, salvarPedido, marcarPedidoEnviado, cancelarPedido, type LocaisCadastrados } from "@/lib/banco";
+import { carregarFornecedores, carregarProdutos, atualizarFornecedor, criarFornecedor, gerarCodigoInterno, salvarProduto, carregarPedidos, salvarPedido, marcarPedidoEnviado, cancelarPedido, novoLinkPedido, type LocaisCadastrados } from "@/lib/banco";
 import type { CanalPedido, LinhaPedido, Pedido } from "@/lib/pedido";
 import { ehIncerto, mensagemErro, type Sessao } from "@/lib/persistencia";
 import { newUid } from "@/lib/deposito";
@@ -106,6 +106,7 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
   const recarregarPedidos = async (comercioId: string) => {
     const ps = await carregarPedidos(comercioId);
     setPedidos((m) => ({ ...m, [comercioId]: ps }));
+    return ps;
   };
   const comMensagem = async <T,>(acao: () => Promise<T>, inicio: string): Promise<T> => {
     try { return await acao(); }
@@ -114,8 +115,13 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
   const salvarPedidoNovo = (comercioId: string) => async (a: { fornecedor: Supplier; linhas: LinhaPedido[]; observacao: string }) => {
     if (!a.fornecedor.dbId) throw new Error("Este fornecedor ainda não foi salvo.");
     const r = await comMensagem(() => salvarPedido({ id: newUid(), comercioId, fornecedorId: a.fornecedor.dbId!, observacao: a.observacao, linhas: a.linhas }), "Não foi possível salvar o pedido.");
+    const ps = await recarregarPedidos(comercioId).catch(() => null);
+    return { ...r, token: ps?.find((x) => x.id === r.id)?.token };
+  };
+  const pedidoNovoLink = (comercioId: string) => async (id: string) => {
+    const t = await comMensagem(() => novoLinkPedido(id), "Não foi possível gerar o novo link.");
     await recarregarPedidos(comercioId).catch(() => {});
-    return r;
+    return t;
   };
   const pedidoEnviado = (comercioId: string) => async (id: string, canal: CanalPedido) => {
     await comMensagem(() => marcarPedidoEnviado(id, canal), "Não foi possível marcar o pedido como enviado.");
@@ -213,6 +219,7 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
               pedidos={sid ? pedidos[sid] ?? [] : []}
               onSalvarPedido={sid ? salvarPedidoNovo(sid) : async () => { throw new Error(NO_ID); }}
               onPedidoEnviado={sid ? pedidoEnviado(sid) : async () => {}} onCancelarPedido={sid ? pedidoCancelado(sid) : async () => {}}
+              onNovoLinkPedido={sid ? pedidoNovoLink(sid) : async () => { throw new Error(NO_ID); }}
               onBack={() => { setOpen(null); setSaved(false); }} onNew={() => openWizard()} onEdit={(p) => openWizard(p)} onDismissSaved={() => setSaved(false)} />
           ) : tab === "inicio" ? (
             <HomeContent stores={stores} onAdd={() => setAdding(true)} onOpen={(s) => setOpen(s)} />

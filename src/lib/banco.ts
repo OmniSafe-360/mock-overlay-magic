@@ -1,7 +1,7 @@
 /* Acesso ao Supabase do cadastro de produtos. As regras de acesso do banco garantem que só o dono vê o próprio comércio. */
 import { supabase } from "@/integrations/supabase/client";
 import type { Product, Supplier } from "@/components/ProductArea";
-import { precoUnidade as precoUnidadePedido, type CanalPedido, type LinhaPedido, type Pedido } from "@/lib/pedido";
+import { precoUnidade as precoUnidadePedido, type CanalPedido, type FormaPagamento, type LinhaPedido, type Pedido, type RespostaPedido, type SituacaoPedido } from "@/lib/pedido";
 import { enviarCadastro, linhaFornecedor, montarCadastro, montarFornecedores, montarProdutos, type Bruto, type Sessao } from "@/lib/persistencia";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -76,12 +76,16 @@ const centavosDe = (v: unknown) => (v == null ? null : Math.round(Number(v) * 10
 export async function carregarPedidos(comercioId: string): Promise<Pedido[]> {
   const doComercio = (q: any) => q.eq("comercio_id", comercioId);
   const [ped, itens] = await Promise.all([
-    todos("pedidos_compra", "id,numero,fornecedor_id,situacao,canal,enviado_em,observacao,token,created_at", (q) => doComercio(q).order("created_at", { ascending: false })),
+    todos("pedidos_compra", "id,numero,fornecedor_id,situacao,canal,enviado_em,observacao,token,created_at,resposta_em,previsao_entrega,valor_total,forma_pagamento,prazo_dias,recado_fornecedor,pagamento_situacao,vencimento,pago_em",
+      (q) => doComercio(q).order("created_at", { ascending: false })),
     todos("pedido_itens", "pedido_id,produto_id,variacao_id,embalagem_id,qtd_embalagens,qtd_unidades,preco_estimado,qtd_confirmada,qtd_recebida,created_at", (q) => doComercio(q).order("created_at")),
   ]);
   return ped.map((r) => ({
     id: r.id, numero: Number(r.numero), fornecedorId: r.fornecedor_id, situacao: r.situacao, canal: r.canal ?? null,
     enviadoEm: r.enviado_em ?? null, observacao: r.observacao ?? "", token: r.token, criadoEm: r.created_at,
+    resposta: r.resposta_em ? { em: r.resposta_em, previsaoEntrega: r.previsao_entrega ?? null, valorTotal: centavosDe(r.valor_total), forma: r.forma_pagamento ?? null,
+      prazoDias: r.prazo_dias ?? null, recado: r.recado_fornecedor ?? "" } : null,
+    pagamento: { situacao: r.pagamento_situacao ?? null, vencimento: r.vencimento ?? null, pagoEm: r.pago_em ?? null },
     itens: itens.filter((i) => i.pedido_id === r.id).map((i) => ({
       produtoId: i.produto_id, variacaoId: i.variacao_id ?? null, embalagemId: i.embalagem_id ?? null,
       qtdEmbalagens: Number(i.qtd_embalagens), qtdUnidades: Number(i.qtd_unidades), precoEstimado: centavosDe(i.preco_estimado),
@@ -106,4 +110,52 @@ export async function marcarPedidoEnviado(id: string, canal: CanalPedido) {
 export async function cancelarPedido(id: string) {
   const { error } = await db.rpc("cancelar_pedido", { _pedido: id });
   if (error) throw error;
+}
+
+/** Dono: troca o link do pedido; o antigo para de funcionar. */
+export async function novoLinkPedido(id: string): Promise<string> {
+  const { data, error } = await db.rpc("novo_link_pedido", { _pedido: id });
+  if (error) throw error;
+  return String(data);
+}
+
+/* ---------- página do fornecedor (sem login) ---------- */
+export type ItemPublico = {
+  id: string; produto: string; codigo: string | null; unidade: string; variacao: string | null; embalagem: string | null; porEmbalagem: number | null;
+  qtdEmbalagens: number; qtdUnidades: number; qtdConfirmada: number | null;
+};
+export type PedidoPublico = {
+  numero: number; situacao: SituacaoPedido; fornecedor: string; observacao: string; enviadoEm: string | null; podeResponder: boolean;
+  comercio: { nome: string; rua: string; numero: string; bairro: string; cidade: string; uf: string; complemento: string; telefone: string };
+  resposta: RespostaPedido | null; itens: ItemPublico[];
+};
+export async function carregarPedidoPublico(token: string): Promise<PedidoPublico | null> {
+  const { data, error } = await db.rpc("pedido_publico", { _token: token });
+  if (error) throw error;
+  if (!data) return null;
+  const r = data.resposta;
+  return {
+    numero: Number(data.numero), situacao: data.situacao, fornecedor: data.fornecedor ?? "", observacao: data.observacao ?? "", enviadoEm: data.enviado_em ?? null,
+    podeResponder: !!data.pode_responder,
+    comercio: { nome: data.comercio?.nome ?? "", rua: data.comercio?.rua ?? "", numero: data.comercio?.numero ?? "", bairro: data.comercio?.bairro ?? "",
+      cidade: data.comercio?.cidade ?? "", uf: data.comercio?.uf ?? "", complemento: data.comercio?.complemento ?? "", telefone: data.comercio?.telefone ?? "" },
+    resposta: r ? { em: r.em, previsaoEntrega: r.previsao_entrega ?? null, valorTotal: centavosDe(r.valor_total), forma: r.forma_pagamento ?? null, prazoDias: r.prazo_dias ?? null, recado: r.recado ?? "" } : null,
+    itens: (data.itens ?? []).map((i: any) => ({
+      id: i.id, produto: i.produto, codigo: i.codigo ?? null, unidade: i.unidade, variacao: i.variacao ?? null, embalagem: i.embalagem ?? null,
+      porEmbalagem: i.por_embalagem == null ? null : Number(i.por_embalagem), qtdEmbalagens: Number(i.qtd_embalagens), qtdUnidades: Number(i.qtd_unidades),
+      qtdConfirmada: i.qtd_confirmada == null ? null : Number(i.qtd_confirmada),
+    })),
+  };
+}
+export type RespostaFornecedor = {
+  aceito: boolean; itens: { id: string; qtdConfirmada: number }[]; previsaoEntrega: string | null; valorTotal: number | null;
+  forma: FormaPagamento | null; prazoDias: number | null; recado: string;
+};
+export async function responderPedido(token: string, r: RespostaFornecedor): Promise<SituacaoPedido> {
+  const { data, error } = await db.rpc("responder_pedido", { _token: token, r: {
+    aceito: r.aceito, itens: r.itens.map((i) => ({ id: i.id, qtd_confirmada: i.qtdConfirmada })), previsao_entrega: r.previsaoEntrega,
+    valor_total: r.valorTotal == null ? null : r.valorTotal / 100, forma_pagamento: r.forma, prazo_dias: r.prazoDias, recado: r.recado,
+  } });
+  if (error) throw error;
+  return data?.situacao;
 }
