@@ -24,9 +24,45 @@ export function classifyCameraError(e: unknown): ScanError {
   return "failed";
 }
 
+/** Retângulo em pixels (x, y, largura, altura). */
+export type Rect = { x: number; y: number; w: number; h: number };
+
+/**
+ * Converte a moldura visível (coordenadas da tela, relativas ao vídeo) para a região
+ * correspondente no quadro real da câmera, considerando object-cover (o vídeo é ampliado
+ * e cortado nas bordas). videoWidth/videoHeight já vêm na orientação exibida.
+ * `margem` amplia a região (fração do tamanho) para tolerar código um pouco fora da moldura.
+ */
+export function cropParaVideo(vw: number, vh: number, ew: number, eh: number, frame: Rect, margem = 0.15): Rect | null {
+  if (!(vw > 0 && vh > 0 && ew > 0 && eh > 0 && frame.w > 0 && frame.h > 0)) return null;
+  const s = Math.max(ew / vw, eh / vh); // object-cover
+  const ox = (ew - vw * s) / 2, oy = (eh - vh * s) / 2;
+  const mx = frame.w * margem, my = frame.h * margem;
+  let x = (frame.x - mx - ox) / s, y = (frame.y - my - oy) / s;
+  let x2 = (frame.x + frame.w + mx - ox) / s, y2 = (frame.y + frame.h + my - oy) / s;
+  x = Math.max(0, x); y = Math.max(0, y); x2 = Math.min(vw, x2); y2 = Math.min(vh, y2);
+  if (x2 - x < 16 || y2 - y < 16) return null;
+  return { x: Math.round(x), y: Math.round(y), w: Math.round(x2 - x), h: Math.round(y2 - y) };
+}
+
+/** Câmera traseira com resolução boa para códigos de barras, sem exigências que impeçam abrir. */
+export const CAMERA_PREFERIDA: MediaStreamConstraints = {
+  audio: false,
+  video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+};
+/** Intervalo entre tentativas de leitura (o ZXing usa 500 ms por padrão). */
+export const INTERVALO_LEITURA_MS = 80;
+/** A cada N tentativas, lê o quadro inteiro (caso o código esteja fora da moldura). */
+export const QUADRO_INTEIRO_A_CADA = 5;
+/** Maior lado da imagem enviada ao leitor (reduz processamento sem perder barras). */
+const MAX_LADO = 960;
+
+type Caps = { torch?: boolean; focusMode?: string[] };
+
 /** Câmera em tela cheia que lê EAN-13, EAN-8, UPC, Code 128 e QR Code. Entrega o código uma única vez. */
 export function Scanner({ onCode, onType, onClose }: { onCode: (c: string) => void; onType: () => void; onDenied?: () => void; onClose: () => void }) {
   const video = useRef<HTMLVideoElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
   const ctrl = useRef<Controls | null>(null);
   const done = useRef(false);
   const [attempt, setAttempt] = useState(0);
@@ -47,42 +83,93 @@ export function Scanner({ onCode, onType, onClose }: { onCode: (c: string) => vo
   useEffect(() => {
     if (!mounted) return;
     let alive = true;
+    let stream: MediaStream | null = null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const t0 = performance.now();
+    const pararStream = () => { if (timer) clearTimeout(timer); stream?.getTracks().forEach((t) => t.stop()); };
     setStatus("loading"); setHasTorch(false); setTorch(false);
     (async () => {
       if (typeof window !== "undefined" && window.isSecureContext === false) { setStatus("insecure"); return; }
       if (!navigator.mediaDevices?.getUserMedia) { setStatus("unsupported"); return; }
       try {
-        const [{ BrowserMultiFormatReader }, { BarcodeFormat, DecodeHintType }] = await Promise.all([import("@zxing/browser"), import("@zxing/library")]);
-        if (!alive || !video.current) return;
+        // Câmera e biblioteca carregam em paralelo para abrir mais rápido.
+        const libs = Promise.all([import("@zxing/browser"), import("@zxing/library")]);
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(CAMERA_PREFERIDA);
+        } catch (e) {
+          // Alguns aparelhos recusam a preferência de câmera/resolução: tenta qualquer câmera.
+          if (classifyCameraError(e) !== "nocamera" || !alive) throw e;
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        }
+        if (!alive || !video.current) { pararStream(); return; } // fechou durante a inicialização
+        const track = stream.getVideoTracks()[0];
+        const caps: Caps = (track?.getCapabilities?.() as Caps | undefined) ?? {};
+        // Foco contínuo quando o aparelho permitir; se não, segue normalmente.
+        if (caps.focusMode?.includes("continuous")) {
+          try { await track.applyConstraints({ advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet] }); } catch { /* sem suporte */ }
+        }
+        const v = video.current;
+        v.srcObject = stream;
+        try { await v.play(); } catch { /* autoPlay cuida */ }
+        const [{ BrowserMultiFormatReader }, { BarcodeFormat, DecodeHintType }] = await libs;
+        if (!alive || !video.current) { pararStream(); return; }
         const hints = new Map();
         hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.UPC_E, BarcodeFormat.CODE_128, BarcodeFormat.QR_CODE]);
+        hints.set(DecodeHintType.TRY_HARDER, true);
         const reader = new BrowserMultiFormatReader(hints);
-        const onResult = (res: { getText: () => string } | undefined | null) => {
-          if (!res || !alive || done.current) return;
-          const text = String(res.getText()).trim(); // texto puro: zeros à esquerda preservados
-          if (!text) return;
+        const canvas = document.createElement("canvas");
+        const g = canvas.getContext("2d", { willReadFrequently: true });
+        const tPronto = performance.now();
+        console.info(`[scanner] câmera aberta em ${Math.round(tPronto - t0)} ms`);
+
+        const entregar = (raw: string) => {
+          const text = String(raw).trim(); // texto puro: zeros à esquerda preservados
+          if (!text || !alive || done.current) return;
+          console.info(`[scanner] código reconhecido ${Math.round(performance.now() - tPronto)} ms após abrir`);
           done.current = true; alive = false;
-          stopAll();
+          pararStream(); stopAll();
           navigator.vibrate?.(80);
           onCode(text);
         };
-        let c: Controls;
-        try {
-          c = await reader.decodeFromConstraints({ video: { facingMode: { ideal: "environment" } } }, video.current, onResult);
-        } catch (e) {
-          // Alguns aparelhos recusam a preferência de câmera: tenta qualquer câmera.
-          if (classifyCameraError(e) !== "nocamera" || !alive || !video.current) throw e;
-          c = await reader.decodeFromConstraints({ video: true }, video.current, onResult);
-        }
-        if (!alive) { try { c.stop(); } catch { /* */ } return; } // fechou durante a inicialização
-        ctrl.current = c;
-        setHasTorch(!!c.switchTorch);
+
+        let n = 0;
+        const tick = () => {
+          if (!alive || done.current) return;
+          const el = video.current;
+          if (el && g && el.readyState >= 2 && el.videoWidth > 0) {
+            n++;
+            const vr = el.getBoundingClientRect();
+            const fr = frameRef.current?.getBoundingClientRect();
+            const full: Rect = { x: 0, y: 0, w: el.videoWidth, h: el.videoHeight };
+            const crop = n % QUADRO_INTEIRO_A_CADA !== 0 && fr
+              ? cropParaVideo(el.videoWidth, el.videoHeight, vr.width, vr.height, { x: fr.left - vr.left, y: fr.top - vr.top, w: fr.width, h: fr.height })
+              : null;
+            const r = crop ?? full;
+            const k = Math.min(1, MAX_LADO / Math.max(r.w, r.h));
+            canvas.width = Math.round(r.w * k); canvas.height = Math.round(r.h * k);
+            try {
+              g.drawImage(el, r.x, r.y, r.w, r.h, 0, 0, canvas.width, canvas.height);
+              const res = reader.decodeFromCanvas(canvas);
+              if (res) { entregar(res.getText()); return; }
+            } catch { /* nenhum código neste quadro */ }
+          }
+          // Próxima tentativa só depois que esta terminou: não acumula trabalho nem trava.
+          timer = setTimeout(tick, INTERVALO_LEITURA_MS);
+        };
+
+        ctrl.current = {
+          stop: pararStream,
+          switchTorch: caps.torch ? (on: boolean) => track.applyConstraints({ advanced: [{ torch: on } as MediaTrackConstraintSet] }) : undefined,
+        };
+        setHasTorch(!!caps.torch);
         setStatus("ready");
+        tick();
       } catch (e) {
+        pararStream();
         if (alive) { stopAll(); setStatus(classifyCameraError(e)); }
       }
     })();
-    return () => { alive = false; stopAll(); };
+    return () => { alive = false; pararStream(); stopAll(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, attempt]);
 
@@ -109,13 +196,13 @@ export function Scanner({ onCode, onType, onClose }: { onCode: (c: string) => vo
           </div>
         ) : (
           <div className="flex flex-col items-center gap-4">
-            <div className="relative h-56 w-72 max-w-[80vw] rounded-3xl border-4 border-accent shadow-[0_0_0_9999px_oklch(0.18_0.05_260/0.55)]">
+            <div ref={frameRef} className="relative h-56 w-72 max-w-[80vw] rounded-3xl border-4 border-accent shadow-[0_0_0_9999px_oklch(0.18_0.05_260/0.55)]">
               {status === "loading"
                 ? <span className="absolute inset-0 flex items-center justify-center"><Loader2 size={32} className="animate-spin text-accent" /></span>
                 : <span className="absolute inset-x-4 top-1/2 h-0.5 animate-pulse bg-accent" />}
             </div>
             <p className="rounded-2xl bg-background/70 px-4 py-2 text-center text-base font-medium text-foreground backdrop-blur">
-              {status === "loading" ? "Abrindo a câmera..." : "Aponte para o código de barras ou QR Code"}
+              {status === "loading" ? "Abrindo a câmera..." : "Centralize o código e mantenha o celular parado"}
             </p>
           </div>
         )}
