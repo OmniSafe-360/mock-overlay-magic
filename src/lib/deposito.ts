@@ -17,7 +17,7 @@ export const MAX_MENOR = "O máximo precisa ser igual ou maior que o mínimo.";
 export const LOCAL_DUP = "Já existe um local com este nome neste comércio. Escolha-o na lista.";
 export const SEM_CONFIG = "Depósito não configurado";
 export const LOCAL_PENDENTE = "Depósito não configurado completamente · Local não definido";
-export const TEMPORARIO = "Configuração temporária: não permanece ao atualizar a página.";
+export const TEMPORARIO = "A configuração é guardada junto com o produto ao salvar.";
 export const ACIMA_MAX = "Você tem mais que o desejado. Tudo bem: a contagem real será registrada.";
 export const REMOCAO_BLOQUEADA = "Esta variação tem quantidade confirmada no depósito ou na área de venda. Removê-la não é permitido nesta versão.";
 export const unidadeTravadaMsg = (u: string) =>
@@ -69,4 +69,8 @@ export function temQtdPositiva(d?: Deposito): boolean {
 }
 
 let seq = 0;
-export const newUid = () => `v${Date.now().toString(36)}${(seq++).toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+/** Identificador estável no formato aceito pelo banco (uuid). */
+export const newUid = (): string =>
+  typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => { const r = (Math.random() * 16) | 0; seq++; return (c === "x" ? r : (r & 3) | 8).toString(16); });
