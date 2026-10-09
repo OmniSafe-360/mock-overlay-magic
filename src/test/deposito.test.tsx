@@ -93,14 +93,14 @@ describe("roupas", () => {
     click("Não, vou contar o depósito"); t.submit();
     expect(screen.getByText(QTD_VAZIA)).toBeTruthy();
     typeIn(/Quantidade confirmada no depósito/, "0"); t.submit(); t.submit(); t.submit();
-    const p = saved(t.onSave); expect(p.deposito?.vars?.a?.qtd).toBe(0); expect(p.variacoes[0]!.qtd).toBe(2);
+    const p = saved(t.onSave); expect(p.deposito?.vars?.["a"]?.qtd).toBe(0); expect(p.variacoes[0]!.qtd).toBe(2);
   });
   it("editar a quantidade do cadastro não altera o depósito confirmado", () => {
     const p = roupa({ deposito: { local: "Arara", qtd: null, min: null, max: null, vars: { a: { qtd: 2, min: null, max: null } } } });
     const t = setup("roupas", p); t.submit(); t.submit();
     click("Editar variação"); typeIn(/^Quantidade$/, "9"); click("Salvar variação");
     for (let i = 0; i < 5; i++) t.submit(); t.submit();
-    const s = saved(t.onSave); expect(s.variacoes[0]!.qtd).toBe(9); expect(s.deposito?.vars?.a?.qtd).toBe(2);
+    const s = saved(t.onSave); expect(s.variacoes[0]!.qtd).toBe(9); expect(s.deposito?.vars?.["a"]?.qtd).toBe(2);
   });
   it("associação por variação preservada e remoção com quantidade positiva bloqueada", () => {
     const vars = [{ tam: "M", cor: "Azul", codigo: "222", qtd: 5, uid: "a" }, { tam: "G", cor: "Preto", codigo: "333", qtd: 1, uid: "b" }];
@@ -126,7 +126,7 @@ describe("roupas", () => {
     fireEvent.change(document.querySelector('input[name="dmin-a"]')!, { target: { value: "1" } });
     fireEvent.change(document.querySelector('input[name="dmax-a"]')!, { target: { value: "5" } });
     click("Usar os mesmos limites para todas"); t.submit(); t.submit();
-    expect(saved(t.onSave).deposito?.vars?.b).toEqual({ qtd: 1, min: 1, max: 5 });
+    expect(saved(t.onSave).deposito?.vars?.["b"]).toEqual({ qtd: 1, min: 1, max: 5 });
   });
 });
 
