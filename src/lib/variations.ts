@@ -47,7 +47,19 @@ export type ProductDraft = {
 };
 
 /** Valida todas as etapas antes de salvar. Retorna a primeira etapa inválida e a orientação, ou null. */
-export function firstInvalidStep(d: ProductDraft, isRoupas: boolean, used: Set<string>): { step: number; msg: string } | null {
+export type TypeRules = { unidades: string[]; categorias: string[]; semVariacoes?: boolean };
+export const MERCADO_VARS_MSG = "Este produto de Mercado contém variações incompatíveis. O salvamento foi bloqueado.";
+
+/** Regras exclusivas do Mercado: unidade e categoria precisam estar nas listas; variações não são permitidas. */
+export function typeRuleError(d: Pick<ProductDraft, "unidade" | "categoria" | "variacoes">, rules?: TypeRules): { step: number; msg: string } | null {
+  if (!rules) return null;
+  if (d.unidade && !rules.unidades.includes(d.unidade)) return { step: 1, msg: "Unidade incompatível com este comércio. Escolha uma opção válida." };
+  if (d.categoria && !rules.categorias.includes(d.categoria)) return { step: 1, msg: "Categoria incompatível com este comércio. Escolha uma opção válida." };
+  if (rules.semVariacoes && d.variacoes.length > 0) return { step: 2, msg: MERCADO_VARS_MSG };
+  return null;
+}
+
+export function firstInvalidStep(d: ProductDraft, isRoupas: boolean, used: Set<string>, rules?: TypeRules): { step: number; msg: string } | null {
   if (!d.codigo.trim()) return { step: 0, msg: "Informe o código do produto." };
   const ce = mainCodeError(d.codigo, used, isRoupas ? d.variacoes : []);
   if (ce) return { step: 0, msg: ce };
@@ -55,6 +67,8 @@ export function firstInvalidStep(d: ProductDraft, isRoupas: boolean, used: Set<s
   if (!(d.compra > 0) || !(d.venda > 0)) return { step: 1, msg: "Informe os preços de compra e de venda." };
   if (!d.unidade) return { step: 1, msg: "Escolha a unidade." };
   if (!d.categoria) return { step: 1, msg: "Escolha a categoria." };
+  const tr = typeRuleError(d, rules);
+  if (tr) return tr;
   if (isRoupas) {
     const vs = d.variacoes;
     if (!vs.length) return { step: 2, msg: "Adicione pelo menos uma variação." };
