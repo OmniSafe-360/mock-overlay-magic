@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { ProductWizard, validadeLinhas, type Product } from "@/components/ProductArea";
+import { ProductWizard, ValidadeInfo, validadeLinhas, type Product } from "@/components/ProductArea";
 import {
   ACIMA, AGUARDANDO, AVISOS_NAO, DESLIGAR_BLOQ, PEND_CONF, SEM_ESTOQUE, VAL_FARM_INCOMPLETA, VAL_SEM_CONFIG, analisarLotes, conferencia,
   conferirSoma, faixa, faltaMsg, hojeEm, parseData, proximoVencimento, type Validade,
@@ -227,5 +227,165 @@ describe("edição", () => {
     expect(screen.getByRole("button", { name: /Manter sem configurar/, pressed: true })).toBeTruthy();
     t.submit(); t.submit();
     expect(saved(t.onSave).validade).toBeUndefined();
+  });
+});
+
+/* ---------- regressão: pendências registradas preservam a própria origem ---------- */
+describe("pendências registradas: proteção por origem", () => {
+  const farmBase = (validade: Validade, extra: Partial<Product> = {}): Product => ({ id: 1, codigo: "789", nome: "Remédio", compra: 1000, venda: 1500,
+    unidade: "Caixa", categoria: "Medicamentos", detalhes: {}, variacoes: [], fornecedor: null,
+    deposito: { local: "A", qtd: 20, min: null, max: null }, areaVenda: { local: "G", qtd: 0, min: null, max: null }, validade, ...extra });
+  const duas: Validade = { controla: true, avisos: [], ven: {}, dep: { _: [
+    { id: "p1", qtd: 10, data: "2027-04-12", lote: null, pendConf: true }, { id: "p2", qtd: 10, data: "2027-05-12", lote: null, pendConf: true },
+  ] } };
+  const msg1 = /A pendência registrada de 10 Caixa \(vence 12\/04\/2027\) agora soma 15 Caixa/;
+  const irDep = (t: { submit: () => void }) => { for (let i = 0; i < 12; i++) t.submit(); expect(screen.getByText("Validades no depósito")).toBeTruthy(); };
+
+  it("duas pendências de 10 não podem virar 15 e 5, mesmo com o total da área correto", () => {
+    const t = setup("farmacia", farmBase(duas));
+    irDep(t);
+    typeAll(/^Quantidade \(/, ["15", "5"]);
+    t.submit();
+    expect(screen.getByText(msg1)).toBeTruthy();
+    expect(screen.getByText("Validades no depósito")).toBeTruthy();
+    for (let i = 0; i < 4; i++) t.submit();
+    expect(t.onSave).not.toHaveBeenCalled();
+    typeAll(/^Quantidade \(/, ["10", "10"]);
+    expect(screen.queryByText(msg1)).toBeNull(); // some quando corrigido
+    t.submit(); t.submit(); t.submit();
+    expect(saved(t.onSave).validade).toEqual(duas); // nada redistribuído
+  });
+
+  it("uma pendência de 10 vira 4 e 6 com a data conhecida; a outra e a contagem física não mudam", () => {
+    const t = setup("farmacia", farmBase(duas));
+    irDep(t);
+    fireEvent.click(screen.getAllByRole("button", { name: "Dividir esta pendência" })[0]!); // divide p1
+    // ordem dos campos: p1, p2, parte nova de p1
+    typeAll(/^Quantidade \(/, ["4", "10", "6"]);
+    t.submit(); t.submit(); t.submit();
+    const p = saved(t.onSave); const ls = p.validade!.dep["_"]!;
+    expect(p.deposito?.qtd).toBe(20);
+    expect(ls.map((l) => [l.qtd, l.data, l.origem ?? l.id])).toEqual([[4, "2027-04-12", "p1"], [10, "2027-05-12", "p2"], [6, "2027-04-12", "p1"]]);
+  });
+
+  it("parte nova de p1 não pode receber quantidade de p2", () => {
+    const t = setup("farmacia", farmBase(duas));
+    irDep(t);
+    fireEvent.click(screen.getAllByRole("button", { name: "Dividir esta pendência" })[0]!);
+    typeAll(/^Quantidade \(/, ["10", "5", "5"]); // total 20, mas p1 = 15 e p2 = 5
+    t.submit();
+    expect(screen.getByText(msg1)).toBeTruthy();
+    expect(t.onSave).not.toHaveBeenCalled();
+  });
+
+  it("parte com zero é recusada", () => {
+    const t = setup("farmacia", farmBase(duas));
+    irDep(t);
+    fireEvent.click(screen.getAllByRole("button", { name: "Dividir esta pendência" })[0]!);
+    typeAll(/^Quantidade \(/, ["10", "10", "0"]);
+    t.submit();
+    expect(screen.getByText("A quantidade precisa ser maior que zero.")).toBeTruthy();
+    expect(screen.getByText("Validades no depósito")).toBeTruthy();
+  });
+
+  it("editar pelo resumo não contorna a proteção", () => {
+    const t = setup("farmacia", farmBase(duas));
+    for (let i = 0; i < 14; i++) t.submit();
+    expect(screen.getByText("Salvar produto")).toBeTruthy();
+    const sec = screen.getByText("Validades por área").closest("div")!.parentElement!;
+    fireEvent.click(sec.querySelector("button")!);
+    expect(screen.getByText("Validades no depósito")).toBeTruthy();
+    typeAll(/^Quantidade \(/, ["15", "5"]);
+    t.submit(); t.submit(); t.submit();
+    expect(t.onSave).not.toHaveBeenCalled();
+    expect(screen.getByText(msg1)).toBeTruthy();
+  });
+});
+
+describe("cadastro realmente novo com validade nos seis tipos", () => {
+  const casos: [string, string, string][] = [
+    ["mercado", "Pacote", "Mercearia"], ["farmacia", "Caixa", "Medicamentos"], ["construcao", "Saco", "Básico"],
+    ["pet", "Unidade", "Ração"], ["autopecas", "Kit", "Motor"],
+  ];
+  it.each(casos)("%s salva validades nas duas áreas", (tipo, u, c) => {
+    const t = novoAteValidade(tipo, u, c, "40", "20");
+    if (tipo !== "farmacia") click("Sim");
+    t.submit(); t.submit();
+    typeIn(/^Quantidade \(/, "40"); typeIn("Vence em", "10/12/2026"); typeIn(/^Lote/, "A12"); t.submit();
+    typeIn(/^Quantidade \(/, "20"); typeIn("Vence em", "10/12/2026"); typeIn(/^Lote/, "A12"); t.submit();
+    expect(screen.getByText("Salvar produto")).toBeTruthy(); t.submit();
+    const v = saved(t.onSave).validade!;
+    expect(v.dep["_"]![0]).toMatchObject({ qtd: 40, lote: "A12" }); expect(v.ven["_"]![0]).toMatchObject({ qtd: 20, lote: "A12" });
+  });
+
+  it("roupas salva validade por variação (uid)", () => {
+    const t = setup("roupas");
+    click("Digitar código"); typeIn("Código do produto", "7890001"); typeIn("Nome do produto", "Camiseta"); t.submit();
+    typeIn("Preço de compra", "1000"); typeIn("Preço de venda", "1500"); click("Peça"); typeIn("Categoria", "Camisetas"); t.submit();
+    click(/Adicionar variação/); click("M"); typeIn("Cor", "Azul"); typeIn("Código de barras", "5550001"); typeIn(/^Quantidade$/, "2"); click("Adicionar");
+    t.submit(); click("Definir depois"); t.submit();
+    click(/^Novo local$/); typeIn("Nome do local", "Estante A"); click("Usar este local"); t.submit();
+    click("Não, vou contar o depósito"); typeIn(/Quantidade confirmada no depósito/, "5"); t.submit(); t.submit();
+    click(/Novo local de venda/); typeIn("Nome do local de venda", "Arara"); click("Usar este local de venda"); t.submit();
+    typeIn(/Quanto desta variação já está neste local/, "0"); t.submit(); t.submit();
+    click("Sim"); t.submit(); t.submit();
+    typeIn(/^Quantidade \(/, "5"); typeIn("Vence em", "10/12/2026"); t.submit();
+    expect(screen.getByText(SEM_ESTOQUE)).toBeTruthy(); t.submit(); t.submit();
+    const p = saved(t.onSave); const uid = p.variacoes[0]!.uid!;
+    expect(p.validade!.dep[uid]![0]).toMatchObject({ qtd: 5, data: "2026-12-10" });
+  });
+});
+
+describe("variações e lotes não se misturam", () => {
+  const vA = { tam: "M", cor: "Azul", codigo: "1", qtd: 1, uid: "uA" }, vB = { tam: "G", cor: "Preto", codigo: "2", qtd: 1, uid: "uB" };
+  const val: Validade = { controla: true, avisos: [], ven: {}, dep: {
+    uA: [{ id: "a1", qtd: 3, data: "2026-12-10", lote: "L1" }], uB: [{ id: "b1", qtd: 4, data: "2027-02-01", lote: "L1" }] } };
+  const roupa = (variacoes: typeof vA[]): Product => ({ id: 9, codigo: "9", nome: "Camiseta", compra: 1000, venda: 1500, unidade: "Peça", categoria: "Camisetas",
+    detalhes: {}, variacoes, fornecedor: null, validade: val,
+    deposito: { local: "A", qtd: null, min: null, max: null, vars: { uA: { qtd: 3, min: null, max: null }, uB: { qtd: 4, min: null, max: null } } } });
+
+  it("mudar a ordem das variações mantém as validades no uid certo; mesmo lote em variações diferentes não é conflito", () => {
+    const t = setup("roupas", roupa([vB, vA]));
+    for (let i = 0; i < 13; i++) t.submit();
+    expect(t.onSave).toHaveBeenCalledTimes(1);
+    const v = saved(t.onSave).validade!;
+    expect(v.dep["uA"]![0]!.data).toBe("2026-12-10");
+    expect(v.dep["uB"]![0]!.data).toBe("2027-02-01");
+  });
+
+  it("mesmo número de lote em outro produto não mistura os registros", () => {
+    const outro: Product = { ...roupa([{ ...vA, codigo: "77" }]), id: 10, codigo: "10", validade: { ...val, dep: { uA: [{ id: "z", qtd: 3, data: "2030-01-01", lote: "L1" }] } } };
+    const onSave = vi.fn();
+    render(<ProductWizard store={{ id: "s", nome: "Loja", tipo: "roupas" } as never} products={[roupa([vA, vB]), outro]} initial={roupa([vA, vB])}
+      suppliers={[]} onAddSupplier={() => 1} onCancel={() => {}} onSave={onSave} />);
+    for (let i = 0; i < 13; i++) fireEvent.submit(document.querySelector("form")!);
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(saved(onSave).validade).toEqual(val);
+  });
+});
+
+describe("resumo e detalhe: não contada, zero e configuração pendente", () => {
+  const v: Validade = { controla: true, avisos: [], dep: {}, ven: {} };
+  it("distingue as três situações e marca a conferência como incompleta", () => {
+    const cont = (a: "dep" | "ven", k: string) => (a === "dep" ? (k === "uA" ? null : 0) : 7);
+    const out = validadeLinhas(v, false, "Peça", (k) => k, "2026-10-09", ["uA", "uB"], cont);
+    expect(out).toContain("Depósito · uA: Aguardando contagem");
+    expect(out).toContain("Depósito · uB: Sem estoque nesta área");
+    expect(out.some((l) => l.startsWith("Área de venda · uA: Há quantidade contada, mas a validade"))).toBe(true);
+    expect(out.some((l) => l.startsWith("Conferência incompleta"))).toBe(true);
+    expect(out.some((l) => l.startsWith("Física contada"))).toBe(false);
+  });
+  it("tudo contado e distribuído mostra a física completa", () => {
+    const ok: Validade = { ...v, dep: { _: [{ id: "x", qtd: 5, data: "2026-12-10", lote: null }] } };
+    const out = validadeLinhas(ok, false, "Un", (k) => k, "2026-10-09", ["_"], (a) => (a === "dep" ? 5 : 0));
+    expect(out.some((l) => l.startsWith("Física contada 5"))).toBe(true);
+  });
+  it("detalhe do produto usa as contagens reais", () => {
+    const p: Product = { id: 1, codigo: "1", nome: "X", compra: 1, venda: 2, unidade: "Un", categoria: "Mercearia", detalhes: {}, variacoes: [], fornecedor: null,
+      deposito: { local: "A", qtd: 5, min: null, max: null }, validade: v };
+    render(<ValidadeInfo p={p} tipo="mercado" />);
+    expect(screen.getByText(/Depósito: Há quantidade contada/)).toBeTruthy();
+    expect(screen.getByText("Área de venda: Aguardando contagem")).toBeTruthy();
+    expect(screen.getByText(/^Conferência incompleta/)).toBeTruthy();
   });
 });

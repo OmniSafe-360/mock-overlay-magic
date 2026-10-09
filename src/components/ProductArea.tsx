@@ -13,7 +13,7 @@ import {
 } from "@/lib/areaVenda";
 import {
   ACIMA, AGUARDANDO, AVISOS, CHAVE_PRODUTO, DESLIGAR_BLOQ, FAIXA_TXT, LINHAS_SEM_CONTAGEM, PEND_CONF, PEND_FALTA, QTD_ZERO, SEM_AVISOS, SEM_ESTOQUE,
-  TZ_PADRAO, VAL_FARM_INCOMPLETA, VAL_SEM_CONFIG, analisarLotes, avisosTexto, conferencia, conferirSoma, conflitoMsg, faixa, fmtData, hojeEm,
+  AREA_SEM_ESTOQUE, CONF_INCOMPLETA, VAL_AREA_PENDENTE, conferirOrigens, origemMsg, TZ_PADRAO, VAL_FARM_INCOMPLETA, VAL_SEM_CONFIG, analisarLotes, avisosTexto, conferencia, conferirSoma, conflitoMsg, faixa, fmtData, hojeEm,
   linhaTexto, lotePendente, maskData, mil, parseData, proximoVencimento, temQtdValidade, type LinhaVal, type Validade,
 } from "@/lib/validade";
 
@@ -212,22 +212,30 @@ export function TotalInfo({ p }: { p: Product }) {
 }
 
 /** Linhas de conferência da validade (resumo e detalhe). Nunca afirma que avisos ou bloqueios funcionam. */
-export function validadeLinhas(v: Validade | undefined, farm: boolean, unidade: string, nomeVar: (k: string) => string, hoje: string): string[] {
+/** Contagem confirmada por área e chave (uid da variação ou produto). null = sem contagem confirmada. */
+export type ContagemFn = (area: "dep" | "ven", k: string) => number | null;
+export function validadeLinhas(v: Validade | undefined, farm: boolean, unidade: string, nomeVar: (k: string) => string, hoje: string,
+  keys: string[] = [CHAVE_PRODUTO], cont: ContagemFn = () => null): string[] {
   if (!v) return [farm ? VAL_FARM_INCOMPLETA : VAL_SEM_CONFIG];
   if (!v.controla) return ["Não controla validade"];
   const out = ["Controla validade", avisosTexto(v.avisos), SEM_AVISOS];
   const todas: LinhaVal[] = [];
+  const faltas: string[] = [];
   for (const [area, nome] of [["dep", "Depósito"], ["ven", "Área de venda"]] as const) {
-    const ent = Object.entries(v[area]);
-    if (!ent.length) { out.push(`${nome}: sem validades registradas`); continue; }
-    for (const [k, ls] of ent) {
-      todas.push(...ls);
+    for (const k of keys) {
+      const ls = v[area][k] ?? [];
+      const c = cont(area, k);
       const pre = k === CHAVE_PRODUTO ? nome : `${nome} · ${nomeVar(k)}`;
-      out.push(ls.length ? `${pre}: ${ls.map((l) => linhaTexto(l, unidade, hoje, farm)).join("; ")}` : `${pre}: sem estoque`);
+      if (c == null) { out.push(`${pre}: ${AGUARDANDO}`); faltas.push(`${pre} aguardando contagem`); continue; }
+      if (mil(c) === 0) { out.push(`${pre}: ${AREA_SEM_ESTOQUE}`); continue; }
+      if (!ls.length) { out.push(`${pre}: ${VAL_AREA_PENDENTE} (${fmtQ(c)} ${unidade} contados)`); faltas.push(`${pre} com validade pendente`); continue; }
+      todas.push(...ls);
+      out.push(`${pre}: ${ls.map((l) => linhaTexto(l, unidade, hoje, farm)).join("; ")}`);
     }
   }
   const c = conferencia(todas, hoje, farm);
-  out.push(`Física contada ${fmtQ(c.fisica)} = não vencida ${fmtQ(c.conhecida)} + vencida ${fmtQ(c.vencida)} + sem data ${fmtQ(c.semData)} (${unidade})`);
+  const soma = `não vencida ${fmtQ(c.conhecida)} + vencida ${fmtQ(c.vencida)} + sem data ${fmtQ(c.semData)} = ${fmtQ(c.fisica)} (${unidade})`;
+  out.push(faltas.length ? `${CONF_INCOMPLETA}: ${faltas.join("; ")}. Só nas partes com validade: ${soma}` : `Física contada ${fmtQ(c.fisica)} = ${soma}`);
   if (c.vencida > 0) out.push(`Vencidos: ${fmtQ(c.vencida)} ${unidade} (continuam contados)`);
   if (c.semData > 0) out.push(`Validade desconhecida: ${fmtQ(c.semData)} ${unidade}`);
   if (c.lotePend > 0) out.push(`Lote pendente: ${fmtQ(c.lotePend)} ${unidade}`);
@@ -237,7 +245,9 @@ export function validadeLinhas(v: Validade | undefined, farm: boolean, unidade: 
 }
 export function ValidadeInfo({ p, tipo }: { p: Product; tipo: string }) {
   const nomeVar = (k: string) => { const v = p.variacoes.find((x) => x.uid === k); return v ? `${v.tam} · ${v.cor}` : "variação"; };
-  return <>{validadeLinhas(p.validade, tipo === "farmacia", p.unidade, nomeVar, hojeEm()).map((t, i) => <span key={i} className="block">{t}</span>)}</>;
+  const keys = p.variacoes.length ? p.variacoes.map((v) => v.uid ?? "") : [CHAVE_PRODUTO];
+  const cont: ContagemFn = (area, k) => qtdArea(area === "dep" ? p.deposito : p.areaVenda, k === CHAVE_PRODUTO ? undefined : k);
+  return <>{validadeLinhas(p.validade, tipo === "farmacia", p.unidade, nomeVar, hojeEm(), keys, cont).map((t, i) => <span key={i} className="block">{t}</span>)}</>;
 }
 
 /* ---------- cadastro em 8 etapas (Depósito e Área de venda têm 3 subpassos; Validade tem 4) ---------- */
@@ -251,9 +261,11 @@ const STEP_VAL = 6;
 const STEP_REV = 7;
 const TOTAL = TITLES.length;
 
-type LinhaEd = { id: string; qtd: string; data: string; semData: boolean; lote: string; conf: boolean; saved: boolean; lockData: boolean; lockLote: boolean; ro: boolean };
+type LinhaEd = { id: string; qtd: string; data: string; semData: boolean; lote: string; conf: boolean; saved: boolean; lockData: boolean; lockLote: boolean; ro: boolean;
+  /** Pendência registrada de origem (ela mesma ou a pendência que foi dividida). null = linha livre (antes do 1º salvamento). */
+  origem: string | null };
 const novaLinha = (b: Partial<LinhaEd> = {}): LinhaEd =>
-  ({ id: newUid(), qtd: "", data: "", semData: false, lote: "", conf: false, saved: false, lockData: false, lockLote: false, ro: false, ...b });
+  ({ id: newUid(), qtd: "", data: "", semData: false, lote: "", conf: false, saved: false, lockData: false, lockLote: false, ro: false, origem: null, ...b });
 /** Linhas já salvas: conhecidas ficam só para consulta; pendências podem ser completadas sem perder o que já se sabe. */
 function linhasIniciais(v: Validade | undefined, farm: boolean): Record<string, LinhaEd[]> {
   const out: Record<string, LinhaEd[]> = {};
@@ -262,7 +274,7 @@ function linhasIniciais(v: Validade | undefined, farm: boolean): Record<string, 
       out[`${area}:${k}`] = ls.map((l) => {
         const pend = !l.data || lotePendente(l, farm);
         return { id: l.id, qtd: toInput(l.qtd), data: l.data ? fmtData(l.data) : "", semData: !l.data, lote: l.lote ?? "", conf: !!l.pendConf,
-          saved: true, lockData: !!l.data, lockLote: !!l.lote, ro: !pend };
+          saved: true, lockData: !!l.data, lockLote: !!l.lote, ro: !pend, origem: pend ? l.id : null };
       });
   return out;
 }
@@ -423,9 +435,16 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     const cont = contagem(area, k);
     const vs = ls.map((l) => ({ l, r: valLinha(l) }));
     const soma = cont == null ? null : conferirSoma(cont, vs.map((x) => x.r.qv ?? 0));
+    /* pendências já registradas: cada origem preserva exatamente sua quantidade original */
+    const originais = Object.fromEntries((initVal?.[area][k] ?? []).filter((l) => !l.data || lotePendente(l, isFarm)).map((l) => [l.id, l.qtd]));
+    const quebradas = conferirOrigens(vs.map((x) => ({ origem: x.l.origem, qtd: x.r.qv })), originais).map((o) => {
+      const l = initVal![area][k]!.find((y) => y.id === o.id)!;
+      return { ...o, msg: origemMsg(`${fmtQ(o.original)} ${unidade}`, `${fmtQ(o.atual)} ${unidade}`, l.data ? ` (vence ${fmtData(l.data)})` : l.lote ? ` (lote ${l.lote})` : "") };
+    });
     const err = cont == null ? (ls.length ? LINHAS_SEM_CONTAGEM : "")
-      : vs.some((x) => x.r.qErr || x.r.dErr || x.r.pErr) ? "Corrija as validades marcadas em vermelho." : soma!.err;
-    return { k, ls, cont, vs, soma, err };
+      : vs.some((x) => x.r.qErr || x.r.dErr || x.r.pErr) ? "Corrija as validades marcadas em vermelho."
+      : quebradas.length ? quebradas[0]!.msg : soma!.err;
+    return { k, ls, cont, vs, soma, err, quebradas };
   });
   const gDep = grupos("dep"), gVen = grupos("ven");
   const analises = valKeys.map((k) => analisarLotes([...gDep, ...gVen].filter((g) => g.k === k).flatMap((g) => g.vs.map((x) => ({ id: x.l.id, lote: x.l.lote, data: x.r.dv })))));
@@ -492,7 +511,8 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     if (valManter) return initVal;
     if (!vControla) return { controla: false, avisos: [], dep: {}, ven: {} };
     const area = (gs: typeof gDep) => Object.fromEntries(gs.filter((g) => g.cont != null && g.ls.length).map((g) => [g.k,
-      g.vs.map(({ l, r }): LinhaVal => ({ id: l.id, qtd: r.qv ?? 0, data: r.dv, lote: l.lote.trim() || null, ...(r.pend ? { pendConf: true } : {}) }))]));
+      g.vs.map(({ l, r }): LinhaVal => ({ id: l.id, qtd: r.qv ?? 0, data: r.dv, lote: l.lote.trim() || null,
+        ...(r.pend ? { pendConf: true } : {}), ...(l.origem && l.origem !== l.id ? { origem: l.origem } : {}) }))]));
     return { controla: true, avisos: [...avisos].sort((a, b) => a - b), dep: area(gDep), ven: area(gVen) };
   };
   const save = () => {
@@ -584,7 +604,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const aplicarSug = (s: { data: string; ids: string[] }) =>
     setLin((m) => Object.fromEntries(Object.entries(m).map(([k, ls]) => [k, ls.map((l) => (s.ids.includes(l.id) ? { ...l, semData: false, data: fmtData(s.data), conf: false } : l))])));
   const varNome = (k: string) => { const v = vars.find((x) => x.uid === k); return v ? `${v.tam} · ${v.cor}` : "variação"; };
-  const resumoVal = validadeLinhas(buildValidade(), isFarm, unidade, varNome, hoje);
+  const resumoVal = validadeLinhas(buildValidade(), isFarm, unidade, varNome, hoje, valKeys, contagem);
 
   const renderLinha = (key: string, l: LinhaEd, r: ReturnType<typeof valLinha>, i: number) => {
     const f = r.dv ? faixa(r.dv, hoje) : l.semData ? ("desconhecida" as const) : null;
@@ -632,7 +652,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
           </div>
         ))}
         {l.saved && (
-          <button type="button" onClick={() => addL(key, { lockData: l.lockData, data: l.lockData ? l.data : "", lockLote: l.lockLote, lote: l.lockLote ? l.lote : "" })}
+          <button type="button" onClick={() => addL(key, { origem: l.origem, conf: l.conf, lockData: l.lockData, data: l.lockData ? l.data : "", semData: !l.lockData && l.semData, lockLote: l.lockLote, lote: l.lockLote ? l.lote : "" })}
             className={btnGhost}>Dividir esta pendência</button>
         )}
       </div>
