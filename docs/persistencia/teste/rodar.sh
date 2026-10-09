@@ -17,11 +17,12 @@ $P -d t -f "$D/002_testes.sql" | grep -E '^(OK|CONTAGEM)'
 echo "== prova: a suíte para quando o verificador reprova =="
 for caso in "select t_erro(\$\$select 1\$\$, 'quantidade_vazia')" \
             "select t_erro(\$\$select 1/0\$\$, 'quantidade_vazia')" \
-            "select t_erro(\$\$do \$x\$ begin raise exception 'quantidade_vazia' using errcode='23514'; end \$x\$\$\$, 'quantidade_vazia')"; do
+            "select t_erro(\$q\$do \$x\$ begin raise exception 'quantidade_vazia' using errcode='23514'; end \$x\$\$q\$, 'quantidade_vazia')"; do
   if $P -d t -c "$caso" 2>/tmp/prova.err; then echo "FALHOU: psql aceitou: $caso"; exit 1; fi
-  grep -q 'FALHOU' /tmp/prova.err && echo "OK suíte interrompida: $(grep -o 'FALHOU.*' /tmp/prova.err | head -1)"
+  grep -q 'FALHOU' /tmp/prova.err || { echo "FALHOU: parou por outro motivo: $(cat /tmp/prova.err)"; exit 1; }
+  echo "OK suíte interrompida: $(grep -o 'FALHOU.*' /tmp/prova.err | head -1)"
 done
-$P -d t -c "select t_erro(\$\$do \$x\$ begin raise exception 'quantidade_vazia' using errcode='22023'; end \$x\$\$\$, 'quantidade_vazia')" >/dev/null && echo "OK erro correto passa no psql"
+$P -d t -c "select t_erro(\$q\$do \$x\$ begin raise exception 'quantidade_vazia' using errcode='22023'; end \$x\$\$q\$, 'quantidade_vazia')" >/dev/null && echo "OK erro correto passa no psql"
 
 echo "== concorrência =="
 A=$($P -d t -c "select u('A')")
