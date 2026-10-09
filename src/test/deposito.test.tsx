@@ -160,7 +160,7 @@ describe("locais, resumo e produtos antigos", () => {
     const p = base("mercado", "Pacote", "Mercearia", { deposito: { local: "A", qtd: 4, min: null, max: null } });
     const t = setup("mercado", p); for (let i = 0; i < 8; i++) t.submit();
     expect(screen.getByText("Salvar produto")).toBeTruthy();
-    fireEvent.click(screen.getAllByRole("button", { name: /Editar/ })[6]!);
+    fireEvent.click(screen.getAllByRole("button", { name: /Editar/ })[7]!); // +1: linha "Como chega" no resumo
     expect(screen.getByText("Limites de estoque")).toBeTruthy();
     typeIn(/^Mínimo/, "2"); t.submit();
     expect(screen.getByText("Salvar produto")).toBeTruthy(); t.submit();

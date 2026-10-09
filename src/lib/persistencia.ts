@@ -51,6 +51,12 @@ export function montarPedido(p: Product, opId: string, comercioId: string, suppl
     },
     variacoes: p.variacoes.map((v) => ({ id: v.uid, tamanho: v.tam, cor: v.cor.trim(), codigo_barras: v.codigo?.trim() || null, qtd_informada: v.qtd })),
     areas,
+    /* Lista completa: o banco remove as que ficaram de fora. Loja de roupas não usa embalagem. */
+    ...(roupas ? {} : {
+      embalagens: (p.embalagens ?? []).map((e) => ({
+        id: e.uid, tipo: e.tipo, quantidade: e.qtd, codigo_barras: e.codigo.trim() || null, preco_compra: e.preco > 0 ? reais(e.preco) : null,
+      })),
+    }),
   };
 }
 
@@ -124,7 +130,14 @@ const MSG: [string, string][] = [
   ["sem_acesso_ao_comercio", "Você não tem acesso a este comércio."],
   ["operacao_reutilizada", "Este envio já foi registrado com outro conteúdo. Feche o cadastro e tente de novo."],
   ["codigo_em_uso", "Este código de barras já está cadastrado neste comércio."],
-  ["codigo_igual_ao_principal", "O código da variação precisa ser diferente do código principal."],
+  ["codigo_igual_ao_principal", "O código da variação ou da embalagem precisa ser diferente do código do produto."],
+  ["embalagem_repetida", "Já existe esta embalagem neste produto (mesmo tipo e quantidade)."],
+  ["tipo_de_embalagem_invalido", "Escolha o tipo de embalagem na lista."],
+  ["preco_da_embalagem_invalido", "O preço da embalagem precisa ser maior que zero."],
+  ["embalagens_demais", "Use no máximo 5 embalagens por produto."],
+  ["embalagem_de_outro_produto", "Esta embalagem pertence a outro produto. Feche o cadastro e tente de novo."],
+  ["roupas_sem_embalagem", "Loja de roupas ainda não usa embalagens."],
+  ["unidade_exige_inteiro", "Para esta unidade, use números inteiros."],
   ["unidade_incompativel", "Unidade incompatível com este comércio. Escolha uma opção válida."],
   ["categoria_incompativel", "Categoria incompatível com este comércio. Escolha uma opção válida."],
   ["controlado_invalido", "Escolha Sim ou Não para informar se o medicamento é controlado."],
@@ -165,7 +178,7 @@ export function mensagemErro(e: unknown): string {
 /* ---------- carregar ---------- */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = any;
-export type Bruto = { produtos: Row[]; variacoes: Row[]; areas: Row[]; locais: Row[]; contagens: Row[]; saldos: Row[]; lotes: Row[] };
+export type Bruto = { produtos: Row[]; variacoes: Row[]; areas: Row[]; locais: Row[]; contagens: Row[]; saldos: Row[]; lotes: Row[]; embalagens?: Row[] };
 
 export function montarProdutos(b: Bruto, suppliers: Supplier[]): Product[] {
   const local = new Map(b.locais.map((l) => [l.id as string, l.nome as string]));
@@ -204,6 +217,9 @@ export function montarProdutos(b: Bruto, suppliers: Supplier[]): Product[] {
       id: i + 1, codigo: pr.codigo_barras ?? "", nome: pr.nome, compra: centavos(pr.preco_compra), venda: centavos(pr.preco_venda),
       unidade: pr.unidade, categoria: pr.categoria ?? "", detalhes: det, variacoes: vars, fornecedor: forn,
       deposito: area("deposito"), areaVenda: area("venda"), validade,
+      embalagens: (b.embalagens ?? []).filter((e) => e.produto_id === pr.id)
+        .sort((x, y) => String(x.created_at).localeCompare(String(y.created_at)))
+        .map((e) => ({ uid: e.id, tipo: e.tipo, qtd: Number(e.quantidade), codigo: e.codigo_barras ?? "", preco: e.preco_compra == null ? 0 : centavos(e.preco_compra) })),
       db: { id: pr.id, contadas: conts.map((c) => chaveArea(c.area, c.variacao_id ?? null)) },
     };
   });

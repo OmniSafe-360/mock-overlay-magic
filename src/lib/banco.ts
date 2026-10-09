@@ -40,7 +40,7 @@ export type LocaisCadastrados = { deposito: string[]; venda: string[] };
 
 export async function carregarProdutos(comercioId: string, suppliers: Supplier[]): Promise<{ produtos: Product[]; locais: LocaisCadastrados }> {
   const doComercio = (q: any) => q.eq("comercio_id", comercioId);
-  const [produtos, variacoes, areas, locais, contagens, saldos, lotes] = await Promise.all([
+  const [produtos, variacoes, areas, locais, contagens, saldos, lotes, embalagens] = await Promise.all([
     todos("produtos", "*", (q) => doComercio(q).eq("ativo", true).order("created_at", { ascending: false })),
     todos("produto_variacoes", "*", (q) => doComercio(q).is("removida_em", null)),
     todos("produto_areas", "*", doComercio),
@@ -48,8 +48,9 @@ export async function carregarProdutos(comercioId: string, suppliers: Supplier[]
     todos("contagens", "produto_id,variacao_id,area,quantidade", doComercio),
     todos("saldos", "*", (q) => doComercio(q).gt("quantidade", 0).order("updated_at")),
     todos("lotes", "id,numero,vencimento", doComercio),
+    todos("produto_embalagens", "id,produto_id,tipo,quantidade,codigo_barras,preco_compra,created_at", (q) => doComercio(q).is("removida_em", null)),
   ]);
-  const b: Bruto = { produtos, variacoes, areas, locais, contagens, saldos, lotes };
+  const b: Bruto = { produtos, variacoes, areas, locais, contagens, saldos, lotes, embalagens };
   return {
     produtos: montarProdutos(b, suppliers),
     locais: { deposito: locais.filter((l) => l.area === "deposito").map((l) => l.nome), venda: locais.filter((l) => l.area === "venda").map((l) => l.nome) },

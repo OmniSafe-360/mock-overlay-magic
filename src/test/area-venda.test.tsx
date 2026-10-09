@@ -219,7 +219,7 @@ describe("locais e navegação", () => {
     const p = base("Pacote", "Mercearia", { deposito: { local: "A", qtd: 1, min: null, max: null }, areaVenda: { local: "G", qtd: 5, min: null, max: null } });
     const t = setup("mercado", p); for (let i = 0; i < 10; i++) t.submit();
     expect(screen.getByText("Salvar produto")).toBeTruthy();
-    fireEvent.click(screen.getAllByRole("button", { name: /Editar/ })[9]!);
+    fireEvent.click(screen.getAllByRole("button", { name: /Editar/ })[10]!); // +1: linha "Como chega" no resumo
     expect(screen.getByText("Área de venda: limites")).toBeTruthy();
     typeIn(/^Máximo que cabe/, "3"); typeIn(/^Mínimo/, "5"); t.submit();
     expect(screen.getByText("Área de venda: limites")).toBeTruthy(); // inválido não volta
