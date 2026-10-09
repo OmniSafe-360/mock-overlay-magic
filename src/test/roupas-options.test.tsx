@@ -13,14 +13,14 @@ function setup(initial: Product, products: Product[] = [initial]) {
   render(<ProductWizard store={store} products={products} initial={initial} suppliers={[]} onAddSupplier={() => 1} onCancel={() => {}} onSave={onSave} />);
   return { onSave, submit: () => fireEvent.submit(document.querySelector("form")!) };
 }
-const run = (submit: () => void, n = 8) => { for (let i = 0; i < n; i++) submit(); };
+const run = (submit: () => void, n = 9) => { for (let i = 0; i < n; i++) submit(); };
 
 describe("unidade e categoria da Loja de roupas", () => {
   it.each(["Peça", "Par"])("aceita a unidade %s", (u) => {
-    const t = setup({ ...ok, unidade: u }); run(t.submit, 7); expect(t.onSave.mock.calls[0]![0].unidade).toBe(u);
+    const t = setup({ ...ok, unidade: u }); run(t.submit, 8); expect(t.onSave.mock.calls[0]![0].unidade).toBe(u);
   });
   it.each(["Camisetas", "Calças", "Vestidos", "Calçados", "Íntima", "Acessórios"])("aceita a categoria %s", (c) => {
-    const t = setup({ ...ok, categoria: c }); run(t.submit, 7); expect(t.onSave.mock.calls[0]![0].categoria).toBe(c);
+    const t = setup({ ...ok, categoria: c }); run(t.submit, 8); expect(t.onSave.mock.calls[0]![0].categoria).toBe(c);
   });
 
   it("unidade Kg impede salvar", () => {
@@ -38,18 +38,18 @@ describe("unidade e categoria da Loja de roupas", () => {
     expect(screen.getByText(/Categoria incompatível/)).toBeTruthy();
     fireEvent.change(document.getElementById("cat")!, { target: { value: "Calçados" } });
     expect(screen.queryByText(/incompatível/)).toBeNull();
-    run(t.submit, 6);
+    run(t.submit, 7);
     expect(t.onSave.mock.calls[0]![0]).toMatchObject({ unidade: "Par", categoria: "Calçados" });
     expect(t.onSave.mock.calls[0]![0].variacoes).toHaveLength(1);
   });
 
   it("editar pelo resumo não contorna as validações", () => {
-    const t = setup(ok); run(t.submit, 6);
+    const t = setup(ok); run(t.submit, 7);
     expect(screen.getByText("Salvar produto")).toBeTruthy();
     const edits = screen.getAllByRole("button").filter((b) => /editar/i.test(b.textContent ?? "") || /editar/i.test(b.getAttribute("aria-label") ?? ""));
     fireEvent.click(edits[1]!);
     fireEvent.change(document.getElementById("cat")!, { target: { value: "" } });
-    run(t.submit, 8);
+    run(t.submit, 9);
     expect(t.onSave).not.toHaveBeenCalled();
     expect(screen.queryByText("Salvar produto")).toBeNull();
   });

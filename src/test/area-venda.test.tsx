@@ -16,10 +16,21 @@ const saved = (fn: ReturnType<typeof vi.fn>) => fn.mock.calls[0]![0] as Product;
 function setup(tipo: string, initial?: Product, products: Product[] = initial ? [initial] : []) {
   const onSave = vi.fn();
   render(<ProductWizard store={{ id: "s", nome: "Loja", tipo } as never} products={products} initial={initial} suppliers={[]} onAddSupplier={() => 1} onCancel={() => {}} onSave={onSave} />);
-  const submit = () => fireEvent.submit(document.querySelector("form")!);
+  /* Estes testes cobrem Depósito/Área de venda: produtos antigos passam pela Validade mantendo "sem configurar". */
+  const submit = () => { fireEvent.submit(document.querySelector("form")!); if (screen.queryByText("Controle de validade") && screen.queryByRole("button", { name: /Manter sem configurar/, pressed: true })) fireEvent.submit(document.querySelector("form")!); };
   return { onSave, submit };
 }
 const novoLocalVenda = (nome: string) => { click(/Novo local de venda/); typeIn("Nome do local de venda", nome); click("Usar este local de venda"); };
+
+
+/** Produto novo: responde o passo Validade (Farmácia: controle fixo em Sim, distribui as contagens). */
+function passarValidade(tipo: string, t: { submit: () => void }, dep = "40", ven = "8") {
+  expect(screen.getByText("Controle de validade")).toBeTruthy();
+  if (tipo !== "farmacia") { click("Não"); t.submit(); return; }
+  t.submit(); t.submit();
+  typeIn(/^Quantidade \(/, dep); typeIn("Vence em", "10/12/2026"); typeIn(/^Lote/, "A12"); t.submit();
+  typeIn(/^Quantidade \(/, ven); typeIn("Vence em", "10/12/2026"); typeIn(/^Lote/, "A12"); t.submit();
+}
 
 /** Preenche um produto realmente novo, do formulário vazio até o passo Área de venda. */
 function novoAteVenda(tipo: string, unidade: string, categoria: string) {
@@ -54,6 +65,7 @@ describe("produto novo, do formulário vazio até salvar, nos seis tipos", () =>
     expect(screen.getByText(`Depósito 40 + Área de venda 8 = 48 ${u} no total`)).toBeTruthy();
     t.submit();
     typeIn(/^Mínimo/, "4"); typeIn(/^Máximo que cabe/, "12"); t.submit();
+    passarValidade(tipo, t);
     expect(screen.getByText("Salvar produto")).toBeTruthy();
     t.submit();
     const p = saved(t.onSave);
@@ -68,7 +80,7 @@ describe("produto novo, do formulário vazio até salvar, nos seis tipos", () =>
     t.submit(); expect(screen.getByText(QTD_VAZIA)).toBeTruthy();
     fireEvent.change(campo, { target: { value: "3" } });
     expect(screen.getByText("M · Azul: Depósito 5 + Área de venda 3 = 8 Peça no total")).toBeTruthy();
-    t.submit(); t.submit(); t.submit();
+    t.submit(); t.submit(); passarValidade("roupas", t); t.submit();
     const p = saved(t.onSave); const uid = p.variacoes[0]!.uid!;
     expect(p.areaVenda).toEqual({ local: "Arara 2", qtd: null, min: null, max: null, vars: { [uid]: { qtd: 3, min: null, max: null } } });
     expect(p.variacoes[0]!.qtd).toBe(2);
@@ -196,8 +208,9 @@ describe("locais e navegação", () => {
     const p = base("Pacote", "Mercearia", { deposito: { local: "A", qtd: 1, min: null, max: null }, areaVenda: { local: "G", qtd: 1, min: null, max: null } });
     setup("mercado", p);
     const t = { submit: () => fireEvent.submit(document.querySelector("form")!) };
-    for (let i = 0; i < 10; i++) t.submit();
+    for (let i = 0; i < 11; i++) t.submit();
     expect(screen.getByText("Salvar produto")).toBeTruthy();
+    click(/Voltar/); expect(screen.getByText("Controle de validade")).toBeTruthy();
     click(/Voltar/); expect(screen.getByText("Área de venda: limites")).toBeTruthy();
     click(/Voltar/); click(/Voltar/); expect(screen.getByText("Área de venda: onde fica?")).toBeTruthy();
     click(/Voltar/); expect(screen.getByText("Limites de estoque")).toBeTruthy();

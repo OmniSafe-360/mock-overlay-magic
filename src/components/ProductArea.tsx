@@ -11,6 +11,11 @@ import {
   EXEMPLO_LOCAL, SEM_REPOSICAO, VEN_ACIMA_MAX, VEN_LOCAL_DUP, VEN_LOCAL_PENDENTE, VEN_SEM_CONFIG, limitesVendaStatus,
   locaisVendaDoComercio, totalTexto, venLocalTravadoMsg, type AreaVenda,
 } from "@/lib/areaVenda";
+import {
+  ACIMA, AGUARDANDO, AVISOS, CHAVE_PRODUTO, DESLIGAR_BLOQ, FAIXA_TXT, LINHAS_SEM_CONTAGEM, PEND_CONF, PEND_FALTA, QTD_ZERO, SEM_AVISOS, SEM_ESTOQUE,
+  TZ_PADRAO, VAL_FARM_INCOMPLETA, VAL_SEM_CONFIG, analisarLotes, avisosTexto, conferencia, conferirSoma, conflitoMsg, faixa, fmtData, hojeEm,
+  linhaTexto, lotePendente, maskData, mil, parseData, proximoVencimento, temQtdValidade, type LinhaVal, type Validade,
+} from "@/lib/validade";
 
 /* ---------- tipos e dados por comércio ---------- */
 export type Supplier = { id: number; nome: string; tel: string; email: string };
@@ -22,6 +27,8 @@ export type Product = {
   deposito?: Deposito | undefined;
   /** Área de venda (gôndola, prateleira, arara...). Não confundir com `venda`, que é o preço. */
   areaVenda?: AreaVenda | undefined;
+  /** Controle de validade e divisão das contagens confirmadas por vencimento/lote. */
+  validade?: Validade | undefined;
 };
 
 const UNIDADES: Record<string, string[]> = {
@@ -127,6 +134,7 @@ export function ProductDetail({ p, tipo, suppliers, onBack, onEdit }: { p: Produ
         <Row t="Depósito"><DepositoInfo p={p} /></Row>
         <Row t="Área de venda"><AreaVendaInfo p={p} /></Row>
         <Row t="Total para conferência"><TotalInfo p={p} /></Row>
+        <Row t="Validade"><ValidadeInfo p={p} tipo={tipo} /></Row>
       </div>
       <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">{TEMPORARIO}</p>
       <button type="button" onClick={onEdit} className={`flex items-center justify-center gap-2 ${btnPrimary(true)}`}><Pencil size={18} /> Editar</button>
@@ -203,14 +211,61 @@ export function TotalInfo({ p }: { p: Product }) {
   return <span className="block">{totalTexto(qtdArea(p.deposito), qtdArea(p.areaVenda), p.unidade)}</span>;
 }
 
-/* ---------- cadastro em 7 etapas (Depósito e Área de venda têm 3 subpassos) ---------- */
-const TITLES = ["Qual é o código do produto?", "Preço e unidade", "Detalhes do produto", "Quem é o fornecedor?", "Depósito", "Área de venda", "Conferir e salvar"];
+/** Linhas de conferência da validade (resumo e detalhe). Nunca afirma que avisos ou bloqueios funcionam. */
+export function validadeLinhas(v: Validade | undefined, farm: boolean, unidade: string, nomeVar: (k: string) => string, hoje: string): string[] {
+  if (!v) return [farm ? VAL_FARM_INCOMPLETA : VAL_SEM_CONFIG];
+  if (!v.controla) return ["Não controla validade"];
+  const out = ["Controla validade", avisosTexto(v.avisos), SEM_AVISOS];
+  const todas: LinhaVal[] = [];
+  for (const [area, nome] of [["dep", "Depósito"], ["ven", "Área de venda"]] as const) {
+    const ent = Object.entries(v[area]);
+    if (!ent.length) { out.push(`${nome}: sem validades registradas`); continue; }
+    for (const [k, ls] of ent) {
+      todas.push(...ls);
+      const pre = k === CHAVE_PRODUTO ? nome : `${nome} · ${nomeVar(k)}`;
+      out.push(ls.length ? `${pre}: ${ls.map((l) => linhaTexto(l, unidade, hoje, farm)).join("; ")}` : `${pre}: sem estoque`);
+    }
+  }
+  const c = conferencia(todas, hoje, farm);
+  out.push(`Física contada ${fmtQ(c.fisica)} = não vencida ${fmtQ(c.conhecida)} + vencida ${fmtQ(c.vencida)} + sem data ${fmtQ(c.semData)} (${unidade})`);
+  if (c.vencida > 0) out.push(`Vencidos: ${fmtQ(c.vencida)} ${unidade} (continuam contados)`);
+  if (c.semData > 0) out.push(`Validade desconhecida: ${fmtQ(c.semData)} ${unidade}`);
+  if (c.lotePend > 0) out.push(`Lote pendente: ${fmtQ(c.lotePend)} ${unidade}`);
+  const pr = proximoVencimento(todas, hoje);
+  out.push(pr ? `Próximo vencimento não vencido: ${fmtData(pr.data)} (${fmtQ(pr.qtd)} ${unidade})` : "Sem próximo vencimento não vencido");
+  return out;
+}
+export function ValidadeInfo({ p, tipo }: { p: Product; tipo: string }) {
+  const nomeVar = (k: string) => { const v = p.variacoes.find((x) => x.uid === k); return v ? `${v.tam} · ${v.cor}` : "variação"; };
+  return <>{validadeLinhas(p.validade, tipo === "farmacia", p.unidade, nomeVar, hojeEm()).map((t, i) => <span key={i} className="block">{t}</span>)}</>;
+}
+
+/* ---------- cadastro em 8 etapas (Depósito e Área de venda têm 3 subpassos; Validade tem 4) ---------- */
+const TITLES = ["Qual é o código do produto?", "Preço e unidade", "Detalhes do produto", "Quem é o fornecedor?", "Depósito", "Área de venda", "Validade", "Conferir e salvar"];
 const DEP_TITLES = ["Onde fica no depósito?", "Quanto há no depósito?", "Limites de estoque"];
 const VEN_TITLES = ["Área de venda: onde fica?", "Área de venda: quantidade", "Área de venda: limites"];
+const VAL_TITLES = ["Controle de validade", "Avisos de validade", "Validades no depósito", "Validades na área de venda"];
 const STEP_DEP = 4;
 const STEP_VEN = 5;
-const STEP_REV = 6;
+const STEP_VAL = 6;
+const STEP_REV = 7;
 const TOTAL = TITLES.length;
+
+type LinhaEd = { id: string; qtd: string; data: string; semData: boolean; lote: string; conf: boolean; saved: boolean; lockData: boolean; lockLote: boolean; ro: boolean };
+const novaLinha = (b: Partial<LinhaEd> = {}): LinhaEd =>
+  ({ id: newUid(), qtd: "", data: "", semData: false, lote: "", conf: false, saved: false, lockData: false, lockLote: false, ro: false, ...b });
+/** Linhas já salvas: conhecidas ficam só para consulta; pendências podem ser completadas sem perder o que já se sabe. */
+function linhasIniciais(v: Validade | undefined, farm: boolean): Record<string, LinhaEd[]> {
+  const out: Record<string, LinhaEd[]> = {};
+  for (const area of ["dep", "ven"] as const)
+    for (const [k, ls] of Object.entries(v?.[area] ?? {}))
+      out[`${area}:${k}`] = ls.map((l) => {
+        const pend = !l.data || lotePendente(l, farm);
+        return { id: l.id, qtd: toInput(l.qtd), data: l.data ? fmtData(l.data) : "", semData: !l.data, lote: l.lote ?? "", conf: !!l.pendConf,
+          saved: true, lockData: !!l.data, lockLote: !!l.lote, ro: !pend };
+      });
+  return out;
+}
 
 type VarDep = { qtd?: string | undefined; min: string; max: string };
 
@@ -269,6 +324,17 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const [vMax, setVMax] = useState(toInput(initVen?.max));
   const [vVar, setVVar] = useState<Record<string, VarDep>>(() =>
     Object.fromEntries(Object.entries(initVen?.vars ?? {}).map(([k, c]) => [k, { qtd: toInput(c.qtd), min: toInput(c.min), max: toInput(c.max) }])));
+
+  /* ----- validade (em memória) ----- */
+  const isFarm = tipo === "farmacia";
+  const initVal = initial?.validade;
+  const hoje = useMemo(() => hojeEm(TZ_PADRAO), []);
+  const [vControla, setVControla] = useState<boolean | undefined>(isFarm ? true : initVal?.controla);
+  const [valManter, setValManter] = useState(!!initial && !initVal);
+  const [avisos, setAvisos] = useState<number[]>(initVal?.avisos ?? []);
+  const [valMsg, setValMsg] = useState("");
+  const [lin, setLin] = useState<Record<string, LinhaEd[]>>(() => linhasIniciais(initVal, isFarm));
+  const desligarBloq = temQtdValidade(initVal);
 
   const used = useMemo(() => usedCodes(products, initial?.id), [products, initial?.id]);
   const isRoupas = tipo === "roupas";
@@ -333,6 +399,46 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     : !vQtdOk ? { sub: 1, msg: "Corrija a quantidade contada na área de venda." }
     : !vLimOk ? { sub: 2, msg: "Corrija os limites marcados em vermelho." } : null;
 
+  /* validações da validade: distribui só contagens confirmadas, soma exata em milésimos */
+  const valKeys = isRoupas ? vars.map((v) => v.uid!) : [CHAVE_PRODUTO];
+  const contagem = (area: "dep" | "ven", k: string): number | null => {
+    if (area === "dep") {
+      if (manterSem) return null;
+      if (k === CHAVE_PRODUTO) return q.err ? null : q.v;
+      const x = varsDep.find((y) => y.v.uid === k); return x && !x.q.err ? x.q.v : null;
+    }
+    if (vManter) return null;
+    if (k === CHAVE_PRODUTO) return vq.err ? null : vq.v;
+    const x = varsVen.find((y) => y.v.uid === k); return x && !x.q.err ? x.q.v : null;
+  };
+  const valLinha = (l: LinhaEd) => {
+    const qq = parseNum(l.qtd, unidade, false);
+    const qErr = qq.err || (qq.v != null && mil(qq.v) <= 0 ? QTD_ZERO : "");
+    const dd = l.semData ? { v: null, err: "" } : parseData(l.data);
+    const pend = isFarm && (l.semData || !l.lote.trim());
+    return { qv: qErr ? null : qq.v, qErr, dv: dd.v, dErr: dd.err, pend, pErr: pend && !l.conf ? PEND_FALTA : "" };
+  };
+  const grupos = (area: "dep" | "ven") => valKeys.map((k) => {
+    const ls = lin[`${area}:${k}`] ?? [];
+    const cont = contagem(area, k);
+    const vs = ls.map((l) => ({ l, r: valLinha(l) }));
+    const soma = cont == null ? null : conferirSoma(cont, vs.map((x) => x.r.qv ?? 0));
+    const err = cont == null ? (ls.length ? LINHAS_SEM_CONTAGEM : "")
+      : vs.some((x) => x.r.qErr || x.r.dErr || x.r.pErr) ? "Corrija as validades marcadas em vermelho." : soma!.err;
+    return { k, ls, cont, vs, soma, err };
+  });
+  const gDep = grupos("dep"), gVen = grupos("ven");
+  const analises = valKeys.map((k) => analisarLotes([...gDep, ...gVen].filter((g) => g.k === k).flatMap((g) => g.vs.map((x) => ({ id: x.l.id, lote: x.l.lote, data: x.r.dv })))));
+  const conflitos = analises.flatMap((a) => a.conflitos);
+  const sugestoes = analises.flatMap((a) => a.sugestoes);
+  const valAtivo = !valManter && vControla === true;
+  const valOk0 = valManter || vControla !== undefined;
+  const valOk2 = !valAtivo || gDep.every((g) => !g.err);
+  const valOk3 = !valAtivo || (gVen.every((g) => !g.err) && !conflitos.length);
+  const valBad = !valOk0 ? { sub: 0, msg: "Responda se este produto tem validade." }
+    : !valOk2 ? { sub: 2, msg: gDep.find((g) => g.err)!.err }
+    : !valOk3 ? { sub: 3, msg: conflitos.length ? conflitoMsg(conflitos[0]!.lote, conflitos[0]!.datas.map(fmtData)) : gVen.find((g) => g.err)!.err } : null;
+
   const valid = [
     !!codigo.trim() && !dup && !!nome.trim(),
     compra > 0 && venda > 0 && !!unidade && !!categoria && ruleErr?.step !== 1 && !unidadeTravada,
@@ -340,18 +446,31 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     forn !== undefined,
     [localOk, qtdOk, limOk][sub]!,
     [vLocalOk, vQtdOk, vLimOk][sub]!,
+    [valOk0, true, valOk2, valOk3][sub]!,
     true,
   ][step]!;
   const lucro = venda - compra;
   const margem = venda > 0 ? (lucro / venda) * 100 : 0;
   const fornNome = forn ? suppliers.find((s) => s.id === forn)?.nome : "Definir depois";
 
-  const go = (to: number, s = 0) => { setDir(to * 10 + s > step * 10 + sub ? 1 : -1); setStep(to); setSub(s); setSubTried(false); };
+  /** Ao abrir as validades de uma área com contagem positiva, começa com uma linha simples. Nunca cria linha para zero ou sem contagem. */
+  const seed = (area: "dep" | "ven") => setLin((m) => {
+    const n = { ...m };
+    for (const k of valKeys) { const c = contagem(area, k), key = `${area}:${k}`; if (c != null && mil(c) > 0 && !n[key]?.length) n[key] = [novaLinha()]; }
+    return n;
+  });
+  const go = (to: number, s = 0) => {
+    setDir(to * 10 + s > step * 10 + sub ? 1 : -1); setStep(to); setSub(s); setSubTried(false);
+    if (to === STEP_VAL && s === 2) seed("dep");
+    if (to === STEP_VAL && s === 3) seed("ven");
+  };
   const baseBad = firstInvalidStep({ codigo, nome, compra, venda, unidade, categoria, variacoes: vars, detalhes: det, fornecedor: forn }, isRoupas, used, rules);
   const bad: { step: number; sub?: number; msg: string } | null =
     unidadeTravada ? { step: 1, msg: unidadeTravadaMsg(initial!.unidade) }
-    : baseBad ?? (depBad ? { step: STEP_DEP, sub: depBad.sub, msg: depBad.msg } : venBad ? { step: STEP_VEN, sub: venBad.sub, msg: venBad.msg } : null);
-  const hasSub = step === STEP_DEP || step === STEP_VEN;
+    : baseBad ?? (depBad ? { step: STEP_DEP, sub: depBad.sub, msg: depBad.msg } : venBad ? { step: STEP_VEN, sub: venBad.sub, msg: venBad.msg }
+      : valBad ? { step: STEP_VAL, sub: valBad.sub, msg: valBad.msg } : null);
+  const hasSub = step === STEP_DEP || step === STEP_VEN || step === STEP_VAL;
+  const nSub = step === STEP_VAL ? 4 : 3;
   const here = (b: { step: number; sub?: number }) => b.step === step && (!hasSub || (b.sub ?? 0) === sub);
   const saveErr = triedSave && bad && here(bad) ? bad.msg : ruleErr && ruleErr.step === step ? ruleErr.msg : "";
 
@@ -369,10 +488,17 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
         vars: Object.fromEntries(varsVen.map((x) => [x.v.uid!, { qtd: x.q.v ?? 0, min: x.mn.v, max: x.mx.v }])) };
     return { local: vLocal ?? null, qtd: vq.v, min: vmn.v, max: vmx.v };
   };
+  const buildValidade = (): Validade | undefined => {
+    if (valManter) return initVal;
+    if (!vControla) return { controla: false, avisos: [], dep: {}, ven: {} };
+    const area = (gs: typeof gDep) => Object.fromEntries(gs.filter((g) => g.cont != null && g.ls.length).map((g) => [g.k,
+      g.vs.map(({ l, r }): LinhaVal => ({ id: l.id, qtd: r.qv ?? 0, data: r.dv, lote: l.lote.trim() || null, ...(r.pend ? { pendConf: true } : {}) }))]));
+    return { controla: true, avisos: [...avisos].sort((a, b) => a - b), dep: area(gDep), ven: area(gVen) };
+  };
   const save = () => {
     if (bad) { setTriedSave(true); setFromReview(true); return go(bad.step, bad.sub ?? 0); }
     onSave({ id: initial?.id ?? Date.now(), codigo: codigo.trim(), nome: nome.trim(), compra, venda, unidade, categoria, detalhes: det, variacoes: vars,
-      fornecedor: forn ?? null, deposito: buildDeposito(), areaVenda: buildVenda() });
+      fornecedor: forn ?? null, deposito: buildDeposito(), areaVenda: buildVenda(), validade: buildValidade() });
   };
   const next = () => {
     if (!valid) { if (hasSub) setSubTried(true); return; }
@@ -383,8 +509,14 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
       return go(STEP_DEP, sub + 1);
     }
     if (step === STEP_VEN) {
-      if (vManter || sub === 2 || (fromReview && !venBad)) { setFromReview(false); return go(STEP_REV); }
+      if (fromReview && !venBad) { setFromReview(false); return go(STEP_REV); }
+      if (vManter || sub === 2) return go(STEP_VAL);
       return go(STEP_VEN, sub + 1);
+    }
+    if (step === STEP_VAL) {
+      if (fromReview && !valBad) { setFromReview(false); return go(STEP_REV); }
+      if (sub === 3 || (sub === 0 && !valAtivo)) { setFromReview(false); return go(STEP_REV); }
+      return go(STEP_VAL, sub + 1);
     }
     if (fromReview) { setFromReview(false); return go(STEP_REV); }
     go(step + 1);
@@ -393,7 +525,8 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     setFromReview(false);
     if (hasSub && sub > 0) return go(step, sub - 1);
     if (step === STEP_VEN) return go(STEP_DEP, manterSem ? 0 : 2);
-    if (step === STEP_REV) return go(STEP_VEN, vManter ? 0 : 2);
+    if (step === STEP_VAL) return go(STEP_VEN, vManter ? 0 : 2);
+    if (step === STEP_REV) return go(STEP_VAL, valAtivo ? 3 : 0);
     go(step - 1);
   };
   const edit = (s: number, ss = 0) => { setFromReview(true); go(s, ss); };
@@ -423,7 +556,10 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     if ((x && (x.q.v ?? 0) > 0) || (y && (y.q.v ?? 0) > 0)) { setVarMsg(REMOCAO_BLOQUEADA); return; }
     setVarMsg("");
     setVars(vars.filter((_, j) => j !== i));
-    if (x?.v.uid) { const k = x.v.uid; const del = (m: Record<string, VarDep>) => { const n = { ...m }; delete n[k]; return n; }; setDVar(del); setVVar(del); }
+    if (x?.v.uid) {
+      const k = x.v.uid; const del = (m: Record<string, VarDep>) => { const n = { ...m }; delete n[k]; return n; }; setDVar(del); setVVar(del);
+      setLin((m) => { const n = { ...m }; delete n[`dep:${k}`]; delete n[`ven:${k}`]; return n; }); // configuração de validade sem saldo
+    }
   };
   const resumoLocal = manterSem ? SEM_CONFIG : dLocal ? dLocal : LOCAL_PENDENTE;
   const resumoQtd = isRoupas
@@ -441,6 +577,102 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     : [totalTexto(manterSem ? null : okQ(q), vManter ? null : okQ(vq), unidade)];
   const resumoLim = isRoupas ? varsDep.map((x) => `${x.v.tam}/${x.v.cor}: ${limitesStatus(x.mn.v, x.mx.v)}`).join(" · ") : limitesStatus(mn.v, mx.v);
 
+  /* ----- validade: edição das linhas ----- */
+  const setL = (key: string, id: string, patch: Partial<LinhaEd>) => setLin((m) => ({ ...m, [key]: (m[key] ?? []).map((l) => (l.id === id ? { ...l, ...patch } : l)) }));
+  const addL = (key: string, b?: Partial<LinhaEd>) => setLin((m) => ({ ...m, [key]: [...(m[key] ?? []), novaLinha(b)] }));
+  const delL = (key: string, id: string) => setLin((m) => ({ ...m, [key]: (m[key] ?? []).filter((l) => l.id !== id) }));
+  const aplicarSug = (s: { data: string; ids: string[] }) =>
+    setLin((m) => Object.fromEntries(Object.entries(m).map(([k, ls]) => [k, ls.map((l) => (s.ids.includes(l.id) ? { ...l, semData: false, data: fmtData(s.data), conf: false } : l))])));
+  const varNome = (k: string) => { const v = vars.find((x) => x.uid === k); return v ? `${v.tam} · ${v.cor}` : "variação"; };
+  const resumoVal = validadeLinhas(buildValidade(), isFarm, unidade, varNome, hoje);
+
+  const renderLinha = (key: string, l: LinhaEd, r: ReturnType<typeof valLinha>, i: number) => {
+    const f = r.dv ? faixa(r.dv, hoje) : l.semData ? ("desconhecida" as const) : null;
+    if (l.ro)
+      return (
+        <div key={l.id} className={`rounded-xl border p-2.5 text-sm ${f === "vencido" ? "border-destructive/70 bg-destructive/10" : "border-border"}`}>
+          <p>{linhaTexto({ id: l.id, qtd: r.qv ?? 0, data: r.dv, lote: l.lote || null, pendConf: l.conf }, unidade, hoje, isFarm)}</p>
+          <p className="text-xs text-muted-foreground">Registro confirmado: somente consulta. Correções virão numa etapa futura, com histórico.</p>
+        </div>
+      );
+    return (
+      <div key={l.id} className={`space-y-2 rounded-xl border p-2.5 ${f === "vencido" ? "border-destructive/70 bg-destructive/10" : "border-border"}`}>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-semibold text-muted-foreground">Validade {i + 1}{l.saved ? " · pendência registrada" : ""}</p>
+          {!l.saved && <button type="button" aria-label="Remover validade" onClick={() => delL(key, l.id)} className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground"><X size={16} /></button>}
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label={`Quantidade (${unidade})`} name={`lq-${l.id}`} {...numProps} value={l.qtd} onChange={(e) => setL(key, l.id, { qtd: numIn(e.target.value) })} error={showErr(l.qtd, r.qErr)} />
+          {l.lockData ? (
+            <div><p className="text-sm font-medium text-muted-foreground">Vence em</p><p className="mt-3 text-base">{l.data}</p></div>
+          ) : (
+            <Field label="Vence em" name={`ld-${l.id}`} inputMode="numeric" autoComplete="off" placeholder="DD/MM/AAAA" disabled={l.semData}
+              value={l.semData ? "" : l.data} onChange={(e) => setL(key, l.id, { data: maskData(e.target.value) })} error={l.semData ? "" : showErr(l.data, r.dErr)} />
+          )}
+        </div>
+        {!l.lockData && (
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
+            <input type="checkbox" checked={l.semData} onChange={(e) => setL(key, l.id, { semData: e.target.checked, conf: false })} className="h-5 w-5 accent-primary" />
+            Validade desconhecida
+          </label>
+        )}
+        {l.lockLote ? <p className="text-sm">Lote: {l.lote}</p> : (
+          <Field label={isFarm ? "Lote" : "Lote (opcional)"} name={`ll-${l.id}`} autoComplete="off" placeholder="Ex.: A12" value={l.lote}
+            onChange={(e) => setL(key, l.id, { lote: e.target.value.slice(0, 30), conf: false })} />
+        )}
+        {f && <p className={`text-xs font-semibold ${f === "vencido" ? "text-destructive" : "text-muted-foreground"}`}>{FAIXA_TXT[f]}{f === "vencido" ? " · continua contado no total" : ""}{isFarm && !l.lote.trim() ? " · Lote pendente" : ""}</p>}
+        {r.pend && (l.conf ? (
+          <p className="flex items-center gap-2 text-xs font-semibold text-warning">Pendente de conferência
+            <button type="button" onClick={() => setL(key, l.id, { conf: false })} className="font-semibold text-primary underline">Desfazer</button></p>
+        ) : (
+          <div className="space-y-2 rounded-xl border border-border p-2.5 text-xs">
+            <p>{PEND_CONF}</p>
+            <button type="button" onClick={() => setL(key, l.id, { conf: true })} className={btnGhost}>Registrar como pendente de conferência</button>
+            {subTried && <p className="text-destructive">{PEND_FALTA}</p>}
+          </div>
+        ))}
+        {l.saved && (
+          <button type="button" onClick={() => addL(key, { lockData: l.lockData, data: l.lockData ? l.data : "", lockLote: l.lockLote, lote: l.lockLote ? l.lote : "" })}
+            className={btnGhost}>Dividir esta pendência</button>
+        )}
+      </div>
+    );
+  };
+  const renderArea = (area: "dep" | "ven") => {
+    const gs = area === "dep" ? gDep : gVen;
+    return (
+      <>
+        <p className="text-sm text-muted-foreground">Divida a contagem {area === "dep" ? "do depósito" : "da área de venda"} pelas validades. Isso não cria entrada nem transferência.</p>
+        {gs.map((g) => {
+          const key = `${area}:${g.k}`;
+          const temSalva = g.ls.some((l) => l.saved);
+          return (
+            <div key={key} className="space-y-2 rounded-2xl border border-border bg-background-deep/60 p-3">
+              {isRoupas && <p className="text-sm font-semibold">{varNome(g.k)}</p>}
+              {g.cont == null ? <p className="text-sm text-warning">{AGUARDANDO}</p> : (
+                <p className="text-sm">Contado: <b>{fmtQ(g.cont)} {unidade}</b> · Distribuído: {fmtQ(g.soma!.distribuido)} · Falta distribuir: {fmtQ(g.soma!.falta)}</p>
+              )}
+              {g.cont != null && mil(g.cont) === 0 && !g.ls.length && <p className="text-xs text-muted-foreground">{SEM_ESTOQUE}</p>}
+              {g.vs.map(({ l, r }, i) => renderLinha(key, l, r, i))}
+              {g.cont != null && mil(g.cont) > 0 && !temSalva && (
+                <button type="button" onClick={() => addL(key)} className="flex min-h-12 w-full items-center gap-2 rounded-2xl border-2 border-dashed border-accent/70 px-4 text-base font-semibold text-accent"><Plus size={18} /> Adicionar outra validade</button>
+              )}
+              {g.err && (subTried || g.cont == null || g.soma?.err === ACIMA) && <p role="alert" className="text-sm text-destructive">{g.err}</p>}
+            </div>
+          );
+        })}
+        {conflitos.map((c) => <p key={c.lote} role="alert" className="text-sm font-semibold text-destructive">{conflitoMsg(c.lote, c.datas.map(fmtData))}</p>)}
+        {sugestoes.map((s) => (
+          <div key={s.lote} className="space-y-2 rounded-2xl border border-border p-3 text-sm">
+            <p>O lote {s.lote} tem vencimento {fmtData(s.data)} em outra linha, e aqui está sem data. Confirme se é a mesma data.</p>
+            <button type="button" onClick={() => aplicarSug(s)} className={btnGhost}>Usar {fmtData(s.data)} neste lote</button>
+          </div>
+        ))}
+        <p className="text-xs text-muted-foreground">Vencido a partir do dia seguinte à data. “Hoje” segue o horário de Brasília ({TZ_PADRAO}).</p>
+      </>
+    );
+  };
+
   return (
     <div className="relative h-app overflow-hidden bg-app">
       <div className="pointer-events-none absolute inset-0 bg-dots" />
@@ -453,11 +685,11 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
           <form noValidate onSubmit={(e) => { e.preventDefault(); next(); }} className="flex min-h-0 flex-1 flex-col">
             <div className="mt-2 shrink-0">
               <div className="mb-2 flex items-baseline justify-between gap-2">
-                <h1 className="min-w-0 text-lg font-bold short:text-base">{step === STEP_DEP ? DEP_TITLES[sub] : step === STEP_VEN ? VEN_TITLES[sub] : TITLES[step]}</h1>
-                <span className="shrink-0 text-xs text-muted-foreground">Passo {step + 1} de {TOTAL}{(step === STEP_DEP && !manterSem) || (step === STEP_VEN && !vManter) ? ` · ${sub + 1}/3` : ""}</span>
+                <h1 className="min-w-0 text-lg font-bold short:text-base">{step === STEP_DEP ? DEP_TITLES[sub] : step === STEP_VEN ? VEN_TITLES[sub] : step === STEP_VAL ? VAL_TITLES[sub] : TITLES[step]}</h1>
+                <span className="shrink-0 text-xs text-muted-foreground">Passo {step + 1} de {TOTAL}{(step === STEP_DEP && !manterSem) || (step === STEP_VEN && !vManter) ? ` · ${sub + 1}/3` : step === STEP_VAL && valAtivo ? ` · ${sub + 1}/4` : ""}</span>
               </div>
               <div className="h-1 overflow-hidden rounded-full bg-secondary">
-                <div className="h-full rounded-full bg-progress transition-all duration-500" style={{ width: `${((step + (hasSub ? (sub + 1) / 3 : 1)) / TOTAL) * 100}%` }} />
+                <div className="h-full rounded-full bg-progress transition-all duration-500" style={{ width: `${((step + (hasSub ? (sub + 1) / nSub : 1)) / TOTAL) * 100}%` }} />
               </div>
             </div>
 
@@ -795,6 +1027,52 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                 </>
               )}
 
+              {step === STEP_VAL && (
+                <>
+                  <p className="text-xs text-muted-foreground">{TEMPORARIO}</p>
+                  {sub === 0 && (
+                    <>
+                      <p className="text-base font-semibold">Este produto tem validade?</p>
+                      {isFarm ? (
+                        <div className="rounded-2xl border border-accent/50 bg-accent/10 p-3 text-sm">
+                          <p className="font-semibold">Sim</p>
+                          <p className="text-xs text-muted-foreground">Na farmácia o controle de validade é obrigatório.</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          <Pick on={!valManter && vControla === true} onClick={() => { setVControla(true); setValManter(false); setValMsg(""); }}><span>Sim</span></Pick>
+                          <Pick on={!valManter && vControla === false} onClick={() => { if (desligarBloq) { setValMsg(DESLIGAR_BLOQ); return; } setVControla(false); setValManter(false); setValMsg(""); }}><span>Não</span></Pick>
+                        </div>
+                      )}
+                      {initial && !initVal && (
+                        <div className="grid grid-cols-1 gap-2">
+                          {isFarm && <Pick on={!valManter} onClick={() => setValManter(false)}><span>Configurar validade agora</span></Pick>}
+                          <Pick on={valManter} onClick={() => { setValManter(true); setValMsg(""); }}><span>Manter sem configurar por enquanto</span></Pick>
+                        </div>
+                      )}
+                      {valManter && <p className="text-xs text-warning">{isFarm ? VAL_FARM_INCOMPLETA : VAL_SEM_CONFIG}</p>}
+                      {valMsg && <p role="alert" className="text-sm text-destructive">{valMsg}</p>}
+                      {!isFarm && <p className="text-xs text-muted-foreground">Escolha “Não” para produtos que não vencem.</p>}
+                    </>
+                  )}
+                  {sub === 1 && (
+                    <>
+                      <p className="text-base font-semibold">Quando você quer ser avisado?</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {AVISOS.map((d) => (
+                          <Pick key={d} on={avisos.includes(d)} onClick={() => setAvisos((a) => (a.includes(d) ? a.filter((x) => x !== d) : [...a, d]))}><span>{d} dias</span></Pick>
+                        ))}
+                      </div>
+                      <p className="text-sm text-muted-foreground">{avisosTexto(avisos)}</p>
+                      <p className="text-sm text-warning">{SEM_AVISOS}</p>
+                      <p className="text-xs text-muted-foreground">Pode marcar vários ou nenhum. A situação de cada validade (vencido, vence hoje, próximos dias) aparece mesmo sem aviso.</p>
+                    </>
+                  )}
+                  {sub === 2 && renderArea("dep")}
+                  {sub === 3 && renderArea("ven")}
+                </>
+              )}
+
               {step === STEP_REV && (
                 <div className="divide-y divide-border rounded-2xl border border-border bg-background-deep/60">
                   <Sum t="Código e nome" onEdit={() => edit(0)}>{nome}<br />Cód. {codigo}</Sum>
@@ -826,6 +1104,13 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                     <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total para conferência</p>
                     {totalLinhas.map((t, i) => <p key={i} className="mt-0.5">{t}</p>)}
                   </div>
+                  <Sum t="Validade" onEdit={() => edit(STEP_VAL, 0)}>{resumoVal[0]}</Sum>
+                  {valAtivo && (
+                    <>
+                      <Sum t="Avisos" onEdit={() => edit(STEP_VAL, 1)}>{avisosTexto(avisos)}<br />{SEM_AVISOS}</Sum>
+                      <Sum t="Validades por área" onEdit={() => edit(STEP_VAL, 2)}>{resumoVal.slice(3).map((t, i) => <span key={i} className={`block ${/^Vencidos/.test(t) ? "font-semibold text-destructive" : ""}`}>{t}</span>)}</Sum>
+                    </>
+                  )}
                   <p className="p-3.5 text-xs text-muted-foreground">{TEMPORARIO} {SEM_REPOSICAO}</p>
                 </div>
               )}
