@@ -32,13 +32,13 @@ describe("passo Depósito — fluxo completo nos seis tipos", () => {
     novoLocal("Estante A · Prateleira 2"); t.submit();
     typeIn(/Quanto você contou/, "40"); t.submit();
     typeIn(/^Mínimo/, "10"); typeIn(/^Máximo desejado/, "60"); t.submit();
-    expect(screen.getByText("Salvar produto")).toBeTruthy(); t.submit();
+    t.submit(); expect(screen.getByText("Salvar produto")).toBeTruthy(); t.submit();
     expect(saved(t.onSave).deposito).toEqual({ local: "Estante A · Prateleira 2", qtd: 40, min: 10, max: 60 });
   });
   it("roupas salva com confirmação e um local para todas as variações", () => {
     const t = setup("roupas", roupa()); t.toDeposito();
     novoLocal("Arara 1"); t.submit();
-    click("Sim, estão no depósito"); t.submit(); t.submit(); t.submit();
+    click("Sim, estão no depósito"); t.submit(); t.submit(); t.submit(); t.submit();
     expect(saved(t.onSave).deposito).toEqual({ local: "Arara 1", qtd: null, min: null, max: null, vars: { a: { qtd: 2, min: null, max: null } } });
   });
 });
@@ -48,7 +48,7 @@ describe("quantidade", () => {
     const t = setup("mercado", base("mercado", "Pacote", "Mercearia")); t.toDeposito();
     click("Definir depois"); t.submit(); t.submit();
     expect(screen.getByText(QTD_VAZIA)).toBeTruthy();
-    typeIn(/Quanto você contou/, "0"); t.submit(); t.submit(); t.submit();
+    typeIn(/Quanto você contou/, "0"); t.submit(); t.submit(); t.submit(); t.submit();
     expect(saved(t.onSave).deposito).toMatchObject({ local: null, qtd: 0 });
   });
   it.each(["Kg", "Metro", "m²", "Litro"])("aceita fração em %s", (u) => {
@@ -67,14 +67,14 @@ describe("quantidade", () => {
   });
   it("Kg salva fração", () => {
     const t = setup("mercado", base("mercado", "Kg", "Mercearia")); t.toDeposito();
-    click("Definir depois"); t.submit(); typeIn(/Quanto você contou/, "12,5"); t.submit(); t.submit(); t.submit();
+    click("Definir depois"); t.submit(); typeIn(/Quanto você contou/, "12,5"); t.submit(); t.submit(); t.submit(); t.submit();
     expect(saved(t.onSave).deposito?.qtd).toBe(12.5);
   });
 });
 
 describe("limites", () => {
   const ate = () => { const t = setup("mercado", base("mercado", "Pacote", "Mercearia")); t.toDeposito(); click("Definir depois"); t.submit(); typeIn(/Quanto você contou/, "80"); t.submit(); return t; };
-  it("são opcionais", () => { const t = ate(); expect(screen.getByText("Alertas de estoque não configurados")).toBeTruthy(); t.submit(); t.submit(); expect(saved(t.onSave).deposito).toMatchObject({ min: null, max: null }); });
+  it("são opcionais", () => { const t = ate(); expect(screen.getByText("Alertas de estoque não configurados")).toBeTruthy(); t.submit(); t.submit(); t.submit(); expect(saved(t.onSave).deposito).toMatchObject({ min: null, max: null }); });
   it("negativo é recusado", () => { const t = ate(); typeIn(/^Mínimo/, "-1"); expect(screen.getByText(NEGATIVO)).toBeTruthy(); t.submit(); t.submit(); expect(t.onSave).not.toHaveBeenCalled(); });
   it("máximo menor que mínimo bloqueia", () => { const t = ate(); typeIn(/^Mínimo/, "10"); typeIn(/^Máximo desejado/, "5"); expect(screen.getByText(MAX_MENOR)).toBeTruthy(); t.submit(); t.submit(); expect(t.onSave).not.toHaveBeenCalled(); });
   it("só mínimo / só máximo mostram a situação", () => {
@@ -82,7 +82,7 @@ describe("limites", () => {
     typeIn(/^Mínimo/, ""); typeIn(/^Máximo desejado/, "50"); expect(screen.getByText("Máximo 50 · Sem mínimo definido. Sem aviso de compra configurado")).toBeTruthy();
   });
   it("quantidade acima do máximo avisa sem bloquear", () => {
-    const t = ate(); typeIn(/^Máximo desejado/, "50"); expect(screen.getByText(ACIMA_MAX)).toBeTruthy(); t.submit(); t.submit();
+    const t = ate(); typeIn(/^Máximo desejado/, "50"); expect(screen.getByText(ACIMA_MAX)).toBeTruthy(); t.submit(); t.submit(); t.submit();
     expect(saved(t.onSave).deposito).toMatchObject({ qtd: 80, max: 50 });
   });
 });
@@ -92,14 +92,14 @@ describe("roupas", () => {
     const t = setup("roupas", roupa()); t.toDeposito(); click("Definir depois"); t.submit();
     click("Não, vou contar o depósito"); t.submit();
     expect(screen.getByText(QTD_VAZIA)).toBeTruthy();
-    typeIn(/Quantidade confirmada no depósito/, "0"); t.submit(); t.submit(); t.submit();
+    typeIn(/Quantidade confirmada no depósito/, "0"); t.submit(); t.submit(); t.submit(); t.submit();
     const p = saved(t.onSave); expect(p.deposito?.vars?.["a"]?.qtd).toBe(0); expect(p.variacoes[0]!.qtd).toBe(2);
   });
   it("editar a quantidade do cadastro não altera o depósito confirmado", () => {
     const p = roupa({ deposito: { local: "Arara", qtd: null, min: null, max: null, vars: { a: { qtd: 2, min: null, max: null } } } });
     const t = setup("roupas", p); t.submit(); t.submit();
     click("Editar variação"); typeIn(/^Quantidade$/, "9"); click("Salvar variação");
-    for (let i = 0; i < 5; i++) t.submit(); t.submit();
+    for (let i = 0; i < 6; i++) t.submit(); t.submit();
     const s = saved(t.onSave); expect(s.variacoes[0]!.qtd).toBe(9); expect(s.deposito?.vars?.["a"]?.qtd).toBe(2);
   });
   it("associação por variação preservada e remoção com quantidade positiva bloqueada", () => {
@@ -109,7 +109,7 @@ describe("roupas", () => {
     const rem = screen.getAllByRole("button", { name: "Remover variação" });
     fireEvent.click(rem[0]!); expect(screen.getByText(REMOCAO_BLOQUEADA)).toBeTruthy();
     fireEvent.click(rem[1]!);
-    for (let i = 0; i < 5; i++) t.submit(); t.submit();
+    for (let i = 0; i < 6; i++) t.submit(); t.submit();
     const s = saved(t.onSave); expect(s.variacoes.map((v) => v.uid)).toEqual(["a"]); expect(s.deposito?.vars).toEqual({ a: { qtd: 5, min: 1, max: 9 } });
   });
   it("nova variação exige confirmação própria", () => {
@@ -147,7 +147,7 @@ describe("locais, resumo e produtos antigos", () => {
   it("produto antigo sem configuração mantém 'Depósito não configurado'", () => {
     const p = base("mercado", "Pacote", "Mercearia"); const t = setup("mercado", p); t.toDeposito();
     expect(screen.getByRole("button", { name: /Manter sem configurar/ }).getAttribute("aria-pressed")).toBe("true");
-    t.submit(); expect(screen.getByText(SEM_CONFIG)).toBeTruthy(); t.submit();
+    t.submit(); t.submit(); expect(screen.getByText(SEM_CONFIG)).toBeTruthy(); t.submit();
     expect(saved(t.onSave).deposito).toBeUndefined();
     render(<DepositoInfo p={p} />); expect(screen.getAllByText(SEM_CONFIG).length).toBeGreaterThan(0);
   });
@@ -157,9 +157,9 @@ describe("locais, resumo e produtos antigos", () => {
   });
   it("editar Limites pelo resumo volta ao resumo quando válido", () => {
     const p = base("mercado", "Pacote", "Mercearia", { deposito: { local: "A", qtd: 4, min: null, max: null } });
-    const t = setup("mercado", p); for (let i = 0; i < 7; i++) t.submit();
+    const t = setup("mercado", p); for (let i = 0; i < 8; i++) t.submit();
     expect(screen.getByText("Salvar produto")).toBeTruthy();
-    fireEvent.click(screen.getAllByRole("button", { name: /Editar/ }).at(-1)!);
+    fireEvent.click(screen.getAllByRole("button", { name: /Editar/ })[6]!);
     expect(screen.getByText("Limites de estoque")).toBeTruthy();
     typeIn(/^Mínimo/, "2"); t.submit();
     expect(screen.getByText("Salvar produto")).toBeTruthy(); t.submit();
@@ -175,7 +175,7 @@ describe("locais, resumo e produtos antigos", () => {
     const p = base("mercado", "Pacote", "Mercearia", { deposito: { local: "A", qtd: 0, min: null, max: null } });
     const t = setup("mercado", p); t.toDeposito(); click("Definir depois");
     expect(screen.queryByText(/exigirá uma transferência/)).toBeNull();
-    t.submit(); t.submit(); t.submit(); t.submit();
+    t.submit(); t.submit(); t.submit(); t.submit(); t.submit();
     expect(saved(t.onSave).deposito?.local).toBeNull();
   });
   it("mudar a unidade de produto com depósito é bloqueado", () => {
