@@ -23,7 +23,7 @@ describe("validação final do produto", () => {
 
   it("edição pelo resumo: trocar o principal para o código da variação não salva", () => {
     const { onSave, submit } = setup(base);
-    for (let i = 0; i < 7; i++) submit(); // chega ao resumo
+    for (let i = 0; i < 6; i++) submit(); // chega ao resumo (roupas não tem o passo de validade)
     expect(screen.getByText("Salvar produto")).toBeTruthy();
     fireEvent.click(screen.getAllByRole("button").find((b) => /editar/i.test(b.textContent ?? "") || /editar/i.test(b.getAttribute("aria-label") ?? ""))!);
     fireEvent.change(screen.getByPlaceholderText("Ex.: 7891234567890"), { target: { value: "222" } });
@@ -34,7 +34,7 @@ describe("validação final do produto", () => {
 
   it("corrigir o código remove a mensagem e permite concluir", () => {
     const { onSave, submit } = setup(base);
-    for (let i = 0; i < 7; i++) submit();
+    for (let i = 0; i < 6; i++) submit();
     fireEvent.click(screen.getAllByRole("button").find((b) => /editar/i.test(b.textContent ?? "") || /editar/i.test(b.getAttribute("aria-label") ?? ""))!);
     const input = screen.getByPlaceholderText("Ex.: 7891234567890");
     fireEvent.change(input, { target: { value: "222" } });
@@ -58,7 +58,7 @@ describe("validação final do produto", () => {
 
   it("edição mantendo os próprios códigos válidos salva", () => {
     const { onSave, submit } = setup(base);
-    for (let i = 0; i < 8; i++) submit();
+    for (let i = 0; i < 7; i++) submit();
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(onSave.mock.calls[0]![0].codigo).toBe("111");
   });

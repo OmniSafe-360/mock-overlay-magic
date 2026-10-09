@@ -28,6 +28,7 @@ import {
   AREA_SEM_ESTOQUE, CONF_INCOMPLETA, VAL_AREA_PENDENTE, conferirOrigens, origemMsg, TZ_PADRAO, VAL_FARM_INCOMPLETA, VAL_SEM_CONFIG, analisarLotes, avisosTexto, conferencia, conferirSoma, conflitoMsg, faixa, fmtData, hojeEm,
   linhaTexto, lotePendente, maskData, mil, parseData, proximoVencimento, temQtdValidade, type LinhaVal, type Validade,
   LOTE_DICA, LOTE_PARECE_CODIGO, lotePareceCodigo, temVencidoNaVenda, vencidoAVendaMsg,
+  CATEGORIAS_COM_VALIDADE, avisosPadrao, sugestaoValidadeMsg, tipoSemValidade, validadeSugerida,
 } from "@/lib/validade";
 
 /* ---------- tipos e dados por comércio ---------- */
@@ -144,7 +145,7 @@ export function ProductDetail({ p, tipo, suppliers, onBack, onEdit }: { p: Produ
         <Row t="Depósito"><DepositoInfo p={p} /></Row>
         <Row t="Área de venda"><AreaVendaInfo p={p} /></Row>
         <Row t="Total para conferência"><TotalInfo p={p} /></Row>
-        <Row t="Validade"><ValidadeInfo p={p} tipo={tipo} /></Row>
+        {!(tipoSemValidade(tipo) && !p.validade?.controla) && <Row t="Validade"><ValidadeInfo p={p} tipo={tipo} /></Row>}
       </div>
       <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">{TEMPORARIO}</p>
       <button type="button" onClick={() => setEtiqueta(true)} className={`flex w-full items-center justify-center gap-2 ${btnGhost}`}><Tag size={18} /> Imprimir etiqueta</button>
@@ -386,9 +387,13 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const isFarm = tipo === "farmacia";
   const initVal = initial?.validade;
   const hoje = useMemo(() => hojeEm(TZ_PADRAO), []);
-  const [vControla, setVControla] = useState<boolean | undefined>(isFarm ? true : initVal?.controla ?? ini.validade?.controla);
+  /* Validade de acordo com o tipo: roupas pula o passo; construção e autopeças já vêm respondidas pela categoria. */
+  const pulaVal = tipoSemValidade(tipo) && !initVal?.controla;
+  const [vControla, setVControla] = useState<boolean | undefined>(isFarm ? true
+    : initVal?.controla ?? (pulaVal ? false : CATEGORIAS_COM_VALIDADE[tipo] ? undefined : ini.validade?.controla));
+  const [valTocado, setValTocado] = useState(false);
   const [valManter, setValManter] = useState(!!initial && !initVal);
-  const [avisos, setAvisos] = useState<number[]>(initVal?.avisos ?? ini.validade?.avisos ?? []);
+  const [avisos, setAvisos] = useState<number[]>(initVal?.avisos ?? ini.validade?.avisos ?? (initial ? [] : avisosPadrao(tipo)));
   const [valMsg, setValMsg] = useState("");
   const [lin, setLin] = useState<Record<string, LinhaEd[]>>(() => linhasIniciais(initVal, isFarm));
   const desligarBloq = temQtdValidade(initVal);
@@ -552,6 +557,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   });
   const go = (to: number, s = 0) => {
     setDir(to * 10 + s > step * 10 + sub ? 1 : -1); setStep(to); setSub(s); setSubTried(false);
+    if (to === STEP_VAL && s === 0 && !initVal && !valTocado) { const sg = validadeSugerida(tipo, categoria); if (sg !== undefined) setVControla(sg); }
     if (to === STEP_VAL && s === 2) seed("dep");
     if (to === STEP_VAL && s === 3) seed("ven");
   };
@@ -562,6 +568,8 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
       : valBad ? { step: STEP_VAL, sub: valBad.sub, msg: valBad.msg } : null);
   const hasSub = step === STEP_DEP || step === STEP_VEN || step === STEP_VAL;
   const nSub = step === STEP_VAL ? 4 : 3;
+  const total = pulaVal ? TOTAL - 1 : TOTAL;
+  const numPasso = pulaVal && step > STEP_VAL ? step : step + 1;
   const here = (b: { step: number; sub?: number }) => b.step === step && (!hasSub || (b.sub ?? 0) === sub);
   const saveErr = triedSave && bad && here(bad) ? bad.msg : ruleErr && ruleErr.step === step ? ruleErr.msg : "";
 
@@ -607,7 +615,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     }
     if (step === STEP_VEN) {
       if (fromReview && !venBad) { setFromReview(false); return go(STEP_REV); }
-      if (vManter || sub === 2) return go(STEP_VAL);
+      if (vManter || sub === 2) return go(pulaVal ? STEP_REV : STEP_VAL);
       return go(STEP_VEN, sub + 1);
     }
     if (step === STEP_VAL) {
@@ -623,7 +631,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     if (hasSub && sub > 0) return go(step, sub - 1);
     if (step === STEP_VEN) return go(STEP_DEP, manterSem ? 0 : 2);
     if (step === STEP_VAL) return go(STEP_VEN, vManter ? 0 : 2);
-    if (step === STEP_REV) return go(STEP_VAL, valAtivo ? 3 : 0);
+    if (step === STEP_REV) return pulaVal ? go(STEP_VEN, vManter ? 0 : 2) : go(STEP_VAL, valAtivo ? 3 : 0);
     go(step - 1);
   };
   const edit = (s: number, ss = 0) => { setFromReview(true); go(s, ss); };
@@ -786,10 +794,10 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
             <div className="mt-2 shrink-0">
               <div className="mb-2 flex items-baseline justify-between gap-2">
                 <h1 className="min-w-0 text-lg font-bold short:text-base">{step === STEP_DEP ? DEP_TITLES[sub] : step === STEP_VEN ? VEN_TITLES[sub] : step === STEP_VAL ? VAL_TITLES[sub] : TITLES[step]}</h1>
-                <span className="shrink-0 text-xs text-muted-foreground">Passo {step + 1} de {TOTAL}{(step === STEP_DEP && !manterSem) || (step === STEP_VEN && !vManter) ? ` · ${sub + 1}/3` : step === STEP_VAL && valAtivo ? ` · ${sub + 1}/4` : ""}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">Passo {numPasso} de {total}{(step === STEP_DEP && !manterSem) || (step === STEP_VEN && !vManter) ? ` · ${sub + 1}/3` : step === STEP_VAL && valAtivo ? ` · ${sub + 1}/4` : ""}</span>
               </div>
               <div className="h-1 overflow-hidden rounded-full bg-secondary">
-                <div className="h-full rounded-full bg-progress transition-all duration-500" style={{ width: `${((step + (hasSub ? (sub + 1) / nSub : 1)) / TOTAL) * 100}%` }} />
+                <div className="h-full rounded-full bg-progress transition-all duration-500" style={{ width: `${((numPasso - 1 + (hasSub ? (sub + 1) / nSub : 1)) / total) * 100}%` }} />
               </div>
             </div>
 
@@ -1224,8 +1232,8 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                         </div>
                       ) : (
                         <div className="grid grid-cols-2 gap-2">
-                          <Pick on={!valManter && vControla === true} onClick={() => { setVControla(true); setValManter(false); setValMsg(""); }}><span>Sim</span></Pick>
-                          <Pick on={!valManter && vControla === false} onClick={() => { if (desligarBloq) { setValMsg(DESLIGAR_BLOQ); return; } setVControla(false); setValManter(false); setValMsg(""); }}><span>Não</span></Pick>
+                          <Pick on={!valManter && vControla === true} onClick={() => { setVControla(true); setValTocado(true); setValManter(false); setValMsg(""); }}><span>Sim</span></Pick>
+                          <Pick on={!valManter && vControla === false} onClick={() => { if (desligarBloq) { setValMsg(DESLIGAR_BLOQ); return; } setVControla(false); setValTocado(true); setValManter(false); setValMsg(""); }}><span>Não</span></Pick>
                         </div>
                       )}
                       {initial && !initVal && (
@@ -1236,7 +1244,9 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                       )}
                       {valManter && <p className="text-xs text-warning">{isFarm ? VAL_FARM_INCOMPLETA : VAL_SEM_CONFIG}</p>}
                       {valMsg && <p role="alert" className="text-sm text-destructive">{valMsg}</p>}
-                      {!isFarm && <p className="text-xs text-muted-foreground">Escolha “Não” para produtos que não vencem.</p>}
+                      {!isFarm && !initVal && !valTocado && !valManter && vControla !== undefined && validadeSugerida(tipo, categoria) === vControla ? (
+                        <p className="text-sm text-accent">{sugestaoValidadeMsg(vControla, categoria)}</p>
+                      ) : !isFarm && <p className="text-xs text-muted-foreground">Escolha “Não” para produtos que não vencem.</p>}
                     </>
                   )}
                   {sub === 1 && (
@@ -1289,7 +1299,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                     <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total para conferência</p>
                     {totalLinhas.map((t, i) => <p key={i} className="mt-0.5">{t}</p>)}
                   </div>
-                  <Sum t="Validade" onEdit={() => edit(STEP_VAL, 0)}>{resumoVal[0]}</Sum>
+                  {!pulaVal && <Sum t="Validade" onEdit={() => edit(STEP_VAL, 0)}>{resumoVal[0]}</Sum>}
                   {valAtivo && (
                     <>
                       <Sum t="Avisos" onEdit={() => edit(STEP_VAL, 1)}>{avisosTexto(avisos)}<br />{SEM_AVISOS}</Sum>

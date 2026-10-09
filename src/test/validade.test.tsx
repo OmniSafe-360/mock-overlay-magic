@@ -318,7 +318,7 @@ describe("cadastro realmente novo com validade nos seis tipos", () => {
     expect(v.dep["_"]![0]).toMatchObject({ qtd: 40, lote: "A12" }); expect(v.ven["_"]![0]).toMatchObject({ qtd: 20, lote: "A12" });
   });
 
-  it("roupas salva validade por variação (uid)", () => {
+  it("roupas não pergunta validade: vai do passo de venda direto ao resumo e salva sem controle", () => {
     const t = setup("roupas");
     click("Digitar código"); typeIn("Código do produto", "7890001"); typeIn("Nome do produto", "Camiseta"); t.submit();
     typeIn("Preço de compra", "1000"); typeIn("Preço de venda", "1500"); click("Peça"); typeIn("Categoria", "Camisetas"); t.submit();
@@ -328,11 +328,11 @@ describe("cadastro realmente novo com validade nos seis tipos", () => {
     click("Não, vou contar o depósito"); typeIn(/Quantidade confirmada no depósito/, "5"); t.submit(); t.submit();
     click(/Novo local de venda/); typeIn("Nome do local de venda", "Arara"); click("Usar este local de venda"); t.submit();
     typeIn(/Quanto desta variação já está neste local/, "0"); t.submit(); t.submit();
-    click("Sim"); t.submit(); t.submit();
-    typeIn(/^Quantidade \(/, "5"); typeIn("Vence em", "10/12/2026"); t.submit();
-    expect(screen.getByText(SEM_ESTOQUE)).toBeTruthy(); t.submit(); t.submit();
-    const p = saved(t.onSave); const uid = p.variacoes[0]!.uid!;
-    expect(p.validade!.dep[uid]![0]).toMatchObject({ qtd: 5, data: "2026-12-10" });
+    expect(screen.queryByText("Controle de validade")).toBeNull();
+    expect(screen.getByText("Salvar produto")).toBeTruthy();
+    expect(screen.getByText(/Passo 7 de 7/)).toBeTruthy();
+    t.submit();
+    expect(saved(t.onSave).validade).toMatchObject({ controla: false });
   });
 });
 

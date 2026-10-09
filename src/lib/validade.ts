@@ -173,3 +173,23 @@ export const lotePareceCodigo = (lote: string) => /^\d{8,}$/.test(lote.trim());
 /** Há quantidade vencida contada na área de venda? */
 export const temVencidoNaVenda = (v: Validade | null | undefined, hoje: string) =>
   !!v?.controla && Object.values(v.ven ?? {}).flat().some((l) => !!l.data && l.qtd > 0 && faixa(l.data, hoje) === "vencido");
+
+/* ---------- Validade de acordo com o tipo de comércio (entrega 2 da análise por comércio) ---------- */
+/** Roupa não vence: a loja de roupas não vê o passo de validade. */
+export const tipoSemValidade = (tipo: string) => tipo === "roupas";
+/** Categorias que costumam ter validade, nos tipos em que a maioria dos produtos não vence. */
+export const CATEGORIAS_COM_VALIDADE: Record<string, string[]> = {
+  construcao: ["Básico", "Pintura", "Pisos e revestimentos", "Acabamento"],
+  autopecas: ["Óleos e lubrificantes", "Arrefecimento"],
+};
+/** Resposta já marcada para "Este produto tem validade?" (undefined = o comerciante escolhe). */
+export function validadeSugerida(tipo: string, categoria: string): boolean | undefined {
+  const lista = CATEGORIAS_COM_VALIDADE[tipo];
+  if (!lista || !categoria) return undefined;
+  return lista.includes(categoria);
+}
+export const sugestaoValidadeMsg = (sim: boolean, categoria: string) => sim
+  ? `Já marcamos “Sim”: produtos de ${categoria} costumam ter validade. Mude se este não vencer.`
+  : `Já marcamos “Não”: produtos de ${categoria} normalmente não vencem. Mude se este vencer.`;
+/** Avisos já marcados num produto novo. Farmácia precisa de antecedência para trocar com o distribuidor. */
+export const avisosPadrao = (tipo: string): number[] => (tipo === "farmacia" ? [30, 60, 90] : []);

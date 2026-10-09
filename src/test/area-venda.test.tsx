@@ -80,7 +80,8 @@ describe("produto novo, do formulário vazio até salvar, nos seis tipos", () =>
     t.submit(); expect(screen.getByText(QTD_VAZIA)).toBeTruthy();
     fireEvent.change(campo, { target: { value: "3" } });
     expect(screen.getByText("M · Azul: Depósito 5 + Área de venda 3 = 8 peças no total")).toBeTruthy();
-    t.submit(); t.submit(); passarValidade("roupas", t); t.submit();
+    t.submit(); t.submit(); // roupas não tem o passo de validade: vai direto ao resumo
+    expect(screen.getByText("Salvar produto")).toBeTruthy(); t.submit();
     const p = saved(t.onSave); const uid = p.variacoes[0]!.uid!;
     expect(p.areaVenda).toEqual({ local: "Arara 2", qtd: null, min: null, max: null, vars: { [uid]: { qtd: 3, min: null, max: null } } });
     expect(p.variacoes[0]!.qtd).toBe(2);
