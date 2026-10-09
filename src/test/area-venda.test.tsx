@@ -196,7 +196,7 @@ describe("locais e navegação", () => {
     const p = base("Pacote", "Mercearia", { deposito: { local: "A", qtd: 1, min: null, max: null }, areaVenda: { local: "G", qtd: 1, min: null, max: null } });
     setup("mercado", p);
     const t = { submit: () => fireEvent.submit(document.querySelector("form")!) };
-    for (let i = 0; i < 9; i++) t.submit();
+    for (let i = 0; i < 10; i++) t.submit();
     expect(screen.getByText("Salvar produto")).toBeTruthy();
     click(/Voltar/); expect(screen.getByText("Área de venda: limites")).toBeTruthy();
     click(/Voltar/); click(/Voltar/); expect(screen.getByText("Área de venda: onde fica?")).toBeTruthy();
