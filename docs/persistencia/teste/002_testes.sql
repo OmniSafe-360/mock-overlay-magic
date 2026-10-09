@@ -129,11 +129,11 @@ create table public.t_sonda (x int);
 select t_falha($$insert into public.t_sonda values (1)$$, 'qualquer_erro', 'operacao aceita');
 select t_ok(not exists (select 1 from public.t_sonda), 'sucesso inesperado foi desfeito');
 select t_falha($$select 1/0$$, 'quantidade_vazia', 'veio');
-select t_falha($$do $x$ begin raise exception 'quantidade_vazia' using errcode = '23514'; end $x$$$, 'quantidade_vazia', '"quantidade_vazia" veio com SQLSTATE');
-select t_falha($$do $x$ begin raise exception 'quantidade_vazia_extra' using errcode = '22023'; end $x$$$, 'quantidade_vazia', 'veio');
+select t_falha($q$do $x$ begin raise exception 'quantidade_vazia' using errcode = '23514'; end $x$$q$, 'quantidade_vazia', '"quantidade_vazia" veio com SQLSTATE');
+select t_falha($q$do $x$ begin raise exception 'quantidade_vazia_extra' using errcode = '22023'; end $x$$q$, 'quantidade_vazia', 'veio');
 select t_falha($$select 1/0$$, 'division by zero', 'SQLSTATE esperado desconhecido');
-do $x$ begin perform t_erro($$do $y$ begin raise exception 'quantidade_vazia' using errcode = '22023'; end $y$$$, 'quantidade_vazia'); end $x$;
-do $x$ begin perform t_erro($$do $y$ begin insert into public.t_sonda values (1); perform 1/0; end $y$$$, 'division by zero', '22012'); end $x$;
+do $x$ begin perform t_erro($q$do $y$ begin raise exception 'quantidade_vazia' using errcode = '22023'; end $y$$q$, 'quantidade_vazia'); end $x$;
+do $x$ begin perform t_erro($q$do $y$ begin insert into public.t_sonda values (1); perform 1/0; end $y$$q$, 'division by zero', '22012'); end $x$;
 select t_ok(not exists (select 1 from public.t_sonda), 'erro correto passa e desfaz o que a operacao gravou');
 select 'OK verificador aprova erro correto';
 
