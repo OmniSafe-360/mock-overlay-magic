@@ -11,6 +11,7 @@ import {
 } from "@/lib/embalagem";
 import { ImprimirEtiquetaSheet } from "@/components/Etiqueta";
 import { avisoCodigo } from "@/lib/codigoBarras";
+import { exemplos } from "@/lib/exemplos";
 import { CATEGORIAS, DETALHES, GRUPOS_TAMANHO, UNICO, UNIDADES, grupoInicial } from "@/lib/listas";
 import { AUTOPECAS_VARS_MSG, CONSTRUCAO_VARS_MSG, PET_VARS_MSG, FARMACIA_VARS_MSG, msgDetalheFixo, firstInvalidStep, typeRuleError, type TypeRules, mainCodeError, usedCodes, variationErrors, variationOk } from "@/lib/variations";
 import {
@@ -811,7 +812,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                   )}
                   {gerador.erro && <p role="alert" className="text-sm text-destructive">{gerador.erro}</p>}
                   {denied && codeMode === "choose" && <p className="text-sm text-destructive">Sem acesso à câmera. Você pode digitar o código.</p>}
-                  <Field label="Nome do produto" name="pnome" id="pnome" autoComplete="off" enterKeyHint="done" placeholder="Ex.: Arroz branco 5 kg"
+                  <Field label="Nome do produto" name="pnome" id="pnome" autoComplete="off" enterKeyHint="done" placeholder={`Ex.: ${exemplos(tipo).produto}`}
                     value={nome} onChange={(e) => setNome(e.target.value)} hint="Como aparece na etiqueta e no caixa." />
                 </>
               )}
@@ -1338,7 +1339,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
           if (novaCompra != null) mudarCompra(novaCompra);
           setEmbSheet(null);
         }} />}
-      {suppSheet && <SupplierSheet onClose={() => setSuppSheet(false)} onSave={(s) => {
+      {suppSheet && <SupplierSheet tipo={tipo} onClose={() => setSuppSheet(false)} onSave={(s) => {
         const r = onAddSupplier(s);
         if (typeof r === "number") { setForn(r); setSuppSheet(false); return; }
         return r.then((id) => { setForn(id); setSuppSheet(false); });
@@ -1352,7 +1353,7 @@ function LimitesVendaAjuda() {
     <div className="space-y-1 text-xs text-muted-foreground">
       <p><b>Mínimo:</b> quando chegar a esta quantidade, será necessário repor.</p>
       <p><b>Máximo:</b> quanto deste produto cabe neste local.</p>
-      <p>Valem para este produto neste local, não para a gôndola inteira. A reposição automática depende de local, quantidade e mínimo definidos — e não funciona nesta versão.</p>
+      <p>Valem para este produto neste local, não para o local inteiro. A reposição automática depende de local, quantidade e mínimo definidos — e não funciona nesta versão.</p>
     </div>
   );
 }
@@ -1546,7 +1547,7 @@ function EmbalagemSheet({ index, lista, unidade, codigoProduto, usados, compra, 
           <Chips label="Tipo de embalagem" hint="Como vem do fornecedor." opts={[...TIPOS_EMBALAGEM]} value={tipo} onChange={setTipo} />
           <Field label={perguntaQtd(unidade)} name="eqtd" id="eqtd" inputMode={aceitaFracao(unidade) ? "decimal" : "numeric"} enterKeyHint="next" onKeyDown={nextOnEnter("ecod")}
             placeholder={aceitaFracao(unidade) ? "Ex.: 25" : "Ex.: 12"} value={qtdTxt} onChange={(e) => setQtdTxt(e.target.value.replace(/[^\d,.-]/g, "").slice(0, 10))}
-            error={qErr} hint={`Ex.: caixa com 12 ${nomeUn === "unidade" ? "unidades" : nomeUn}.`} />
+            error={qErr} hint={`Ex.: ${unidade === "Caixa" ? "fardo" : "caixa"} com ${qtdUn(12, unidade)}.`} />
           <Field label="Código de barras da embalagem (opcional)" name="ecod" id="ecod" inputMode="numeric" autoComplete="off" enterKeyHint="next" onKeyDown={nextOnEnter("epreco")}
             placeholder="Ex.: 17891234567890" value={cod} onChange={(e) => setCod(e.target.value.replace(/\s/g, "").slice(0, 60))} error={errs.codigo ?? ""}
             hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : gerador.criado && cod === gerador.criado ? CODIGO_CRIADO : ajudaCodigo(cod, "O código impresso na caixa, se tiver.")}
@@ -1581,7 +1582,7 @@ function EmbalagemSheet({ index, lista, unidade, codigoProduto, usados, compra, 
     </Sheet>
   );
 }
-function SupplierSheet({ onClose, onSave }: { onClose: () => void; onSave: (s: Omit<Supplier, "id">) => void | Promise<void> }) {
+function SupplierSheet({ tipo, onClose, onSave }: { tipo: string; onClose: () => void; onSave: (s: Omit<Supplier, "id">) => void | Promise<void> }) {
   const [nome, setNome] = useState(""); const [tel, setTel] = useState(""); const [email, setEmail] = useState("");
   const [salvando, setSalvando] = useState(false); const [erro, setErro] = useState("");
   const enviar = () => {
@@ -1597,7 +1598,7 @@ function SupplierSheet({ onClose, onSave }: { onClose: () => void; onSave: (s: O
     <Sheet title="Novo fornecedor" onClose={() => { if (!salvando) onClose(); }}>
       <form noValidate onSubmit={(e) => { e.preventDefault(); if (ok) enviar(); }} className="flex min-h-0 flex-col">
         <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3">
-          <Field label="Nome" name="fnome" autoComplete="organization" enterKeyHint="next" onKeyDown={nextOnEnter("ftel")} placeholder="Ex.: Distribuidora Sol" value={nome} onChange={(e) => setNome(e.target.value)} hint="Nome da empresa ou do vendedor." />
+          <Field label="Nome" name="fnome" autoComplete="organization" enterKeyHint="next" onKeyDown={nextOnEnter("ftel")} placeholder={`Ex.: ${exemplos(tipo).fornecedor}`} value={nome} onChange={(e) => setNome(e.target.value)} hint="Nome da empresa ou do vendedor." />
           <Field label="Telefone / WhatsApp" name="ftel" type="tel" inputMode="tel" autoComplete="tel" enterKeyHint="next" onKeyDown={nextOnEnter("femail")} placeholder="(11) 99999-9999" value={tel} onChange={(e) => setTel(maskPhone(e.target.value))} hint="Para fazer pedidos." />
           <Field label="E-mail" name="femail" type="email" inputMode="email" autoComplete="email" enterKeyHint="done" placeholder="Opcional" value={email} onChange={(e) => setEmail(e.target.value)} error={!emailOk ? "E-mail inválido." : ""} hint="Opcional." />
         </div>

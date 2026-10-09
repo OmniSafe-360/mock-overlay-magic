@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ArrowLeft, Store } from "lucide-react";
+import { nomeAreaVenda } from "@/lib/exemplos";
 import { TIPOS, type StoreData } from "@/components/StoreSetup";
 import { ProductDetail, ProductsTab, SavedBanner, type Product, type Supplier } from "@/components/ProductArea";
 
@@ -32,7 +33,7 @@ export function StoreSpace({ store, products, suppliers, saved, onBack, onNew, o
         <div className="flex w-max gap-2">
           {TABS.map((t) => (
             <button key={t} type="button" onClick={() => setTab(t)} aria-current={tab === t ? "page" : undefined}
-              className={`min-h-12 rounded-2xl px-4 text-base font-semibold transition ${tab === t ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground hover:text-foreground"}`}>{t}</button>
+              className={`min-h-12 rounded-2xl px-4 text-base font-semibold transition ${tab === t ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground hover:text-foreground"}`}>{t === "Gôndolas" ? nomeAreaVenda(store.tipo) : t}</button>
           ))}
         </div>
       </div>
@@ -44,7 +45,7 @@ export function StoreSpace({ store, products, suppliers, saved, onBack, onNew, o
         </>
       ) : (
         <div className="flex flex-col items-center gap-2 py-20 text-center">
-          <p className="text-xl font-bold">{tab}</p>
+          <p className="text-xl font-bold">{tab === "Gôndolas" ? nomeAreaVenda(store.tipo) : tab}</p>
           <p className="text-muted-foreground">Em breve</p>
         </div>
       )}
