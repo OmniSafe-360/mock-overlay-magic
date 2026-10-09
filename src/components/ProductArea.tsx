@@ -319,7 +319,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     if (x && (x.q.v ?? 0) > 0) { setVarMsg(REMOCAO_BLOQUEADA); return; }
     setVarMsg("");
     setVars(vars.filter((_, j) => j !== i));
-    if (x?.v.uid) setDVar(({ [x.v.uid]: _omit, ...rest }) => rest);
+    if (x?.v.uid) { const k = x.v.uid; setDVar((m) => { const n = { ...m }; delete n[k]; return n; }); }
   };
   const resumoLocal = manterSem ? SEM_CONFIG : dLocal ? dLocal : LOCAL_PENDENTE;
   const resumoQtd = isRoupas
