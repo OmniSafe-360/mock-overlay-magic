@@ -14,25 +14,25 @@ function setup(initial: Product) {
   render(<ProductWizard store={store} products={[initial]} initial={initial} suppliers={[]} onAddSupplier={() => 1} onCancel={() => {}} onSave={onSave} />);
   return { onSave, submit: () => fireEvent.submit(document.querySelector("form")!) };
 }
-const run = (submit: () => void, n = 6) => { for (let i = 0; i < n; i++) submit(); };
+const run = (submit: () => void, n = 7) => { for (let i = 0; i < n; i++) submit(); };
 
 describe("opções de Autopeças", () => {
   it("produto válido salva e mantém códigos separados", () => {
-    const t = setup(ok); run(t.submit, 5);
+    const t = setup(ok); run(t.submit, 6);
     const p = t.onSave.mock.calls[0]![0];
     expect(p.codigo).toBe("7890001");
     expect(p.detalhes.referencia).toBe("KYB-334");
   });
-  it("produto sem detalhes salva (Pular)", () => { const t = setup({ ...ok, detalhes: {} }); run(t.submit, 5); expect(t.onSave).toHaveBeenCalledTimes(1); });
+  it("produto sem detalhes salva (Pular)", () => { const t = setup({ ...ok, detalhes: {} }); run(t.submit, 6); expect(t.onSave).toHaveBeenCalledTimes(1); });
 
   it.each(["Unidade", "Par", "Jogo", "Kit"])("aceita a unidade %s", (u) => {
-    const t = setup({ ...ok, unidade: u }); run(t.submit, 5); expect(t.onSave.mock.calls[0]![0].unidade).toBe(u);
+    const t = setup({ ...ok, unidade: u }); run(t.submit, 6); expect(t.onSave.mock.calls[0]![0].unidade).toBe(u);
   });
   it.each(["Dianteira", "Traseira", "Esquerda", "Direita", "Não se aplica", ""])("aceita a posição '%s'", (pos) => {
-    const t = setup({ ...ok, detalhes: { marca: "X", posicao: pos } }); run(t.submit, 5); expect(t.onSave).toHaveBeenCalledTimes(1);
+    const t = setup({ ...ok, detalhes: { marca: "X", posicao: pos } }); run(t.submit, 6); expect(t.onSave).toHaveBeenCalledTimes(1);
   });
   it("posição ausente é aceita", () => {
-    const t = setup({ ...ok, detalhes: { marca: "X" } }); run(t.submit, 5); expect(t.onSave).toHaveBeenCalledTimes(1);
+    const t = setup({ ...ok, detalhes: { marca: "X" } }); run(t.submit, 6); expect(t.onSave).toHaveBeenCalledTimes(1);
   });
 
   it("unidade Peça impede salvar", () => {
@@ -50,7 +50,7 @@ describe("opções de Autopeças", () => {
     expect(screen.getByText(POSICAO_MSG)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Traseira" }));
     expect(screen.queryByText(POSICAO_MSG)).toBeNull();
-    run(t.submit, 3);
+    run(t.submit, 4);
     expect(t.onSave.mock.calls[0]![0].detalhes.posicao).toBe("Traseira");
   });
 
@@ -68,17 +68,17 @@ describe("opções de Autopeças", () => {
     expect(screen.getByText(/Categoria incompatível/)).toBeTruthy();
     fireEvent.change(document.getElementById("cat")!, { target: { value: "Freios" } });
     expect(screen.queryByText(/incompatível/)).toBeNull();
-    run(t.submit, 4);
+    run(t.submit, 5);
     expect(t.onSave.mock.calls[0]![0]).toMatchObject({ unidade: "Jogo", categoria: "Freios" });
   });
 
   it("editar pelo resumo não contorna as validações", () => {
-    const t = setup(ok); run(t.submit, 4);
+    const t = setup(ok); run(t.submit, 5);
     expect(screen.getByText("Salvar produto")).toBeTruthy();
     const edits = screen.getAllByRole("button").filter((b) => /editar/i.test(b.textContent ?? "") || /editar/i.test(b.getAttribute("aria-label") ?? ""));
     fireEvent.click(edits[1]!);
     fireEvent.change(document.getElementById("cat")!, { target: { value: "" } });
-    run(t.submit, 6);
+    run(t.submit, 7);
     expect(t.onSave).not.toHaveBeenCalled();
     expect(screen.queryByText("Salvar produto")).toBeNull();
   });
