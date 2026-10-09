@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { AreaVendaInfo, ProductWizard, TotalInfo, type Product } from "@/components/ProductArea";
+import { ProductWizard, type Product } from "@/components/ProductArea";
+import { FichaProduto } from "@/components/FichaProduto";
 import { REMOCAO_BLOQUEADA, MAX_MENOR, NEGATIVO, QTD_VAZIA, qtdUn } from "@/lib/deposito";
 import { TOTAL_INDISPONIVEL, VEN_ACIMA_MAX, VEN_LOCAL_DUP, VEN_LOCAL_PENDENTE, VEN_SEM_CONFIG, locaisVendaDoComercio, totalTexto } from "@/lib/areaVenda";
 
@@ -134,9 +135,10 @@ describe("total para conferência", () => {
     const p = base("Peça", "Camisetas", { variacoes: [{ tam: "M", cor: "Azul", qtd: 99, uid: "a" }, { tam: "G", cor: "Azul", qtd: 99, uid: "b" }],
       deposito: { local: "X", qtd: null, min: null, max: null, vars: { a: { qtd: 2, min: null, max: null }, b: { qtd: 1, min: null, max: null } } },
       areaVenda: { local: "Arara", qtd: null, min: null, max: null, vars: { a: { qtd: 3, min: null, max: null } } } });
-    render(<TotalInfo p={p} />);
-    expect(screen.getByText("M · Azul: Depósito 2 + Área de venda 3 = 5 peças no total")).toBeTruthy();
-    expect(screen.getByText(`G · Azul: ${TOTAL_INDISPONIVEL}`)).toBeTruthy();
+    render(<FichaProduto p={p} tipo="roupas" onBack={() => {}} onEdit={() => {}} />);
+    const linha = (nome: string) => [...screen.getAllByText(nome)[0]!.parentElement!.querySelectorAll("span")].map((x) => x.textContent);
+    expect(linha("M · Azul")).toEqual(["M · Azul", "2", "3", "5"]);
+    expect(linha("G · Azul")).toEqual(["G · Azul", "1", "—", "1"]);
   });
 });
 
@@ -147,7 +149,7 @@ describe("produtos antigos, bloqueios e variações", () => {
     expect(screen.getByRole("button", { name: /Manter sem configurar/ }).getAttribute("aria-pressed")).toBe("true");
     t.submit(); expect(screen.getByText(VEN_SEM_CONFIG)).toBeTruthy(); expect(screen.getAllByText(TOTAL_INDISPONIVEL).length).toBeGreaterThan(0);
     t.submit(); expect(saved(t.onSave).areaVenda).toBeUndefined();
-    render(<AreaVendaInfo p={p} />); expect(screen.getAllByText(VEN_SEM_CONFIG).length).toBeGreaterThan(0);
+    render(<FichaProduto p={p} tipo="mercado" onBack={() => {}} onEdit={() => {}} />); expect(screen.getByText("Gôndola não configurada")).toBeTruthy();
   });
   it("com saldo, trocar local é bloqueado e a quantidade fica só para consulta", () => {
     const p = base("Pacote", "Mercearia", { areaVenda: { local: "G1", qtd: 4, min: null, max: null } });

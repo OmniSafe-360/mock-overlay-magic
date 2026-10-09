@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { ProductWizard, ValidadeInfo, validadeLinhas, type Product } from "@/components/ProductArea";
+import { ProductWizard, validadeLinhas, type Product } from "@/components/ProductArea";
+import { FichaProduto } from "@/components/FichaProduto";
 import {
   ACIMA, AGUARDANDO, AVISOS_NAO, DESLIGAR_BLOQ, PEND_CONF, SEM_ESTOQUE, VAL_FARM_INCOMPLETA, VAL_SEM_CONFIG, analisarLotes, conferencia,
   conferirSoma, faixa, faltaMsg, hojeEm, parseData, proximoVencimento, type Validade,
@@ -383,9 +384,8 @@ describe("resumo e detalhe: não contada, zero e configuração pendente", () =>
   it("detalhe do produto usa as contagens reais", () => {
     const p: Product = { id: 1, codigo: "1", nome: "X", compra: 1, venda: 2, unidade: "Un", categoria: "Mercearia", detalhes: {}, variacoes: [], fornecedor: null,
       deposito: { local: "A", qtd: 5, min: null, max: null }, validade: v };
-    render(<ValidadeInfo p={p} tipo="mercado" />);
-    expect(screen.getByText(/Depósito: Há quantidade contada/)).toBeTruthy();
-    expect(screen.getByText("Área de venda: Aguardando contagem")).toBeTruthy();
-    expect(screen.getByText(/^Conferência incompleta/)).toBeTruthy();
+    render(<FichaProduto p={p} tipo="mercado" onBack={() => {}} onEdit={() => {}} />);
+    expect(screen.getByText("Validade não informada: 5 Un")).toBeTruthy();
+    expect(screen.getByText("Nenhuma validade informada ainda.")).toBeTruthy();
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { DepositoInfo, ProductWizard, type Product } from "@/components/ProductArea";
+import { ProductWizard, type Product } from "@/components/ProductArea";
+import { FichaProduto } from "@/components/FichaProduto";
 import { LOCAL_DUP, LOCAL_PENDENTE, MAX_MENOR, NEGATIVO, QTD_VAZIA, REMOCAO_BLOQUEADA, SEM_CONFIG, ACIMA_MAX, locaisDoComercio, parseNum } from "@/lib/deposito";
 
 import { textoDoTipo } from "@/lib/exemplos";
@@ -152,11 +153,13 @@ describe("locais, resumo e produtos antigos", () => {
     expect(screen.getByRole("button", { name: /Manter sem configurar/ }).getAttribute("aria-pressed")).toBe("true");
     t.submit(); t.submit(); expect(screen.getByText(SEM_CONFIG)).toBeTruthy(); t.submit();
     expect(saved(t.onSave).deposito).toBeUndefined();
-    render(<DepositoInfo p={p} />); expect(screen.getAllByText(SEM_CONFIG).length).toBeGreaterThan(0);
+    render(<FichaProduto p={p} tipo="mercado" onBack={() => {}} onEdit={() => {}} />);
+    expect(screen.getAllByText("Depósito não configurado").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Não configurado").length).toBeGreaterThan(0);
   });
   it("detalhe mostra local pendente separado dos limites", () => {
-    render(<DepositoInfo p={base("mercado", "Pacote", "Mercearia", { deposito: { local: null, qtd: 3, min: null, max: null } })} />);
-    expect(screen.getByText(LOCAL_PENDENTE)).toBeTruthy(); expect(screen.getByText("Alertas de estoque não configurados")).toBeTruthy();
+    render(<FichaProduto p={base("mercado", "Pacote", "Mercearia", { deposito: { local: null, qtd: 3, min: null, max: null } })} tipo="mercado" onBack={() => {}} onEdit={() => {}} />);
+    expect(screen.getByText("Local no depósito não definido")).toBeTruthy(); expect(screen.getByText("Local não definido")).toBeTruthy();
   });
   it("editar Limites pelo resumo volta ao resumo quando válido", () => {
     const p = base("mercado", "Pacote", "Mercearia", { deposito: { local: "A", qtd: 4, min: null, max: null } });

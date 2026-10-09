@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { ValidadeInfo, type Product } from "@/components/ProductArea";
+import type { Product } from "@/components/ProductArea";
+import { FichaProduto } from "@/components/FichaProduto";
 import { descricaoEmbalagem } from "@/lib/embalagem";
 import { unPlural } from "@/lib/deposito";
 import { LOTE_PARECE_CODIGO, lotePareceCodigo, temVencidoNaVenda, vencidoAVendaMsg } from "@/lib/validade";
@@ -44,7 +45,8 @@ describe("vencido na área de venda", () => {
   it("o detalhe do produto mostra o alerta", () => {
     const p = { id: 1, codigo: "1", nome: "Dipirona", compra: 1990, venda: 2990, unidade: "Frasco", categoria: "Medicamentos", detalhes: {}, variacoes: [], fornecedor: null,
       validade: val(ontem) } as unknown as Product;
-    render(<ValidadeInfo p={p} tipo="farmacia" />);
-    expect(screen.getByRole("alert").textContent).toBe(vencidoAVendaMsg(true));
+    render(<FichaProduto p={p} tipo="farmacia" onBack={() => {}} onEdit={() => {}} />);
+    expect(screen.getByText(vencidoAVendaMsg(true))).toBeTruthy();
+    expect(screen.getByText("Precisa de atenção agora")).toBeTruthy();
   });
 });

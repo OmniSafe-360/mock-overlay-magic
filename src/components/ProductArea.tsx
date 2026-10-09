@@ -9,7 +9,7 @@ import {
   EMB_VAZIA, MAX_EMBALAGENS, descricaoEmbalagem, embalagensDoTipo, rotuloComoChega, rotuloPrecoEmbalagem, errosEmbalagem, lerQtdEmbalagem, perguntaQtd, precoUnidade, rotuloContarPor, rotuloFechadas,
   rotuloSoltas, totalContado, type Embalagem,
 } from "@/lib/embalagem";
-import { ImprimirEtiquetaSheet } from "@/components/Etiqueta";
+import { FichaProduto } from "@/components/FichaProduto";
 import { avisoCodigo } from "@/lib/codigoBarras";
 import { LOCAIS_SUGERIDOS, exemplos, textoDoTipo } from "@/lib/exemplos";
 import { acimaPmcMsg, localNaoCombina, localPelaTarja, pmcCentavos, pmcTexto } from "@/lib/farmacia";
@@ -28,7 +28,7 @@ import {
   ACIMA, AGUARDANDO, AVISOS, CHAVE_PRODUTO, DESLIGAR_BLOQ, FAIXA_TXT, LINHAS_SEM_CONTAGEM, PEND_CONF, PEND_FALTA, QTD_ZERO, SEM_AVISOS, SEM_ESTOQUE,
   AREA_SEM_ESTOQUE, CONF_INCOMPLETA, VAL_AREA_PENDENTE, conferirOrigens, origemMsg, TZ_PADRAO, VAL_FARM_INCOMPLETA, VAL_SEM_CONFIG, analisarLotes, avisosTexto, conferencia, conferirSoma, conflitoMsg, faixa, fmtData, hojeEm,
   linhaTexto, lotePendente, maskData, mil, parseData, proximoVencimento, temQtdValidade, type LinhaVal, type Validade,
-  LOTE_DICA, LOTE_PARECE_CODIGO, lotePareceCodigo, temVencidoNaVenda, vencidoAVendaMsg,
+  LOTE_DICA, LOTE_PARECE_CODIGO, lotePareceCodigo, vencidoAVendaMsg,
   CATEGORIAS_COM_VALIDADE, avisosPadrao, sugestaoValidadeMsg, tipoSemValidade, validadeSugerida,
 } from "@/lib/validade";
 
@@ -116,120 +116,11 @@ export function ProductsTab({ products, onNew, onOpen }: { products: Product[]; 
 
 /* ---------- detalhe do produto ---------- */
 export function ProductDetail({ p, tipo, suppliers, onBack, onEdit }: { p: Product; tipo: string; suppliers: Supplier[]; onBack: () => void; onEdit: () => void }) {
-  const f = suppliers.find((s) => s.id === p.fornecedor);
-  const lucro = p.venda - p.compra;
-  const det = Object.entries(p.detalhes).filter(([, v]) => v);
-  const [etiqueta, setEtiqueta] = useState(false);
-  return (
-    <div className="mx-auto max-w-[560px] space-y-4 animate-in fade-in slide-in-from-right-8 duration-300">
-      <button type="button" onClick={onBack} className="flex min-h-12 items-center gap-2 pr-3 text-base font-semibold text-primary"><ArrowLeft size={18} /> Produtos</button>
-      <div>
-        <h1 className="text-2xl font-bold">{p.nome}</h1>
-        <p className="text-base text-muted-foreground">Cód. {p.codigo} · {p.categoria}</p>
-      </div>
-      <div className="divide-y divide-border rounded-3xl border border-border bg-secondary/60">
-        <Row t="Preços">Compra {brl2(p.compra)} · Venda {brl2(p.venda)} / {p.unidade}<br />Lucro {brl2(lucro)} por unidade</Row>
-        {(det.length > 0 || p.variacoes.length > 0) && (
-          <Row t="Detalhes">
-            {det.map(([k, v]) => <span key={k} className="block">{labelOf(tipo, k)}: {v}</span>)}
-            {p.variacoes.map((v, i) => <span key={v.uid ?? i} className="block">{v.tam} · {v.cor} · Cód. {v.codigo || "sem código"} · Quantidade informada no cadastro: {v.qtd}</span>)}
-          </Row>
-        )}
-        <Row t="Fornecedor">{f ? <>{f.nome}{f.tel ? ` · ${f.tel}` : ""}</> : "Definir depois"}</Row>
-        {tipo !== "roupas" && (
-          <Row t="Como chega">
-            {p.embalagens?.length ? p.embalagens.map((e) => (
-              <span key={e.uid} className="block">{descricaoEmbalagem(e, p.unidade)}{e.codigo ? ` · Cód. ${e.codigo}` : ""}{e.preco ? ` · ${brl2(e.preco)}` : ""}</span>
-            )) : "Por unidade"}
-          </Row>
-        )}
-        <Row t={textoDoTipo(tipo)("Depósito")}><DepositoInfo p={p} tipo={tipo} /></Row>
-        <Row t="Área de venda"><AreaVendaInfo p={p} /></Row>
-        <Row t="Total para conferência"><TotalInfo p={p} tipo={tipo} /></Row>
-        {!(tipoSemValidade(tipo) && !p.validade?.controla) && <Row t="Validade"><ValidadeInfo p={p} tipo={tipo} /></Row>}
-      </div>
-      <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">{TEMPORARIO}</p>
-      <button type="button" onClick={() => setEtiqueta(true)} className={`flex w-full items-center justify-center gap-2 ${btnGhost}`}><Tag size={18} /> Imprimir etiqueta</button>
-      <button type="button" onClick={onEdit} className={`flex items-center justify-center gap-2 ${btnPrimary(true)}`}><Pencil size={18} /> Editar</button>
-      {etiqueta && <ImprimirEtiquetaSheet produto={p} onClose={() => setEtiqueta(false)} />}
-    </div>
-  );
+  return <FichaProduto p={p} tipo={tipo} fornecedor={suppliers.find((s) => s.id === p.fornecedor)} onBack={onBack} onEdit={onEdit} />;
 }
-function Row({ t, children }: { t: string; children: ReactNode }) {
-  return (
-    <div className="p-4">
-      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t}</p>
-      <p className="mt-1 break-words text-base">{children}</p>
-    </div>
-  );
-}
-
-/** Situação do depósito, mostrada no detalhe do produto. */
-export function DepositoInfo({ p, tipo }: { p: Product; tipo?: string }) {
-  const T = textoDoTipo(tipo);
-  const d = p.deposito;
-  if (!d) return <span className="block">{T(SEM_CONFIG)}</span>;
-  return (
-    <>
-      <span className="block">{d.local ? `Local: ${d.local}` : T(LOCAL_PENDENTE)}</span>
-      {d.vars ? (
-        p.variacoes.map((v, i) => {
-          const c = v.uid ? d.vars?.[v.uid] : undefined;
-          return (
-            <span key={v.uid ?? i} className="block">
-              {v.tam} · {v.cor}: {c ? <>{T("Quantidade confirmada no depósito")}: {qtdUn(c.qtd, p.unidade)} · {limitesStatus(c.min, c.max)}</> : T("Depósito não configurado")}
-            </span>
-          );
-        })
-      ) : (
-        <>
-          <span className="block">{T("Quantidade confirmada no depósito")}: {d.qtd != null ? `${qtdUn(d.qtd, p.unidade)}` : "não informada"}</span>
-          <span className="block">{limitesStatus(d.min, d.max)}</span>
-        </>
-      )}
-    </>
-  );
-}
-
-/** Situação da área de venda, mostrada no detalhe do produto. */
-export function AreaVendaInfo({ p }: { p: Product }) {
-  const a = p.areaVenda;
-  if (!a) return <span className="block">{VEN_SEM_CONFIG}</span>;
-  return (
-    <>
-      <span className="block">{a.local ? `Local: ${a.local}` : VEN_LOCAL_PENDENTE}</span>
-      {a.vars ? (
-        p.variacoes.map((v, i) => {
-          const c = v.uid ? a.vars?.[v.uid] : undefined;
-          return (
-            <span key={v.uid ?? i} className="block">
-              {v.tam} · {v.cor}: {c ? <>Quantidade na área de venda: {fmtQ(c.qtd)} {p.unidade} · {limitesVendaStatus(c.min, c.max)}</> : VEN_SEM_CONFIG}
-            </span>
-          );
-        })
-      ) : (
-        <>
-          <span className="block">Quantidade na área de venda: {a.qtd != null ? `${qtdUn(a.qtd, p.unidade)}` : "não informada"}</span>
-          <span className="block">{limitesVendaStatus(a.min, a.max)}</span>
-        </>
-      )}
-      <span className="block text-sm text-muted-foreground">{SEM_REPOSICAO}</span>
-    </>
-  );
-}
-
-/** Contagem confirmada de uma área (produto inteiro ou variação). Nunca usa a quantidade do cadastro. */
-const qtdArea = (d: Deposito | undefined, uid?: string) => (!d ? null : uid ? d.vars?.[uid]?.qtd ?? null : d.vars ? null : d.qtd);
-export function TotalInfo({ p, tipo }: { p: Product; tipo?: string }) {
-  const T = textoDoTipo(tipo);
-  if (p.variacoes.length && (p.deposito?.vars || p.areaVenda?.vars))
-    return <>{p.variacoes.map((v, i) => <span key={v.uid ?? i} className="block">{v.tam} · {v.cor}: {T(totalTexto(qtdArea(p.deposito, v.uid), qtdArea(p.areaVenda, v.uid), p.unidade))}</span>)}</>;
-  return <span className="block">{T(totalTexto(qtdArea(p.deposito), qtdArea(p.areaVenda), p.unidade))}</span>;
-}
-
-/** Linhas de conferência da validade (resumo e detalhe). Nunca afirma que avisos ou bloqueios funcionam. */
 /** Contagem confirmada por área e chave (uid da variação ou produto). null = sem contagem confirmada. */
 export type ContagemFn = (area: "dep" | "ven", k: string) => number | null;
+/** Linhas de conferência da validade (resumo do cadastro). Nunca afirma que avisos ou bloqueios funcionam. */
 export function validadeLinhas(v: Validade | undefined, farm: boolean, unidade: string, nomeVar: (k: string) => string, hoje: string,
   keys: string[] = [CHAVE_PRODUTO], cont: ContagemFn = () => null): string[] {
   if (!v) return [farm ? VAL_FARM_INCOMPLETA : VAL_SEM_CONFIG];
@@ -259,19 +150,6 @@ export function validadeLinhas(v: Validade | undefined, farm: boolean, unidade: 
   out.push(pr ? `Próximo vencimento não vencido: ${fmtData(pr.data)} (${qtdUn(pr.qtd, unidade)})` : "Sem próximo vencimento não vencido");
   return out;
 }
-export function ValidadeInfo({ p, tipo }: { p: Product; tipo: string }) {
-  const nomeVar = (k: string) => { const v = p.variacoes.find((x) => x.uid === k); return v ? `${v.tam} · ${v.cor}` : "variação"; };
-  const keys = p.variacoes.length ? p.variacoes.map((v) => v.uid ?? "") : [CHAVE_PRODUTO];
-  const cont: ContagemFn = (area, k) => qtdArea(area === "dep" ? p.deposito : p.areaVenda, k === CHAVE_PRODUTO ? undefined : k);
-  const hoje = hojeEm();
-  return (
-    <>
-      {validadeLinhas(p.validade, tipo === "farmacia", p.unidade, nomeVar, hoje, keys, cont).map(textoDoTipo(tipo)).map((t, i) => <span key={i} className="block">{t}</span>)}
-      {temVencidoNaVenda(p.validade, hoje) && <span role="alert" className="block font-semibold text-destructive">{vencidoAVendaMsg(tipo === "farmacia")}</span>}
-    </>
-  );
-}
-
 /* ---------- cadastro em 8 etapas (Depósito e Área de venda têm 3 subpassos; Validade tem 4) ---------- */
 const TITLES = ["Qual é o código do produto?", "Preço e unidade", "Detalhes do produto", "Quem é o fornecedor?", "Depósito", "Área de venda", "Validade", "Conferir e salvar"];
 const DEP_TITLES = ["Onde fica no depósito?", "Quanto há no depósito?", "Limites de estoque"];
