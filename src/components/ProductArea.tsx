@@ -652,7 +652,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
           </div>
         ))}
         {l.saved && (
-          <button type="button" onClick={() => addL(key, { origem: l.origem, lockData: l.lockData, data: l.lockData ? l.data : "", semData: !l.lockData && l.semData, lockLote: l.lockLote, lote: l.lockLote ? l.lote : "" })}
+          <button type="button" onClick={() => addL(key, { origem: l.origem, conf: l.conf, lockData: l.lockData, data: l.lockData ? l.data : "", semData: !l.lockData && l.semData, lockLote: l.lockLote, lote: l.lockLote ? l.lote : "" })}
             className={btnGhost}>Dividir esta pendência</button>
         )}
       </div>
