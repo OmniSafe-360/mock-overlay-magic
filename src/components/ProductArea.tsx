@@ -6,7 +6,7 @@ import { Scanner } from "@/components/Scanner";
 import { ganhoSobreCompra, lerPct, mostrarPct, vendaPorGanho } from "@/lib/preco";
 import { escolhasDoUltimo } from "@/lib/ultimaEscolha";
 import {
-  EMB_VAZIA, MAX_EMBALAGENS, descricaoEmbalagem, embalagensDoTipo, rotuloComoChega, rotuloPrecoEmbalagem, errosEmbalagem, lerQtdEmbalagem, perguntaQtd, precoUnidade, rotuloContarPor, rotuloFechadas,
+  EMB_VAZIA, MAX_EMBALAGENS, ajudaCodigoEmbalagem, descricaoEmbalagem, embalagensDoTipo, rotuloComoChega, rotuloPrecoEmbalagem, errosEmbalagem, lerQtdEmbalagem, perguntaQtd, precoUnidade, rotuloContarPor, rotuloFechadas,
   rotuloSoltas, totalContado, type Embalagem,
 } from "@/lib/embalagem";
 import { FichaProduto } from "@/components/FichaProduto";
@@ -1423,7 +1423,7 @@ function EmbalagemSheet({ tipoComercio, index, lista, unidade, codigoProduto, us
   const [scan, setScan] = useState(false); const [denied, setDenied] = useState(false);
   const gerador = useGerarCodigo(onGerarCodigo);
   const q = lerQtdEmbalagem(qtdTxt, unidade);
-  const errs = errosEmbalagem({ tipo, qtd: q.v ?? -1, codigo: cod }, index, lista, codigoProduto, usados);
+  const errs = errosEmbalagem({ tipo, qtd: q.v ?? -1, codigo: cod }, index, lista, codigoProduto, usados, unidade);
   const unit = q.v ? precoUnidade(preco, q.v) : 0;
   const mudaCompra = unit > 0 && unit !== compra;
   const ok = !!tipo && !q.err && !errs.repetida && !errs.codigo;
@@ -1436,11 +1436,14 @@ function EmbalagemSheet({ tipoComercio, index, lista, unidade, codigoProduto, us
           <Chips label="Tipo de embalagem" hint="Como vem do fornecedor." opts={opcoesTipo} value={tipo} onChange={setTipo} />
           <Field label={perguntaQtd(unidade)} name="eqtd" id="eqtd" inputMode={aceitaFracao(unidade) ? "decimal" : "numeric"} enterKeyHint="next" onKeyDown={nextOnEnter("ecod")}
             placeholder={aceitaFracao(unidade) ? "Ex.: 25" : "Ex.: 12"} value={qtdTxt} onChange={(e) => setQtdTxt(e.target.value.replace(/[^\d,.-]/g, "").slice(0, 10))}
-            error={qErr} hint={`Ex.: ${unidade === "Caixa" ? "fardo" : "caixa"} com ${qtdUn(12, unidade)}.`} />
+            error={qErr} hint={`Ex.: ${tipo === unidade ? "fardo" : tipo.toLowerCase()} com ${qtdUn(12, unidade)}.`} />
           <Field label="Código de barras da embalagem (opcional)" name="ecod" id="ecod" inputMode="numeric" autoComplete="off" enterKeyHint="next" onKeyDown={nextOnEnter("epreco")}
             placeholder="Ex.: 17891234567890" value={cod} onChange={(e) => setCod(e.target.value.replace(/\s/g, "").slice(0, 60))} error={errs.codigo ?? ""}
-            hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : gerador.criado && cod === gerador.criado ? CODIGO_CRIADO : ajudaCodigo(cod, "O código impresso na caixa, se tiver.")}
+            hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : gerador.criado && cod === gerador.criado ? CODIGO_CRIADO : ajudaCodigo(cod, ajudaCodigoEmbalagem(tipo, unidade))}
             extra={<button type="button" onClick={() => { setDenied(false); setScan(true); }} className="flex min-h-9 items-center gap-1 text-sm font-semibold text-primary"><ScanLine size={16} /> Escanear</button>} />
+          {cod.trim() && cod.trim() === codigoProduto.trim() && (
+            <button type="button" onClick={() => setCod("")} className="-mt-1 flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary"><X size={16} /> Apagar e deixar sem código</button>
+          )}
           {onGerarCodigo && !cod.trim() && (
             <button type="button" disabled={gerador.gerando} className="-mt-1 flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary disabled:opacity-60"
               onClick={() => gerador.gerar((c) => { setCod(c); setTimeout(() => document.getElementById("epreco")?.focus(), 80); })}>
