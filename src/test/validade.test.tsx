@@ -259,7 +259,7 @@ describe("pendências registradas: proteção por origem", () => {
   it("uma pendência de 10 vira 4 e 6 com a data conhecida; a outra e a contagem física não mudam", () => {
     const t = setup("farmacia", farmBase(duas));
     irDep(t);
-    click(screen.getAllByRole("button", { name: "Dividir esta pendência" })[0]!.textContent!); // divide p1
+    fireEvent.click(screen.getAllByRole("button", { name: "Dividir esta pendência" })[0]!); // divide p1
     // ordem dos campos: p1, p2, parte nova de p1
     typeAll(/^Quantidade \(/, ["4", "10", "6"]);
     t.submit(); t.submit(); t.submit();
@@ -271,7 +271,7 @@ describe("pendências registradas: proteção por origem", () => {
   it("parte nova de p1 não pode receber quantidade de p2", () => {
     const t = setup("farmacia", farmBase(duas));
     irDep(t);
-    click(screen.getAllByRole("button", { name: "Dividir esta pendência" })[0]!.textContent!);
+    fireEvent.click(screen.getAllByRole("button", { name: "Dividir esta pendência" })[0]!);
     typeAll(/^Quantidade \(/, ["10", "5", "5"]); // total 20, mas p1 = 15 e p2 = 5
     t.submit();
     expect(screen.getByText(msg1)).toBeTruthy();
@@ -281,7 +281,7 @@ describe("pendências registradas: proteção por origem", () => {
   it("parte com zero é recusada", () => {
     const t = setup("farmacia", farmBase(duas));
     irDep(t);
-    click(screen.getAllByRole("button", { name: "Dividir esta pendência" })[0]!.textContent!);
+    fireEvent.click(screen.getAllByRole("button", { name: "Dividir esta pendência" })[0]!);
     typeAll(/^Quantidade \(/, ["10", "10", "0"]);
     t.submit();
     expect(screen.getByText("A quantidade precisa ser maior que zero.")).toBeTruthy();
@@ -354,7 +354,7 @@ describe("variações e lotes não se misturam", () => {
   });
 
   it("mesmo número de lote em outro produto não mistura os registros", () => {
-    const outro: Product = { ...roupa([vA]), id: 10, codigo: "10", validade: { ...val, dep: { uA: [{ id: "z", qtd: 3, data: "2030-01-01", lote: "L1" }] } } };
+    const outro: Product = { ...roupa([{ ...vA, codigo: "77" }]), id: 10, codigo: "10", validade: { ...val, dep: { uA: [{ id: "z", qtd: 3, data: "2030-01-01", lote: "L1" }] } } };
     const onSave = vi.fn();
     render(<ProductWizard store={{ id: "s", nome: "Loja", tipo: "roupas" } as never} products={[roupa([vA, vB]), outro]} initial={roupa([vA, vB])}
       suppliers={[]} onAddSupplier={() => 1} onCancel={() => {}} onSave={onSave} />);
