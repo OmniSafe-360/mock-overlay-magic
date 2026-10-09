@@ -5,6 +5,8 @@ set client_min_messages = warning;
 
 -- ---------- Auxiliares ----------
 create function public.u(t text) returns uuid language sql immutable as $$ select md5(t)::uuid $$;
+create sequence public.t_cont_erro; create sequence public.t_cont_ok;
+grant usage on sequence public.t_cont_erro, public.t_cont_ok to authenticated, anon;
 -- SQLSTATE esperado de cada recusa (extraído da proposta). Token com "_" inicial = sufixo.
 create table public.t_estado (token text, estado text, primary key (token, estado));
 insert into public.t_estado values ('_invalido','23514'),
@@ -84,6 +86,7 @@ begin
     raise exception 'FALHOU: SQLSTATE esperado desconhecido para "%"', _esperado; end if;
   if not (v_st = any (v_estados)) then
     raise exception 'FALHOU: "%" veio com SQLSTATE % em vez de %', _esperado, v_st, v_estados; end if;
+  perform nextval('public.t_cont_erro');
 end $$;
 -- t_falha: prova que t_erro reprova. Passa só se t_erro lançar "FALHOU..." com o texto indicado.
 create function public.t_falha(_sql text, _esperado text, _motivo text) returns text language plpgsql as $$
@@ -97,7 +100,7 @@ begin
   return 'OK verificador reprova: ' || _motivo;
 end $$;
 create function public.t_ok(_cond boolean, _nome text) returns text language plpgsql as $$
-begin if _cond is not true then raise exception 'FALHOU: %', _nome; end if; return 'OK ' || _nome; end $$;
+begin if _cond is not true then raise exception 'FALHOU: %', _nome; end if; perform nextval('public.t_cont_ok'); return 'OK ' || _nome; end $$;
 create function public.t_p(op text, prod text, com text, un text, ctrl boolean, areas text,
   vars text default '[]', cod text default null, forn uuid default null, preco numeric default 2,
   cat text default null, det text default '{}') returns jsonb
@@ -130,7 +133,7 @@ select t_falha($$do $x$ begin raise exception 'quantidade_vazia' using errcode =
 select t_falha($$do $x$ begin raise exception 'quantidade_vazia_extra' using errcode = '22023'; end $x$$$, 'quantidade_vazia', 'veio');
 select t_falha($$select 1/0$$, 'division by zero', 'SQLSTATE esperado desconhecido');
 do $x$ begin perform t_erro($$do $y$ begin raise exception 'quantidade_vazia' using errcode = '22023'; end $y$$$, 'quantidade_vazia'); end $x$;
-do $x$ begin perform t_erro($$insert into public.t_sonda values (1); select 1/0$$, 'division by zero', '22012'); end $x$;
+do $x$ begin perform t_erro($$do $y$ begin insert into public.t_sonda values (1); perform 1/0; end $y$$$, 'division by zero', '22012'); end $x$;
 select t_ok(not exists (select 1 from public.t_sonda), 'erro correto passa e desfaz o que a operacao gravou');
 select 'OK verificador aprova erro correto';
 
@@ -422,3 +425,6 @@ select t_erro($$delete from movimentos$$, 'historico_imutavel');
 select t_erro($$update saldos set lote_id = null where produto_id = u('P4')$$, 'historico_imutavel');
 select t_erro($$delete from produtos where id = u('P1')$$, 'violates foreign key');
 select 'OK vinculos compativeis e historico sem exclusao em cascata';
+
+reset role;
+select 'CONTAGEM testes_negativos_aprovados=' || (select last_value from t_cont_erro) || ' verificacoes_t_ok=' || (select last_value from t_cont_ok);
