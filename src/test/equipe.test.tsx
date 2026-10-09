@@ -133,7 +133,7 @@ describe("app do funcionário (Omni Operação)", () => {
   it("primeiro acesso pelo QR Code: cria o PIN (recusa fácil e diferente) e abre a tela inicial", async () => {
     const api = apiFunc();
     render(<AppFuncionario codigoInicial="255392" api={api} />);
-    expect(await screen.findByText("Crie seu PIN de 4 números")).toBeTruthy();
+    expect(await screen.findByText("Agora crie seu PIN")).toBeTruthy();
     expect(api.conferir).toHaveBeenCalledWith("255392");
     digitar("1111");
     expect(screen.getByRole("alert").textContent).toMatch(/fácil de adivinhar/);
