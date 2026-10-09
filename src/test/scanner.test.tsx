@@ -49,8 +49,8 @@ describe("Scanner", () => {
 
   it("pede câmera traseira só como preferência (ideal), sem exigências que impeçam abrir", () => {
     const v = CAMERA_PREFERIDA.video as Record<string, unknown>;
-    expect(v.facingMode).toEqual({ ideal: "environment" });
-    expect(v.width).toEqual({ ideal: 1280 });
+    expect(v["facingMode"]).toEqual({ ideal: "environment" });
+    expect(v["width"]).toEqual({ ideal: 1280 });
     expect(JSON.stringify(v)).not.toMatch(/exact|min/);
   });
 

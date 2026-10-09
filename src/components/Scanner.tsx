@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Flashlight, Keyboard, Loader2, RotateCcw, X } from "lucide-react";
 
-type Controls = { stop: () => void; switchTorch?: (on: boolean) => Promise<void> };
+type Controls = { stop: () => void; switchTorch?: ((on: boolean) => Promise<void>) | undefined };
 export type ScanError = "insecure" | "unsupported" | "denied" | "nocamera" | "busy" | "failed";
 
 export const SCAN_ERROR_MSG: Record<ScanError, string> = {
@@ -105,7 +105,7 @@ export function Scanner({ onCode, onType, onClose }: { onCode: (c: string) => vo
         const track = stream.getVideoTracks()[0];
         const caps: Caps = (track?.getCapabilities?.() as Caps | undefined) ?? {};
         // Foco contínuo quando o aparelho permitir; se não, segue normalmente.
-        if (caps.focusMode?.includes("continuous")) {
+        if (track && caps.focusMode?.includes("continuous")) {
           try { await track.applyConstraints({ advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet] }); } catch { /* sem suporte */ }
         }
         const v = video.current;
@@ -159,7 +159,7 @@ export function Scanner({ onCode, onType, onClose }: { onCode: (c: string) => vo
 
         ctrl.current = {
           stop: pararStream,
-          switchTorch: caps.torch ? (on: boolean) => track.applyConstraints({ advanced: [{ torch: on } as MediaTrackConstraintSet] }) : undefined,
+          switchTorch: track && caps.torch ? (on: boolean) => track.applyConstraints({ advanced: [{ torch: on } as MediaTrackConstraintSet] }) : undefined,
         };
         setHasTorch(!!caps.torch);
         setStatus("ready");
