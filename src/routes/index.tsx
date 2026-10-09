@@ -5,6 +5,7 @@ import { Logo, LogoMark } from "@/components/Logo";
 import { StoreSetup, Entering, TIPO_FROM_DB, type StoreData } from "@/components/StoreSetup";
 import { OwnerApp } from "@/components/OwnerHome";
 import { supabase } from "@/integrations/supabase/client";
+import { lerChave } from "@/lib/funcionario";
 
 const OAUTH_REDIRECT = "https://mock-overlay-magic.lovable.app";
 
@@ -559,6 +560,10 @@ function Index() {
     return () => sub.subscription.unsubscribe();
   }, []);
   const logout = () => { loadingRef.current = false; void supabase.auth.signOut(); setStores([]); setPhase("auth"); setView("entrar"); };
+  // Celular do funcionário (app instalado abre aqui): vai direto para o Omni Operação. "/?dono" fica na entrada do dono.
+  useEffect(() => {
+    if (phase === "auth" && !recovery && lerChave() && !/[?&]dono\b|access_token|error/.test(window.location.search + window.location.hash)) window.location.replace("/funcionario");
+  }, [phase, recovery]);
   if (phase === "loading") return <Entering />;
   if (phase === "error")
     return (
@@ -631,6 +636,11 @@ function Index() {
                 {view === "entrar"
                   ? <LoginForm key={confirmEmail} initialEmail={confirmEmail} onForgot={() => setView("recuperar")} oauthError={oauthError} />
                   : <SignupForm onCreated={(email) => { setOkMsg(""); setConfirmEmail(email); setView("entrar"); }} />}
+                {view === "entrar" && !kb && (
+                  <a href="/funcionario" className="mt-5 flex min-h-12 w-full items-center justify-center rounded-2xl border border-border text-sm font-semibold text-muted-foreground transition hover:border-primary hover:text-foreground short:mt-3">
+                    Sou funcionário · entrar no Omni Operação
+                  </a>
+                )}
               </div>
             </>
           )}

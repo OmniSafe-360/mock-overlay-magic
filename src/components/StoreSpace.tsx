@@ -7,6 +7,7 @@ import { ListaProdutos } from "@/components/ListaProdutos";
 import { PainelLocais } from "@/components/PainelLocais";
 import { AtencaoHoje } from "@/components/AtencaoHoje";
 import { PainelFornecedores } from "@/components/PainelFornecedores";
+import { PainelEquipe } from "@/components/PainelEquipe";
 import { PainelPedidos, type DadosPagamento, type SalvarPedido } from "@/components/PainelPedidos";
 import { resumoPagamentos } from "@/lib/pagamento";
 import { hojeEm } from "@/lib/validade";
@@ -72,6 +73,8 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
       ) : tab === "Fornecedores" ? (
         <PainelFornecedores products={products} tipo={store.tipo} suppliers={suppliers} onOpen={(p) => { onDismissSaved(); setView(p); }}
           onAdd={onAddSupplier} onUpdate={onUpdateSupplier} />
+      ) : tab === "Equipe" && store.id ? (
+        <PainelEquipe comercioId={store.id} comercioNome={store.nome} />
       ) : (
         <div className="flex flex-col items-center gap-2 py-20 text-center">
           <p className="text-xl font-bold">{tab}</p>

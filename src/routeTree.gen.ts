@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as FuncionarioRouteImport } from './routes/funcionario'
 import { Route as PedidoTokenRouteImport } from './routes/pedido/$token'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FuncionarioRoute = FuncionarioRouteImport.update({
+  id: '/funcionario',
+  path: '/funcionario',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PedidoTokenRoute = PedidoTokenRouteImport.update({
@@ -25,27 +31,31 @@ const PedidoTokenRoute = PedidoTokenRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/funcionario': typeof FuncionarioRoute
   '/pedido/$token': typeof PedidoTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/funcionario': typeof FuncionarioRoute
   '/pedido/$token': typeof PedidoTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/funcionario': typeof FuncionarioRoute
   '/pedido/$token': typeof PedidoTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/pedido/$token'
+  fullPaths: '/' | '/funcionario' | '/pedido/$token'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/pedido/$token'
-  id: '__root__' | '/' | '/pedido/$token'
+  to: '/' | '/funcionario' | '/pedido/$token'
+  id: '__root__' | '/' | '/funcionario' | '/pedido/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  FuncionarioRoute: typeof FuncionarioRoute
   PedidoTokenRoute: typeof PedidoTokenRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/funcionario': {
+      id: '/funcionario'
+      path: '/funcionario'
+      fullPath: '/funcionario'
+      preLoaderRoute: typeof FuncionarioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pedido/$token': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  FuncionarioRoute: FuncionarioRoute,
   PedidoTokenRoute: PedidoTokenRoute,
 }
 export const routeTree = rootRouteImport
