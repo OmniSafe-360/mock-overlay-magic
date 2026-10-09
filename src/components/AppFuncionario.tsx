@@ -1,7 +1,7 @@
 /* App do funcionário "Omni Operação" (E1): entrada com o código de 6 números e o PIN de 4, e a tela inicial
  * com os botões grandes Receber mercadoria / Repor gôndola. As telas de cada botão chegam nas etapas E2 e E3. */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowLeft, Delete, Download, EllipsisVertical, LogOut, PackageOpen, RefreshCw, Share, ShoppingBasket, SquarePlus } from "lucide-react";
+import { ArrowLeft, Check, Delete, Download, EllipsisVertical, LogOut, PackageOpen, RefreshCw, Share, ShoppingBasket, SquarePlus } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import { ReceberMercadoria, type ApiReceber } from "@/components/ReceberMercadoria";
 import { ReporGondola, type ApiRepor } from "@/components/ReporGondola";
@@ -147,8 +147,8 @@ function TelaPin({ codigo, novo, api, onVoltar, onEntrou }: {
   const [primeiro, setPrimeiro] = useState<string | null>(null);
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
-  const titulo = !novo ? "Digite seu PIN" : primeiro == null ? "Crie seu PIN de 4 números" : "Digite o PIN de novo para confirmar";
-  const ajuda = !novo ? "Os 4 números que você criou." : primeiro == null ? "Você vai usar ele toda vez que abrir o app. Não conte para ninguém." : "";
+  const titulo = !novo ? "Digite seu PIN" : primeiro == null ? "Agora crie seu PIN" : "Digite o PIN de novo para confirmar";
+  const ajuda = !novo ? "A sua senha de 4 números." : primeiro == null ? "Invente uma senha de 4 números, só sua. Não é o código do dono. Não conte para ninguém." : "";
 
   const completo = async (p: string) => {
     if (novo && primeiro == null) {
@@ -169,6 +169,7 @@ function TelaPin({ codigo, novo, api, onVoltar, onEntrou }: {
   return (
     <div className="my-auto space-y-6">
       <button type="button" onClick={onVoltar} className="flex min-h-12 items-center gap-2 pr-3 text-base font-semibold text-primary"><ArrowLeft size={18} /> Código {codigoTexto(codigo)}</button>
+      <p className="flex items-center justify-center gap-2 rounded-2xl border border-accent/50 bg-accent/10 p-2 text-sm font-semibold text-accent"><Check size={16} /> Código {codigoTexto(codigo)} conferido</p>
       <div className="space-y-1 text-center">
         <p className="text-xl font-bold">{titulo}</p>
         {ajuda && <p className="text-sm text-muted-foreground">{ajuda}</p>}

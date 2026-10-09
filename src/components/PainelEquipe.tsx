@@ -187,7 +187,7 @@ function DetalheFuncionario({ f, comercioNome, api, onMudou, onClose }: {
             </div>
             <ol className="w-full space-y-1 rounded-2xl bg-background-deep/50 p-3 text-left text-sm">
               <li>1. Ele aponta a câmera para o QR Code (ou abre o app e toca em "Sou funcionário").</li>
-              <li>2. Cria um PIN de 4 números.</li>
+              <li>2. Cria uma senha própria de 4 números (o PIN). É diferente do código acima.</li>
               <li>3. Pronto: nas próximas vezes, só o PIN.</li>
             </ol>
             <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
