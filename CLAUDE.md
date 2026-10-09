@@ -16,5 +16,6 @@
 - 08/10/2026: o dono decidiu **manter o repositório GitHub público** (contraria a seção 10, por decisão escrita do dono).
 - 08/10/2026: o Claude agora tem acesso ao GitHub, ao Lovable e ao Supabase, mas a regra 3 continua: o dono é quem cola os prompts no Lovable.
 - Busca de CEP usa ViaCEP e, como reserva, BrasilAPI (seção 8 cita só ViaCEP).
-- 09/10/2026 (Etapa B2): na loja de roupas, a variação passa a ter Tamanho, Cor e Código de barras (opcional). A quantidade sai da variação e volta na Etapa C (depósito/gôndola). Decisão do dono.
+- 09/10/2026: o Lovable criou sozinho (sem desenho aprovado) as tabelas de estoque: locais, produto_areas, contagens, lotes, saldos, movimentos, codigos_barras, operacoes, e as funções salvar_cadastro/salvar_produto/resolver_pendencia. Produto e variações só são gravados por essas funções. Revisado pelo Claude (seguro). **O dono decidiu manter tudo como o Lovable fez**, inclusive: variação de roupas com código de barras e quantidade obrigatórios; avisos de validade 30/60/90 dias (em vez de 90/30/15); área "venda" no lugar de gôndola.
+- Pendente: fornecedor com telefone não salva (telefone vai com máscara para o banco).
 - Etapa B1 (comércios no banco) testada e aprovada pelo dono. Prompt A aprovado, exceto "Esqueci minha senha", que falhou por limite de e-mails do Supabase (refazer).
