@@ -160,3 +160,16 @@ export const origemMsg = (orig: string, atual: string, desc: string) =>
 export const AREA_SEM_ESTOQUE = "Sem estoque nesta área";
 export const VAL_AREA_PENDENTE = "Há quantidade contada, mas a validade desta quantidade ainda não foi configurada";
 export const CONF_INCOMPLETA = "Conferência incompleta";
+
+/** Produto vencido contado na área de venda: precisa sair da venda. Na farmácia é exigência da Anvisa. */
+export const vencidoAVendaMsg = (farmacia: boolean) => farmacia
+  ? "Remédio vencido não pode ficar à venda. Retire da área de venda e separe para descarte ou devolução ao distribuidor."
+  : "Produto vencido não deve ficar à venda. Retire da área de venda e separe.";
+
+/** O lote é um código curto; 8 números ou mais seguidos parecem código de barras lido por engano. */
+export const LOTE_DICA = "Código curto impresso perto da validade.";
+export const LOTE_PARECE_CODIGO = "Isto parece um código de barras. O lote é o código curto impresso perto da validade (ex.: L2345).";
+export const lotePareceCodigo = (lote: string) => /^\d{8,}$/.test(lote.trim());
+/** Há quantidade vencida contada na área de venda? */
+export const temVencidoNaVenda = (v: Validade | null | undefined, hoje: string) =>
+  !!v?.controla && Object.values(v.ven ?? {}).flat().some((l) => !!l.data && l.qtd > 0 && faixa(l.data, hoje) === "vencido");

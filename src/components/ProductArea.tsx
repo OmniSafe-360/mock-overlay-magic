@@ -17,6 +17,7 @@ import { AUTOPECAS_VARS_MSG, CONSTRUCAO_VARS_MSG, PET_VARS_MSG, FARMACIA_VARS_MS
 import {
   ACIMA_MAX, LOCAL_DUP, LOCAL_PENDENTE, REMOCAO_BLOQUEADA, SEM_CONFIG, TEMPORARIO, aceitaFracao, fmtQ, limitesErro, limitesStatus, localDuplicado,
   localTravadoMsg, locaisDoComercio, newUid, parseNum, qtdUn, temQtdPositiva, toInput, unidadeTravadaMsg, type Deposito,
+  unPlural, unSingular,
 } from "@/lib/deposito";
 import {
   EXEMPLO_LOCAL, SEM_REPOSICAO, VEN_ACIMA_MAX, VEN_LOCAL_DUP, VEN_LOCAL_PENDENTE, VEN_SEM_CONFIG, limitesVendaStatus,
@@ -26,6 +27,7 @@ import {
   ACIMA, AGUARDANDO, AVISOS, CHAVE_PRODUTO, DESLIGAR_BLOQ, FAIXA_TXT, LINHAS_SEM_CONTAGEM, PEND_CONF, PEND_FALTA, QTD_ZERO, SEM_AVISOS, SEM_ESTOQUE,
   AREA_SEM_ESTOQUE, CONF_INCOMPLETA, VAL_AREA_PENDENTE, conferirOrigens, origemMsg, TZ_PADRAO, VAL_FARM_INCOMPLETA, VAL_SEM_CONFIG, analisarLotes, avisosTexto, conferencia, conferirSoma, conflitoMsg, faixa, fmtData, hojeEm,
   linhaTexto, lotePendente, maskData, mil, parseData, proximoVencimento, temQtdValidade, type LinhaVal, type Validade,
+  LOTE_DICA, LOTE_PARECE_CODIGO, lotePareceCodigo, temVencidoNaVenda, vencidoAVendaMsg,
 } from "@/lib/validade";
 
 /* ---------- tipos e dados por comércio ---------- */
@@ -244,7 +246,7 @@ export function validadeLinhas(v: Validade | undefined, farm: boolean, unidade: 
     }
   }
   const c = conferencia(todas, hoje, farm);
-  const soma = `não vencida ${fmtQ(c.conhecida)} + vencida ${fmtQ(c.vencida)} + sem data ${fmtQ(c.semData)} = ${fmtQ(c.fisica)} (${unidade})`;
+  const soma = `não vencida ${fmtQ(c.conhecida)} + vencida ${fmtQ(c.vencida)} + sem data ${fmtQ(c.semData)} = ${qtdUn(c.fisica, unidade)}`;
   out.push(faltas.length ? `${CONF_INCOMPLETA}: ${faltas.join("; ")}. Só nas partes com validade: ${soma}` : `Física contada ${fmtQ(c.fisica)} = ${soma}`);
   if (c.vencida > 0) out.push(`Vencidos: ${qtdUn(c.vencida, unidade)} (continuam contados)`);
   if (c.semData > 0) out.push(`Validade desconhecida: ${qtdUn(c.semData, unidade)}`);
@@ -257,7 +259,13 @@ export function ValidadeInfo({ p, tipo }: { p: Product; tipo: string }) {
   const nomeVar = (k: string) => { const v = p.variacoes.find((x) => x.uid === k); return v ? `${v.tam} · ${v.cor}` : "variação"; };
   const keys = p.variacoes.length ? p.variacoes.map((v) => v.uid ?? "") : [CHAVE_PRODUTO];
   const cont: ContagemFn = (area, k) => qtdArea(area === "dep" ? p.deposito : p.areaVenda, k === CHAVE_PRODUTO ? undefined : k);
-  return <>{validadeLinhas(p.validade, tipo === "farmacia", p.unidade, nomeVar, hojeEm(), keys, cont).map((t, i) => <span key={i} className="block">{t}</span>)}</>;
+  const hoje = hojeEm();
+  return (
+    <>
+      {validadeLinhas(p.validade, tipo === "farmacia", p.unidade, nomeVar, hoje, keys, cont).map((t, i) => <span key={i} className="block">{t}</span>)}
+      {temVencidoNaVenda(p.validade, hoje) && <span role="alert" className="block font-semibold text-destructive">{vencidoAVendaMsg(tipo === "farmacia")}</span>}
+    </>
+  );
 }
 
 /* ---------- cadastro em 8 etapas (Depósito e Área de venda têm 3 subpassos; Validade tem 4) ---------- */
@@ -495,6 +503,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     return { k, ls, cont, vs, soma, err, quebradas };
   });
   const gDep = grupos("dep"), gVen = grupos("ven");
+  const vencidoNaVenda = gVen.some((g) => g.vs.some(({ r }) => !!r.dv && (r.qv ?? 0) > 0 && faixa(r.dv, hoje) === "vencido"));
   const analises = valKeys.map((k) => analisarLotes([...gDep, ...gVen].filter((g) => g.k === k).flatMap((g) => g.vs.map((x) => ({ id: x.l.id, lote: x.l.lote, data: x.r.dv })))));
   const conflitos = analises.flatMap((a) => a.conflitos);
   const sugestoes = analises.flatMap((a) => a.sugestoes);
@@ -681,6 +690,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
         <div key={l.id} className={`rounded-xl border p-2.5 text-sm ${f === "vencido" ? "border-destructive/70 bg-destructive/10" : "border-border"}`}>
           <p>{linhaTexto({ id: l.id, qtd: r.qv ?? 0, data: r.dv, lote: l.lote || null, pendConf: l.conf }, unidade, hoje, isFarm)}</p>
           <p className="text-xs text-muted-foreground">Registro confirmado: somente consulta. Correções virão numa etapa futura, com histórico.</p>
+          {f === "vencido" && key.startsWith("ven:") && <p role="alert" className="mt-1.5 font-semibold text-destructive">{vencidoAVendaMsg(isFarm)}</p>}
         </div>
       );
     return (
@@ -690,7 +700,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
           {!l.saved && <button type="button" aria-label="Remover validade" onClick={() => delL(key, l.id)} className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground"><X size={16} /></button>}
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <Field label={`Quantidade (${unidade})`} name={`lq-${l.id}`} {...numProps} value={l.qtd} onChange={(e) => setL(key, l.id, { qtd: numIn(e.target.value) })} error={showErr(l.qtd, r.qErr)} />
+          <Field label={`Quantidade (${unPlural(unidade)})`} name={`lq-${l.id}`} {...numProps} value={l.qtd} onChange={(e) => setL(key, l.id, { qtd: numIn(e.target.value) })} error={showErr(l.qtd, r.qErr)} />
           {l.lockData ? (
             <div><p className="text-sm font-medium text-muted-foreground">Vence em</p><p className="mt-3 text-base">{l.data}</p></div>
           ) : (
@@ -705,10 +715,12 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
           </label>
         )}
         {l.lockLote ? <p className="text-sm">Lote: {l.lote}</p> : (
-          <Field label={isFarm ? "Lote" : "Lote (opcional)"} name={`ll-${l.id}`} autoComplete="off" placeholder="Ex.: A12" value={l.lote}
+          <Field label={isFarm ? "Lote" : "Lote (opcional)"} name={`ll-${l.id}`} autoComplete="off" placeholder="Ex.: L2345" value={l.lote}
+            hint={lotePareceCodigo(l.lote) ? LOTE_PARECE_CODIGO : LOTE_DICA}
             onChange={(e) => setL(key, l.id, { lote: e.target.value.slice(0, 30), conf: false })} />
         )}
         {f && <p className={`text-xs font-semibold ${f === "vencido" ? "text-destructive" : "text-muted-foreground"}`}>{FAIXA_TXT[f]}{f === "vencido" ? " · continua contado no total" : ""}{isFarm && !l.lote.trim() ? " · Lote pendente" : ""}</p>}
+        {f === "vencido" && key.startsWith("ven:") && <p role="alert" className="text-sm font-semibold text-destructive">{vencidoAVendaMsg(isFarm)}</p>}
         {r.pend && (l.conf ? (
           <p className="flex items-center gap-2 text-xs font-semibold text-warning">Pendente de conferência
             <button type="button" onClick={() => setL(key, l.id, { conf: false })} className="font-semibold text-primary underline">Desfazer</button></p>
@@ -1004,7 +1016,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                               {(cont.err || (subTried && q.err)) && <p role="alert" className="text-sm text-destructive">{cont.err || q.err}</p>}
                             </>
                           ) : (
-                            <Field label={`Quanto você contou no depósito agora? (${unidade})`} name="dqtd" {...numProps} enterKeyHint="done"
+                            <Field label={`Quanto você contou no depósito agora? (${unPlural(unidade)})`} name="dqtd" {...numProps} enterKeyHint="done"
                               value={dQtd} onChange={(e) => setDQtd(numIn(e.target.value))} error={showErr(dQtd, q.err)}
                               hint={fr ? "Aceita vírgula. Ex.: 12,5" : "Somente números inteiros."} />
                           )}
@@ -1040,7 +1052,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                               <p className="text-xs text-muted-foreground">Alterar a contagem ficará para uma etapa futura.</p>
                             </>
                           ) : (
-                            <Field label={`Quantidade confirmada no depósito (${unidade})`} name={`dq-${x.v.uid}`} {...numProps} placeholder="Ex.: 10"
+                            <Field label={`Quantidade confirmada no depósito (${unPlural(unidade)})`} name={`dq-${x.v.uid}`} {...numProps} placeholder="Ex.: 10"
                               value={x.d.qtd ?? ""} onChange={(e) => setVD(x.v.uid!, { qtd: numIn(e.target.value) })} error={showErr(x.d.qtd ?? "", x.q.err)} />
                           )}
                         </div>
@@ -1052,9 +1064,9 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                   {sub === 2 && !isRoupas && (
                     <>
                       <div className="grid grid-cols-2 gap-2.5">
-                        <Field label={`Mínimo (${unidade})`} name="dmin" {...numProps} enterKeyHint="next" onKeyDown={nextOnEnter("dmax")} placeholder="Opcional"
+                        <Field label={`Mínimo (${unPlural(unidade)})`} name="dmin" {...numProps} enterKeyHint="next" onKeyDown={nextOnEnter("dmax")} placeholder="Opcional"
                           value={dMin} onChange={(e) => setDMin(numIn(e.target.value))} error={mn.err} />
-                        <Field label={`Máximo desejado (${unidade})`} name="dmax" id="dmax" {...numProps} enterKeyHint="done" placeholder="Opcional"
+                        <Field label={`Máximo desejado (${unPlural(unidade)})`} name="dmax" id="dmax" {...numProps} enterKeyHint="done" placeholder="Opcional"
                           value={dMax} onChange={(e) => setDMax(numIn(e.target.value))} error={mx.err || limErr} />
                       </div>
                       <p className="text-sm text-muted-foreground">{limitesStatus(mn.v, mx.v)}</p>
@@ -1131,7 +1143,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                           <p className="mt-1 text-xs text-muted-foreground">Alterar a contagem ficará para uma etapa futura.</p>
                         </div>
                       ) : (
-                        <Field label={`Quanto deste produto já está neste local? (${unidade})`} name="vqtd" {...numProps} enterKeyHint="done"
+                        <Field label={`Quanto deste produto já está neste local? (${unPlural(unidade)})`} name="vqtd" {...numProps} enterKeyHint="done"
                           value={vQtd} onChange={(e) => setVQtd(numIn(e.target.value))} error={showErr(vQtd, vq.err)}
                           hint={fr ? "Aceita vírgula. Ex.: 12,5" : "Somente números inteiros."} />
                       )}
@@ -1151,7 +1163,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                               <p className="text-xs text-muted-foreground">Alterar a contagem ficará para uma etapa futura.</p>
                             </>
                           ) : (
-                            <Field label={`Quanto desta variação já está neste local? (${unidade})`} name={`vq-${x.v.uid}`} {...numProps} placeholder="Ex.: 3"
+                            <Field label={`Quanto desta variação já está neste local? (${unPlural(unidade)})`} name={`vq-${x.v.uid}`} {...numProps} placeholder="Ex.: 3"
                               value={x.d.qtd ?? ""} onChange={(e) => setVV(x.v.uid!, { qtd: numIn(e.target.value) })} error={showErr(x.d.qtd ?? "", x.q.err)} />
                           )}
                           <p className="text-xs text-muted-foreground">{totalLinhas[i]}</p>
@@ -1164,9 +1176,9 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                   {sub === 2 && !isRoupas && (
                     <>
                       <div className="grid grid-cols-2 gap-2.5">
-                        <Field label={`Mínimo (${unidade})`} name="vmin" {...numProps} enterKeyHint="next" onKeyDown={nextOnEnter("vmax")} placeholder="Opcional"
+                        <Field label={`Mínimo (${unPlural(unidade)})`} name="vmin" {...numProps} enterKeyHint="next" onKeyDown={nextOnEnter("vmax")} placeholder="Opcional"
                           value={vMin} onChange={(e) => setVMin(numIn(e.target.value))} error={vmn.err} />
-                        <Field label={`Máximo que cabe (${unidade})`} name="vmax" id="vmax" {...numProps} enterKeyHint="done" placeholder="Opcional"
+                        <Field label={`Máximo que cabe (${unPlural(unidade)})`} name="vmax" id="vmax" {...numProps} enterKeyHint="done" placeholder="Opcional"
                           value={vMax} onChange={(e) => setVMax(numIn(e.target.value))} error={vmx.err || vLimErr} />
                       </div>
                       <p className="text-sm text-muted-foreground">{limitesVendaStatus(vmn.v, vmx.v)}</p>
@@ -1281,7 +1293,8 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                   {valAtivo && (
                     <>
                       <Sum t="Avisos" onEdit={() => edit(STEP_VAL, 1)}>{avisosTexto(avisos)}<br />{SEM_AVISOS}</Sum>
-                      <Sum t="Validades por área" onEdit={() => edit(STEP_VAL, 2)}>{resumoVal.slice(3).map((t, i) => <span key={i} className={`block ${/^Vencidos/.test(t) ? "font-semibold text-destructive" : ""}`}>{t}</span>)}</Sum>
+                      <Sum t="Validades por área" onEdit={() => edit(STEP_VAL, 2)}>{resumoVal.slice(3).map((t, i) => <span key={i} className={`block ${/^Vencidos/.test(t) ? "font-semibold text-destructive" : ""}`}>{t}</span>)}
+                        {vencidoNaVenda && <span role="alert" className="block font-semibold text-destructive">{vencidoAVendaMsg(isFarm)}</span>}</Sum>
                     </>
                   )}
                   <p className="p-3.5 text-xs text-muted-foreground">{TEMPORARIO} {SEM_REPOSICAO}</p>
@@ -1529,7 +1542,8 @@ function EmbalagemSheet({ index, lista, unidade, codigoProduto, usados, compra, 
   const [qtdTxt, setQtdTxt] = useState(init ? toInput(init.qtd) : "");
   const [cod, setCod] = useState(init?.codigo ?? "");
   const [preco, setPreco] = useState(init?.preco ?? 0);
-  const [usar, setUsar] = useState(true);
+  /* Só preenche sozinho quando o preço de compra está vazio; se já tem preço, o comerciante escolhe qual vale. */
+  const [usar, setUsar] = useState(compra <= 0);
   const [tentou, setTentou] = useState(false);
   const [scan, setScan] = useState(false); const [denied, setDenied] = useState(false);
   const gerador = useGerarCodigo(onGerarCodigo);
@@ -1539,7 +1553,7 @@ function EmbalagemSheet({ index, lista, unidade, codigoProduto, usados, compra, 
   const mudaCompra = unit > 0 && unit !== compra;
   const ok = !!tipo && !q.err && !errs.repetida && !errs.codigo;
   const qErr = tentou || qtdTxt ? q.err || errs.repetida || "" : "";
-  const nomeUn = unidade === "Unidade" ? "unidade" : unidade;
+  const nomeUn = unSingular(unidade);
   return (
     <Sheet title={index >= 0 ? "Editar embalagem" : "Nova embalagem"} onClose={onClose}>
       <form noValidate onSubmit={(ev) => { ev.preventDefault(); if (!ok) { setTentou(true); return; } onSave({ tipo, qtd: q.v!, codigo: cod.trim(), preco }, mudaCompra && usar ? unit : null); }} className="flex min-h-0 flex-col">
@@ -1564,10 +1578,15 @@ function EmbalagemSheet({ index, lista, unidade, codigoProduto, usados, compra, 
           {unit > 0 && (
             <div className="space-y-2 rounded-2xl border border-border bg-background-deep/60 p-3">
               <p className="text-sm">Cada {nomeUn} sai por <span className="font-bold text-accent">{brl2(unit)}</span></p>
-              {mudaCompra && (
-                <Pick on={usar} onClick={() => setUsar(!usar)}>
-                  <span className="text-sm">Usar {brl2(unit)} como preço de compra{compra > 0 ? <span className="block text-xs font-normal text-muted-foreground">Hoje está {brl2(compra)}.</span> : null}</span>
-                </Pick>
+              {mudaCompra && compra <= 0 && (
+                <Pick on={usar} onClick={() => setUsar(!usar)}><span className="text-sm">Usar {brl2(unit)} como preço de compra</span></Pick>
+              )}
+              {mudaCompra && compra > 0 && (
+                <>
+                  <p className="text-sm font-semibold">O preço de compra que você digitou é {brl2(compra)}. Qual está certo?</p>
+                  <Pick on={!usar} onClick={() => setUsar(false)}><span className="text-sm">Manter {brl2(compra)}</span></Pick>
+                  <Pick on={usar} onClick={() => setUsar(true)}><span className="text-sm">Trocar para {brl2(unit)} (pelo preço da embalagem)</span></Pick>
+                </>
               )}
             </div>
           )}

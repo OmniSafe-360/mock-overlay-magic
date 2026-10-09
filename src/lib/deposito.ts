@@ -50,6 +50,10 @@ const PALAVRA_UN: Record<string, [string, string]> = {
   Dúzia: ["dúzia", "dúzias"], Bandeja: ["bandeja", "bandejas"], Tubo: ["tubo", "tubos"], Ampola: ["ampola", "ampolas"],
   Sachê: ["sachê", "sachês"], Galão: ["galão", "galões"], Barra: ["barra", "barras"], Rolo: ["rolo", "rolos"], Milheiro: ["milheiro", "milheiros"],
 };
+/** Nome da unidade no plural, para rótulos: "Mínimo (frascos)". Kg e m² não mudam. */
+export const unPlural = (unidade: string) => PALAVRA_UN[unidade]?.[1] ?? unidade;
+/** Nome da unidade no singular, em minúscula: "Cada frasco sai por...". */
+export const unSingular = (unidade: string) => PALAVRA_UN[unidade]?.[0] ?? unidade;
 /** "100 unidades", "1 unidade", "1,5 litro", "2,5 Kg", "3 pacotes". */
 export function qtdUn(n: number, unidade: string): string {
   const p = PALAVRA_UN[unidade];

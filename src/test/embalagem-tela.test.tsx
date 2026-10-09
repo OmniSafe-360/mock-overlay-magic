@@ -29,14 +29,16 @@ describe("como chega do fornecedor (embalagens)", () => {
     expect(t.salvo().embalagens).toEqual([]);
   });
 
-  it("caixa com 12 a R$ 30,00: calcula R$ 2,50 a unidade, usa como compra e salva a caixa", () => {
+  it("caixa com 12 a R$ 30,00: calcula R$ 2,50 a unidade, pergunta qual preço vale e troca quando escolhido", () => {
     const t = editar(tiss);
     click(/Em caixa, fardo ou pacote/); // já abre a janela
     typeIn("Quantas unidades vêm dentro?", "12");
     typeIn(/Código de barras da embalagem/, "17896263503200");
     typeIn(/Preço da caixa/, "3000");
     expect(screen.getByRole("dialog").textContent).toContain(`Cada unidade sai por ${brl2(250)}`);
-    expect(screen.getByRole("button", { name: /Usar .* como preço de compra/ }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("dialog").textContent).toContain(`O preço de compra que você digitou é ${brl2(249)}. Qual está certo?`);
+    expect(screen.getByRole("button", { name: /Manter/ }).getAttribute("aria-pressed")).toBe("true");
+    click(/Trocar para/);
     salvarSheet();
     expect(screen.getByText("Caixa com 12")).toBeTruthy();
     for (let i = 0; i < 5; i++) t.submit();
@@ -45,11 +47,10 @@ describe("como chega do fornecedor (embalagens)", () => {
     expect(p.embalagens).toMatchObject([{ tipo: "Caixa", qtd: 12, codigo: "17896263503200", preco: 3000 }]);
   });
 
-  it("não usar o preço calculado mantém o preço de compra", () => {
+  it("sem escolher nada, o preço de compra digitado é mantido (achado do teste do Dipirona)", () => {
     const t = editar(tiss);
     click(/Em caixa, fardo ou pacote/);
     typeIn("Quantas unidades vêm dentro?", "12"); typeIn(/Preço da caixa/, "3000");
-    click(/Usar .* como preço de compra/);
     salvarSheet();
     for (let i = 0; i < 5; i++) t.submit();
     expect(t.salvo().compra).toBe(249);
