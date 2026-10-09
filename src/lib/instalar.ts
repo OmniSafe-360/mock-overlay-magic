@@ -7,7 +7,10 @@ let guardado: EventoInstalar | null = null;
 const ouvintes = new Set<() => void>();
 const avisar = () => ouvintes.forEach((f) => f());
 
+const DENTRO_DONO = "omni.funcionario.dentro_do_app_dono";
 if (typeof window !== "undefined") {
+  // "Sou funcionário" tocado dentro do app do dono instalado: a página abre dentro dele (não dá para instalar daqui).
+  try { if (new URLSearchParams(window.location.search).get("origem") === "dono") sessionStorage.setItem(DENTRO_DONO, "1"); } catch { /* nada */ }
   // O navegador avisa uma vez que dá para instalar; guardamos para o botão "Instalar".
   window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); guardado = e as EventoInstalar; avisar(); });
   window.addEventListener("appinstalled", () => { guardado = null; try { localStorage.setItem(INSTALADO, "1"); } catch { /* nada */ } avisar(); });
@@ -54,3 +57,11 @@ export function prepararInstalacaoFuncionario() {
   meta.content = "Omni Operação";
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw-funcionario.js", { scope: "/funcionario" }).catch(() => { /* sem instalação automática: o menu do navegador ainda funciona */ });
 }
+
+/** Aberto dentro do app do dono instalado (Omni Safe 360): para instalar o do funcionário, precisa abrir no navegador. */
+export function dentroDoAppDono(): boolean {
+  try { return abertoComoApp() && sessionStorage.getItem(DENTRO_DONO) === "1"; } catch { return false; }
+}
+/** Endereço para abrir no navegador. No Android, abre direto no Chrome. */
+export const enderecoFuncionario = () => (typeof window === "undefined" ? "/funcionario" : `${window.location.origin}/funcionario`);
+export const linkChromeAndroid = () => (typeof window === "undefined" ? "" : `intent://${window.location.host}/funcionario#Intent;scheme=https;package=com.android.chrome;end`);

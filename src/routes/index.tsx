@@ -637,7 +637,7 @@ function Index() {
                   ? <LoginForm key={confirmEmail} initialEmail={confirmEmail} onForgot={() => setView("recuperar")} oauthError={oauthError} />
                   : <SignupForm onCreated={(email) => { setOkMsg(""); setConfirmEmail(email); setView("entrar"); }} />}
                 {view === "entrar" && !kb && (
-                  <a href="/funcionario" className="mt-5 flex min-h-12 w-full items-center justify-center rounded-2xl border border-border text-sm font-semibold text-muted-foreground transition hover:border-primary hover:text-foreground short:mt-3">
+                  <a href="/funcionario?origem=dono" className="mt-5 flex min-h-12 w-full items-center justify-center rounded-2xl border border-border text-sm font-semibold text-muted-foreground transition hover:border-primary hover:text-foreground short:mt-3">
                     Sou funcionário · entrar no Omni Operação
                   </a>
                 )}
