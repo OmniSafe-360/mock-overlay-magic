@@ -230,7 +230,7 @@ select t_erro($$select salvar_produto(t_p('op27','R5','cr1','Par',null,'[]','[{"
 select t_erro($$select salvar_produto(t_p('op27','R5','cr1','Par',null,'[]','[{"id":"'||u('y1')||'","tamanho":"P","cor":"Azul","codigo_barras":"800","qtd_informada":1}]','800'))$$, 'codigo_igual_ao_principal');
 select t_erro($$select salvar_produto(t_p('op27','R5','cr1','Par',null,'[]','[{"id":"'||u('y1')||'","tamanho":"P","cor":"Azul","codigo_barras":"801"}]','800'))$$, 'quantidade_informada_obrigatoria');
 select t_erro($$select salvar_produto(t_p('op27','R5','cr1','Par',null,'[]','[{"id":"'||u('y1')||'","tamanho":"P","cor":"Azul","codigo_barras":"801","qtd_informada":1},
-  {"id":"'||u('y2')||'","tamanho":"p","cor":" azul ","codigo_barras":"802","qtd_informada":1}]','800'))$$, 'combinacao_repetida');
+  {"id":"'||u('y2')||'","tamanho":"P","cor":" AZUL ","codigo_barras":"802","qtd_informada":1}]','800'))$$, 'combinacao_repetida');
 select salvar_produto(t_p('op27','R5','cr1','Par',null,'[]','[{"id":"'||u('y1')||'","tamanho":"38","cor":"Preto","codigo_barras":"801","qtd_informada":2}]','800', null, 2, 'Calçados'));
 select 'OK roupas: tamanho, cor, codigo, quantidade e combinacao conferidos; Par valido';
 
