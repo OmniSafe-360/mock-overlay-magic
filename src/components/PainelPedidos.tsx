@@ -1,13 +1,13 @@
 /* Aba Pedidos (D2a): montar o pedido sozinho por fornecedor, enviar pelo WhatsApp ou e-mail com um toque e acompanhar. */
 import { useMemo, useState } from "react";
-import { ArrowLeft, Check, ClipboardList, Copy, Mail, MessageCircle, Minus, Plus, Search, Send, Trash2, Truck, X } from "lucide-react";
+import { ArrowLeft, Check, CheckCircle2, ClipboardList, Copy, Link2, Mail, MessageCircle, Minus, Plus, RefreshCw, Search, Send, Trash2, Truck, X, XCircle } from "lucide-react";
 import { Sheet, type Product, type Supplier, type Variation } from "@/components/ProductArea";
 import { linkWhatsApp } from "@/components/PainelFornecedores";
 import { btnGhost, btnPrimary, type StoreData } from "@/components/StoreSetup";
 import { aceitaFracao, fmtQ, qtdUn, unPlural } from "@/lib/deposito";
 import { descricaoEmbalagem } from "@/lib/embalagem";
 import {
-  CANAL_TXT, SITUACAO_TXT, chaveLinha, linhaManual, linhasDoPedido, nomeLinha, pedidoAberto, pedidoFechado, quantidadeTexto,
+  CANAL_TXT, SITUACAO_TXT, chaveLinha, dataEntregaTexto, formaTexto, linkPedido, respostaItem, resumoResposta, linhaManual, linhasDoPedido, nomeLinha, pedidoAberto, pedidoFechado, quantidadeTexto,
   sugerirPedido, textoPedido, totalLinha, totalLinhas, totalPedido, unidadesDaLinha, type CanalPedido, type LinhaPedido, type Pedido, type SituacaoPedido,
 } from "@/lib/pedido";
 
@@ -19,12 +19,12 @@ const COR_SITUACAO: Record<SituacaoPedido, string> = {
   recebido: "border-primary/60 text-primary", cancelado: "border-border text-muted-foreground line-through",
 };
 
-export type SalvarPedido = (a: { fornecedor: Supplier; linhas: LinhaPedido[]; observacao: string }) => Promise<{ id: string; numero: number }>;
+export type SalvarPedido = (a: { fornecedor: Supplier; linhas: LinhaPedido[]; observacao: string }) => Promise<{ id: string; numero: number; token?: string | undefined }>;
 
-export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora = false, onSalvar, onEnviado, onCancelar, onOpenProduto }: {
+export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora = false, onSalvar, onEnviado, onCancelar, onNovoLink, onOpenProduto }: {
   products: Product[]; store: StoreData; suppliers: Supplier[]; pedidos: Pedido[]; montarAgora?: boolean;
   onSalvar: SalvarPedido; onEnviado: (id: string, canal: CanalPedido) => Promise<unknown>; onCancelar: (id: string) => Promise<unknown>;
-  onOpenProduto: (p: Product) => void;
+  onNovoLink: (id: string) => Promise<string>; onOpenProduto: (p: Product) => void;
 }) {
   const [view, setView] = useState<{ t: "lista" } | { t: "montar" } | { t: "detalhe"; id: string }>(montarAgora ? { t: "montar" } : { t: "lista" });
   const fornecedorDe = (dbId: string) => suppliers.find((s) => s.dbId === dbId);
@@ -33,7 +33,7 @@ export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora
     return <MontarPedidos products={products} store={store} suppliers={suppliers} pedidos={pedidos} onSalvar={onSalvar} onEnviado={onEnviado} onVoltar={() => setView({ t: "lista" })} />;
   const sel = view.t === "detalhe" ? pedidos.find((p) => p.id === view.id) : undefined;
   if (sel)
-    return <DetalhePedido pedido={sel} products={products} store={store} fornecedor={fornecedorDe(sel.fornecedorId)} onEnviado={onEnviado} onCancelar={onCancelar}
+    return <DetalhePedido pedido={sel} products={products} store={store} fornecedor={fornecedorDe(sel.fornecedorId)} onEnviado={onEnviado} onCancelar={onCancelar} onNovoLink={onNovoLink}
       onOpenProduto={onOpenProduto} onVoltar={() => setView({ t: "lista" })} />;
 
   const abertos = pedidos.filter(pedidoAberto);
@@ -68,6 +68,10 @@ export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora
                   {p.enviadoEm ? `Enviado em ${dataCurta(p.enviadoEm)}${p.canal ? ` ${CANAL_TXT[p.canal]}` : ""}` : `Criado em ${dataCurta(p.criadoEm)}`}
                   {` · ${p.itens.length === 1 ? "1 produto" : `${p.itens.length} produtos`} · ${brl(totalPedido(p))}`}
                 </span>
+                {p.resposta && (p.situacao === "aceito" || p.situacao === "aceito_ajustes") && resumoResposta(p.resposta, brl) && (
+                  <span className="flex items-start gap-1.5 text-sm font-semibold text-accent"><CheckCircle2 size={16} className="mt-0.5 shrink-0" /> {resumoResposta(p.resposta, brl)}</span>
+                )}
+                {p.situacao === "recusado" && <span className="flex items-start gap-1.5 text-sm font-semibold text-destructive"><XCircle size={16} className="mt-0.5 shrink-0" /> O fornecedor não pode atender</span>}
               </button>
             </li>
           );
@@ -149,7 +153,7 @@ function GrupoFornecedor({ fornecedor, grupo, products, store, onSalvar, onEnvia
   const [adicionar, setAdicionar] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
-  const [salvo, setSalvo] = useState<{ id: string; numero: number } | null>(null);
+  const [salvo, setSalvo] = useState<{ id: string; numero: number; token?: string | undefined } | null>(null);
   const total = totalLinhas(grupo.linhas);
   const salvar = async () => {
     if (salvando || !grupo.linhas.length) return;
@@ -197,7 +201,7 @@ function GrupoFornecedor({ fornecedor, grupo, products, store, onSalvar, onEnvia
           onClose={() => setAdicionar(false)} onEscolher={(l) => { onMudar((g) => ({ ...g, linhas: [...g.linhas, l] })); setAdicionar(false); }} />
       )}
       {salvo && (
-        <EnviarSheet numero={salvo.numero} fornecedor={fornecedor} texto={textoPedido({ numero: salvo.numero, comercio: store, fornecedor: fornecedor.nome, linhas: grupo.linhas, observacao: grupo.obs })}
+        <EnviarSheet numero={salvo.numero} fornecedor={fornecedor} texto={textoPedido({ numero: salvo.numero, comercio: store, fornecedor: fornecedor.nome, linhas: grupo.linhas, observacao: grupo.obs, link: salvo.token ? linkPedido(salvo.token) : undefined })}
           novo onCanal={(c) => onEnviado(salvo.id, c)} onClose={() => { setSalvo(null); onConcluido(); }} />
       )}
     </section>
@@ -316,15 +320,23 @@ function EnviarSheet({ numero, fornecedor, texto, novo, onCanal, onClose }: {
 }
 
 /* ---------- detalhe ---------- */
-function DetalhePedido({ pedido, products, store, fornecedor, onEnviado, onCancelar, onOpenProduto, onVoltar }: {
+function DetalhePedido({ pedido, products, store, fornecedor, onEnviado, onCancelar, onNovoLink, onOpenProduto, onVoltar }: {
   pedido: Pedido; products: Product[]; store: StoreData; fornecedor: Supplier | undefined;
-  onEnviado: (id: string, canal: CanalPedido) => Promise<unknown>; onCancelar: (id: string) => Promise<unknown>; onOpenProduto: (p: Product) => void; onVoltar: () => void;
+  onEnviado: (id: string, canal: CanalPedido) => Promise<unknown>; onCancelar: (id: string) => Promise<unknown>; onNovoLink: (id: string) => Promise<string>;
+  onOpenProduto: (p: Product) => void; onVoltar: () => void;
 }) {
   const linhas = useMemo(() => linhasDoPedido(pedido, products), [pedido, products]);
   const [enviar, setEnviar] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
+  const [trocar, setTrocar] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+  const [aviso, setAviso] = useState("");
   const [erro, setErro] = useState("");
-  const texto = textoPedido({ numero: pedido.numero, comercio: store, fornecedor: fornecedor?.nome ?? "fornecedor", linhas, observacao: pedido.observacao });
+  const link = linkPedido(pedido.token);
+  const texto = textoPedido({ numero: pedido.numero, comercio: store, fornecedor: fornecedor?.nome ?? "fornecedor", linhas, observacao: pedido.observacao, link });
+  const r = pedido.resposta;
+  const aceito = pedido.situacao === "aceito" || pedido.situacao === "aceito_ajustes";
+  const recusado = pedido.situacao === "recusado";
   return (
     <div className="mx-auto max-w-[560px] space-y-4 animate-in fade-in slide-in-from-right-8 duration-300">
       <button type="button" onClick={onVoltar} className="flex min-h-12 items-center gap-2 pr-3 text-base font-semibold text-primary"><ArrowLeft size={18} /> Pedidos</button>
@@ -337,29 +349,55 @@ function DetalhePedido({ pedido, products, store, fornecedor, onEnviado, onCance
         <Etiqueta s={pedido.situacao} />
       </header>
 
+      {r && (aceito || recusado) && (
+        <section aria-label="Resposta do fornecedor" className={`rounded-3xl border p-4 ${recusado ? "border-destructive/50 bg-destructive/10" : "border-accent/50 bg-accent/10"}`}>
+          <p className={`flex items-center gap-2 text-base font-bold ${recusado ? "text-destructive" : "text-accent"}`}>
+            {recusado ? <XCircle size={20} /> : <CheckCircle2 size={20} />}
+            {recusado ? "O fornecedor não pode atender" : pedido.situacao === "aceito_ajustes" ? "Aceito, com mudanças nos produtos" : "O fornecedor aceitou o pedido"}
+          </p>
+          <p className="text-xs text-muted-foreground">Respondido em {new Date(r.em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</p>
+          {aceito && (
+            <dl className="mt-3 space-y-1.5 text-sm">
+              {r.previsaoEntrega && <Dado t="Entrega prevista" v={dataEntregaTexto(r.previsaoEntrega)} />}
+              <Dado t="Valor total" v={r.valorTotal != null ? brl(r.valorTotal) : "Não informado"} />
+              <Dado t="Pagamento" v={formaTexto(r.forma, r.prazoDias) || "Não informado"} />
+            </dl>
+          )}
+          {r.recado && <p className="mt-2 text-sm"><span className="block text-xs text-muted-foreground">Recado do fornecedor</span>{r.recado}</p>}
+          {recusado && !pedidoFechado(pedido) && <p className="mt-2 text-sm text-muted-foreground">Você pode cancelar este pedido e pedir para outro fornecedor.</p>}
+        </section>
+      )}
+
       <section aria-label="Produtos do pedido" className="rounded-3xl border border-border bg-secondary/60 p-4">
         <ul className="divide-y divide-border">
-          {linhas.map((l) => (
-            <li key={l.chave}>
-              <button type="button" disabled={l.p.id < 0} onClick={() => onOpenProduto(l.p)} className="flex w-full items-start justify-between gap-3 py-2.5 text-left">
-                <span className="min-w-0">
-                  <span className="block break-words text-sm font-semibold">{nomeLinha(l)}</span>
-                  <span className="block text-xs text-muted-foreground">{quantidadeTexto(l)}</span>
-                </span>
-                <span className="shrink-0 text-sm tabular-nums">{brl(totalLinha(l))}</span>
-              </button>
-            </li>
-          ))}
+          {linhas.map((l, k) => {
+            const item = pedido.itens[k];
+            const s = aceito && item ? respostaItem(item.qtdEmbalagens, item.qtdConfirmada) : null;
+            return (
+              <li key={l.chave}>
+                <button type="button" disabled={l.p.id < 0} onClick={() => onOpenProduto(l.p)} className="flex w-full items-start justify-between gap-3 py-2.5 text-left">
+                  <span className="min-w-0">
+                    <span className="block break-words text-sm font-semibold">{nomeLinha(l)}</span>
+                    <span className="block text-xs text-muted-foreground">{s && s !== "tudo" ? "Pedido: " : ""}{quantidadeTexto(l)}</span>
+                    {s === "tudo" && <span className="block text-xs font-semibold text-accent">Confirmado</span>}
+                    {s === "parte" && <span className="block text-xs font-semibold text-warning">Vai mandar {quantidadeTexto({ ...l, qtd: item!.qtdConfirmada! })}</span>}
+                    {s === "nada" && <span className="block text-xs font-semibold text-destructive">O fornecedor não tem</span>}
+                  </span>
+                  <span className="shrink-0 text-sm tabular-nums">{brl(totalLinha(l))}</span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
         <p className="mt-2 flex justify-between border-t border-border pt-2 text-sm font-bold"><span>Total estimado</span><span>{brl(totalPedido(pedido))}</span></p>
-        {pedido.observacao && <p className="mt-2 text-sm text-muted-foreground">Recado: {pedido.observacao}</p>}
+        {pedido.observacao && <p className="mt-2 text-sm text-muted-foreground">Seu recado: {pedido.observacao}</p>}
       </section>
 
-      {pedido.situacao === "enviado" && <p className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">Aguardando a resposta do fornecedor. Em breve ele vai poder aceitar o pedido e informar a entrega por um link.</p>}
+      {pedido.situacao === "enviado" && <p className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">Aguardando a resposta do fornecedor. Ele responde pelo link que foi junto na mensagem, e a resposta aparece aqui.</p>}
 
       {!pedidoFechado(pedido) && (
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-          <button type="button" onClick={() => setEnviar(true)} className={`flex items-center justify-center gap-2 ${btnPrimary(true)}`}><Send size={18} /> {pedido.situacao === "rascunho" ? "Enviar" : "Enviar de novo"}</button>
+          <button type="button" onClick={() => setEnviar(true)} className={`flex items-center justify-center gap-2 ${r ? btnGhost : btnPrimary(true)}`}><Send size={18} /> {pedido.situacao === "rascunho" ? "Enviar" : "Enviar de novo"}</button>
           {!confirmar ? (
             <button type="button" onClick={() => setConfirmar(true)} className={`flex items-center justify-center gap-2 ${btnGhost}`}><X size={18} /> Cancelar pedido</button>
           ) : (
@@ -369,8 +407,35 @@ function DetalhePedido({ pedido, products, store, fornecedor, onEnviado, onCance
         </div>
       )}
       {confirmar && <p className="text-sm text-muted-foreground">Avise o fornecedor que o pedido foi cancelado.</p>}
+
+      {!pedidoFechado(pedido) && (
+        <section aria-label="Link do fornecedor" className="rounded-3xl border border-border p-4">
+          <p className="flex items-center gap-2 text-base font-bold"><Link2 size={18} className="text-primary" /> Link do fornecedor</p>
+          <p className="text-sm text-muted-foreground">O fornecedor abre este link no celular ou no computador para confirmar o pedido. Ele já vai junto na mensagem.</p>
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <button type="button" className={`flex items-center justify-center gap-2 ${btnGhost}`}
+              onClick={() => { void navigator.clipboard?.writeText(link).then(() => setCopiado(true)).catch(() => setCopiado(false)); }}>
+              <Copy size={18} /> {copiado ? "Link copiado!" : "Copiar link"}
+            </button>
+            {!trocar ? (
+              <button type="button" onClick={() => { setTrocar(true); setAviso(""); }} className={`flex items-center justify-center gap-2 ${btnGhost}`}><RefreshCw size={18} /> Gerar novo link</button>
+            ) : (
+              <button type="button" className="flex min-h-13 items-center justify-center gap-2 rounded-2xl border border-warning/60 px-4 text-base font-semibold text-warning"
+                onClick={() => { setErro(""); onNovoLink(pedido.id).then(() => { setTrocar(false); setCopiado(false); setAviso("Novo link criado. O antigo parou de funcionar: envie o pedido de novo."); }).catch((e) => setErro(String(e?.message ?? "Não foi possível gerar o novo link."))); }}>
+                Confirmar novo link
+              </button>
+            )}
+          </div>
+          {trocar && <p className="mt-2 text-sm text-muted-foreground">Use se o link foi para a pessoa errada. O link antigo para de funcionar e você precisa enviar o pedido de novo.</p>}
+          {aviso && <p role="status" className="mt-2 text-sm font-semibold text-accent">{aviso}</p>}
+        </section>
+      )}
       {erro && <p role="alert" className="text-sm font-semibold text-destructive">{erro}</p>}
       {enviar && <EnviarSheet numero={pedido.numero} fornecedor={fornecedor} texto={texto} onCanal={(c) => onEnviado(pedido.id, c)} onClose={() => setEnviar(false)} />}
     </div>
   );
+}
+
+function Dado({ t, v }: { t: string; v: string }) {
+  return <div className="flex justify-between gap-3"><dt className="text-muted-foreground">{t}</dt><dd className="text-right font-semibold">{v}</dd></div>;
 }

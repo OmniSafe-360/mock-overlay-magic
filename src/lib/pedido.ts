@@ -13,10 +13,22 @@ export type ItemPedido = {
   qtdEmbalagens: number; qtdUnidades: number; precoEstimado: number | null;
   qtdConfirmada: number | null; qtdRecebida: number | null;
 };
+export type FormaPagamento = "a_vista" | "pix" | "boleto" | "a_prazo";
+/** Resposta do fornecedor pelo link (D2b). Valor em centavos; datas AAAA-MM-DD. */
+export type RespostaPedido = { em: string; previsaoEntrega: string | null; valorTotal: number | null; forma: FormaPagamento | null; prazoDias: number | null; recado: string };
 export type Pedido = {
   id: string; numero: number; fornecedorId: string; situacao: SituacaoPedido; canal: CanalPedido | null;
   enviadoEm: string | null; observacao: string; token: string; criadoEm: string; itens: ItemPedido[];
+  resposta?: RespostaPedido | null | undefined;
+  pagamento?: { situacao: "a_pagar" | "pago" | null; vencimento: string | null; pagoEm: string | null } | undefined;
 };
+export const FORMA_TXT: Record<FormaPagamento, string> = { a_vista: "À vista", pix: "Pix", boleto: "Boleto", a_prazo: "A prazo" };
+/** "Boleto 30 dias", "Pix". */
+export const formaTexto = (forma: FormaPagamento | null, prazo: number | null) =>
+  !forma ? "" : (forma === "boleto" || forma === "a_prazo") && prazo ? `${FORMA_TXT[forma]} ${prazo} dias` : FORMA_TXT[forma];
+/** Endereço do link do fornecedor. */
+export const linkPedido = (token: string, origem = typeof window === "undefined" ? "https://mock-overlay-magic.lovable.app" : window.location.origin) =>
+  `${origem}/pedido/${token}`;
 
 export const SITUACAO_TXT: Record<SituacaoPedido, string> = {
   rascunho: "Não enviado", enviado: "Aguardando resposta", aceito: "Aceito", aceito_ajustes: "Aceito com ajustes", recusado: "Recusado",
@@ -59,11 +71,32 @@ export const totalLinha = (l: Pick<LinhaPedido, "p" | "embalagem" | "qtd">) =>
 export const totalLinhas = (ls: LinhaPedido[]) => ls.reduce((s, l) => s + totalLinha(l), 0);
 
 /** "2 caixas (24 frascos)" ou "10 pacotes". */
+const PLURAL_EMB: Record<string, string> = { Caixa: "caixas", Fardo: "fardos", Pacote: "pacotes", Display: "displays", Saco: "sacos", Pallet: "pallets", Milheiro: "milheiros" };
+/** "1 caixa", "3 caixas". */
+export const embalagensTexto = (n: number, tipo: string) => `${fmtQ(n)} ${n === 1 ? tipo.toLowerCase() : PLURAL_EMB[tipo] ?? tipo.toLowerCase()}`;
 export function quantidadeTexto(l: Pick<LinhaPedido, "p" | "embalagem" | "qtd">): string {
   if (!l.embalagem) return qtdUn(l.qtd, l.p.unidade);
-  const plural: Record<string, string> = { Caixa: "caixas", Fardo: "fardos", Pacote: "pacotes", Display: "displays", Saco: "sacos", Pallet: "pallets", Milheiro: "milheiros" };
-  const nome = l.qtd === 1 ? l.embalagem.tipo.toLowerCase() : plural[l.embalagem.tipo] ?? l.embalagem.tipo.toLowerCase();
-  return `${fmtQ(l.qtd)} ${nome} (${qtdUn(unidadesDaLinha(l), l.p.unidade)})`;
+  return `${embalagensTexto(l.qtd, l.embalagem.tipo)} (${qtdUn(unidadesDaLinha(l), l.p.unidade)})`;
+}
+/** Quantidade de um item na página do fornecedor ou na resposta: "2 caixas com 12 (24 frascos)" ou "10 pacotes". */
+export function qtdItemTexto(i: { unidade: string; embalagem: string | null; porEmbalagem: number | null }, qtd: number): string {
+  if (!i.embalagem || !i.porEmbalagem) return qtdUn(qtd, i.unidade);
+  return `${embalagensTexto(qtd, i.embalagem)} com ${fmtQ(i.porEmbalagem)} (${qtdUn(Math.round(qtd * i.porEmbalagem * 1000) / 1000, i.unidade)})`;
+}
+/** Como o fornecedor respondeu um item: tudo, parte ou nada. */
+export const respostaItem = (pedida: number, confirmada: number | null): "tudo" | "parte" | "nada" | null =>
+  confirmada == null ? null : confirmada <= 0 ? "nada" : confirmada >= pedida ? "tudo" : "parte";
+/** Data AAAA-MM-DD no fuso do aparelho. */
+export const hojeISO = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+/** "sexta, 10/10". */
+export const dataEntregaTexto = (iso: string) => {
+  const [a, m, d] = iso.split("-").map(Number);
+  const dt = new Date(a!, (m ?? 1) - 1, d ?? 1);
+  return `${dt.toLocaleDateString("pt-BR", { weekday: "long" }).replace("-feira", "")}, ${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}`;
+};
+/** Resumo curto da resposta para o cartão do pedido: "Entrega sex., 10/10 · R$ 120,00 · Boleto 30 dias". */
+export function resumoResposta(r: RespostaPedido, brl: (c: number) => string): string {
+  return [r.previsaoEntrega && `Entrega ${dataEntregaTexto(r.previsaoEntrega)}`, r.valorTotal != null && brl(r.valorTotal), formaTexto(r.forma, r.prazoDias)].filter(Boolean).join(" · ");
 }
 export const nomeLinha = (l: Pick<LinhaPedido, "p" | "variacao">) => (l.variacao ? `${l.p.nome} — ${l.variacao.tam} · ${l.variacao.cor}` : l.p.nome);
 export const chaveLinha = (p: Product, v: Variation | null) => `${p.id}:${v?.uid ?? "_"}`;
@@ -102,7 +135,7 @@ export function linhaManual(p: Product, v: Variation | null = null): LinhaPedido
 }
 
 /** Texto do pedido para WhatsApp e e-mail. */
-export function textoPedido(a: { numero: number; comercio: StoreData; fornecedor: string; linhas: LinhaPedido[]; observacao?: string; link?: string }): string {
+export function textoPedido(a: { numero: number; comercio: StoreData; fornecedor: string; linhas: LinhaPedido[]; observacao?: string; link?: string | undefined }): string {
   const c = a.comercio;
   const endereco = [c.rua && `${c.rua}${c.numero ? `, ${c.numero}` : ""}`, c.bairro, c.cidade && `${c.cidade}/${c.uf}`].filter(Boolean).join(" – ");
   const itens = a.linhas.map((l) => `• ${nomeLinha(l)} — ${quantidadeTexto(l)}`).join("\n");

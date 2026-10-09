@@ -13,9 +13,9 @@ import type { LocaisCadastrados } from "@/lib/banco";
 
 const TABS = ["Produtos", "Depósito", "Gôndolas", "Pedidos", "Fornecedores", "Equipe", "Vendas"] as const;
 
-export function StoreSpace({ store, products, suppliers, saved, locais, pedidos = [], onSalvarPedido, onPedidoEnviado, onCancelarPedido, onAddSupplier, onUpdateSupplier, onBack, onNew, onEdit, onDismissSaved }: {
+export function StoreSpace({ store, products, suppliers, saved, locais, pedidos = [], onSalvarPedido, onPedidoEnviado, onCancelarPedido, onNovoLinkPedido, onAddSupplier, onUpdateSupplier, onBack, onNew, onEdit, onDismissSaved }: {
   store: StoreData; products: Product[]; suppliers: Supplier[]; saved: boolean; locais?: LocaisCadastrados | undefined;
-  pedidos?: Pedido[] | undefined; onSalvarPedido: SalvarPedido; onPedidoEnviado: (id: string, canal: CanalPedido) => Promise<unknown>; onCancelarPedido: (id: string) => Promise<unknown>;
+  pedidos?: Pedido[] | undefined; onSalvarPedido: SalvarPedido; onPedidoEnviado: (id: string, canal: CanalPedido) => Promise<unknown>; onCancelarPedido: (id: string) => Promise<unknown>; onNovoLinkPedido: (id: string) => Promise<string>;
   onAddSupplier: (f: Omit<Supplier, "id">) => Promise<unknown>; onUpdateSupplier: (s: Supplier, f: Omit<Supplier, "id">) => Promise<unknown>;
   onBack: () => void; onNew: () => void; onEdit: (p: Product) => void; onDismissSaved: () => void;
 }) {
@@ -62,7 +62,7 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
           locaisCadastrados={tab === "Depósito" ? locais?.deposito : locais?.venda} onOpen={(p) => { onDismissSaved(); setView(p); }} />
       ) : tab === "Pedidos" ? (
         <PainelPedidos key={montar} products={products} store={store} suppliers={suppliers} pedidos={pedidos} montarAgora={montar > 0}
-          onSalvar={onSalvarPedido} onEnviado={onPedidoEnviado} onCancelar={onCancelarPedido} onOpenProduto={(p) => { onDismissSaved(); setView(p); }} />
+          onSalvar={onSalvarPedido} onEnviado={onPedidoEnviado} onCancelar={onCancelarPedido} onNovoLink={onNovoLinkPedido} onOpenProduto={(p) => { onDismissSaved(); setView(p); }} />
       ) : tab === "Fornecedores" ? (
         <PainelFornecedores products={products} tipo={store.tipo} suppliers={suppliers} onOpen={(p) => { onDismissSaved(); setView(p); }}
           onAdd={onAddSupplier} onUpdate={onUpdateSupplier} />
