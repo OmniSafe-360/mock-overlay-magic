@@ -125,7 +125,7 @@ describe("roupas", () => {
     const t = setup("roupas", p); t.toDeposito(); click("Definir depois"); t.submit(); click("Sim, estão no depósito"); t.submit();
     fireEvent.change(document.querySelector('input[name="dmin-a"]')!, { target: { value: "1" } });
     fireEvent.change(document.querySelector('input[name="dmax-a"]')!, { target: { value: "5" } });
-    click("Usar os mesmos limites para todas"); t.submit(); t.submit();
+    click("Usar os mesmos limites para todas"); t.submit(); t.submit(); t.submit();
     expect(saved(t.onSave).deposito?.vars?.["b"]).toEqual({ qtd: 1, min: 1, max: 5 });
   });
 });
