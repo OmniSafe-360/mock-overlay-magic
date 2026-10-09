@@ -13,7 +13,7 @@ function setup(initial: Product, products: Product[] = [initial]) {
   render(<ProductWizard store={store} products={products} initial={initial} suppliers={[]} onAddSupplier={() => 1} onCancel={() => {}} onSave={onSave} />);
   return { onSave, submit: () => fireEvent.submit(document.querySelector("form")!) };
 }
-const run = (submit: () => void, n = 7) => { for (let i = 0; i < n; i++) submit(); };
+const run = (submit: () => void, n = 8) => { for (let i = 0; i < n; i++) submit(); };
 
 describe("unidade e categoria da Loja de roupas", () => {
   it.each(["Peça", "Par"])("aceita a unidade %s", (u) => {
