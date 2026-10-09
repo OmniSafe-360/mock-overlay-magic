@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { lotesAConfirmar } from "@/lib/persistencia";
-import { ArrowLeft, Check, CheckCircle2, Keyboard, Package, Pencil, Plus, ScanLine, Search, Tag, Truck, X } from "lucide-react";
+import { ArrowLeft, Check, CheckCircle2, Keyboard, Package, Pencil, Plus, ScanLine, Tag, Truck, X } from "lucide-react";
 import { Field, btnGhost, btnPrimary, digits, maskPhone, nextOnEnter, useKeyboard, type StoreData } from "@/components/StoreSetup";
 import { Scanner } from "@/components/Scanner";
 import { ganhoSobreCompra, lerPct, mostrarPct, vendaPorGanho } from "@/lib/preco";
@@ -62,57 +62,6 @@ export type Product = {
 export const brl2 = (cents: number) => (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const moneyIn = (v: string) => Number(digits(v).slice(0, 10) || 0);
 const labelOf = (tipo: string, k: string) => DETALHES[tipo]?.find((f) => f.k === k)?.label ?? k;
-
-/* ---------- aba Produtos ---------- */
-export function ProductsTab({ products, onNew, onOpen }: { products: Product[]; onNew: () => void; onOpen: (p: Product) => void }) {
-  const [q, setQ] = useState("");
-  const list = useMemo(() => {
-    const t = q.trim().toLowerCase();
-    return t ? products.filter((p) => p.nome.toLowerCase().includes(t) || p.codigo.includes(t)) : products;
-  }, [q, products]);
-  const newBtn = (
-    <button type="button" onClick={onNew} className={`flex items-center justify-center gap-2 ${btnPrimary(true)}`}><Plus size={20} /> Novo produto</button>
-  );
-  if (!products.length)
-    return (
-      <div className="mx-auto flex max-w-[420px] flex-col items-center gap-3 py-10 text-center animate-in fade-in duration-300">
-        <div className="relative flex h-28 w-28 items-center justify-center rounded-full bg-secondary/60">
-          <Package size={52} className="text-primary" />
-          <span className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-accent text-accent-foreground"><Plus size={20} /></span>
-        </div>
-        <p className="text-lg font-bold">Cadastre seu primeiro produto</p>
-        <p className="text-base text-muted-foreground">Leia o código de barras com a câmera ou digite. Leva poucos segundos.</p>
-        <div className="mt-2 w-full">{newBtn}</div>
-      </div>
-    );
-  return (
-    <div className="space-y-4 animate-in fade-in duration-300">
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <label className="relative flex-1">
-          <span className="sr-only">Buscar produto</span>
-          <Search size={20} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input type="search" enterKeyHint="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nome ou código"
-            className="h-13 w-full rounded-2xl border border-border bg-background-deep/60 pl-12 pr-4 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring/40" />
-        </label>
-        <div className="sm:w-56">{newBtn}</div>
-      </div>
-      {!list.length && <p className="py-8 text-center text-base text-muted-foreground">Nenhum produto encontrado.</p>}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-        {list.map((p) => (
-          <button key={p.id} type="button" onClick={() => onOpen(p)}
-            className="flex min-h-[96px] items-center gap-4 rounded-3xl border border-border bg-secondary/70 p-4 text-left transition hover:border-primary focus-visible:outline-2 focus-visible:outline-ring">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-background-deep/60 text-primary"><Package size={24} /></span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-base font-semibold">{p.nome}</p>
-              <p className="truncate text-sm text-muted-foreground">Cód. {p.codigo}</p>
-              <p className="mt-1 text-sm"><span className="font-semibold text-accent">{brl2(p.venda)}</span> <span className="text-muted-foreground">/ {p.unidade}</span></p>
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 /* ---------- detalhe do produto ---------- */
 export function ProductDetail({ p, tipo, suppliers, onBack, onEdit }: { p: Product; tipo: string; suppliers: Supplier[]; onBack: () => void; onEdit: () => void }) {

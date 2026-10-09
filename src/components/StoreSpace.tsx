@@ -2,7 +2,8 @@ import { useState } from "react";
 import { ArrowLeft, Store } from "lucide-react";
 import { nomeAreaVenda, textoDoTipo } from "@/lib/exemplos";
 import { TIPOS, type StoreData } from "@/components/StoreSetup";
-import { ProductDetail, ProductsTab, SavedBanner, type Product, type Supplier } from "@/components/ProductArea";
+import { ProductDetail, SavedBanner, type Product, type Supplier } from "@/components/ProductArea";
+import { ListaProdutos } from "@/components/ListaProdutos";
 
 const TABS = ["Produtos", "Depósito", "Gôndolas", "Fornecedores", "Equipe", "Vendas"] as const;
 
@@ -41,7 +42,7 @@ export function StoreSpace({ store, products, suppliers, saved, onBack, onNew, o
       {tab === "Produtos" ? (
         <>
           {saved && <SavedBanner onAnother={() => { onDismissSaved(); onNew(); }} onList={onDismissSaved} />}
-          <ProductsTab products={products} onNew={onNew} onOpen={(p) => { onDismissSaved(); setView(p); }} />
+          <ListaProdutos products={products} tipo={store.tipo} suppliers={suppliers} onNew={onNew} onOpen={(p) => { onDismissSaved(); setView(p); }} />
         </>
       ) : (
         <div className="flex flex-col items-center gap-2 py-20 text-center">
