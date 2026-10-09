@@ -1476,8 +1476,11 @@ function EmbalagemSheet({ tipoComercio, index, lista, unidade, codigoProduto, us
     </Sheet>
   );
 }
-function SupplierSheet({ tipo, onClose, onSave }: { tipo: string; onClose: () => void; onSave: (s: Omit<Supplier, "id">) => void | Promise<void> }) {
-  const [nome, setNome] = useState(""); const [tel, setTel] = useState(""); const [email, setEmail] = useState("");
+/** Novo fornecedor, ou edição quando `inicial` vem preenchido. */
+export function SupplierSheet({ tipo, inicial, onClose, onSave }: {
+  tipo: string; inicial?: Supplier | undefined; onClose: () => void; onSave: (s: Omit<Supplier, "id">) => void | Promise<void>;
+}) {
+  const [nome, setNome] = useState(inicial?.nome ?? ""); const [tel, setTel] = useState(inicial?.tel ? maskPhone(inicial.tel) : ""); const [email, setEmail] = useState(inicial?.email ?? "");
   const [salvando, setSalvando] = useState(false); const [erro, setErro] = useState("");
   const enviar = () => {
     if (salvando) return;
@@ -1489,7 +1492,7 @@ function SupplierSheet({ tipo, onClose, onSave }: { tipo: string; onClose: () =>
   const emailOk = !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const ok = !!nome.trim() && emailOk && (!tel || digits(tel).length >= 10);
   return (
-    <Sheet title="Novo fornecedor" onClose={() => { if (!salvando) onClose(); }}>
+    <Sheet title={inicial ? "Editar fornecedor" : "Novo fornecedor"} onClose={() => { if (!salvando) onClose(); }}>
       <form noValidate onSubmit={(e) => { e.preventDefault(); if (ok) enviar(); }} className="flex min-h-0 flex-col">
         <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3">
           <Field label="Nome" name="fnome" autoComplete="organization" enterKeyHint="next" onKeyDown={nextOnEnter("ftel")} placeholder={`Ex.: ${exemplos(tipo).fornecedor}`} value={nome} onChange={(e) => setNome(e.target.value)} hint="Nome da empresa ou do vendedor." />
@@ -1497,7 +1500,7 @@ function SupplierSheet({ tipo, onClose, onSave }: { tipo: string; onClose: () =>
           <Field label="E-mail" name="femail" type="email" inputMode="email" autoComplete="email" enterKeyHint="done" placeholder="Opcional" value={email} onChange={(e) => setEmail(e.target.value)} error={!emailOk ? "E-mail inválido." : ""} hint="Opcional." />
         </div>
         {erro && <p role="alert" className="px-5 pt-2 text-sm font-semibold text-destructive">{erro}</p>}
-        <div className="px-5 pt-2"><button type="submit" disabled={!ok || salvando} className={btnPrimary(ok && !salvando)}>{salvando ? "Salvando…" : "Salvar fornecedor"}</button></div>
+        <div className="px-5 pt-2"><button type="submit" disabled={!ok || salvando} className={btnPrimary(ok && !salvando)}>{salvando ? "Salvando…" : inicial ? "Salvar alterações" : "Salvar fornecedor"}</button></div>
       </form>
     </Sheet>
   );

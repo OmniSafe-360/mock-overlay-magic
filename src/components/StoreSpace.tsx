@@ -6,12 +6,14 @@ import { ProductDetail, SavedBanner, type Product, type Supplier } from "@/compo
 import { ListaProdutos } from "@/components/ListaProdutos";
 import { PainelLocais } from "@/components/PainelLocais";
 import { AtencaoHoje } from "@/components/AtencaoHoje";
+import { PainelFornecedores } from "@/components/PainelFornecedores";
 import type { LocaisCadastrados } from "@/lib/banco";
 
 const TABS = ["Produtos", "Depósito", "Gôndolas", "Fornecedores", "Equipe", "Vendas"] as const;
 
-export function StoreSpace({ store, products, suppliers, saved, locais, onBack, onNew, onEdit, onDismissSaved }: {
+export function StoreSpace({ store, products, suppliers, saved, locais, onAddSupplier, onUpdateSupplier, onBack, onNew, onEdit, onDismissSaved }: {
   store: StoreData; products: Product[]; suppliers: Supplier[]; saved: boolean; locais?: LocaisCadastrados | undefined;
+  onAddSupplier: (f: Omit<Supplier, "id">) => Promise<unknown>; onUpdateSupplier: (s: Supplier, f: Omit<Supplier, "id">) => Promise<unknown>;
   onBack: () => void; onNew: () => void; onEdit: (p: Product) => void; onDismissSaved: () => void;
 }) {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Produtos");
@@ -51,6 +53,9 @@ export function StoreSpace({ store, products, suppliers, saved, locais, onBack, 
       ) : tab === "Depósito" || tab === "Gôndolas" ? (
         <PainelLocais products={products} tipo={store.tipo} area={tab === "Depósito" ? "dep" : "ven"}
           locaisCadastrados={tab === "Depósito" ? locais?.deposito : locais?.venda} onOpen={(p) => { onDismissSaved(); setView(p); }} />
+      ) : tab === "Fornecedores" ? (
+        <PainelFornecedores products={products} tipo={store.tipo} suppliers={suppliers} onOpen={(p) => { onDismissSaved(); setView(p); }}
+          onAdd={onAddSupplier} onUpdate={onUpdateSupplier} />
       ) : (
         <div className="flex flex-col items-center gap-2 py-20 text-center">
           <p className="text-xl font-bold">{tab}</p>

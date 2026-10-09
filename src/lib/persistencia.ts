@@ -127,6 +127,7 @@ export async function enviarCadastro(s: Sessao, montar: () => object, rpc: Rpc):
 /* ---------- mensagens em português ---------- */
 const MSG: [string, string][] = [
   ["nao_autenticado", "Sua sessão expirou. Entre novamente para salvar."],
+  ["fornecedor_nao_encontrado", "Este fornecedor não foi encontrado. Atualize a página e tente de novo."],
   ["sem_acesso_ao_comercio", "Você não tem acesso a este comércio."],
   ["operacao_reutilizada", "Este envio já foi registrado com outro conteúdo. Feche o cadastro e tente de novo."],
   ["codigo_em_uso", "Este código de barras já está cadastrado neste comércio."],
