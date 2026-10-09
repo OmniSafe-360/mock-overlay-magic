@@ -60,3 +60,18 @@ export function desenharCodigo(codigo: string): Barras | null {
   if (code128Possivel(c)) return { formato: "Code 128", modulos: code128(c), quietEsq: 10, quietDir: 10 };
   return null;
 }
+
+/**
+ * Aviso (não bloqueia) para código de barras que parece digitado errado.
+ * Só olha códigos só com números e com 8 números ou mais: 8, 12, 13 e 14 são os tamanhos de verdade
+ * (EAN-8, UPC, EAN-13, caixa/fardo DUN-14), e o último número precisa conferir.
+ * Códigos curtos (internos da loja) e com letras (ex.: "KYB-334") não recebem aviso.
+ */
+export function avisoCodigo(codigo: string): string {
+  const c = codigo.trim();
+  if (!/^\d{8,}$/.test(c)) return "";
+  if (![8, 12, 13, 14].includes(c.length))
+    return `Este código tem ${c.length} números. Códigos de barras têm 8, 12, 13 ou 14. Confira se foi digitado certo.`;
+  if (digitoEan(c.slice(0, -1)) !== Number(c.at(-1))) return "O último número do código não confere. Confira se foi digitado certo.";
+  return "";
+}

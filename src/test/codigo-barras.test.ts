@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BarcodeFormat, BinaryBitmap, DecodeHintType, HybridBinarizer, MultiFormatReader, RGBLuminanceSource } from "@zxing/library";
-import { code128Possivel, desenharCodigo, digitoEan, eanValido } from "@/lib/codigoBarras";
+import { avisoCodigo, code128Possivel, desenharCodigo, digitoEan, eanValido } from "@/lib/codigoBarras";
 
 /** Desenha os módulos como uma imagem e lê com o mesmo leitor do app (ZXing): prova que um scanner entende a etiqueta. */
 function ler(codigo: string) {
@@ -46,5 +46,21 @@ describe("código de barras da etiqueta", () => {
     expect(code128Possivel("PEÇA-1")).toBe(false);
     expect(desenharCodigo("PEÇA-1")).toBeNull();
     expect(desenharCodigo("")).toBeNull();
+  });
+});
+
+describe("aviso de código que parece digitado errado", () => {
+  it.each(["7896263503203", "2900000000018", "96385074", "036000291452", "17896263503200", "789", "7890001", "KYB-334", "", "12345678901234567890X"])(
+    "sem aviso: %s", (c) => expect(avisoCodigo(c)).toBe(""));
+  it("16 números (o fardo do arroz) avisa o tamanho", () => {
+    expect(avisoCodigo("7893548845554554")).toMatch(/16 números/);
+  });
+  it("9, 10, 11 ou 15 números também avisam", () => {
+    for (const c of ["123456789", "1234567890", "12345678901", "123456789012345"]) expect(avisoCodigo(c)).toMatch(/números/);
+  });
+  it("último número errado avisa", () => {
+    expect(avisoCodigo("7896263503204")).toMatch(/último número/);
+    expect(avisoCodigo("17896263503201")).toMatch(/último número/);
+    expect(avisoCodigo("96385075")).toMatch(/último número/);
   });
 });
