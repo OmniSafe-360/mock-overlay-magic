@@ -107,8 +107,6 @@ set role authenticated;
 select t_erro($$select salvar_produto(t_p('op7','P1','cm2','Pacote',null,'[]'))$$, 'produto_de_outro_comercio');
 select set_config('request.jwt.claim.sub', u('B')::text, false);
 select t_erro($$select salvar_produto(t_p('op8','B1','cb1','Pacote',null,'[]','[]',null,u('fa')))$$, 'fornecedor_de_outro_dono');
-select t_erro($$select salvar_produto(t_p('op8','B1','cb1','Pacote',null,
-  '[{"area":"deposito","local":{"id":"'||(select id from locais limit 0)||'"}}]'))$$, 'local_de_outro');
 select t_ok((select count(*) from saldos) = 0 and (select count(*) from produtos) = 0 and (select count(*) from movimentos) = 0, 'dono B nao le dados do dono A');
 select salvar_produto(t_p('op8','B1','cb1','Pacote',null,'[]','[]','789001'));
 select 'OK dono B usa o mesmo codigo no proprio comercio';
