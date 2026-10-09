@@ -56,10 +56,12 @@ export type TypeRules = {
 export const FARMACIA_VARS_MSG = "Este produto de Farmácia contém variações incompatíveis. O salvamento foi bloqueado.";
 export const CONSTRUCAO_VARS_MSG = "Este produto de Material de construção contém variações incompatíveis. O salvamento foi bloqueado.";
 export const PET_VARS_MSG = "Este produto de Pet shop contém variações incompatíveis. O salvamento foi bloqueado.";
-export const ESPECIE_MSG = "Escolha Cão, Gato ou Outros para informar a espécie.";
+/** Detalhe com opções fixas preenchido com um valor fora da lista. */
+export const msgDetalheFixo = (label: string) => `Escolha uma das opções da lista em "${label}".`;
+export const ESPECIE_MSG = msgDetalheFixo("Espécie");
 export const AUTOPECAS_VARS_MSG = "Este produto de Autopeças contém variações incompatíveis. O salvamento foi bloqueado.";
-export const POSICAO_MSG = "Escolha uma das opções disponíveis para informar a posição.";
-export const CONTROLADO_MSG = "Escolha Sim ou Não para informar se o medicamento é controlado.";
+export const POSICAO_MSG = msgDetalheFixo("Posição");
+export const TARJA_MSG = msgDetalheFixo("Tarja");
 export const MERCADO_VARS_MSG = "Este produto de Mercado contém variações incompatíveis. O salvamento foi bloqueado.";
 
 /** Regras exclusivas do Mercado: unidade e categoria precisam estar nas listas; variações não são permitidas. */
