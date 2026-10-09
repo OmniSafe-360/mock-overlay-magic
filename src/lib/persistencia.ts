@@ -52,9 +52,10 @@ export function montarPedido(p: Product, opId: string, comercioId: string, suppl
   };
 }
 
-/** Pendências já registradas que foram completadas ou divididas nesta edição. */
+/** Pendências já registradas que foram completadas ou divididas nesta edição.
+ * `precisaConfirmar`: lote com número e sem data recebeu data — exige ação explícita do usuário. */
 export function pedidosPendencias(antes: Validade | undefined, depois: Validade | undefined, farm: boolean) {
-  const out: { origem: string; partes: { numero: string | null; vencimento: string | null; quantidade: number; confirmada: boolean }[] }[] = [];
+  const out: { origem: string; precisaConfirmar: boolean; partes: { numero: string | null; vencimento: string | null; quantidade: number; confirmada: boolean }[] }[] = [];
   if (!antes?.controla || !depois?.controla) return out;
   for (const a of ["dep", "ven"] as const)
     for (const [k, ls] of Object.entries(antes[a])) {
@@ -63,10 +64,56 @@ export function pedidosPendencias(antes: Validade | undefined, depois: Validade 
         const partes = novas.filter((l) => l.id === o.id || l.origem === o.id);
         const igual = partes.length === 1 && partes[0]!.id === o.id && partes[0]!.qtd === o.qtd && partes[0]!.data === o.data && (partes[0]!.lote ?? null) === (o.lote ?? null);
         if (!partes.length || igual) continue;
-        out.push({ origem: o.id, partes: partes.map((l) => ({ numero: l.lote, vencimento: l.data, quantidade: l.qtd, confirmada: !!l.pendConf })) });
+        out.push({ origem: o.id, precisaConfirmar: !!o.lote && !o.data && partes.some((l) => !!l.data), partes: partes.map((l) => ({ numero: l.lote, vencimento: l.data, quantidade: l.qtd, confirmada: !!l.pendConf })) });
       }
     }
   return out;
+}
+
+/** Lotes cujo vencimento será definido agora e precisam de confirmação explícita. */
+export function lotesAConfirmar(antes: Validade | undefined, depois: Validade | undefined, farm: boolean): string[] {
+  const todas = antes ? [...Object.values(antes.dep), ...Object.values(antes.ven)].flat() : [];
+  return pedidosPendencias(antes, depois, farm).filter((r) => r.precisaConfirmar).map((r) => todas.find((l) => l.id === r.origem)?.lote ?? "");
+}
+
+/** Pedido único para salvar_cadastro: produto + pendências na mesma transação. Ids novos a cada montagem. */
+export function montarCadastro(p: Product, antes: Product | undefined, comercioId: string, farm: boolean, suppliers: Supplier[], novoId: () => string) {
+  return {
+    operacao_id: novoId(),
+    produto_pedido: montarPedido(p, novoId(), comercioId, suppliers),
+    pendencias: pedidosPendencias(antes?.validade, p.validade, farm).map((r) => ({
+      operacao_id: novoId(), origem_id: r.origem, partes: r.partes,
+      ...(r.precisaConfirmar && p.confirmarVencimento === true ? { confirmar_vencimento: true } : {}),
+    })),
+  };
+}
+
+/* ---------- envio com resultado incerto ---------- */
+export type ErroRpc = { message?: string; code?: string } | null;
+export type Rpc = (pedido: object) => Promise<{ error: ErroRpc }>;
+export type Sessao = { dbId: string; incerto: { pedido: object } | null };
+/** Sem resposta do servidor: não se sabe se gravou. */
+export const ehIncerto = (e: unknown) => {
+  const m = String((e as { message?: string } | null)?.message ?? e ?? "");
+  return /fetch|network|Failed to|timeout|aborted|Load failed/i.test(m);
+};
+/**
+ * Se o envio anterior ficou sem resposta, repete EXATAMENTE o mesmo pedido (mesmo id) antes de tudo.
+ * Se ele tinha sido gravado, devolve "anterior_gravado" e não envia o formulário atual.
+ * Se foi recusado, o formulário atual vai com uma operação nova.
+ */
+export async function enviarCadastro(s: Sessao, montar: () => object, rpc: Rpc): Promise<"gravado" | "anterior_gravado"> {
+  if (s.incerto) {
+    const r = await rpc(s.incerto.pedido);
+    if (!r.error) { s.incerto = null; return "anterior_gravado"; }
+    if (ehIncerto(r.error)) throw r.error;
+    s.incerto = null;
+  }
+  const pedido = montar();
+  let r: { error: ErroRpc };
+  try { r = await rpc(pedido); } catch (e) { s.incerto = { pedido }; throw e; }
+  if (r.error) { if (ehIncerto(r.error)) s.incerto = { pedido }; throw r.error; }
+  return "gravado";
 }
 
 /* ---------- mensagens em português ---------- */
@@ -104,6 +151,7 @@ const MSG: [string, string][] = [
   ["lote_conhecido_alterado", "O número de lote já registrado não pode ser trocado."],
   ["vencimento_conhecido_alterado", "O vencimento já registrado não pode ser trocado."],
   ["partes_em_area_sem_estoque", "Esta área não tem estoque. Remova as validades dela."],
+  ["confirmar_vencimento_do_lote", "Confirme o vencimento informado para o lote antes de salvar."],
   ["quantidade", "Quantidade inválida para esta unidade."],
 ];
 export function mensagemErro(e: unknown): string {

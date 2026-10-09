@@ -770,6 +770,7 @@ export type Database = {
         }
         Returns: number
       }
+      salvar_cadastro: { Args: { p: Json }; Returns: Json }
       salvar_produto: { Args: { p: Json }; Returns: Json }
       unidade_fracionada: { Args: { _u: string }; Returns: boolean }
       validar_tipo: {

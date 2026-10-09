@@ -38,7 +38,7 @@ describe("pendências", () => {
   const antes = { controla: true, avisos: [], dep: { _: [{ id: "s1", qtd: 10, data: null, lote: null }] }, ven: {} };
   it("dividir envia as partes da pendência de origem", () => {
     const depois = { ...antes, dep: { _: [{ id: "s1", qtd: 6, data: "2026-11-01", lote: null }, { id: "n2", qtd: 4, data: null, lote: null, origem: "s1" }] } };
-    expect(pedidosPendencias(antes, depois, false)).toEqual([{ origem: "s1", partes: [
+    expect(pedidosPendencias(antes, depois, false)).toEqual([{ origem: "s1", precisaConfirmar: false, partes: [
       { numero: null, vencimento: "2026-11-01", quantidade: 6, confirmada: false }, { numero: null, vencimento: null, quantidade: 4, confirmada: false }] }]);
   });
   it("sem mudança não envia nada", () => {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { carregarFornecedores, carregarProdutos, criarFornecedor, salvarProduto } from "@/lib/banco";
-import { mensagemErro } from "@/lib/persistencia";
+import { carregarFornecedores, carregarProdutos, criarFornecedor, salvarProduto, type LocaisCadastrados } from "@/lib/banco";
+import { ehIncerto, mensagemErro, type Sessao } from "@/lib/persistencia";
 import { newUid } from "@/lib/deposito";
 import { AlertTriangle, Bell, CalendarClock, ChevronRight, Home, PackageX, Plus, ShoppingBag, Store, UserCircle, Users, CheckCircle2 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
@@ -49,7 +49,8 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
   const [saveErro, setSaveErro] = useState("");
   const [carga, setCarga] = useState<"ok" | "carregando" | "erro">("ok");
   /** Identificadores estáveis do envio aberto: repetir o envio usa os mesmos e não duplica nada. */
-  const sessao = useRef<{ dbId: string; ops: { salvar: string; pend: Record<string, string> } } | null>(null);
+  const sessao = useRef<Sessao | null>(null);
+  const [locais, setLocais] = useState<Record<string, LocaisCadastrados>>({});
   const suppRef = useRef<Supplier[]>([]);
   suppRef.current = suppliers;
 
@@ -58,8 +59,9 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
     try {
       const fs = await carregarFornecedores();
       setSuppliers(fs); suppRef.current = fs;
-      const ps = await carregarProdutos(comercioId, fs);
-      setProducts((m) => ({ ...m, [comercioId]: ps }));
+      const r = await carregarProdutos(comercioId, fs);
+      setProducts((m) => ({ ...m, [comercioId]: r.produtos }));
+      setLocais((m) => ({ ...m, [comercioId]: r.locais }));
       setCarga("ok");
     } catch { setCarga("erro"); }
   }, []);
@@ -84,31 +86,39 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
   const NO_ID = "Este comércio ainda não foi salvo. Não é possível cadastrar ou editar produtos.";
   const openWizard = (initial?: Product) => {
     if (!sid) { setToast(NO_ID); return; }
-    sessao.current = { dbId: initial?.db?.id ?? newUid(), ops: { salvar: newUid(), pend: {} } };
+    sessao.current = { dbId: initial?.db?.id ?? newUid(), incerto: null };
     setSaveErro(""); setWizard({ initial });
   };
   if (wizard && cur && sid)
     return (
-      <ProductWizard store={cur} products={list} initial={wizard.initial} suppliers={suppliers} saving={saving} erro={saveErro}
-        onAddSupplier={(f) => {
-          const id = Date.now(), dbId = newUid();
-          setSuppliers((l) => [...l, { ...f, id, dbId }]);
-          criarFornecedor(dbId, f).catch((e) => {
-            setSuppliers((l) => l.filter((x) => x.id !== id));
-            setSaveErro(`Não foi possível guardar o fornecedor “${f.nome}”. ${mensagemErro(e)}`);
-          });
-          return id;
+      <ProductWizard store={cur} products={list} initial={wizard.initial} suppliers={suppliers} saving={saving} erro={saveErro} locaisCadastrados={locais[sid]}
+        onAddSupplier={async (f) => {
+          const dbId = newUid();
+          try { await criarFornecedor(dbId, f); }
+          catch (e) { throw new Error(`Não foi possível guardar o fornecedor. ${mensagemErro(e).replace(/^Não foi possível salvar agora\. /, "")}`); }
+          const novo = { ...f, id: Date.now(), dbId };
+          suppRef.current = [...suppRef.current, novo];
+          setSuppliers((l) => [...l, novo]);
+          return novo.id;
         }}
         onCancel={() => { if (!saving) setWizard(null); }}
         onSave={async (p) => {
           if (saving || !sessao.current) return;
           setSaving(true); setSaveErro("");
           const comDb: Product = { ...p, db: p.db ?? { id: sessao.current.dbId, contadas: [] } };
+          let res: "gravado" | "anterior_gravado";
           try {
-            await salvarProduto(comDb, wizard.initial, sid, cur.tipo === "farmacia", suppRef.current, sessao.current.ops, newUid);
-          } catch (e) { setSaveErro(mensagemErro(e)); setSaving(false); return; }
+            res = await salvarProduto(sessao.current, comDb, wizard.initial, sid, cur.tipo === "farmacia", suppRef.current, newUid);
+          } catch (e) {
+            setSaveErro(ehIncerto(e)
+              ? "Não foi possível confirmar se o produto foi salvo. Toque em Salvar de novo: o mesmo envio será repetido sem duplicar."
+              : mensagemErro(e));
+            setSaving(false); return;
+          }
           await recarregar(sid);
-          setSaving(false); setSaved(!wizard.initial); setWizard(null); if (wizard.initial) setToast("Produto atualizado!");
+          setSaving(false); setWizard(null);
+          if (res === "anterior_gravado") setToast("O envio anterior já tinha sido salvo. Abra o produto para conferir.");
+          else { setSaved(!wizard.initial); if (wizard.initial) setToast("Produto atualizado!"); }
         }} />
     );
 
