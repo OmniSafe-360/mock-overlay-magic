@@ -5,13 +5,96 @@ set client_min_messages = warning;
 
 -- ---------- Auxiliares ----------
 create function public.u(t text) returns uuid language sql immutable as $$ select md5(t)::uuid $$;
-create function public.t_erro(_sql text, _esperado text) returns void language plpgsql as $$
+-- SQLSTATE esperado de cada recusa (extraído da proposta). Token com "_" inicial = sufixo.
+create table public.t_estado (token text, estado text, primary key (token, estado));
+insert into public.t_estado values ('_invalido','23514'),
+  ('categoria_incompativel','23514'),
+  ('codigo_da_variacao_obrigatorio','23514'),
+  ('codigo_em_uso','23505'),
+  ('codigo_igual_ao_principal','23514'),
+  ('combinacao_repetida','23514'),
+  ('confirmar_vencimento_do_lote','23514'),
+  ('contagem_ja_registrada','23505'),
+  ('cor_obrigatoria','23514'),
+  ('datas_diferentes_para_o_mesmo_lote','23514'),
+  ('desligar_validade_bloqueado','23514'),
+  ('farmacia_exige_validade','23514'),
+  ('fornecedor_de_outro_dono','23514'),
+  ('fornecedor_de_outro_dono','42501'),
+  ('historico_imutavel','42501'),
+  ('local_de_outro_comercio_ou_area','42501'),
+  ('lote_com_datas_diferentes','23514'),
+  ('lote_conhecido_alterado','23514'),
+  ('mais_de_tres_casas','22023'),
+  ('maximo_menor_que_minimo','23514'),
+  ('nao_autenticado','28000'),
+  ('nao_e_pendencia_aberta','23514'),
+  ('operacao_reutilizada_com_conteudo_diferente','23505'),
+  ('partes_em_area_sem_estoque','23514'),
+  ('pedido_incompleto','22023'),
+  ('pendencia_de_outro_produto','42501'),
+  ('pendencia_sem_confirmacao','23514'),
+  ('produto_de_outro_comercio','42501'),
+  ('produto_nao_muda_de_comercio','23514'),
+  ('quantidade_informada_obrigatoria','23514'),
+  ('quantidade_negativa','22023'),
+  ('quantidade_vazia','22023'),
+  ('quantidade_zero','22023'),
+  ('remocao_bloqueada','23514'),
+  ('roupas_exige_variacao','23514'),
+  ('sem_acesso_ao_comercio','42501'),
+  ('sem_partes','22023'),
+  ('soma_das_partes_diferente_da_pendencia','23514'),
+  ('soma_diferente_da_contagem','23514'),
+  ('tamanho_invalido','23514'),
+  ('tipo_sem_variacoes','23514'),
+  ('troca_de_local_exige_transferencia','23514'),
+  ('unidade_exige_inteiro','22023'),
+  ('unidade_incompativel','23514'),
+  ('unidade_travada','23514'),
+  ('variacao_de_outro_produto','42501'),
+  ('variacao_invalida','23514'),
+  ('variacao_removida','23514'),
+  ('vencimento_conhecido_alterado','23514'),
+  ('vinculo_incompativel','23514'),
+  ('permission denied','42501');
+grant select on public.t_estado to authenticated, anon;
+
+-- t_erro: executa a operação num bloco próprio. Captura SOMENTE o que a operação lançar.
+-- Se ela terminar sem erro, lança um sinal interno (SQLSTATE T0K00) para desfazer o que
+-- foi gravado, e a falha do teste é lançada FORA do bloco de captura.
+create function public.t_erro(_sql text, _esperado text, _estado text default null) returns void language plpgsql as $$
+declare v_ok boolean := false; v_st text; v_msg text; v_estados text[];
 begin
-  execute _sql;
-  raise exception 'FALHOU: esperava erro "%"', _esperado;
-exception when others then
-  if sqlerrm not like '%' || _esperado || '%' then
-    raise exception 'FALHOU: veio "%" em vez de "%"', sqlerrm, _esperado; end if;
+  begin
+    execute _sql;
+    v_ok := true;  -- variáveis não voltam no rollback do bloco
+    raise exception 't_erro_sucesso_inesperado' using errcode = 'T0K00';
+  exception when others then
+    get stacked diagnostics v_st = returned_sqlstate, v_msg = message_text;
+  end;
+  if v_ok or v_st = 'T0K00' then
+    raise exception 'FALHOU: operacao aceita, esperava erro "%"', _esperado; end if;
+  if not (v_msg = _esperado or v_msg like _esperado || ':%' or v_msg like _esperado || ' %') then
+    raise exception 'FALHOU: veio "%" (%) em vez de "%"', v_msg, v_st, _esperado; end if;
+  v_estados := case when _estado is not null then array[_estado] else
+    (select array_agg(estado) from public.t_estado where token = _esperado
+       or (left(token, 1) = '_' and _esperado like '%' || token)) end;
+  if v_estados is null then
+    raise exception 'FALHOU: SQLSTATE esperado desconhecido para "%"', _esperado; end if;
+  if not (v_st = any (v_estados)) then
+    raise exception 'FALHOU: "%" veio com SQLSTATE % em vez de %', _esperado, v_st, v_estados; end if;
+end $$;
+-- t_falha: prova que t_erro reprova. Passa só se t_erro lançar "FALHOU..." com o texto indicado.
+create function public.t_falha(_sql text, _esperado text, _motivo text) returns text language plpgsql as $$
+declare v_msg text; v_ok boolean := false;
+begin
+  begin perform public.t_erro(_sql, _esperado); v_ok := true;
+  exception when others then get stacked diagnostics v_msg = message_text; end;
+  if v_ok then raise exception 'FALHOU: verificador aprovou "%"', _sql; end if;
+  if v_msg not like 'FALHOU: ' || _motivo || '%' then
+    raise exception 'FALHOU: verificador reprovou por motivo errado: %', v_msg; end if;
+  return 'OK verificador reprova: ' || _motivo;
 end $$;
 create function public.t_ok(_cond boolean, _nome text) returns text language plpgsql as $$
 begin if _cond is not true then raise exception 'FALHOU: %', _nome; end if; return 'OK ' || _nome; end $$;
@@ -25,7 +108,7 @@ language sql immutable as $$
     'categoria', coalesce(cat, case left(com, 2) when 'cf' then 'Medicamentos' when 'cr' then 'Camisetas' when 'cc' then 'Básico'
       when 'cp' then 'Ração' when 'ca' then 'Motor' else 'Mercearia' end), 'controla_validade', ctrl, 'codigo_barras', cod,
     'fornecedor_id', forn, 'avisos_dias', '[30,60]'::jsonb), 'variacoes', vars::jsonb, 'areas', areas::jsonb) $$;
-grant execute on function public.u(text), public.t_erro(text, text), public.t_ok(boolean, text),
+grant execute on function public.u(text), public.t_erro(text, text, text), public.t_falha(text, text, text), public.t_ok(boolean, text),
   public.t_p(text, text, text, text, boolean, text, text, text, uuid, numeric, text, text) to authenticated, anon;
 
 -- ---------- Dados ----------
@@ -37,6 +120,19 @@ insert into public.comercios (id, dono_id, tipo, nome) values
   (u('cc1'), u('A'), 'material_construcao', 'Construção A'), (u('cp1'), u('A'), 'pet_shop', 'Pet A'),
   (u('ca1'), u('A'), 'autopecas', 'Autopeças A'), (u('cb1'), u('B'), 'mercado', 'Mercado B');
 insert into public.fornecedores (id, dono_id, nome) values (u('fa'), u('A'), 'Forn A'), (u('fb'), u('B'), 'Forn B');
+
+-- ---------- Prova do verificador t_erro ----------
+create table public.t_sonda (x int);
+select t_falha($$insert into public.t_sonda values (1)$$, 'qualquer_erro', 'operacao aceita');
+select t_ok(not exists (select 1 from public.t_sonda), 'sucesso inesperado foi desfeito');
+select t_falha($$select 1/0$$, 'quantidade_vazia', 'veio');
+select t_falha($$do $x$ begin raise exception 'quantidade_vazia' using errcode = '23514'; end $x$$$, 'quantidade_vazia', '"quantidade_vazia" veio com SQLSTATE');
+select t_falha($$do $x$ begin raise exception 'quantidade_vazia_extra' using errcode = '22023'; end $x$$$, 'quantidade_vazia', 'veio');
+select t_falha($$select 1/0$$, 'division by zero', 'SQLSTATE esperado desconhecido');
+do $x$ begin perform t_erro($$do $y$ begin raise exception 'quantidade_vazia' using errcode = '22023'; end $y$$$, 'quantidade_vazia'); end $x$;
+do $x$ begin perform t_erro($$insert into public.t_sonda values (1); select 1/0$$, 'division by zero', '22012'); end $x$;
+select t_ok(not exists (select 1 from public.t_sonda), 'erro correto passa e desfaz o que a operacao gravou');
+select 'OK verificador aprova erro correto';
 
 -- ---------- Permissões e autenticação ----------
 set role anon;
@@ -237,7 +333,12 @@ select 'OK roupas: tamanho, cor, codigo, quantidade e combinacao conferidos; Par
 -- ---------- Seis tipos: unidade, categoria e detalhes fixos ----------
 select t_erro($$select salvar_produto(t_p('op30','T1','cm1','Metro',null,'[]'))$$, 'unidade_incompativel');
 select t_erro($$select salvar_produto(t_p('op30','T1','cm1','Kg',null,'[]','[]',null,null,2,'Ração'))$$, 'categoria_incompativel');
-select t_erro($$select salvar_produto(t_p('op30','T1','cm1','Kg',null,'[]','[]',null,null,2,null))$$, 'categoria_incompativel');
+-- categoria realmente nula e realmente ausente (sem o coalesce de t_p)
+select t_ok(jsonb_typeof(jsonb_set(t_p('op30','T1','cm1','Kg',null,'[]'), '{produto,categoria}', 'null')->'produto'->'categoria') = 'null'
+  and not (t_p('op30','T1','cm1','Kg',null,'[]') #- '{produto,categoria}')->'produto' ? 'categoria', 'pedido de teste sem categoria montado');
+select t_erro($$select salvar_produto(jsonb_set(t_p('op30','T1','cm1','Kg',null,'[]'), '{produto,categoria}', 'null'))$$, 'categoria_incompativel');
+select t_erro($$select salvar_produto(t_p('op30','T1','cm1','Kg',null,'[]') #- '{produto,categoria}')$$, 'categoria_incompativel');
+select t_erro($$select salvar_produto(jsonb_set(t_p('op30','T1','cm1','Kg',null,'[]'), '{produto,categoria}', '""'))$$, 'categoria_incompativel');
 select salvar_produto(t_p('op30','T1','cm1','Litro',null,'[]','[]',null,null,2,'Bebidas'));
 select t_erro($$select salvar_produto(t_p('op31','T2','cf1','Kg',true,'[]'))$$, 'unidade_incompativel');
 select t_erro($$select salvar_produto(t_p('op31','T2','cf1','Frasco',true,'[]','[]',null,null,2,'Bebidas'))$$, 'categoria_incompativel');
