@@ -32,6 +32,22 @@ describe("validação final do produto", () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 
+  it("corrigir o código remove a mensagem e permite concluir", () => {
+    const { onSave, submit } = setup(base);
+    for (let i = 0; i < 4; i++) submit();
+    fireEvent.click(screen.getAllByRole("button").find((b) => /editar/i.test(b.textContent ?? "") || /editar/i.test(b.getAttribute("aria-label") ?? ""))!);
+    const input = screen.getByPlaceholderText("Ex.: 7891234567890");
+    fireEvent.change(input, { target: { value: "222" } });
+    submit();
+    expect(screen.getByText("Este código já pertence a uma variação deste produto.")).toBeTruthy();
+    fireEvent.change(input, { target: { value: "333" } });
+    expect(screen.queryByText("Este código já pertence a uma variação deste produto.")).toBeNull();
+    submit(); // volta ao resumo
+    submit(); // salva
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave.mock.calls[0]![0].codigo).toBe("333");
+  });
+
   it("variações incompletas não chegam ao onSave", () => {
     const { onSave, submit } = setup({ ...base, variacoes: [{ tam: "M", cor: "Azul", codigo: "", qtd: 2 }] });
     for (let i = 0; i < 6; i++) submit();
