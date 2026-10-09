@@ -379,6 +379,8 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const vendaSalva = !!initVen;
   const locaisV = useMemo(() => juntarLocais(locaisCadastrados?.venda ?? [], locaisVendaDoComercio(products)), [products, locaisCadastrados]);
   const [confVenc, setConfVenc] = useState(false);
+  /** Venda menor que a compra: precisa confirmar ao salvar. Guarda os preços confirmados; mudar o preço pede de novo. */
+  const [prejuizoOk, setPrejuizoOk] = useState<string | null>(null);
   const [vLocal, setVLocal] = useState<string | null | undefined>(initVen ? initVen.local : ini.localVenda);
   const [vManter, setVManter] = useState(!!initial && !initVen);
   const [vNovo, setVNovo] = useState<string | null>(null);
@@ -533,6 +535,9 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     true,
   ][step]!;
   const lucro = venda - compra;
+  const prejuizo = compra > 0 && venda > 0 && venda < compra;
+  const chavePrejuizo = `${compra}-${venda}`;
+  const prejuizoConfirmado = prejuizoOk === chavePrejuizo;
   const ganho = ganhoSobreCompra(compra, venda);
   const ganhoTexto = ganho != null && venda > 0 ? mostrarPct(ganho) : "";
   const mudarCompra = (c: number) => {
@@ -594,7 +599,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const lotesConf = valAtivo ? lotesAConfirmar(initVal, buildValidade(), isFarm) : [];
   const save = () => {
     if (saving) return;
-    if (!bad && lotesConf.length && !confVenc) { setTriedSave(true); return; }
+    if (!bad && ((lotesConf.length && !confVenc) || (prejuizo && !prejuizoConfirmado))) { setTriedSave(true); return; }
     if (bad) { setTriedSave(true); setFromReview(true); return go(bad.step, bad.sub ?? 0); }
     onSave({ id: initial?.id ?? Date.now(), codigo: codigo.trim(), nome: nome.trim(), compra, venda, unidade, categoria, detalhes: det, variacoes: vars,
       fornecedor: forn ?? null, deposito: buildDeposito(), areaVenda: buildVenda(), validade: buildValidade(), db: initial?.db,
@@ -1256,7 +1261,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
               {step === STEP_REV && (
                 <div className="divide-y divide-border rounded-2xl border border-border bg-background-deep/60">
                   <Sum t="Código e nome" onEdit={() => edit(0)}>{nome}<br />Cód. {codigo}</Sum>
-                  <Sum t="Preços" onEdit={() => edit(1)}>{brl2(compra)} → {brl2(venda)} / {unidade}<br />{categoria}{ganhoTexto ? ` · ganho de ${ganhoTexto}% sobre a compra` : ""}</Sum>
+                  <Sum t="Preços" onEdit={() => edit(1)}>{brl2(compra)} → {brl2(venda)} / {unidade}<br />{categoria}{ganho != null && ganhoTexto ? (ganho < 0 ? ` · prejuízo de ${mostrarPct(-ganho)}% sobre a compra` : ` · ganho de ${ganhoTexto}% sobre a compra`) : ""}</Sum>
                   <Sum t="Detalhes" onEdit={() => edit(2)}>
                     {Object.entries(det).filter(([, v]) => v).map(([k, v]) => `${labelOf(tipo, k)}: ${v}`).join(" · ") || (vars.length ? "" : "Nenhum")}
                     {vars.length > 0 && <><br />{vars.map((v) => `${v.tam}/${v.cor}/Cód. ${v.codigo || "—"}/${v.qtd}`).join(", ")}</>}
@@ -1304,6 +1309,13 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
               </label>
             )}
             {step === STEP_REV && triedSave && lotesConf.length > 0 && !confVenc && <p role="alert" className="shrink-0 pt-2 text-sm font-semibold text-destructive">Confirme o vencimento do lote para salvar.</p>}
+            {step === STEP_REV && prejuizo && (
+              <label className="mt-3 flex min-h-12 shrink-0 items-start gap-3 rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">
+                <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0" checked={prejuizoConfirmado} onChange={(e) => setPrejuizoOk(e.target.checked ? chavePrejuizo : null)} />
+                <span>Vender com prejuízo: compra {brl2(compra)} e venda {brl2(venda)}. Você perde <b>{brl2(compra - venda)}</b> em cada {qtdUn(1, unidade).replace(/^1 /, "")}. Confirmo que está certo.</span>
+              </label>
+            )}
+            {step === STEP_REV && triedSave && prejuizo && !prejuizoConfirmado && <p role="alert" className="shrink-0 pt-2 text-sm font-semibold text-destructive">Confirme o prejuízo para salvar, ou volte e ajuste o preço de venda.</p>}
             {erro && step === STEP_REV && <p role="alert" className="shrink-0 pt-3 text-sm font-semibold text-destructive">{erro}</p>}
             <div className={`flex shrink-0 gap-2 ${kb ? "pt-2" : "pt-4 short:pt-3"}`}>
               {step > 0 && (
