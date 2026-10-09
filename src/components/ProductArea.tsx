@@ -5,6 +5,7 @@ import { Field, btnGhost, btnPrimary, digits, maskPhone, nextOnEnter, useKeyboar
 import { Scanner } from "@/components/Scanner";
 import { ganhoSobreCompra, lerPct, mostrarPct, vendaPorGanho } from "@/lib/preco";
 import { escolhasDoUltimo } from "@/lib/ultimaEscolha";
+import { ImprimirEtiquetaSheet } from "@/components/Etiqueta";
 import { AUTOPECAS_VARS_MSG, POSICAO_MSG, CONSTRUCAO_VARS_MSG, CONTROLADO_MSG, ESPECIE_MSG, PET_VARS_MSG, FARMACIA_VARS_MSG, firstInvalidStep, typeRuleError, type TypeRules, mainCodeError, usedCodes, variationErrors, variationOk } from "@/lib/variations";
 import {
   ACIMA_MAX, LOCAL_DUP, LOCAL_PENDENTE, REMOCAO_BLOQUEADA, SEM_CONFIG, TEMPORARIO, aceitaFracao, fmtQ, limitesErro, limitesStatus, localDuplicado,
@@ -128,6 +129,7 @@ export function ProductDetail({ p, tipo, suppliers, onBack, onEdit }: { p: Produ
   const f = suppliers.find((s) => s.id === p.fornecedor);
   const lucro = p.venda - p.compra;
   const det = Object.entries(p.detalhes).filter(([, v]) => v);
+  const [etiqueta, setEtiqueta] = useState(false);
   return (
     <div className="mx-auto max-w-[560px] space-y-4 animate-in fade-in slide-in-from-right-8 duration-300">
       <button type="button" onClick={onBack} className="flex min-h-12 items-center gap-2 pr-3 text-base font-semibold text-primary"><ArrowLeft size={18} /> Produtos</button>
@@ -150,7 +152,9 @@ export function ProductDetail({ p, tipo, suppliers, onBack, onEdit }: { p: Produ
         <Row t="Validade"><ValidadeInfo p={p} tipo={tipo} /></Row>
       </div>
       <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">{TEMPORARIO}</p>
+      <button type="button" onClick={() => setEtiqueta(true)} className={`flex w-full items-center justify-center gap-2 ${btnGhost}`}><Tag size={18} /> Imprimir etiqueta</button>
       <button type="button" onClick={onEdit} className={`flex items-center justify-center gap-2 ${btnPrimary(true)}`}><Pencil size={18} /> Editar</button>
+      {etiqueta && <ImprimirEtiquetaSheet produto={p} onClose={() => setEtiqueta(false)} />}
     </div>
   );
 }
