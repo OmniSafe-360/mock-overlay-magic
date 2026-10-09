@@ -28,8 +28,8 @@ describe("opções de Material de construção", () => {
     expect(t.onSave.mock.calls[0]![0].unidade).toBe(u);
   });
 
-  it("unidade Peça impede salvar", () => {
-    const t = setup({ ...ok, unidade: "Peça" }); run(t.submit);
+  it("unidade de outro tipo (Dúzia) impede salvar", () => {
+    const t = setup({ ...ok, unidade: "Dúzia" }); run(t.submit);
     expect(t.onSave).not.toHaveBeenCalled();
     expect(screen.getByText(/Unidade incompatível/)).toBeTruthy();
   });
@@ -49,7 +49,7 @@ describe("opções de Material de construção", () => {
   });
 
   it("corrigir unidade e categoria remove avisos e permite concluir", () => {
-    const t = setup({ ...ok, unidade: "Peça", categoria: "Camisetas" }); t.submit();
+    const t = setup({ ...ok, unidade: "Dúzia", categoria: "Camisetas" }); t.submit();
     fireEvent.click(screen.getByRole("button", { name: "m²" }));
     expect(screen.queryByText(/Unidade incompatível/)).toBeNull();
     expect(screen.getByText(/Categoria incompatível/)).toBeTruthy();

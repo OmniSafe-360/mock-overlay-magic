@@ -1,4 +1,5 @@
 /* Regras do passo Depósito (somente em memória nesta versão). */
+import { FRACAO } from "@/lib/listas";
 export type DepVar = { qtd: number; min: number | null; max: number | null };
 export type Deposito = {
   /** null = "Definir depois" */
@@ -8,7 +9,7 @@ export type Deposito = {
   vars?: Record<string, DepVar> | undefined;
 };
 
-export const FRACAO = ["Kg", "Metro", "m²", "Litro"];
+export { FRACAO };
 export const aceitaFracao = (u: string) => FRACAO.includes(u);
 
 export const QTD_VAZIA = "Informe a quantidade contada. Se não houver nenhuma, digite 0.";
@@ -46,6 +47,8 @@ const PALAVRA_UN: Record<string, [string, string]> = {
   Unidade: ["unidade", "unidades"], Peça: ["peça", "peças"], Par: ["par", "pares"], Pacote: ["pacote", "pacotes"],
   Caixa: ["caixa", "caixas"], Cartela: ["cartela", "cartelas"], Frasco: ["frasco", "frascos"], Saco: ["saco", "sacos"],
   Lata: ["lata", "latas"], Jogo: ["jogo", "jogos"], Kit: ["kit", "kits"], Litro: ["litro", "litros"], Metro: ["metro", "metros"],
+  Dúzia: ["dúzia", "dúzias"], Bandeja: ["bandeja", "bandejas"], Tubo: ["tubo", "tubos"], Ampola: ["ampola", "ampolas"],
+  Sachê: ["sachê", "sachês"], Galão: ["galão", "galões"], Barra: ["barra", "barras"], Rolo: ["rolo", "rolos"], Milheiro: ["milheiro", "milheiros"],
 };
 /** "100 unidades", "1 unidade", "1,5 litro", "2,5 Kg", "3 pacotes". */
 export function qtdUn(n: number, unidade: string): string {
