@@ -456,6 +456,8 @@ begin
       raise exception 'variacao_de_outro_produto' using errcode = '42501'; end if;
     if v_var_existe and vr.removida_em is not null then
       raise exception 'variacao_removida' using errcode = '23514'; end if;
+    if btrim(coalesce(x->>'codigo_barras', '')) <> '' and btrim(x->>'codigo_barras') = btrim(coalesce(pr->>'codigo_barras', '')) then
+      raise exception 'codigo_igual_ao_principal' using errcode = '23514'; end if;
     if x->>'codigo_barras' is not null and exists (select 1 from codigos_barras where comercio_id = v_com
        and codigo = x->>'codigo_barras' and variacao_id is distinct from (x->>'id')::uuid) then
       raise exception 'codigo_em_uso: %', x->>'codigo_barras' using errcode = '23505'; end if;
