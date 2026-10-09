@@ -5,6 +5,7 @@ import { TIPOS, type StoreData } from "@/components/StoreSetup";
 import { ProductDetail, SavedBanner, type Product, type Supplier } from "@/components/ProductArea";
 import { ListaProdutos } from "@/components/ListaProdutos";
 import { PainelLocais } from "@/components/PainelLocais";
+import { AtencaoHoje } from "@/components/AtencaoHoje";
 import type { LocaisCadastrados } from "@/lib/banco";
 
 const TABS = ["Produtos", "Depósito", "Gôndolas", "Fornecedores", "Equipe", "Vendas"] as const;
@@ -44,6 +45,7 @@ export function StoreSpace({ store, products, suppliers, saved, locais, onBack, 
       {tab === "Produtos" ? (
         <>
           {saved && <SavedBanner onAnother={() => { onDismissSaved(); onNew(); }} onList={onDismissSaved} />}
+          <AtencaoHoje products={products} tipo={store.tipo} suppliers={suppliers} onOpen={(p) => { onDismissSaved(); setView(p); }} />
           <ListaProdutos products={products} tipo={store.tipo} suppliers={suppliers} onNew={onNew} onOpen={(p) => { onDismissSaved(); setView(p); }} />
         </>
       ) : tab === "Depósito" || tab === "Gôndolas" ? (
