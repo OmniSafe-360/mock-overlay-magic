@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { carregarFornecedores, carregarProdutos, criarFornecedor, salvarProduto, type LocaisCadastrados } from "@/lib/banco";
+import { carregarFornecedores, carregarProdutos, criarFornecedor, gerarCodigoInterno, salvarProduto, type LocaisCadastrados } from "@/lib/banco";
 import { ehIncerto, mensagemErro, type Sessao } from "@/lib/persistencia";
 import { newUid } from "@/lib/deposito";
 import { AlertTriangle, Bell, CalendarClock, ChevronRight, Home, PackageX, Plus, ShoppingBag, Store, UserCircle, Users, CheckCircle2 } from "lucide-react";
@@ -92,6 +92,7 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
   if (wizard && cur && sid)
     return (
       <ProductWizard store={cur} products={list} initial={wizard.initial} suppliers={suppliers} saving={saving} erro={saveErro} locaisCadastrados={locais[sid]}
+        onGerarCodigo={() => gerarCodigoInterno(sid)}
         onAddSupplier={async (f) => {
           const dbId = newUid();
           try { await criarFornecedor(dbId, f); }

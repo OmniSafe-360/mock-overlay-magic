@@ -28,6 +28,14 @@ export async function criarFornecedor(id: string, f: { nome: string; tel: string
   if (error) throw error;
 }
 
+/** Código interno (EAN-13 começando com 29) para produto sem código de barras. Só o dono do comércio. */
+export async function gerarCodigoInterno(comercioId: string): Promise<string> {
+  const { data, error } = await db.rpc("gerar_codigo_interno", { _comercio: comercioId });
+  if (error) throw error;
+  if (typeof data !== "string" || !/^29\d{11}$/.test(data)) throw new Error("codigo_interno_invalido");
+  return data;
+}
+
 export type LocaisCadastrados = { deposito: string[]; venda: string[] };
 
 export async function carregarProdutos(comercioId: string, suppliers: Supplier[]): Promise<{ produtos: Product[]; locais: LocaisCadastrados }> {

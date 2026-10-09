@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { lotesAConfirmar } from "@/lib/persistencia";
-import { ArrowLeft, Check, CheckCircle2, Keyboard, Package, Pencil, Plus, ScanLine, Search, Truck, X } from "lucide-react";
+import { ArrowLeft, Check, CheckCircle2, Keyboard, Package, Pencil, Plus, ScanLine, Search, Tag, Truck, X } from "lucide-react";
 import { Field, btnGhost, btnPrimary, digits, maskPhone, nextOnEnter, useKeyboard, type StoreData } from "@/components/StoreSetup";
 import { Scanner } from "@/components/Scanner";
 import { ganhoSobreCompra, lerPct, mostrarPct, vendaPorGanho } from "@/lib/preco";
@@ -294,12 +294,14 @@ function linhasIniciais(v: Validade | undefined, farm: boolean): Record<string, 
 
 type VarDep = { qtd?: string | undefined; min: string; max: string };
 
-export function ProductWizard({ store, products, initial, suppliers, onAddSupplier, onCancel, onSave, saving = false, erro = "", locaisCadastrados }: {
+export function ProductWizard({ store, products, initial, suppliers, onAddSupplier, onCancel, onSave, saving = false, erro = "", locaisCadastrados, onGerarCodigo }: {
   store: StoreData; products: Product[]; initial?: Product | undefined; suppliers: Supplier[];
   onAddSupplier: (s: Omit<Supplier, "id">) => number | Promise<number>; onCancel: () => void; onSave: (p: Product) => void;
   saving?: boolean; erro?: string;
   /** Todos os locais cadastrados do comércio, por área, inclusive os sem produto. */
   locaisCadastrados?: { deposito: string[]; venda: string[] } | undefined;
+  /** Cria um código interno no banco para produto sem código de barras (ex.: 2900000000018). */
+  onGerarCodigo?: (() => Promise<string>) | undefined;
 }) {
   const kb = useKeyboard();
   const tipo = store.tipo;
@@ -315,6 +317,11 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     unidades: UNIDADES[tipo] ?? [], categorias: CATEGORIAS[tipo] ?? [], fornecedores: suppliers.map((s) => s.id),
   })));
   const [codigo, setCodigo] = useState(initial?.codigo ?? "");
+  const gerador = useGerarCodigo(onGerarCodigo);
+  const criarCodigo = () => gerador.gerar((c) => {
+    setCodigo(c); setCodeMode("type");
+    setTimeout(() => document.getElementById("pnome")?.focus(), 80);
+  });
   const [nome, setNome] = useState(initial?.nome ?? "");
   const [compra, setCompra] = useState(initial?.compra ?? 0);
   const [venda, setVenda] = useState(initial?.venda ?? 0);
@@ -760,14 +767,28 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                     <div className="grid grid-cols-2 gap-3">
                       <BigChoice Icon={ScanLine} label="Escanear código" onClick={() => { setDenied(false); setScan(true); }} />
                       <BigChoice Icon={Keyboard} label="Digitar código" onClick={() => setCodeMode("type")} />
+                      {onGerarCodigo && (
+                        <button type="button" onClick={criarCodigo} disabled={gerador.gerando}
+                          className="col-span-2 flex min-h-13 items-center gap-3 rounded-2xl border border-border bg-background-deep/60 px-4 py-2 text-left text-base font-semibold transition hover:border-primary focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-60">
+                          <Tag size={22} className="shrink-0 text-primary" />
+                          <span>{gerador.gerando ? "Criando código..." : "Não tem código"}
+                            <span className="block text-xs font-normal text-muted-foreground">O sistema cria um código só seu.</span></span>
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <Field label="Código do produto" name="codigo" inputMode="numeric" autoComplete="off" enterKeyHint="next" placeholder="Ex.: 7891234567890"
                       autoFocus={!codigo} onKeyDown={nextOnEnter("pnome")} value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\s/g, "").slice(0, 60))}
                       error={codeErr}
-                      hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : "Os números abaixo do código de barras."}
+                      hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : gerador.criado && codigo === gerador.criado ? CODIGO_CRIADO : "Os números abaixo do código de barras."}
                       extra={<button type="button" onClick={() => { setDenied(false); setScan(true); }} className="flex min-h-9 items-center gap-1 text-sm font-semibold text-primary"><ScanLine size={16} /> Escanear</button>} />
                   )}
+                  {onGerarCodigo && codeMode === "type" && !codigo.trim() && (
+                    <button type="button" onClick={criarCodigo} disabled={gerador.gerando} className="-mt-1 flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary disabled:opacity-60">
+                      <Tag size={16} /> {gerador.gerando ? "Criando código..." : "Não tem código? Criar um"}
+                    </button>
+                  )}
+                  {gerador.erro && <p role="alert" className="text-sm text-destructive">{gerador.erro}</p>}
                   {denied && codeMode === "choose" && <p className="text-sm text-destructive">Sem acesso à câmera. Você pode digitar o código.</p>}
                   <Field label="Nome do produto" name="pnome" id="pnome" autoComplete="off" enterKeyHint="done" placeholder="Ex.: Arroz branco 5 kg"
                     value={nome} onChange={(e) => setNome(e.target.value)} hint="Como aparece na etiqueta e no caixa." />
@@ -1212,7 +1233,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
           onDenied={() => { setScan(false); setDenied(true); setCodeMode("type"); }}
           onCode={(c) => { setScan(false); setCodigo(c); setCodeMode("type"); setTimeout(() => document.getElementById("pnome")?.focus(), 80); }} />
       )}
-      {varSheet !== null && <VariationSheet index={varSheet} vars={vars} mainCode={codigo} used={used} onClose={() => setVarSheet(null)}
+      {varSheet !== null && <VariationSheet index={varSheet} vars={vars} mainCode={codigo} used={used} onGerarCodigo={onGerarCodigo} onClose={() => setVarSheet(null)}
         onSave={(v) => {
           const uid = varSheet < 0 ? newUid() : vars[varSheet]?.uid ?? newUid();
           const nv = { ...v, uid };
@@ -1244,6 +1265,24 @@ function LimitesAjuda() {
       <p><b>Máximo desejado:</b> quanto você deseja manter no depósito. Não bloqueia recebimentos.</p>
     </div>
   );
+}
+
+export const CODIGO_CRIADO = "Código criado pelo sistema para este produto.";
+export const CODIGO_ERRO = "Não foi possível criar o código. Verifique sua internet e tente de novo.";
+
+/** Pede um código interno ao banco; lembra o último criado para mostrar o aviso. */
+function useGerarCodigo(gerarNoBanco: (() => Promise<string>) | undefined) {
+  const [gerando, setGerando] = useState(false);
+  const [erro, setErro] = useState("");
+  const [criado, setCriado] = useState<string | null>(null);
+  const gerar = async (usar: (codigo: string) => void) => {
+    if (!gerarNoBanco || gerando) return;
+    setGerando(true); setErro("");
+    try { const c = await gerarNoBanco(); setCriado(c); usar(c); }
+    catch { setErro(CODIGO_ERRO); }
+    finally { setGerando(false); }
+  };
+  return { gerar, gerando, erro, criado };
 }
 
 function BigChoice({ Icon, label, onClick }: { Icon: typeof ScanLine; label: string; onClick: () => void }) {
@@ -1302,13 +1341,15 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
     </div>
   );
 }
-function VariationSheet({ index, vars, mainCode, used, onClose, onSave }: {
+function VariationSheet({ index, vars, mainCode, used, onGerarCodigo, onClose, onSave }: {
   index: number; vars: Variation[]; mainCode: string; used: Set<string>; onClose: () => void; onSave: (v: Variation) => void;
+  onGerarCodigo?: (() => Promise<string>) | undefined;
 }) {
   const init = index >= 0 ? vars[index] : undefined;
   const [tam, setTam] = useState(init?.tam ?? ""); const [cor, setCor] = useState(init?.cor ?? "");
   const [cod, setCod] = useState(init?.codigo ?? ""); const [qtd, setQtd] = useState(init ? String(init.qtd) : "");
   const [scan, setScan] = useState(false); const [denied, setDenied] = useState(false);
+  const gerador = useGerarCodigo(onGerarCodigo);
   const errs = variationErrors({ tam, cor, codigo: cod }, index, vars, mainCode, used);
   const ok = !!tam && !!cor.trim() && Number(qtd) > 0 && !errs.combo && !errs.codigo;
   return (
@@ -1321,8 +1362,15 @@ function VariationSheet({ index, vars, mainCode, used, onClose, onSave }: {
           <Field label="Código de barras" name="vcod" id="vcod" inputMode="numeric" autoComplete="off" enterKeyHint="next" onKeyDown={nextOnEnter("vqtd")} placeholder="Ex.: 7891234567890"
             value={cod} onChange={(e) => setCod(e.target.value.replace(/\s/g, "").slice(0, 60))}
             error={cod.trim() || init ? errs.codigo ?? "" : ""}
-            hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : "Código próprio deste tamanho e cor."}
+            hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : gerador.criado && cod === gerador.criado ? CODIGO_CRIADO : "Código próprio deste tamanho e cor."}
             extra={<button type="button" onClick={() => { setDenied(false); setScan(true); }} className="flex min-h-9 items-center gap-1 text-sm font-semibold text-primary"><ScanLine size={16} /> Escanear</button>} />
+          {onGerarCodigo && !cod.trim() && (
+            <button type="button" disabled={gerador.gerando} className="-mt-1 flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary disabled:opacity-60"
+              onClick={() => gerador.gerar((c) => { setCod(c); setTimeout(() => document.getElementById("vqtd")?.focus(), 80); })}>
+              <Tag size={16} /> {gerador.gerando ? "Criando código..." : "Não tem código? Criar um"}
+            </button>
+          )}
+          {gerador.erro && <p role="alert" className="text-sm text-destructive">{gerador.erro}</p>}
           <Field label="Quantidade" name="vqtd" id="vqtd" inputMode="numeric" enterKeyHint="done" placeholder="0" value={qtd} onChange={(e) => setQtd(digits(e.target.value).slice(0, 5))} hint="Quantas peças você tem." />
         </div>
         <div className="px-5 pt-2"><button type="submit" disabled={!ok} className={btnPrimary(ok)}>{index >= 0 ? "Salvar variação" : "Adicionar"}</button></div>
