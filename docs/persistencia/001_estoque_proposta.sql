@@ -33,6 +33,34 @@ create function public.normalizar_lote(_t text) returns text
 language sql immutable set search_path = public, pg_temp as
 $$ select nullif(upper(regexp_replace(btrim(coalesce(_t, '')), '\s+', ' ', 'g')), '') $$;
 
+-- Regras dos seis tipos (mesmas listas da tela). Detalhes com opções fixas continuam opcionais.
+create function public.validar_tipo(_tipo public.tipo_comercio, _un text, _cat text, _det jsonb) returns void
+language plpgsql immutable set search_path = public, pg_temp as $$
+declare u text[]; c text[]; k text; o text[]; v text;
+begin
+  case _tipo
+    when 'mercado' then u := '{Unidade,Kg,Litro,Pacote,Caixa}';
+      c := '{Mercearia,Bebidas,Hortifrúti,"Frios e laticínios",Limpeza,Higiene}';
+    when 'farmacia' then u := '{Caixa,Cartela,Frasco,Unidade}';
+      c := '{Medicamentos,Genéricos,Higiene,Dermocosméticos,Infantil,Suplementos}'; k := 'controlado'; o := '{Sim,Não}';
+    when 'loja_roupas' then u := '{Peça,Par}';
+      c := '{Camisetas,Calças,Vestidos,Calçados,Íntima,Acessórios}';
+    when 'material_construcao' then u := '{Unidade,Metro,m²,Kg,Saco,Caixa,Lata}';
+      c := '{Básico,Hidráulica,Elétrica,Pintura,Ferramentas,Acabamento}';
+    when 'pet_shop' then u := '{Unidade,Kg,Litro,Pacote,Caixa}';
+      c := '{Ração,Petiscos,Higiene,Acessórios,"Farmácia pet",Brinquedos}'; k := 'especie'; o := '{Cão,Gato,Outros}';
+    when 'autopecas' then u := '{Unidade,Par,Jogo,Kit}';
+      c := '{Motor,Freios,Suspensão,Elétrica,Filtros,Acessórios}'; k := 'posicao';
+      o := '{Dianteira,Traseira,Esquerda,Direita,"Não se aplica"}';
+  end case;
+  if _un is null or not (_un = any (u)) then raise exception 'unidade_incompativel: %', _un using errcode = '23514'; end if;
+  if _cat is null or not (_cat = any (c)) then raise exception 'categoria_incompativel: %', _cat using errcode = '23514'; end if;
+  if k is not null then
+    v := nullif(btrim(coalesce(_det->>k, '')), '');
+    if v is not null and not (v = any (o)) then raise exception '%_invalido: %', k, v using errcode = '23514'; end if;
+  end if;
+end $$;
+
 -- ---------- 2. Acesso por comércio ----------
 -- Hoje só o dono. Papel global (user_roles) nunca autoriza sozinho.
 create function public.pode_acessar_comercio(_comercio uuid) returns boolean
@@ -51,6 +79,11 @@ alter table public.produto_variacoes
   add column qtd_informada numeric(14,3) check (qtd_informada >= 0),  -- "Quantidade informada no cadastro" (roupas); não é estoque
   add column removida_em timestamptz,                                -- remoção sem apagar histórico
   add constraint variacoes_id_produto_comercio_unico unique (id, produto_id, comercio_id);
+
+-- Índice antigo contava variações removidas; passa a valer só para as ativas.
+drop index public.variacoes_codigo_unico_por_comercio;
+create unique index variacoes_codigo_unico_por_comercio on public.produto_variacoes (comercio_id, codigo_barras)
+  where codigo_barras is not null and removida_em is null;
 
 -- Toda gravação de produto/variação passa pelas funções abaixo.
 revoke insert, update, delete on public.produtos, public.produto_variacoes from authenticated, anon;
@@ -140,6 +173,8 @@ create table public.produto_areas (
   variacao_id uuid,
   area public.area_estoque not null,
   local_id uuid,                                   -- null = "Definir depois"
+  local_definido_por uuid,                         -- quem definiu/alterou o local
+  local_definido_em timestamptz,
   minimo numeric(14,3) check (minimo >= 0),
   maximo numeric(14,3) check (maximo >= 0),
   updated_at timestamptz not null default now(),
@@ -173,6 +208,8 @@ create table public.lotes (
   numero text check (numero is null or char_length(btrim(numero)) between 1 and 40),
   numero_norm text generated always as (public.normalizar_lote(numero)) stored,
   vencimento date,                                  -- só data
+  vencimento_definido_por uuid,                     -- preenchimento posterior confirmado
+  vencimento_definido_em timestamptz,
   created_at timestamptz not null default now(),
   check (numero is not null or vencimento is not null),
   foreign key (produto_id, comercio_id) references public.produtos(id, comercio_id),
@@ -254,6 +291,12 @@ begin
   -- operacoes: só o preenchimento único do resultado.
   if tg_table_name = 'operacoes' and n is not null and o->'resultado' = 'null'::jsonb
      and (n - 'resultado') = (o - 'resultado') then return new; end if;
+  -- lotes: só preencher uma data que era desconhecida (nunca substituir).
+  if tg_table_name = 'lotes' and n is not null and o->>'vencimento' is null and n->>'vencimento' is not null
+     and n->>'vencimento_definido_por' is not null
+     -- numero_norm é gerado e ainda vem vazio no gatilho; o número em si é comparado.
+     and (n - 'vencimento' - 'vencimento_definido_por' - 'vencimento_definido_em' - 'numero_norm')
+       = (o - 'vencimento' - 'vencimento_definido_por' - 'vencimento_definido_em' - 'numero_norm') then return new; end if;
   -- saldos: só a quantidade muda (identidade e vínculos fixos).
   if tg_table_name = 'saldos' and n is not null
      and (n - 'quantidade' - 'updated_at') = (o - 'quantidade' - 'updated_at') then return new; end if;
@@ -368,6 +411,7 @@ begin
 
   select * into v_old from produtos where id = v_id for update;
   v_existe := found;
+  perform public.validar_tipo(v_tipo, v_un, pr->>'categoria', coalesce(pr->'detalhes', '{}'));
   if v_existe and v_old.comercio_id <> v_com then
     raise exception 'produto_de_outro_comercio' using errcode = '42501'; end if;
 
@@ -413,6 +457,8 @@ begin
       raise exception 'variacao_de_outro_produto' using errcode = '42501'; end if;
     if v_var_existe and vr.removida_em is not null then
       raise exception 'variacao_removida' using errcode = '23514'; end if;
+    if btrim(coalesce(x->>'codigo_barras', '')) <> '' and btrim(x->>'codigo_barras') = btrim(coalesce(pr->>'codigo_barras', '')) then
+      raise exception 'codigo_igual_ao_principal' using errcode = '23514'; end if;
     if x->>'codigo_barras' is not null and exists (select 1 from codigos_barras where comercio_id = v_com
        and codigo = x->>'codigo_barras' and variacao_id is distinct from (x->>'id')::uuid) then
       raise exception 'codigo_em_uso: %', x->>'codigo_barras' using errcode = '23505'; end if;
@@ -434,6 +480,21 @@ begin
     update produto_variacoes set removida_em = now() where id = vr.id;
   end loop;
   if v_roupas and cardinality(v_ids) = 0 then raise exception 'roupas_exige_variacao' using errcode = '23514'; end if;
+  -- Roupas: tamanho da lista, cor, código próprio, quantidade informada e combinação única.
+  if v_roupas then
+    for x in select * from jsonb_array_elements(p->'variacoes') loop
+      if not (coalesce(x->>'tamanho', '') = any ('{P,M,G,GG,36,38,40,42,44}'::text[])) then
+        raise exception 'tamanho_invalido: %', x->>'tamanho' using errcode = '23514'; end if;
+      if nullif(btrim(coalesce(x->>'cor', '')), '') is null then raise exception 'cor_obrigatoria' using errcode = '23514'; end if;
+      if nullif(btrim(coalesce(x->>'codigo_barras', '')), '') is null then raise exception 'codigo_da_variacao_obrigatorio' using errcode = '23514'; end if;
+      if btrim(x->>'codigo_barras') = btrim(coalesce(pr->>'codigo_barras', '')) then
+        raise exception 'codigo_igual_ao_principal' using errcode = '23514'; end if;
+      if coalesce((x->>'qtd_informada')::numeric, 0) <= 0 then raise exception 'quantidade_informada_obrigatoria' using errcode = '23514'; end if;
+    end loop;
+    if exists (select 1 from jsonb_array_elements(p->'variacoes') e
+               group by lower(btrim(e->>'tamanho')), lower(btrim(e->>'cor')) having count(*) > 1) then
+      raise exception 'combinacao_repetida' using errcode = '23514'; end if;
+  end if;
   if not v_roupas and cardinality(v_ids) > 0 then raise exception 'tipo_sem_variacoes' using errcode = '23514'; end if;
 
   -- Áreas.
@@ -464,12 +525,16 @@ begin
 
     select local_id, true into v_old_local, v_tem_cfg from produto_areas
      where produto_id = v_id and variacao_id is not distinct from v_var and area = v_area;
-    if v_tem_cfg and v_old_local is distinct from v_local and public.saldo_chave(v_id, v_var, v_area) > 0 then
+    -- Pendente -> local válido é permitido mesmo com saldo; trocar ou apagar um local definido, não.
+    if v_tem_cfg and v_old_local is not null and v_old_local is distinct from v_local and public.saldo_chave(v_id, v_var, v_area) > 0 then
       raise exception 'troca_de_local_exige_transferencia' using errcode = '23514'; end if;
-    insert into produto_areas (comercio_id, produto_id, variacao_id, area, local_id, minimo, maximo)
-    values (v_com, v_id, v_var, v_area, v_local, v_min, v_max)
+    insert into produto_areas (comercio_id, produto_id, variacao_id, area, local_id, minimo, maximo, local_definido_por, local_definido_em)
+    values (v_com, v_id, v_var, v_area, v_local, v_min, v_max,
+            case when v_local is not null then v_uid end, case when v_local is not null then now() end)
     on conflict (produto_id, variacao_id, area) do update
-      set local_id = excluded.local_id, minimo = excluded.minimo, maximo = excluded.maximo, updated_at = now();
+      set local_id = excluded.local_id, minimo = excluded.minimo, maximo = excluded.maximo, updated_at = now(),
+          local_definido_por = case when produto_areas.local_id is distinct from excluded.local_id then v_uid else produto_areas.local_definido_por end,
+          local_definido_em = case when produto_areas.local_id is distinct from excluded.local_id then now() else produto_areas.local_definido_em end;
     v_tem_cfg := null;
 
     if jsonb_typeof(x->'contagem') = 'object' then
@@ -529,6 +594,7 @@ declare
   v_id uuid := (p->>'produto_id')::uuid;
   v_prev jsonb; s saldos%rowtype; l lotes%rowtype; v_un text; v_farm boolean; v_local uuid;
   pt jsonb; v_pq numeric; v_soma numeric := 0; v_num text; v_venc date; v_lote uuid; v_pend boolean; v_novo uuid; v_n int := 0;
+  v_datas date[];
 begin
   v_prev := public._iniciar_operacao(v_op, v_com, v_id, 'resolver_pendencia', md5((p - 'operacao_id')::text));
   if v_prev is not null then return v_prev; end if;
@@ -543,6 +609,20 @@ begin
   if s.lote_id is not null then select * into l from lotes where id = s.lote_id; end if;
 
   if jsonb_array_length(coalesce(p->'partes', '[]')) = 0 then raise exception 'sem_partes' using errcode = '22023'; end if;
+  -- Lote com número conhecido e data desconhecida: a data pode ser preenchida uma vez,
+  -- com confirmação explícita; o lote continua o mesmo nas duas áreas.
+  if l.id is not null and l.numero_norm is not null and l.vencimento is null then
+    select array_agg(distinct (e->>'vencimento')::date) filter (where e->>'vencimento' is not null)
+      into v_datas from jsonb_array_elements(p->'partes') e;
+    if cardinality(v_datas) > 1 then raise exception 'datas_diferentes_para_o_mesmo_lote' using errcode = '23514'; end if;
+    if cardinality(v_datas) = 1 then
+      if coalesce((p->>'confirmar_vencimento')::boolean, false) is false then
+        raise exception 'confirmar_vencimento_do_lote' using errcode = '23514'; end if;
+      update lotes set vencimento = v_datas[1], vencimento_definido_por = v_uid, vencimento_definido_em = now()
+       where id = l.id and vencimento is null;
+      l.vencimento := v_datas[1];
+    end if;
+  end if;
   for pt in select * from jsonb_array_elements(p->'partes') loop
     v_pq := public.qtd_valida((pt->>'quantidade')::numeric, v_un, false);
     v_num := coalesce(nullif(btrim(pt->>'numero'), ''), l.numero);
