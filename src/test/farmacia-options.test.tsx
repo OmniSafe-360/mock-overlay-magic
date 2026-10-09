@@ -14,7 +14,7 @@ function setup(initial: Product) {
   render(<ProductWizard store={store} products={[initial]} initial={initial} suppliers={[]} onAddSupplier={() => 1} onCancel={() => {}} onSave={onSave} />);
   return { onSave, submit: () => fireEvent.submit(document.querySelector("form")!) };
 }
-const run = (submit: () => void, n = 8) => { for (let i = 0; i < n; i++) submit(); };
+const run = (submit: () => void, n = 9) => { for (let i = 0; i < n; i++) submit(); };
 
 describe("opções da Farmácia", () => {
   it("produto válido salva", () => { const t = setup(ok); run(t.submit, 7); expect(t.onSave).toHaveBeenCalledTimes(1); });

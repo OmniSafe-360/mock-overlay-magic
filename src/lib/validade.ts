@@ -59,7 +59,7 @@ export const maskData = (s: string) => {
 export function hojeEm(tz = TZ_PADRAO, agora = new Date()): string {
   const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" })
     .formatToParts(agora).map((x) => [x.type, x.value]));
-  return `${p.year}-${p.month}-${p.day}`;
+  return `${p["year"]}-${p["month"]}-${p["day"]}`;
 }
 const utc = (iso: string) => { const [y, m, d] = iso.split("-").map(Number); return Date.UTC(y!, m! - 1, d!); };
 export const diasAte = (iso: string, hoje: string) => Math.round((utc(iso) - utc(hoje)) / 86400000);
