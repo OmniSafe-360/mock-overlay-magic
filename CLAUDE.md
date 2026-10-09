@@ -6,7 +6,8 @@
 
 - O dono não é programador: fale em português simples, sem jargão.
 - **Desde 09/10/2026 o Claude executa direto no GitHub e no Supabase** (decisão do dono), **uma coisa de cada vez**. Antes de publicar: rodar `npx tsc --noEmit` e `npx vitest run`, simular no banco com `begin … rollback` e reler a mudança. O Lovable continua sendo usado pelo dono para o visual.
-- Toda mudança vem com **roteiro de teste** para o dono, e só se avança depois do resultado.
+- O Claude **mescla o pull request no `main`** depois de verificar (o dono autorizou em 09/10/2026) e avisa o dono para **Publicar → Atualizar** no Lovable.
+- 09/10/2026: o dono decidiu **primeiro ir arrumando e testar mais à frente**. O Claude continua verificando cada mudança (tipos, testes, simulação no banco) e anota o que fica para o dono testar.
 - Banco (Supabase `omnisafe-360-oficial`, ref `bvwjprxfthhreuhovgbk`): tabela nova só com desenho aprovado pelo dono; RLS sempre ligada.
 - Git: nunca reescrever histórico publicado (sem force push, rebase ou squash). O branch `main` sincroniza com o Lovable: mantê-lo sempre funcionando.
 - **Haverá um segundo app, para funcionários**: receber mercadoria de fornecedores (entrada cega) e repor gôndola. Todo desenho de banco e de tela deve servir a esse app também (ver seções 5 e 6.2 da fonte da verdade).

@@ -17,7 +17,9 @@ export function montarPedido(p: Product, opId: string, comercioId: string, suppl
   const id = p.db!.id;
   const roupas = p.variacoes.length > 0;
   const contadas = new Set(p.db?.contadas ?? []);
-  const detalhes = Object.fromEntries(Object.entries(p.detalhes).filter(([, v]) => v != null && String(v).trim() !== ""));
+  const detalhes = Object.fromEntries(
+    Object.entries(p.detalhes).map(([k, v]) => [k, v == null ? "" : String(v).trim()]).filter(([, v]) => v !== ""),
+  );
   const forn = p.fornecedor == null ? null : suppliers.find((s) => s.id === p.fornecedor)?.dbId ?? null;
   const areas: Record<string, unknown>[] = [];
   for (const a of AREAS) {

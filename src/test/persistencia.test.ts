@@ -25,6 +25,11 @@ describe("pedido de salvamento", () => {
     const r = montarPedido(base({ db: { id: "p1", contadas: ["deposito:_", "venda:_"] } }), "op2", "c1", []);
     expect(r.areas.every((a) => !("contagem" in a))).toBe(true);
   });
+  it("tira espaços sobrando dos detalhes e da marca", () => {
+    const r = montarPedido(base({ detalhes: { marca: "  Tiss ", peso: "2 litros ", sabor: "   " } }), "op1", "c1", []);
+    expect(r.produto.detalhes).toEqual({ marca: "Tiss", peso: "2 litros" });
+    expect(r.produto.marca).toBe("Tiss");
+  });
   it("repetir o envio usa a mesma identificação e o mesmo conteúdo", () => {
     expect(montarPedido(base(), "op1", "c1", [])).toEqual(montarPedido(base(), "op1", "c1", []));
   });
