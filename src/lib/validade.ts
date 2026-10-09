@@ -15,6 +15,8 @@ export type LinhaVal = {
   lote: string | null;
   /** Farmácia: pendência (sem lote ou sem data) confirmada explicitamente. */
   pendConf?: boolean | undefined;
+  /** Parte de uma pendência já registrada: id da pendência de origem (vínculo estável). */
+  origem?: string | undefined;
 };
 export type LinhasArea = Record<string, LinhaVal[]>;
 export type Validade = { controla: boolean; avisos: number[]; dep: LinhasArea; ven: LinhasArea };
@@ -143,3 +145,18 @@ export function linhaTexto(l: LinhaVal, unidade: string, hoje: string, farmacia:
 
 export const temQtdValidade = (v?: Validade) =>
   !!v && [...Object.values(v.dep), ...Object.values(v.ven)].some((ls) => ls.some((l) => l.qtd > 0));
+
+/**
+ * Pendências já registradas: as partes de cada origem precisam somar exatamente a quantidade original (milésimos).
+ * Quantidades nunca passam de uma pendência para outra. Retorna as origens com soma diferente.
+ */
+export function conferirOrigens(partes: { origem: string | null; qtd: number | null }[], originais: Record<string, number>) {
+  const soma = new Map<string, number>();
+  for (const p of partes) if (p.origem) soma.set(p.origem, (soma.get(p.origem) ?? 0) + mil(p.qtd ?? 0));
+  return Object.entries(originais).filter(([id, q]) => (soma.get(id) ?? 0) !== mil(q)).map(([id, q]) => ({ id, original: q, atual: deMil(soma.get(id) ?? 0) }));
+}
+export const origemMsg = (orig: string, atual: string, desc: string) =>
+  `A pendência registrada de ${orig}${desc} agora soma ${atual}. As partes dela precisam somar exatamente ${orig}: quantidades não podem passar de uma pendência para outra.`;
+export const AREA_SEM_ESTOQUE = "Sem estoque nesta área";
+export const VAL_AREA_PENDENTE = "Há quantidade contada, mas a validade desta quantidade ainda não foi configurada";
+export const CONF_INCOMPLETA = "Conferência incompleta";
