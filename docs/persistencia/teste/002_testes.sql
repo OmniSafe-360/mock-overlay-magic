@@ -425,7 +425,7 @@ select t_erro($$insert into saldos (comercio_id, produto_id, area, origem_id, qu
   values (u('cm1'), u('P4'), 'deposito', current_setting('local.p2')::uuid, 1)$$, 'vinculo_incompativel: origem');
 select t_erro($$delete from movimentos$$, 'historico_imutavel');
 select t_erro($$update saldos set lote_id = null where produto_id = u('P4')$$, 'historico_imutavel');
-select t_erro($$delete from produtos where id = u('P1')$$, 'violates foreign key');
+select t_erro($$delete from produtos where id = u('P1')$$, 'update or delete on table "produtos" violates foreign key constraint', '23503');
 select 'OK vinculos compativeis e historico sem exclusao em cascata';
 
 reset role;
