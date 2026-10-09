@@ -207,5 +207,12 @@ export function montarProdutos(b: Bruto, suppliers: Supplier[]): Product[] {
   });
 }
 
+/** Linha do fornecedor no formato do banco: telefone só com números (10 ou 11), e-mail minúsculo; vazios viram null. */
+export const linhaFornecedor = (f: { nome: string; tel: string; email: string }) => ({
+  nome: f.nome.trim(),
+  telefone: f.tel.replace(/\D/g, "") || null,
+  email: f.email.trim().toLowerCase() || null,
+});
+
 export const montarFornecedores = (rows: Row[]): Supplier[] =>
   rows.map((r, i) => ({ id: i + 1, nome: r.nome, tel: r.telefone ?? "", email: r.email ?? "", dbId: r.id }));
