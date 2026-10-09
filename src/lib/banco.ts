@@ -1,7 +1,7 @@
 /* Acesso ao Supabase do cadastro de produtos. As regras de acesso do banco garantem que só o dono vê o próprio comércio. */
 import { supabase } from "@/integrations/supabase/client";
 import type { Product, Supplier } from "@/components/ProductArea";
-import { enviarCadastro, montarCadastro, montarFornecedores, montarProdutos, type Bruto, type Sessao } from "@/lib/persistencia";
+import { enviarCadastro, linhaFornecedor, montarCadastro, montarFornecedores, montarProdutos, type Bruto, type Sessao } from "@/lib/persistencia";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const db = supabase as any;
@@ -24,7 +24,7 @@ export async function carregarFornecedores(): Promise<Supplier[]> {
 export async function criarFornecedor(id: string, f: { nome: string; tel: string; email: string }) {
   const { data: u } = await supabase.auth.getUser();
   if (!u.user) throw new Error("nao_autenticado");
-  const { error } = await db.from("fornecedores").insert({ id, dono_id: u.user.id, nome: f.nome, telefone: f.tel || null, email: f.email || null });
+  const { error } = await db.from("fornecedores").insert({ id, dono_id: u.user.id, ...linhaFornecedor(f) });
   if (error) throw error;
 }
 

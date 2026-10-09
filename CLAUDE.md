@@ -5,11 +5,12 @@
 ## Como trabalhar (combinado com o dono)
 
 - O dono não é programador: fale em português simples, sem jargão.
-- Mudanças no front-end: **não alterar o código direto.** Entregar **um prompt por vez** para o dono colar no Lovable, sempre com a seção "PROTEÇÃO DO CORE". Nunca enviar nada ao Lovable pela ferramenta.
-- Depois que o dono aplicar o prompt, **analisar o que o Lovable mudou** (GitHub e banco), comparar com a fonte da verdade e entregar um roteiro de teste.
-- Nunca avançar de etapa sem o dono testar e informar o resultado.
-- Banco (Supabase `omnisafe-360-oficial`, ref `bvwjprxfthhreuhovgbk`): só aplicar mudanças com o desenho aprovado pelo dono; RLS sempre ligada.
-- Git: nunca reescrever histórico publicado (sem force push, rebase ou squash).
+- **Desde 09/10/2026 o Claude executa direto no GitHub e no Supabase** (decisão do dono), **uma coisa de cada vez**. Antes de publicar: rodar `npx tsc --noEmit` e `npx vitest run`, simular no banco com `begin … rollback` e reler a mudança. O Lovable continua sendo usado pelo dono para o visual.
+- Toda mudança vem com **roteiro de teste** para o dono, e só se avança depois do resultado.
+- Banco (Supabase `omnisafe-360-oficial`, ref `bvwjprxfthhreuhovgbk`): tabela nova só com desenho aprovado pelo dono; RLS sempre ligada.
+- Git: nunca reescrever histórico publicado (sem force push, rebase ou squash). O branch `main` sincroniza com o Lovable: mantê-lo sempre funcionando.
+- **Haverá um segundo app, para funcionários**: receber mercadoria de fornecedores (entrada cega) e repor gôndola. Todo desenho de banco e de tela deve servir a esse app também (ver seções 5 e 6.2 da fonte da verdade).
+- O teste `src/test/scanner.test.tsx` às vezes falha só quando roda junto com todos (sensível a tempo); sozinho passa. Não é erro do app.
 
 ## Decisões registradas depois da versão 1.0 do documento
 
@@ -17,5 +18,5 @@
 - 08/10/2026: o Claude agora tem acesso ao GitHub, ao Lovable e ao Supabase, mas a regra 3 continua: o dono é quem cola os prompts no Lovable.
 - Busca de CEP usa ViaCEP e, como reserva, BrasilAPI (seção 8 cita só ViaCEP).
 - 09/10/2026: o Lovable criou sozinho (sem desenho aprovado) as tabelas de estoque: locais, produto_areas, contagens, lotes, saldos, movimentos, codigos_barras, operacoes, e as funções salvar_cadastro/salvar_produto/resolver_pendencia. Produto e variações só são gravados por essas funções. Revisado pelo Claude (seguro). **O dono decidiu manter tudo como o Lovable fez**, inclusive: variação de roupas com código de barras e quantidade obrigatórios; avisos de validade 30/60/90 dias (em vez de 90/30/15); área "venda" no lugar de gôndola.
-- Pendente: fornecedor com telefone não salva (telefone vai com máscara para o banco).
+- 09/10/2026: corrigido fornecedor com telefone (ia com máscara; o banco só aceita números).
 - Etapa B1 (comércios no banco) testada e aprovada pelo dono. Prompt A aprovado, exceto "Esqueci minha senha", que falhou por limite de e-mails do Supabase (refazer).
