@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Product, Supplier } from "@/components/ProductArea";
 import { precoUnidade as precoUnidadePedido, type CanalPedido, type FormaPagamento, type LinhaPedido, type Pedido, type RespostaPedido, type SituacaoPedido } from "@/lib/pedido";
 import type { Funcao, Funcionario } from "@/lib/funcionario";
+import type { ItemRecebido, ProdutoFunc, Recebimento, SituacaoItemRecebido } from "@/lib/recebimento";
+import type { itemParaEnvio } from "@/lib/recebimento";
 import { ehIncerto, enviarCadastro, linhaFornecedor, montarCadastro, montarFornecedores, montarProdutos, type Bruto, type Sessao } from "@/lib/persistencia";
 import type { TipoEnvio } from "@/lib/envios";
 
@@ -109,10 +111,11 @@ async function conferirSemTrava(s: Sessao, tipo: TipoEnvio) {
 const centavosDe = (v: unknown) => (v == null ? null : Math.round(Number(v) * 100));
 export async function carregarPedidos(comercioId: string): Promise<Pedido[]> {
   const doComercio = (q: any) => q.eq("comercio_id", comercioId);
-  const [ped, itens] = await Promise.all([
+  const [ped, itens, recs] = await Promise.all([
     todos("pedidos_compra", "id,numero,fornecedor_id,situacao,canal,enviado_em,observacao,token,created_at,resposta_em,previsao_entrega,valor_total,forma_pagamento,prazo_dias,recado_fornecedor,pagamento_situacao,vencimento,pago_em",
       (q) => doComercio(q).order("created_at", { ascending: false })),
     todos("pedido_itens", "pedido_id,produto_id,variacao_id,embalagem_id,qtd_embalagens,qtd_unidades,preco_estimado,qtd_confirmada,qtd_recebida,created_at", (q) => doComercio(q).order("created_at")),
+    carregarRecebimentos(comercioId, true),
   ]);
   return ped.map((r) => ({
     id: r.id, numero: Number(r.numero), fornecedorId: r.fornecedor_id, situacao: r.situacao, canal: r.canal ?? null,
@@ -125,7 +128,80 @@ export async function carregarPedidos(comercioId: string): Promise<Pedido[]> {
       qtdEmbalagens: Number(i.qtd_embalagens), qtdUnidades: Number(i.qtd_unidades), precoEstimado: centavosDe(i.preco_estimado),
       qtdConfirmada: i.qtd_confirmada == null ? null : Number(i.qtd_confirmada), qtdRecebida: i.qtd_recebida == null ? null : Number(i.qtd_recebida),
     })),
+    recebimento: recs.find((x) => x.pedidoId === r.id) ?? null,
   }));
+}
+
+/* ---------- recebimento (E2) ---------- */
+const numOuNull = (v: unknown) => (v == null ? null : Number(v));
+/** Recebimentos concluídos do comércio: com pedido (para os pedidos) ou sem pedido (entregas avulsas). */
+export async function carregarRecebimentos(comercioId: string, comPedido: boolean): Promise<Recebimento[]> {
+  const doComercio = (q: any) => q.eq("comercio_id", comercioId);
+  const [recs, itens, funcs] = await Promise.all([
+    todos("recebimentos", "id,pedido_id,fornecedor_id,funcionario_id,situacao,concluido_em,iniciado_em",
+      (q) => (comPedido ? doComercio(q).not("pedido_id", "is", null) : doComercio(q).is("pedido_id", null)).eq("situacao", "concluido").order("concluido_em", { ascending: false }).order("id")),
+    todos("recebimento_itens", "id,recebimento_id,produto_id,variacao_id,no_pedido,esperado,situacao,quantidade_aceita,avaria,entrou_estoque,tentativas", (q) => doComercio(q).order("id")),
+    todos("funcionarios", "id,nome", (q) => doComercio(q).order("id")),
+  ]);
+  return recs.map((r) => ({
+    id: r.id, pedidoId: r.pedido_id ?? null, fornecedorId: r.fornecedor_id ?? null, situacao: r.situacao, concluidoEm: r.concluido_em ?? null,
+    funcionario: funcs.find((f) => f.id === r.funcionario_id)?.nome ?? "Funcionário",
+    itens: itens.filter((i) => i.recebimento_id === r.id).map((i) => ({
+      id: i.id, produtoId: i.produto_id, variacaoId: i.variacao_id ?? null, noPedido: !!i.no_pedido, esperado: numOuNull(i.esperado),
+      situacao: i.situacao, quantidadeAceita: numOuNull(i.quantidade_aceita), avaria: Number(i.avaria ?? 0), entrouEstoque: Number(i.entrou_estoque ?? 0),
+      tentativas: (Array.isArray(i.tentativas) ? i.tentativas : []).map((t: any) => ({ total: Number(t.total), avaria: Number(t.avaria ?? 0), partes: t.partes ?? [] })),
+    })),
+  }));
+}
+/** Dono decide um item: aceitar (escolhendo a contagem, se não fechou) ou recusar (fora do pedido). */
+export async function resolverItemRecebimento(itemId: string, acao: "aceitar" | "recusar", tentativa: number | null) {
+  const { error } = await db.rpc("resolver_item_recebimento", { _item: itemId, _acao: acao, _tentativa: tentativa });
+  if (error) throw error;
+}
+
+/* funcionário (sem login): a chave do celular vai em cada chamada */
+const produtoFunc = (x: any): ProdutoFunc => ({
+  produtoId: x.produto_id, variacaoId: x.variacao_id ?? null, embalagemId: x.embalagem_id ?? null, nome: x.nome, unidade: x.unidade,
+  codigo: x.codigo ?? null, variacao: x.variacao ?? null, controlaValidade: !!x.controla_validade, pedeLote: !!x.pede_lote,
+  embalagens: (x.embalagens ?? []).map((e: any) => ({ id: e.id, tipo: e.tipo, quantidade: Number(e.quantidade) })),
+});
+export type EntregaEsperada = { id: string; numero: number; fornecedor: string; previsaoEntrega: string | null; produtos: number; emContagem: boolean };
+export async function entregasFuncionario(chave: string): Promise<{ pedidos: EntregaEsperada[]; fornecedores: { id: string; nome: string }[] }> {
+  const { data, error } = await db.rpc("funcionario_entregas", { _chave: chave });
+  if (error) throw error;
+  return {
+    pedidos: (data?.pedidos ?? []).map((p: any) => ({ id: p.id, numero: Number(p.numero), fornecedor: p.fornecedor ?? "", previsaoEntrega: p.previsao_entrega ?? null,
+      produtos: Number(p.produtos ?? 0), emContagem: !!p.em_contagem })),
+    fornecedores: (data?.fornecedores ?? []).map((f: any) => ({ id: f.id, nome: f.nome })),
+  };
+}
+export type RecebimentoAberto = {
+  id: string; rodada: number; situacao: "contando" | "concluido"; pedidoId: string | null; numero: number | null; fornecedor: string | null;
+  produtos: ProdutoFunc[]; itens: { produtoId: string; variacaoId: string | null; situacao: SituacaoItemRecebido }[];
+};
+export async function abrirRecebimento(chave: string, id: string, pedidoId: string | null, fornecedorId: string | null): Promise<RecebimentoAberto> {
+  const { data, error } = await db.rpc("funcionario_abrir_recebimento", { _chave: chave, _id: id, _pedido: pedidoId, _fornecedor: fornecedorId });
+  if (error) throw error;
+  return {
+    id: data.id, rodada: Number(data.rodada), situacao: data.situacao, pedidoId: data.pedido_id ?? null, numero: numOuNull(data.numero), fornecedor: data.fornecedor ?? null,
+    produtos: (data.produtos ?? []).map(produtoFunc),
+    itens: (data.itens ?? []).map((i: any) => ({ produtoId: i.produto_id, variacaoId: i.variacao_id ?? null, situacao: i.situacao })),
+  };
+}
+export async function buscarProdutoFuncionario(chave: string, texto: string): Promise<ProdutoFunc[]> {
+  const { data, error } = await db.rpc("funcionario_buscar_produto", { _chave: chave, _texto: texto });
+  if (error) throw error;
+  return (data ?? []).map(produtoFunc);
+}
+export type RespostaRecebimento =
+  | { situacao: "recontar"; rodada: number; recontar: { produtoId: string; variacaoId: string | null }[]; faltam: { produtoId: string; variacaoId: string | null }[] }
+  | { situacao: "concluido"; rodada: number; produtos: number; avisos: boolean };
+export async function enviarRecebimento(chave: string, id: string, rodada: number, itens: ReturnType<typeof itemParaEnvio>[]): Promise<RespostaRecebimento> {
+  const { data, error } = await db.rpc("funcionario_enviar_recebimento", { _chave: chave, _id: id, _rodada: rodada, _itens: itens });
+  if (error) throw error;
+  const par = (x: any) => ({ produtoId: x.produto_id, variacaoId: x.variacao_id ?? null });
+  if (data.situacao === "recontar") return { situacao: "recontar", rodada: Number(data.rodada), recontar: (data.recontar ?? []).map(par), faltam: (data.faltam ?? []).map(par) };
+  return { situacao: "concluido", rodada: Number(data.rodada ?? rodada + 1), produtos: Number(data.produtos ?? 0), avisos: !!data.avisos };
 }
 /** Grava o pedido pronto. Repetir com o mesmo id não duplica. Preço estimado vai em reais por unidade de venda. */
 export async function salvarPedido(a: { id: string; comercioId: string; fornecedorId: string; observacao: string; linhas: LinhaPedido[] }, sessao?: Sessao): Promise<{ id: string; numero: number; recuperado: boolean }> {

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, Delete, LogOut, PackageOpen, RefreshCw, ShoppingBasket } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
+import { ReceberMercadoria, type ApiReceber } from "@/components/ReceberMercadoria";
 import { TIPO_FROM_DB, btnGhost, btnPrimary } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";
 import {
@@ -14,6 +15,7 @@ export type ApiFuncionario = {
   entrar: typeof banco.entrarFuncionario;
   inicio: typeof banco.inicioFuncionario;
   sair: typeof banco.sairFuncionario;
+  receber?: ApiReceber | undefined;
 };
 const API_PADRAO: ApiFuncionario = { conferir: banco.conferirCodigoFuncionario, entrar: banco.entrarFuncionario, inicio: banco.inicioFuncionario, sair: banco.sairFuncionario };
 
@@ -22,6 +24,7 @@ type Tela =
   | { t: "codigo"; aviso?: string }
   | { t: "pin"; codigo: string; novo: boolean }
   | { t: "inicio"; dados: banco.InicioFuncionario }
+  | { t: "receber" }
   | { t: "erro" };
 
 export function AppFuncionario({ codigoInicial, api = API_PADRAO }: { codigoInicial?: string | undefined; api?: ApiFuncionario }) {
@@ -61,8 +64,12 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO }: { codigoInic
           <TelaPin codigo={tela.codigo} novo={tela.novo} api={api} onVoltar={() => setTela({ t: "codigo" })}
             onEntrou={(chave) => { guardarChave(chave); void abrirInicio(chave, false); }} />
         )}
+        {tela.t === "receber" && (
+          <ReceberMercadoria chave={lerChave() ?? ""} api={api.receber}
+            onVoltar={() => { const c = lerChave(); if (c) void abrirInicio(c); else setTela({ t: "codigo" }); }} />
+        )}
         {tela.t === "inicio" && (
-          <TelaInicio dados={tela.dados} onAtualizar={async () => { const c = lerChave(); if (c) await abrirInicio(c); }}
+          <TelaInicio dados={tela.dados} onReceber={() => setTela({ t: "receber" })} onAtualizar={async () => { const c = lerChave(); if (c) await abrirInicio(c); }}
             onSair={async () => { const c = lerChave(); apagarChave(); if (c) await api.sair(c).catch(() => {}); setTela({ t: "codigo" }); }} />
         )}
       </main>
@@ -174,7 +181,7 @@ function TelaPin({ codigo, novo, api, onVoltar, onEntrou }: {
   );
 }
 
-function TelaInicio({ dados, onAtualizar, onSair }: { dados: banco.InicioFuncionario; onAtualizar: () => Promise<void>; onSair: () => Promise<void> }) {
+function TelaInicio({ dados, onAtualizar, onSair, onReceber }: { dados: banco.InicioFuncionario; onAtualizar: () => Promise<void>; onSair: () => Promise<void>; onReceber: () => void }) {
   const [emBreve, setEmBreve] = useState<string | null>(null);
   const [sair, setSair] = useState(false);
   const [atualizando, setAtualizando] = useState(false);
@@ -204,7 +211,7 @@ function TelaInicio({ dados, onAtualizar, onSair }: { dados: banco.InicioFuncion
       <div className="grid flex-1 grid-cols-1 content-start gap-4">
         {fazReceber(dados.funcao) && (
           <BotaoGrande icone={<PackageOpen size={40} />} titulo="Receber mercadoria" detalhe={entregasTxt} destaque={a.entregasHoje > 0 ? "atencao" : null}
-            numero={a.entregasHoje || a.entregas} onClick={() => setEmBreve("Receber mercadoria")} />
+            numero={a.entregasHoje || a.entregas} onClick={onReceber} />
         )}
         {fazRepor(dados.funcao) && (
           <BotaoGrande icone={<ShoppingBasket size={40} />} titulo={nomeRepor} detalhe={reporTxt} destaque={a.repor > 0 ? "urgente" : null}

@@ -5,6 +5,7 @@ import type { Product, Supplier, Variation } from "@/components/ProductArea";
 import type { StoreData } from "@/components/StoreSetup";
 import { aceitaFracao, fmtQ, qtdUn } from "@/lib/deposito";
 import type { Embalagem } from "@/lib/embalagem";
+import type { Recebimento } from "@/lib/recebimento";
 
 export type SituacaoPedido = "rascunho" | "enviado" | "aceito" | "aceito_ajustes" | "recusado" | "recebido_parcial" | "recebido" | "cancelado";
 export type CanalPedido = "whatsapp" | "email" | "copiado";
@@ -23,6 +24,8 @@ export type Pedido = {
   resposta?: RespostaPedido | null | undefined;
   /** Conta a pagar (D2c). valor em centavos: o informado pelo fornecedor ou corrigido pelo dono. */
   pagamento?: { situacao: "a_pagar" | "pago" | null; vencimento: string | null; pagoEm: string | null; valor?: number | null | undefined } | undefined;
+  /** Recebimento pelo app do funcionário (E2). */
+  recebimento?: Recebimento | null | undefined;
 };
 export const FORMA_TXT: Record<FormaPagamento, string> = { a_vista: "À vista", pix: "Pix", boleto: "Boleto", a_prazo: "A prazo" };
 /** "Boleto 30 dias", "Pix". */
