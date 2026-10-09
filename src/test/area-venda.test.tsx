@@ -16,7 +16,8 @@ const saved = (fn: ReturnType<typeof vi.fn>) => fn.mock.calls[0]![0] as Product;
 function setup(tipo: string, initial?: Product, products: Product[] = initial ? [initial] : []) {
   const onSave = vi.fn();
   render(<ProductWizard store={{ id: "s", nome: "Loja", tipo } as never} products={products} initial={initial} suppliers={[]} onAddSupplier={() => 1} onCancel={() => {}} onSave={onSave} />);
-  const submit = () => fireEvent.submit(document.querySelector("form")!);
+  /* Estes testes cobrem Depósito/Área de venda: produtos antigos passam pela Validade mantendo "sem configurar". */
+  const submit = () => { fireEvent.submit(document.querySelector("form")!); if (screen.queryByText("Controle de validade") && screen.queryByRole("button", { name: /Manter sem configurar/, pressed: true })) fireEvent.submit(document.querySelector("form")!); };
   return { onSave, submit };
 }
 const novoLocalVenda = (nome: string) => { click(/Novo local de venda/); typeIn("Nome do local de venda", nome); click("Usar este local de venda"); };

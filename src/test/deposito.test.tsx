@@ -13,7 +13,8 @@ const roupa = (extra: Partial<Product> = {}) => base("roupas", "Peça", "Camiset
 function setup(tipo: string, initial: Product, products: Product[] = [initial]) {
   const onSave = vi.fn();
   render(<ProductWizard store={{ id: "s", nome: "Loja", tipo } as never} products={products} initial={initial} suppliers={[]} onAddSupplier={() => 1} onCancel={() => {}} onSave={onSave} />);
-  const submit = () => fireEvent.submit(document.querySelector("form")!);
+  /* Estes testes cobrem Depósito/Área de venda: produtos antigos passam pela Validade mantendo "sem configurar". */
+  const submit = () => { fireEvent.submit(document.querySelector("form")!); if (screen.queryByText("Controle de validade") && screen.queryByRole("button", { name: /Manter sem configurar/, pressed: true })) fireEvent.submit(document.querySelector("form")!); };
   const toDeposito = () => { for (let i = 0; i < 4; i++) submit(); };
   return { onSave, submit, toDeposito };
 }
