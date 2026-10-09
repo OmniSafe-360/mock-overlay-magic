@@ -256,6 +256,20 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     Object.fromEntries(Object.entries(initDep?.vars ?? {}).map(([k, c]) => [k, { qtd: toInput(c.qtd), min: toInput(c.min), max: toInput(c.max) }])));
   const [subTried, setSubTried] = useState(false);
 
+  /* ----- área de venda (em memória, conjunto de locais separado do depósito) ----- */
+  const initVen = initial?.areaVenda;
+  const vendaSalva = !!initVen;
+  const locaisV = useMemo(() => locaisVendaDoComercio(products), [products]);
+  const [vLocal, setVLocal] = useState<string | null | undefined>(initVen ? initVen.local : undefined);
+  const [vManter, setVManter] = useState(!!initial && !initVen);
+  const [vNovo, setVNovo] = useState<string | null>(null);
+  const [vLocalMsg, setVLocalMsg] = useState("");
+  const [vQtd, setVQtd] = useState(toInput(initVen?.qtd));
+  const [vMin, setVMin] = useState(toInput(initVen?.min));
+  const [vMax, setVMax] = useState(toInput(initVen?.max));
+  const [vVar, setVVar] = useState<Record<string, VarDep>>(() =>
+    Object.fromEntries(Object.entries(initVen?.vars ?? {}).map(([k, c]) => [k, { qtd: toInput(c.qtd), min: toInput(c.min), max: toInput(c.max) }])));
+
   const used = useMemo(() => usedCodes(products, initial?.id), [products, initial?.id]);
   const isRoupas = tipo === "roupas";
   const codeErr = mainCodeError(codigo, used, isRoupas ? vars : []);
@@ -276,7 +290,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const varsOk = vars.length > 0 && vars.every((v, i) => variationOk(v, i, vars, codigo, used));
 
   /* validações do depósito */
-  const unidadeTravada = configSalva && unidade !== initial!.unidade;
+  const unidadeTravada = (configSalva || vendaSalva) && unidade !== initial!.unidade;
   const localTravado = !!initDep?.local && temQtdPositiva(initDep);
   const qtdTravada = configSalva && !isRoupas;
   const q = qtdTravada ? { v: initDep!.qtd, err: "" } : parseNum(dQtd, unidade, false);
@@ -298,12 +312,34 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     : !qtdOk ? { sub: 1, msg: pendentes.length ? "Responda se as quantidades estão no depósito." : "Corrija a quantidade contada." }
     : !limOk ? { sub: 2, msg: "Corrija os limites marcados em vermelho." } : null;
 
+  /* validações da área de venda */
+  const vLocalTravado = !!initVen?.local && temQtdPositiva(initVen);
+  const vQtdTravada = vendaSalva && !isRoupas;
+  const vq = vQtdTravada ? { v: initVen!.qtd, err: "" } : parseNum(vQtd, unidade, false);
+  const vmn = parseNum(vMin, unidade, true);
+  const vmx = parseNum(vMax, unidade, true);
+  const vLimErr = limitesErro(vmn.v, vmx.v);
+  const varsVen = vars.map((v) => {
+    const d = vVar[v.uid!] ?? { qtd: "", min: "", max: "" };
+    const saved = v.uid ? initVen?.vars?.[v.uid] : undefined;
+    const qv = saved ? { v: saved.qtd as number | null, err: "" } : parseNum(d.qtd ?? "", unidade, false);
+    const a = parseNum(d.min, unidade, true), b = parseNum(d.max, unidade, true);
+    return { v, d, travada: !!saved, q: qv, mn: a, mx: b, lim: limitesErro(a.v, b.v) };
+  });
+  const vLocalOk = vManter || vLocal !== undefined;
+  const vQtdOk = vManter || (isRoupas ? varsVen.length > 0 && varsVen.every((x) => !x.q.err) : !vq.err);
+  const vLimOk = vManter || (isRoupas ? varsVen.every((x) => !x.mn.err && !x.mx.err && !x.lim) : !vmn.err && !vmx.err && !vLimErr);
+  const venBad = !vLocalOk ? { sub: 0, msg: "Escolha um local de venda ou \"Definir depois\"." }
+    : !vQtdOk ? { sub: 1, msg: "Corrija a quantidade contada na área de venda." }
+    : !vLimOk ? { sub: 2, msg: "Corrija os limites marcados em vermelho." } : null;
+
   const valid = [
     !!codigo.trim() && !dup && !!nome.trim(),
     compra > 0 && venda > 0 && !!unidade && !!categoria && ruleErr?.step !== 1 && !unidadeTravada,
     (!isRoupas || varsOk) && ruleErr?.step !== 2,
     forn !== undefined,
     [localOk, qtdOk, limOk][sub]!,
+    [vLocalOk, vQtdOk, vLimOk][sub]!,
     true,
   ][step]!;
   const lucro = venda - compra;
@@ -313,8 +349,10 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const go = (to: number, s = 0) => { setDir(to * 10 + s > step * 10 + sub ? 1 : -1); setStep(to); setSub(s); setSubTried(false); };
   const baseBad = firstInvalidStep({ codigo, nome, compra, venda, unidade, categoria, variacoes: vars, detalhes: det, fornecedor: forn }, isRoupas, used, rules);
   const bad: { step: number; sub?: number; msg: string } | null =
-    unidadeTravada ? { step: 1, msg: unidadeTravadaMsg(initial!.unidade) } : baseBad ?? (depBad ? { step: STEP_DEP, sub: depBad.sub, msg: depBad.msg } : null);
-  const here = (b: { step: number; sub?: number }) => b.step === step && (step !== STEP_DEP || (b.sub ?? 0) === sub);
+    unidadeTravada ? { step: 1, msg: unidadeTravadaMsg(initial!.unidade) }
+    : baseBad ?? (depBad ? { step: STEP_DEP, sub: depBad.sub, msg: depBad.msg } : venBad ? { step: STEP_VEN, sub: venBad.sub, msg: venBad.msg } : null);
+  const hasSub = step === STEP_DEP || step === STEP_VEN;
+  const here = (b: { step: number; sub?: number }) => b.step === step && (!hasSub || (b.sub ?? 0) === sub);
   const saveErr = triedSave && bad && here(bad) ? bad.msg : ruleErr && ruleErr.step === step ? ruleErr.msg : "";
 
   const buildDeposito = (): Deposito | undefined => {
@@ -324,25 +362,38 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
         vars: Object.fromEntries(varsDep.map((x) => [x.v.uid!, { qtd: x.q.v ?? 0, min: x.mn.v, max: x.mx.v }])) };
     return { local: dLocal ?? null, qtd: q.v, min: mn.v, max: mx.v };
   };
+  const buildVenda = (): AreaVenda | undefined => {
+    if (vManter) return undefined;
+    if (isRoupas)
+      return { local: vLocal ?? null, qtd: null, min: null, max: null,
+        vars: Object.fromEntries(varsVen.map((x) => [x.v.uid!, { qtd: x.q.v ?? 0, min: x.mn.v, max: x.mx.v }])) };
+    return { local: vLocal ?? null, qtd: vq.v, min: vmn.v, max: vmx.v };
+  };
   const save = () => {
     if (bad) { setTriedSave(true); setFromReview(true); return go(bad.step, bad.sub ?? 0); }
     onSave({ id: initial?.id ?? Date.now(), codigo: codigo.trim(), nome: nome.trim(), compra, venda, unidade, categoria, detalhes: det, variacoes: vars,
-      fornecedor: forn ?? null, deposito: buildDeposito() });
+      fornecedor: forn ?? null, deposito: buildDeposito(), areaVenda: buildVenda() });
   };
   const next = () => {
-    if (!valid) { if (step === STEP_DEP) setSubTried(true); return; }
+    if (!valid) { if (hasSub) setSubTried(true); return; }
     if (step === STEP_REV) return save();
     if (step === STEP_DEP) {
-      if (manterSem || sub === 2 || (fromReview && !depBad)) { setFromReview(false); return go(STEP_REV); }
+      if (fromReview && !depBad) { setFromReview(false); return go(STEP_REV); }
+      if (manterSem || sub === 2) return go(STEP_VEN);
       return go(STEP_DEP, sub + 1);
+    }
+    if (step === STEP_VEN) {
+      if (vManter || sub === 2 || (fromReview && !venBad)) { setFromReview(false); return go(STEP_REV); }
+      return go(STEP_VEN, sub + 1);
     }
     if (fromReview) { setFromReview(false); return go(STEP_REV); }
     go(step + 1);
   };
   const back = () => {
     setFromReview(false);
-    if (step === STEP_DEP && sub > 0) return go(STEP_DEP, sub - 1);
-    if (step === STEP_REV) return go(STEP_DEP, manterSem ? 0 : 2);
+    if (hasSub && sub > 0) return go(step, sub - 1);
+    if (step === STEP_VEN) return go(STEP_DEP, manterSem ? 0 : 2);
+    if (step === STEP_REV) return go(STEP_VEN, vManter ? 0 : 2);
     go(step - 1);
   };
   const edit = (s: number, ss = 0) => { setFromReview(true); go(s, ss); };
@@ -354,22 +405,40 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const listaLocais = dLocal && !localDuplicado(dLocal, locais) ? [...locais, dLocal] : locais;
   const novoDup = novoLocal !== null && !!novoLocal.trim() && localDuplicado(novoLocal, listaLocais);
   const addLocal = () => { if (novoLocal && novoLocal.trim() && !novoDup) pickLocal(novoLocal.trim()); };
+  const pickVLocal = (l: string | null) => {
+    if (vLocalTravado && l !== initVen!.local) { setVLocalMsg(venLocalTravadoMsg(initVen!.local!)); return; }
+    setVLocal(l); setVManter(false); setVLocalMsg(""); setVNovo(null);
+  };
+  const listaVLocais = vLocal && !localDuplicado(vLocal, locaisV) ? [...locaisV, vLocal] : locaisV;
+  const vNovoDup = vNovo !== null && !!vNovo.trim() && localDuplicado(vNovo, listaVLocais);
+  const addVLocal = () => { if (vNovo && vNovo.trim() && !vNovoDup) pickVLocal(vNovo.trim()); };
   const setVD = (uid: string, patch: Partial<VarDep>) => setDVar((m) => ({ ...m, [uid]: { ...(m[uid] ?? { min: "", max: "" }), ...patch } }));
+  const setVV = (uid: string, patch: Partial<VarDep>) => setVVar((m) => ({ ...m, [uid]: { ...(m[uid] ?? { qtd: "", min: "", max: "" }), ...patch } }));
   const numIn = (s: string) => s.replace(/[^\d,.-]/g, "").slice(0, 12);
   const fr = aceitaFracao(unidade);
   const numProps = { inputMode: fr ? ("decimal" as const) : ("numeric" as const), autoComplete: "off", placeholder: fr ? "Ex.: 12,5" : "Ex.: 40" };
   const showErr = (txt: string, err: string) => (txt.trim() || subTried ? err : "");
   const removeVar = (i: number) => {
-    const x = varsDep[i];
-    if (x && (x.q.v ?? 0) > 0) { setVarMsg(REMOCAO_BLOQUEADA); return; }
+    const x = varsDep[i], y = varsVen[i];
+    if ((x && (x.q.v ?? 0) > 0) || (y && (y.q.v ?? 0) > 0)) { setVarMsg(VEN_REMOCAO_BLOQUEADA); return; }
     setVarMsg("");
     setVars(vars.filter((_, j) => j !== i));
-    if (x?.v.uid) { const k = x.v.uid; setDVar((m) => { const n = { ...m }; delete n[k]; return n; }); }
+    if (x?.v.uid) { const k = x.v.uid; const del = (m: Record<string, VarDep>) => { const n = { ...m }; delete n[k]; return n; }; setDVar(del); setVVar(del); }
   };
   const resumoLocal = manterSem ? SEM_CONFIG : dLocal ? dLocal : LOCAL_PENDENTE;
   const resumoQtd = isRoupas
     ? varsDep.map((x) => `${x.v.tam}/${x.v.cor}: ${x.q.v != null ? fmtQ(x.q.v) : "—"}`).join(", ")
     : q.v != null ? `${fmtQ(q.v)} ${unidade}` : "—";
+  const resumoVLocal = vManter ? VEN_SEM_CONFIG : vLocal ? vLocal : VEN_LOCAL_PENDENTE;
+  const resumoVQtd = isRoupas
+    ? varsVen.map((x) => `${x.v.tam}/${x.v.cor}: ${x.q.v != null && !x.q.err ? fmtQ(x.q.v) : "—"}`).join(", ")
+    : vq.v != null && !vq.err ? `${fmtQ(vq.v)} ${unidade}` : "—";
+  const resumoVLim = isRoupas ? varsVen.map((x) => `${x.v.tam}/${x.v.cor}: ${limitesVendaStatus(x.mn.v, x.mx.v)}`).join(" · ") : limitesVendaStatus(vmn.v, vmx.v);
+  /* total visual: só com as duas contagens confirmadas; nunca usa a quantidade do cadastro */
+  const okQ = (r: { v: number | null; err: string }) => (r.err ? null : r.v);
+  const totalLinhas = isRoupas
+    ? vars.map((v, i) => `${v.tam} · ${v.cor}: ${totalTexto(manterSem ? null : okQ(varsDep[i]!.q), vManter ? null : okQ(varsVen[i]!.q), unidade)}`)
+    : [totalTexto(manterSem ? null : okQ(q), vManter ? null : okQ(vq), unidade)];
   const resumoLim = isRoupas ? varsDep.map((x) => `${x.v.tam}/${x.v.cor}: ${limitesStatus(x.mn.v, x.mx.v)}`).join(" · ") : limitesStatus(mn.v, mx.v);
 
   return (
