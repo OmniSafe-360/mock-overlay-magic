@@ -2,10 +2,11 @@ import { useMemo, useState, type ReactNode } from "react";
 import { ArrowLeft, Check, CheckCircle2, Keyboard, Package, Pencil, Plus, ScanLine, Search, Truck, X } from "lucide-react";
 import { Field, btnGhost, btnPrimary, digits, maskPhone, nextOnEnter, useKeyboard, type StoreData } from "@/components/StoreSetup";
 import { Scanner } from "@/components/Scanner";
+import { mainCodeError, usedCodes, variationErrors, variationOk } from "@/lib/variations";
 
 /* ---------- tipos e dados por comércio ---------- */
 export type Supplier = { id: number; nome: string; tel: string; email: string };
-export type Variation = { tam: string; cor: string; qtd: number };
+export type Variation = { tam: string; cor: string; qtd: number; codigo?: string | undefined };
 export type Product = {
   id: number; codigo: string; nome: string; compra: number; venda: number; unidade: string; categoria: string;
   detalhes: Record<string, string>; variacoes: Variation[]; fornecedor: number | null;
@@ -107,7 +108,7 @@ export function ProductDetail({ p, tipo, suppliers, onBack, onEdit }: { p: Produ
         {(det.length > 0 || p.variacoes.length > 0) && (
           <Row t="Detalhes">
             {det.map(([k, v]) => <span key={k} className="block">{labelOf(tipo, k)}: {v}</span>)}
-            {p.variacoes.map((v, i) => <span key={i} className="block">{v.tam} · {v.cor} · {v.qtd} un.</span>)}
+            {p.variacoes.map((v, i) => <span key={i} className="block">{v.tam} · {v.cor} · Cód. {v.codigo || "sem código"} · {v.qtd} un.</span>)}
           </Row>
         )}
         <Row t="Fornecedor">{f ? <>{f.nome}{f.tel ? ` · ${f.tel}` : ""}</> : "Definir depois"}</Row>
@@ -150,15 +151,18 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const [det, setDet] = useState<Record<string, string>>(initial?.detalhes ?? {});
   const [vars, setVars] = useState<Variation[]>(initial?.variacoes ?? []);
   const [forn, setForn] = useState<number | null | undefined>(initial ? initial.fornecedor : undefined);
-  const [varSheet, setVarSheet] = useState(false);
+  const [varSheet, setVarSheet] = useState<number | null>(null);
   const [suppSheet, setSuppSheet] = useState(false);
 
-  const dup = !!codigo.trim() && products.some((p) => p.codigo === codigo.trim() && p.id !== initial?.id);
+  const used = useMemo(() => usedCodes(products, initial?.id), [products, initial?.id]);
+  const codeErr = mainCodeError(codigo, used);
+  const dup = !!codeErr;
   const isRoupas = tipo === "roupas";
+  const varsOk = vars.length > 0 && vars.every((v, i) => variationOk(v, i, vars, codigo, used));
   const valid = [
     !!codigo.trim() && !dup && !!nome.trim(),
     compra > 0 && venda > 0 && !!unidade && !!categoria,
-    !isRoupas || vars.length > 0,
+    !isRoupas || varsOk,
     forn !== undefined,
     true,
   ][step]!;
@@ -207,7 +211,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                   ) : (
                     <Field label="Código do produto" name="codigo" inputMode="numeric" autoComplete="off" enterKeyHint="next" placeholder="Ex.: 7891234567890"
                       autoFocus={!codigo} onKeyDown={nextOnEnter("pnome")} value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\s/g, "").slice(0, 60))}
-                      error={dup ? "Este código já está cadastrado" : ""}
+                      error={codeErr}
                       hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : "Os números abaixo do código de barras."}
                       extra={<button type="button" onClick={() => { setDenied(false); setScan(true); }} className="flex min-h-9 items-center gap-1 text-sm font-semibold text-primary"><ScanLine size={16} /> Escanear</button>} />
                   )}
@@ -261,15 +265,17 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                     <div className="space-y-2">
                       <p className="text-sm font-medium text-muted-foreground">Grade de variações</p>
                       <div className="flex flex-wrap gap-2">
-                        {vars.map((v, i) => (
-                          <span key={i} className="flex items-center gap-1 rounded-full border border-accent/50 bg-accent/10 py-1 pl-3 pr-1 text-sm">
-                            {v.tam} · {v.cor} · {v.qtd}
+                        {vars.map((v, i) => { const bad = !variationOk(v, i, vars, codigo, used); return (
+                          <span key={i} className={`flex items-center gap-1 rounded-full border py-1 pl-1 pr-1 text-sm ${bad ? "border-destructive/70 bg-destructive/10" : "border-accent/50 bg-accent/10"}`}>
+                            <button type="button" aria-label="Editar variação" onClick={() => setVarSheet(i)} className="flex min-h-8 items-center gap-1 rounded-full px-2 hover:bg-accent/20">
+                              {v.tam} · {v.cor} · {v.codigo || "sem código"} · {v.qtd} <Pencil size={12} />
+                            </button>
                             <button type="button" aria-label="Remover variação" onClick={() => setVars(vars.filter((_, j) => j !== i))} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-accent/20"><X size={14} /></button>
                           </span>
-                        ))}
+                        ); })}
                       </div>
-                      <button type="button" onClick={() => setVarSheet(true)} className="flex min-h-12 items-center gap-2 rounded-2xl border-2 border-dashed border-accent/70 px-4 text-base font-semibold text-accent"><Plus size={18} /> Adicionar variação</button>
-                      <p className="text-xs text-muted-foreground">{vars.length ? "Tamanho, cor e quantidade de cada peça." : "Adicione pelo menos 1 variação."}</p>
+                      <button type="button" onClick={() => setVarSheet(-1)} className="flex min-h-12 items-center gap-2 rounded-2xl border-2 border-dashed border-accent/70 px-4 text-base font-semibold text-accent"><Plus size={18} /> Adicionar variação</button>
+                      <p className="text-xs text-muted-foreground">{!vars.length ? "Adicione pelo menos 1 variação." : !varsOk ? <span className="text-destructive">Toque nas variações em vermelho para completar ou corrigir.</span> : "Tamanho, cor, código e quantidade de cada peça."}</p>
                     </div>
                   )}
                 </>
@@ -294,7 +300,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                   <Sum t="Preços" onEdit={() => edit(1)}>{brl2(compra)} → {brl2(venda)} / {unidade}<br />{categoria} · margem {margem.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</Sum>
                   <Sum t="Detalhes" onEdit={() => edit(2)}>
                     {Object.entries(det).filter(([, v]) => v).map(([k, v]) => `${labelOf(tipo, k)}: ${v}`).join(" · ") || (vars.length ? "" : "Nenhum")}
-                    {vars.length > 0 && <><br />{vars.map((v) => `${v.tam}/${v.cor}/${v.qtd}`).join(", ")}</>}
+                    {vars.length > 0 && <><br />{vars.map((v) => `${v.tam}/${v.cor}/Cód. ${v.codigo || "—"}/${v.qtd}`).join(", ")}</>}
                   </Sum>
                   <Sum t="Fornecedor" onEdit={() => edit(3)}>{fornNome}</Sum>
                 </div>
@@ -320,7 +326,8 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
           onDenied={() => { setScan(false); setDenied(true); setCodeMode("type"); }}
           onCode={(c) => { setScan(false); setCodigo(c); setCodeMode("type"); setTimeout(() => document.getElementById("pnome")?.focus(), 80); }} />
       )}
-      {varSheet && <VariationSheet onClose={() => setVarSheet(false)} onSave={(v) => { setVars([...vars, v]); setVarSheet(false); }} />}
+      {varSheet !== null && <VariationSheet index={varSheet} vars={vars} mainCode={codigo} used={used} onClose={() => setVarSheet(null)}
+        onSave={(v) => { setVars(varSheet < 0 ? [...vars, v] : vars.map((x, j) => (j === varSheet ? v : x))); setVarSheet(null); }} />}
       {suppSheet && <SupplierSheet onClose={() => setSuppSheet(false)} onSave={(s) => { setForn(onAddSupplier(s)); setSuppSheet(false); }} />}
     </div>
   );
@@ -382,19 +389,36 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
     </div>
   );
 }
-function VariationSheet({ onClose, onSave }: { onClose: () => void; onSave: (v: Variation) => void }) {
-  const [tam, setTam] = useState(""); const [cor, setCor] = useState(""); const [qtd, setQtd] = useState("");
-  const ok = !!tam && !!cor.trim() && Number(qtd) > 0;
+function VariationSheet({ index, vars, mainCode, used, onClose, onSave }: {
+  index: number; vars: Variation[]; mainCode: string; used: Set<string>; onClose: () => void; onSave: (v: Variation) => void;
+}) {
+  const init = index >= 0 ? vars[index] : undefined;
+  const [tam, setTam] = useState(init?.tam ?? ""); const [cor, setCor] = useState(init?.cor ?? "");
+  const [cod, setCod] = useState(init?.codigo ?? ""); const [qtd, setQtd] = useState(init ? String(init.qtd) : "");
+  const [scan, setScan] = useState(false); const [denied, setDenied] = useState(false);
+  const errs = variationErrors({ tam, cor, codigo: cod }, index, vars, mainCode, used);
+  const ok = !!tam && !!cor.trim() && Number(qtd) > 0 && !errs.combo && !errs.codigo;
   return (
-    <Sheet title="Nova variação" onClose={onClose}>
-      <form noValidate onSubmit={(e) => { e.preventDefault(); if (ok) onSave({ tam, cor: cor.trim(), qtd: Number(qtd) }); }} className="flex min-h-0 flex-col">
+    <Sheet title={index >= 0 ? "Editar variação" : "Nova variação"} onClose={onClose}>
+      <form noValidate onSubmit={(e) => { e.preventDefault(); if (ok) onSave({ tam, cor: cor.trim(), codigo: cod.trim(), qtd: Number(qtd) }); }} className="flex min-h-0 flex-col">
         <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3">
           <Chips label="Tamanho" hint="Letra ou número." opts={TAMANHOS} value={tam} onChange={setTam} />
-          <Field label="Cor" name="vcor" enterKeyHint="next" onKeyDown={nextOnEnter("vqtd")} placeholder="Ex.: Azul" value={cor} onChange={(e) => setCor(e.target.value)} hint="Cor desta peça." />
-          <Field label="Quantidade" name="vqtd" inputMode="numeric" enterKeyHint="done" placeholder="0" value={qtd} onChange={(e) => setQtd(digits(e.target.value).slice(0, 5))} hint="Quantas peças você tem." />
+          <Field label="Cor" name="vcor" enterKeyHint="next" onKeyDown={nextOnEnter("vcod")} placeholder="Ex.: Azul" value={cor} onChange={(e) => setCor(e.target.value)} hint="Cor desta peça."
+            error={tam && cor.trim() && errs.combo ? errs.combo : ""} />
+          <Field label="Código de barras" name="vcod" id="vcod" inputMode="numeric" autoComplete="off" enterKeyHint="next" onKeyDown={nextOnEnter("vqtd")} placeholder="Ex.: 7891234567890"
+            value={cod} onChange={(e) => setCod(e.target.value.replace(/\s/g, "").slice(0, 60))}
+            error={cod.trim() || init ? errs.codigo ?? "" : ""}
+            hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : "Código próprio deste tamanho e cor."}
+            extra={<button type="button" onClick={() => { setDenied(false); setScan(true); }} className="flex min-h-9 items-center gap-1 text-sm font-semibold text-primary"><ScanLine size={16} /> Escanear</button>} />
+          <Field label="Quantidade" name="vqtd" id="vqtd" inputMode="numeric" enterKeyHint="done" placeholder="0" value={qtd} onChange={(e) => setQtd(digits(e.target.value).slice(0, 5))} hint="Quantas peças você tem." />
         </div>
-        <div className="px-5 pt-2"><button type="submit" disabled={!ok} className={btnPrimary(ok)}>Adicionar</button></div>
+        <div className="px-5 pt-2"><button type="submit" disabled={!ok} className={btnPrimary(ok)}>{index >= 0 ? "Salvar variação" : "Adicionar"}</button></div>
       </form>
+      {scan && (
+        <Scanner onClose={() => setScan(false)} onType={() => setScan(false)}
+          onDenied={() => { setScan(false); setDenied(true); }}
+          onCode={(c) => { setScan(false); setCod(c); setTimeout(() => document.getElementById("vqtd")?.focus(), 80); }} />
+      )}
     </Sheet>
   );
 }
