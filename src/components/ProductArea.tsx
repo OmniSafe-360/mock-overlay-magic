@@ -5,6 +5,7 @@ import { Field, btnGhost, btnPrimary, digits, maskPhone, nextOnEnter, useKeyboar
 import { Scanner } from "@/components/Scanner";
 import { ganhoSobreCompra, lerPct, mostrarPct, vendaPorGanho } from "@/lib/preco";
 import { escolhasDoUltimo } from "@/lib/ultimaEscolha";
+import { EMB_VAZIA, MAX_EMBALAGENS, TIPOS_EMBALAGEM, descricaoEmbalagem, errosEmbalagem, lerQtdEmbalagem, perguntaQtd, precoUnidade, type Embalagem } from "@/lib/embalagem";
 import { ImprimirEtiquetaSheet } from "@/components/Etiqueta";
 import { AUTOPECAS_VARS_MSG, POSICAO_MSG, CONSTRUCAO_VARS_MSG, CONTROLADO_MSG, ESPECIE_MSG, PET_VARS_MSG, FARMACIA_VARS_MSG, firstInvalidStep, typeRuleError, type TypeRules, mainCodeError, usedCodes, variationErrors, variationOk } from "@/lib/variations";
 import {
@@ -39,6 +40,8 @@ export type Product = {
   areaVenda?: AreaVenda | undefined;
   /** Controle de validade e divisão das contagens confirmadas por vencimento/lote. */
   validade?: Validade | undefined;
+  /** Como chega do fornecedor (caixa, fardo...). Vazio = por unidade. Não vale para loja de roupas. */
+  embalagens?: Embalagem[] | undefined;
   /** Vínculo com o banco: id real e áreas cuja contagem inicial já foi registrada ("deposito:_", "venda:<uid>"). */
   db?: { id: string; contadas: string[] } | undefined;
   /** Só true depois que o usuário marcou a confirmação do vencimento do lote. */
@@ -146,6 +149,13 @@ export function ProductDetail({ p, tipo, suppliers, onBack, onEdit }: { p: Produ
           </Row>
         )}
         <Row t="Fornecedor">{f ? <>{f.nome}{f.tel ? ` · ${f.tel}` : ""}</> : "Definir depois"}</Row>
+        {tipo !== "roupas" && (
+          <Row t="Como chega">
+            {p.embalagens?.length ? p.embalagens.map((e) => (
+              <span key={e.uid} className="block">{descricaoEmbalagem(e, p.unidade)}{e.codigo ? ` · Cód. ${e.codigo}` : ""}{e.preco ? ` · ${brl2(e.preco)}` : ""}</span>
+            )) : "Por unidade"}
+          </Row>
+        )}
         <Row t="Depósito"><DepositoInfo p={p} /></Row>
         <Row t="Área de venda"><AreaVendaInfo p={p} /></Row>
         <Row t="Total para conferência"><TotalInfo p={p} /></Row>
@@ -338,6 +348,10 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const [forn, setForn] = useState<number | null | undefined>(initial ? initial.fornecedor : ini.fornecedor);
   const [varSheet, setVarSheet] = useState<number | null>(null);
   const [suppSheet, setSuppSheet] = useState(false);
+  /* ----- como chega do fornecedor (embalagens) ----- */
+  const [embs, setEmbs] = useState<Embalagem[]>(initial?.embalagens ?? []);
+  const [embModo, setEmbModo] = useState<"unidade" | "embalagem">((initial?.embalagens ?? []).length ? "embalagem" : "unidade");
+  const [embSheet, setEmbSheet] = useState<number | null>(null);
   const [varMsg, setVarMsg] = useState("");
   const [unitMsg, setUnitMsg] = useState("");
 
@@ -384,7 +398,10 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
 
   const used = useMemo(() => usedCodes(products, initial?.id), [products, initial?.id]);
   const isRoupas = tipo === "roupas";
-  const codeErr = mainCodeError(codigo, used, isRoupas ? vars : []);
+  /** Escolheu "Em caixa, fardo ou pacote" mas não adicionou nenhuma. */
+  const embBad = !isRoupas && embModo === "embalagem" && embs.length === 0;
+  const codeErr = mainCodeError(codigo, used, isRoupas ? vars : [])
+    || (!isRoupas && codigo.trim() && embs.some((e) => e.codigo.trim() === codigo.trim()) ? "Este código já pertence a uma embalagem deste produto." : "");
   const [triedSave, setTriedSave] = useState(false);
   const rules: TypeRules | undefined =
     tipo === "mercado" ? { unidades: UNIDADES["mercado"]!, categorias: CATEGORIAS["mercado"]!, semVariacoes: true }
@@ -496,7 +513,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     !!codigo.trim() && !dup && !!nome.trim(),
     compra > 0 && venda > 0 && !!unidade && !!categoria && ruleErr?.step !== 1 && !unidadeTravada,
     (!isRoupas || varsOk) && ruleErr?.step !== 2,
-    forn !== undefined,
+    forn !== undefined && !embBad,
     [localOk, qtdOk, limOk][sub]!,
     [vLocalOk, vQtdOk, vLimOk][sub]!,
     [valOk0, true, valOk2, valOk3][sub]!,
@@ -532,7 +549,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const baseBad = firstInvalidStep({ codigo, nome, compra, venda, unidade, categoria, variacoes: vars, detalhes: det, fornecedor: forn }, isRoupas, used, rules);
   const bad: { step: number; sub?: number; msg: string } | null =
     unidadeTravada ? { step: 1, msg: unidadeTravadaMsg(initial!.unidade) }
-    : baseBad ?? (depBad ? { step: STEP_DEP, sub: depBad.sub, msg: depBad.msg } : venBad ? { step: STEP_VEN, sub: venBad.sub, msg: venBad.msg }
+    : baseBad ?? (embBad ? { step: 3, msg: EMB_VAZIA } : depBad ? { step: STEP_DEP, sub: depBad.sub, msg: depBad.msg } : venBad ? { step: STEP_VEN, sub: venBad.sub, msg: venBad.msg }
       : valBad ? { step: STEP_VAL, sub: valBad.sub, msg: valBad.msg } : null);
   const hasSub = step === STEP_DEP || step === STEP_VEN || step === STEP_VAL;
   const nSub = step === STEP_VAL ? 4 : 3;
@@ -568,6 +585,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     if (bad) { setTriedSave(true); setFromReview(true); return go(bad.step, bad.sub ?? 0); }
     onSave({ id: initial?.id ?? Date.now(), codigo: codigo.trim(), nome: nome.trim(), compra, venda, unidade, categoria, detalhes: det, variacoes: vars,
       fornecedor: forn ?? null, deposito: buildDeposito(), areaVenda: buildVenda(), validade: buildValidade(), db: initial?.db,
+      embalagens: isRoupas || embModo === "unidade" ? [] : embs,
       ...(lotesConf.length && confVenc ? { confirmarVencimento: true } : {}) });
   };
   const next = () => {
@@ -882,6 +900,38 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                     <Pick on={forn === null} onClick={() => setForn(null)}><span>Definir depois</span></Pick>
                   </div>
                   <p className="text-xs text-muted-foreground">{ini.fornecedor != null && forn === ini.fornecedor ? "Mesmo fornecedor do último produto. Pode trocar." : "De quem você compra este produto."}</p>
+                  {!isRoupas && (
+                    <div className="space-y-2 pt-2">
+                      <p className="text-sm font-medium text-muted-foreground">Como chega do fornecedor?</p>
+                      <div className="grid grid-cols-1 gap-2">
+                        <Pick on={embModo === "unidade"} onClick={() => setEmbModo("unidade")}><span>Por unidade, igual vende</span></Pick>
+                        <Pick on={embModo === "embalagem"} onClick={() => { setEmbModo("embalagem"); if (!embs.length) setEmbSheet(-1); }}>
+                          <Package size={18} className="shrink-0 text-primary" /><span>Em caixa, fardo ou pacote</span>
+                        </Pick>
+                      </div>
+                      {embModo === "embalagem" && (
+                        <div className="space-y-2">
+                          {embs.map((e, i) => (
+                            <div key={e.uid} className="flex items-center gap-2">
+                              <button type="button" onClick={() => setEmbSheet(i)}
+                                className="flex min-h-13 min-w-0 flex-1 flex-col justify-center rounded-2xl border border-border bg-background-deep/60 px-4 py-2 text-left hover:border-primary">
+                                <span className="truncate text-base font-semibold">{descricaoEmbalagem(e, unidade)}</span>
+                                <span className="truncate text-xs text-muted-foreground">{e.codigo ? `Cód. ${e.codigo}` : "Sem código"}{e.preco ? ` · ${brl2(e.preco)} cada ${e.tipo.toLowerCase()}` : ""}</span>
+                              </button>
+                              <button type="button" aria-label={`Remover ${descricaoEmbalagem(e, unidade)}`} onClick={() => setEmbs(embs.filter((_, j) => j !== i))}
+                                className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl border border-border text-muted-foreground hover:text-destructive"><X size={18} /></button>
+                            </div>
+                          ))}
+                          {embs.length < MAX_EMBALAGENS && (
+                            <button type="button" onClick={() => setEmbSheet(-1)} className="flex min-h-12 w-full items-center gap-2 rounded-2xl border-2 border-dashed border-accent/70 px-4 text-base font-semibold text-accent">
+                              <Plus size={18} /> Adicionar embalagem
+                            </button>
+                          )}
+                          <p className={`text-xs ${embs.length ? "text-muted-foreground" : "text-destructive"}`}>{embs.length ? "Toque na embalagem para mudar. O estoque continua contado em unidades de venda." : EMB_VAZIA}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
 
@@ -1176,6 +1226,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                     {vars.length > 0 && <><br />{vars.map((v) => `${v.tam}/${v.cor}/Cód. ${v.codigo || "—"}/${v.qtd}`).join(", ")}</>}
                   </Sum>
                   <Sum t="Fornecedor" onEdit={() => edit(3)}>{fornNome}</Sum>
+                  {!isRoupas && <Sum t="Como chega" onEdit={() => edit(3)}>{embModo === "unidade" || !embs.length ? "Por unidade" : embs.map((e) => descricaoEmbalagem(e, unidade)).join(" · ")}</Sum>}
                   {manterSem ? (
                     <Sum t="Depósito" onEdit={() => edit(STEP_DEP, 0)}>{SEM_CONFIG}</Sum>
                   ) : (
@@ -1243,6 +1294,15 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
           const nv = { ...v, uid };
           setVars(varSheet < 0 ? [...vars, nv] : vars.map((x, j) => (j === varSheet ? nv : x)));
           setVarSheet(null);
+        }} />}
+      {embSheet !== null && <EmbalagemSheet index={embSheet} lista={embs} unidade={unidade} codigoProduto={codigo} usados={used} compra={compra}
+        onGerarCodigo={onGerarCodigo} onClose={() => setEmbSheet(null)}
+        onSave={(e, novaCompra) => {
+          const uid = embSheet < 0 ? newUid() : embs[embSheet]?.uid ?? newUid();
+          const ne = { ...e, uid };
+          setEmbs(embSheet < 0 ? [...embs, ne] : embs.map((x, j) => (j === embSheet ? ne : x)));
+          if (novaCompra != null) mudarCompra(novaCompra);
+          setEmbSheet(null);
         }} />}
       {suppSheet && <SupplierSheet onClose={() => setSuppSheet(false)} onSave={(s) => {
         const r = onAddSupplier(s);
@@ -1383,6 +1443,70 @@ function VariationSheet({ index, vars, mainCode, used, onGerarCodigo, onClose, o
         <Scanner onClose={() => setScan(false)} onType={() => setScan(false)}
           onDenied={() => { setScan(false); setDenied(true); }}
           onCode={(c) => { setScan(false); setCod(c); setTimeout(() => document.getElementById("vqtd")?.focus(), 80); }} />
+      )}
+    </Sheet>
+  );
+}
+function EmbalagemSheet({ index, lista, unidade, codigoProduto, usados, compra, onGerarCodigo, onClose, onSave }: {
+  index: number; lista: Embalagem[]; unidade: string; codigoProduto: string; usados: Set<string>; compra: number;
+  onGerarCodigo?: (() => Promise<string>) | undefined; onClose: () => void;
+  /** `novaCompra`: preço de compra da unidade calculado pela embalagem, quando o comerciante escolheu usar. */
+  onSave: (e: Omit<Embalagem, "uid">, novaCompra: number | null) => void;
+}) {
+  const init = index >= 0 ? lista[index] : undefined;
+  const [tipo, setTipo] = useState(init?.tipo ?? "Caixa");
+  const [qtdTxt, setQtdTxt] = useState(init ? toInput(init.qtd) : "");
+  const [cod, setCod] = useState(init?.codigo ?? "");
+  const [preco, setPreco] = useState(init?.preco ?? 0);
+  const [usar, setUsar] = useState(true);
+  const [tentou, setTentou] = useState(false);
+  const [scan, setScan] = useState(false); const [denied, setDenied] = useState(false);
+  const gerador = useGerarCodigo(onGerarCodigo);
+  const q = lerQtdEmbalagem(qtdTxt, unidade);
+  const errs = errosEmbalagem({ tipo, qtd: q.v ?? -1, codigo: cod }, index, lista, codigoProduto, usados);
+  const unit = q.v ? precoUnidade(preco, q.v) : 0;
+  const mudaCompra = unit > 0 && unit !== compra;
+  const ok = !!tipo && !q.err && !errs.repetida && !errs.codigo;
+  const qErr = tentou || qtdTxt ? q.err || errs.repetida || "" : "";
+  const nomeUn = unidade === "Unidade" ? "unidade" : unidade;
+  return (
+    <Sheet title={index >= 0 ? "Editar embalagem" : "Nova embalagem"} onClose={onClose}>
+      <form noValidate onSubmit={(ev) => { ev.preventDefault(); if (!ok) { setTentou(true); return; } onSave({ tipo, qtd: q.v!, codigo: cod.trim(), preco }, mudaCompra && usar ? unit : null); }} className="flex min-h-0 flex-col">
+        <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3">
+          <Chips label="Tipo de embalagem" hint="Como vem do fornecedor." opts={[...TIPOS_EMBALAGEM]} value={tipo} onChange={setTipo} />
+          <Field label={perguntaQtd(unidade)} name="eqtd" id="eqtd" inputMode={aceitaFracao(unidade) ? "decimal" : "numeric"} enterKeyHint="next" onKeyDown={nextOnEnter("ecod")}
+            placeholder={aceitaFracao(unidade) ? "Ex.: 25" : "Ex.: 12"} value={qtdTxt} onChange={(e) => setQtdTxt(e.target.value.replace(/[^\d,.-]/g, "").slice(0, 10))}
+            error={qErr} hint={`Ex.: caixa com 12 ${nomeUn === "unidade" ? "unidades" : nomeUn}.`} />
+          <Field label="Código de barras da embalagem (opcional)" name="ecod" id="ecod" inputMode="numeric" autoComplete="off" enterKeyHint="next" onKeyDown={nextOnEnter("epreco")}
+            placeholder="Ex.: 17891234567890" value={cod} onChange={(e) => setCod(e.target.value.replace(/\s/g, "").slice(0, 60))} error={errs.codigo ?? ""}
+            hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : gerador.criado && cod === gerador.criado ? CODIGO_CRIADO : "O código impresso na caixa, se tiver."}
+            extra={<button type="button" onClick={() => { setDenied(false); setScan(true); }} className="flex min-h-9 items-center gap-1 text-sm font-semibold text-primary"><ScanLine size={16} /> Escanear</button>} />
+          {onGerarCodigo && !cod.trim() && (
+            <button type="button" disabled={gerador.gerando} className="-mt-1 flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary disabled:opacity-60"
+              onClick={() => gerador.gerar((c) => { setCod(c); setTimeout(() => document.getElementById("epreco")?.focus(), 80); })}>
+              <Tag size={16} /> {gerador.gerando ? "Criando código..." : "Não tem código? Criar um"}
+            </button>
+          )}
+          {gerador.erro && <p role="alert" className="text-sm text-destructive">{gerador.erro}</p>}
+          <Field label={`Preço da ${tipo.toLowerCase()} (opcional)`} name="epreco" id="epreco" inputMode="numeric" enterKeyHint="done" placeholder="R$ 0,00"
+            value={preco ? brl2(preco) : ""} onChange={(e) => setPreco(moneyIn(e.target.value))} hint="Quanto você paga pela embalagem inteira." />
+          {unit > 0 && (
+            <div className="space-y-2 rounded-2xl border border-border bg-background-deep/60 p-3">
+              <p className="text-sm">Cada {nomeUn} sai por <span className="font-bold text-accent">{brl2(unit)}</span></p>
+              {mudaCompra && (
+                <Pick on={usar} onClick={() => setUsar(!usar)}>
+                  <span className="text-sm">Usar {brl2(unit)} como preço de compra{compra > 0 ? <span className="block text-xs font-normal text-muted-foreground">Hoje está {brl2(compra)}.</span> : null}</span>
+                </Pick>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="px-5 pt-2"><button type="submit" className={btnPrimary(ok)} aria-disabled={!ok}>{index >= 0 ? "Salvar embalagem" : "Adicionar"}</button></div>
+      </form>
+      {scan && (
+        <Scanner onClose={() => setScan(false)} onType={() => setScan(false)}
+          onDenied={() => { setScan(false); setDenied(true); }}
+          onCode={(c) => { setScan(false); setCod(c); setTimeout(() => document.getElementById("epreco")?.focus(), 80); }} />
       )}
     </Sheet>
   );

@@ -18,18 +18,21 @@ export type Database = {
         Row: {
           codigo: string
           comercio_id: string
+          embalagem_id: string | null
           produto_id: string
           variacao_id: string | null
         }
         Insert: {
           codigo: string
           comercio_id: string
+          embalagem_id?: string | null
           produto_id: string
           variacao_id?: string | null
         }
         Update: {
           codigo?: string
           comercio_id?: string
+          embalagem_id?: string | null
           produto_id?: string
           variacao_id?: string | null
         }
@@ -487,6 +490,45 @@ export type Database = {
             referencedColumns: ["id", "produto_id", "comercio_id"]
           },
         ]
+      }
+      produto_embalagens: {
+        Row: {
+          codigo_barras: string | null
+          comercio_id: string
+          created_at: string
+          id: string
+          preco_compra: number | null
+          produto_id: string
+          quantidade: number
+          removida_em: string | null
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          codigo_barras?: string | null
+          comercio_id: string
+          created_at?: string
+          id: string
+          preco_compra?: number | null
+          produto_id: string
+          quantidade: number
+          removida_em?: string | null
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          codigo_barras?: string | null
+          comercio_id?: string
+          created_at?: string
+          id?: string
+          preco_compra?: number | null
+          produto_id?: string
+          quantidade?: number
+          removida_em?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       produto_variacoes: {
         Row: {

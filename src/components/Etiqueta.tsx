@@ -4,12 +4,14 @@ import { createPortal } from "react-dom";
 import { Printer, X } from "lucide-react";
 import { btnGhost, btnPrimary, digits } from "@/components/StoreSetup";
 import { desenharCodigo } from "@/lib/codigoBarras";
+import { descricaoEmbalagem } from "@/lib/embalagem";
 import {
   LARGURA_MIN_MODULO, MODELOS, QTD_MAX, folhasA4, larguraModulo, modeloPorId, porFolha, posicaoNaFolha, precoEtiqueta, regraPagina,
   type Modelo,
 } from "@/lib/etiqueta";
 
-export type ItemEtiqueta = { nome: string; codigo: string; venda: number; unidade: string };
+/** `semPreco`: etiqueta de caixa/fardo — o preço de venda é por unidade, então não vai na caixa. */
+export type ItemEtiqueta = { nome: string; codigo: string; venda: number; unidade: string; semPreco?: boolean };
 type Opcao = ItemEtiqueta & { chave: string; rotulo: string };
 
 const CHAVE_MODELO = "omni.etiqueta.modelo";
@@ -38,8 +40,9 @@ export function BarrasSvg({ codigo, alturaMm }: { codigo: string; alturaMm: numb
 }
 
 /** Uma etiqueta no tamanho real (mm). Preto no branco, para qualquer impressora. */
-export function EtiquetaVisual({ item, modelo, mostrarPreco }: { item: ItemEtiqueta; modelo: Modelo; mostrarPreco: boolean }) {
+export function EtiquetaVisual({ item, modelo, mostrarPreco: querPreco }: { item: ItemEtiqueta; modelo: Modelo; mostrarPreco: boolean }) {
   const a = modelo.alt;
+  const mostrarPreco = querPreco && !item.semPreco;
   return (
     <div style={{
       width: `${modelo.larg}mm`, height: `${a}mm`, padding: "1.5mm 2mm", boxSizing: "border-box", background: "#fff", color: "#000",
@@ -100,12 +103,19 @@ function AreaImpressao({ modelo, onFim, children }: { modelo: Modelo; onFim: () 
   );
 }
 
-export function opcoesEtiqueta(p: { nome: string; codigo: string; venda: number; unidade: string; variacoes: { tam: string; cor: string; codigo?: string | undefined }[] }): Opcao[] {
+export function opcoesEtiqueta(p: {
+  nome: string; codigo: string; venda: number; unidade: string; variacoes: { tam: string; cor: string; codigo?: string | undefined }[];
+  embalagens?: { tipo: string; qtd: number; codigo: string }[] | undefined;
+}): Opcao[] {
   const base = { venda: p.venda, unidade: p.unidade };
   const ops: Opcao[] = [];
   if (p.codigo.trim()) ops.push({ ...base, chave: "produto", rotulo: "Produto", nome: p.nome, codigo: p.codigo.trim() });
   p.variacoes.forEach((v, i) => {
     if (v.codigo?.trim()) ops.push({ ...base, chave: `var-${i}`, rotulo: `${v.tam} · ${v.cor}`, nome: `${p.nome} · ${v.tam} ${v.cor}`, codigo: v.codigo.trim() });
+  });
+  (p.embalagens ?? []).forEach((e, i) => {
+    const d = descricaoEmbalagem(e, p.unidade);
+    if (e.codigo.trim()) ops.push({ ...base, chave: `emb-${i}`, rotulo: d, nome: `${p.nome} · ${d}`, codigo: e.codigo.trim(), semPreco: true });
   });
   return ops;
 }
@@ -196,10 +206,11 @@ export function ImprimirEtiquetaSheet({ produto, onClose }: {
                   : `Máximo de ${QTD_MAX} por vez.`}
               </p>
 
+              {item.semPreco ? <p className="text-xs text-muted-foreground">Etiqueta de embalagem sai sem preço (o preço de venda é por unidade).</p> : (
               <button type="button" aria-pressed={mostrarPreco} onClick={() => setMostrarPreco(!mostrarPreco)}
                 className={`flex min-h-12 w-full items-center justify-between rounded-2xl border px-4 text-base font-semibold ${mostrarPreco ? "border-accent bg-accent/10" : "border-border bg-background-deep/60"}`}>
                 Mostrar o preço <span className="text-sm text-muted-foreground">{mostrarPreco ? "Sim" : "Não"}</span>
-              </button>
+              </button>)}
               <p className="text-xs text-muted-foreground">Na tela de impressão, escolha o tamanho de papel certo e escala 100% (tamanho real), sem margens.</p>
             </div>
             <div className="flex gap-2 px-5 pt-2">

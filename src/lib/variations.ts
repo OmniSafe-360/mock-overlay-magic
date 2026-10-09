@@ -1,16 +1,17 @@
 /* Regras das variações (Loja de roupas): códigos e combinações tamanho + cor. */
 export type VarLike = { tam: string; cor: string; codigo?: string | undefined };
-export type ProdLike = { id: number; codigo: string; variacoes: VarLike[] };
+export type ProdLike = { id: number; codigo: string; variacoes: VarLike[]; embalagens?: { codigo: string }[] | undefined };
 
 const norm = (s: string | undefined) => (s ?? "").trim().toLowerCase();
 
-/** Códigos já usados por OUTROS produtos do mesmo comércio (principal + variações). */
+/** Códigos já usados por OUTROS produtos do mesmo comércio (principal + variações + embalagens). */
 export function usedCodes(products: ProdLike[], selfId?: number): Set<string> {
   const set = new Set<string>();
   for (const p of products) {
     if (p.id === selfId) continue;
     if (p.codigo.trim()) set.add(p.codigo.trim());
     for (const v of p.variacoes) if (v.codigo?.trim()) set.add(v.codigo.trim());
+    for (const e of p.embalagens ?? []) if (e.codigo.trim()) set.add(e.codigo.trim());
   }
   return set;
 }
