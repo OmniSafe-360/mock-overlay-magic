@@ -1347,7 +1347,7 @@ function Sum({ t, onEdit, children }: { t: string; onEdit: () => void; children:
   );
 }
 
-function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+export function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <button type="button" aria-label="Fechar" onClick={onClose} className="absolute inset-0 bg-background-deep/70 animate-in fade-in duration-200" />

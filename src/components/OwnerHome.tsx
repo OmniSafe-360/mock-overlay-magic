@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { carregarFornecedores, carregarProdutos, atualizarFornecedor, criarFornecedor, gerarCodigoInterno, salvarProduto, type LocaisCadastrados } from "@/lib/banco";
+import { carregarFornecedores, carregarProdutos, atualizarFornecedor, criarFornecedor, gerarCodigoInterno, salvarProduto, carregarPedidos, salvarPedido, marcarPedidoEnviado, cancelarPedido, type LocaisCadastrados } from "@/lib/banco";
+import type { CanalPedido, LinhaPedido, Pedido } from "@/lib/pedido";
 import { ehIncerto, mensagemErro, type Sessao } from "@/lib/persistencia";
 import { newUid } from "@/lib/deposito";
 import { AlertTriangle, Bell, CalendarClock, ChevronRight, Home, PackageX, Plus, ShoppingBag, Store, UserCircle, Users, CheckCircle2 } from "lucide-react";
@@ -51,6 +52,7 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
   /** Identificadores estáveis do envio aberto: repetir o envio usa os mesmos e não duplica nada. */
   const sessao = useRef<Sessao | null>(null);
   const [locais, setLocais] = useState<Record<string, LocaisCadastrados>>({});
+  const [pedidos, setPedidos] = useState<Record<string, Pedido[]>>({});
   const suppRef = useRef<Supplier[]>([]);
   suppRef.current = suppliers;
 
@@ -63,6 +65,8 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
       setProducts((m) => ({ ...m, [comercioId]: r.produtos }));
       setLocais((m) => ({ ...m, [comercioId]: r.locais }));
       setCarga("ok");
+      // Pedidos carregam à parte: se falhar, o resto do comércio continua funcionando.
+      carregarPedidos(comercioId).then((ps) => setPedidos((m) => ({ ...m, [comercioId]: ps }))).catch(() => {});
     } catch { setCarga("erro"); }
   }, []);
   const openSid = typeof open?.id === "string" && open.id.trim() ? open.id : null;
@@ -98,6 +102,28 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
     suppRef.current = [...suppRef.current, novo];
     setSuppliers((l) => [...l, novo]);
     return novo.id;
+  };
+  const recarregarPedidos = async (comercioId: string) => {
+    const ps = await carregarPedidos(comercioId);
+    setPedidos((m) => ({ ...m, [comercioId]: ps }));
+  };
+  const comMensagem = async <T,>(acao: () => Promise<T>, inicio: string): Promise<T> => {
+    try { return await acao(); }
+    catch (e) { throw new Error(`${inicio} ${mensagemErro(e).replace(/^Não foi possível salvar agora\. /, "")}`); }
+  };
+  const salvarPedidoNovo = (comercioId: string) => async (a: { fornecedor: Supplier; linhas: LinhaPedido[]; observacao: string }) => {
+    if (!a.fornecedor.dbId) throw new Error("Este fornecedor ainda não foi salvo.");
+    const r = await comMensagem(() => salvarPedido({ id: newUid(), comercioId, fornecedorId: a.fornecedor.dbId!, observacao: a.observacao, linhas: a.linhas }), "Não foi possível salvar o pedido.");
+    await recarregarPedidos(comercioId).catch(() => {});
+    return r;
+  };
+  const pedidoEnviado = (comercioId: string) => async (id: string, canal: CanalPedido) => {
+    await comMensagem(() => marcarPedidoEnviado(id, canal), "Não foi possível marcar o pedido como enviado.");
+    await recarregarPedidos(comercioId).catch(() => {});
+  };
+  const pedidoCancelado = (comercioId: string) => async (id: string) => {
+    await comMensagem(() => cancelarPedido(id), "Não foi possível cancelar o pedido.");
+    await recarregarPedidos(comercioId).catch(() => {});
   };
   const updateSupplier = async (s: Supplier, f: Omit<Supplier, "id">) => {
     if (!s.dbId) throw new Error("Este fornecedor ainda não foi salvo.");
@@ -184,6 +210,9 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
           ) : tab === "inicio" && cur ? (
             <StoreSpace key={sid ?? "sem-id"} store={cur} products={list} suppliers={suppliers} saved={saved} locais={sid ? locais[sid] : undefined}
               onAddSupplier={addSupplier} onUpdateSupplier={updateSupplier}
+              pedidos={sid ? pedidos[sid] ?? [] : []}
+              onSalvarPedido={sid ? salvarPedidoNovo(sid) : async () => { throw new Error(NO_ID); }}
+              onPedidoEnviado={sid ? pedidoEnviado(sid) : async () => {}} onCancelarPedido={sid ? pedidoCancelado(sid) : async () => {}}
               onBack={() => { setOpen(null); setSaved(false); }} onNew={() => openWizard()} onEdit={(p) => openWizard(p)} onDismissSaved={() => setSaved(false)} />
           ) : tab === "inicio" ? (
             <HomeContent stores={stores} onAdd={() => setAdding(true)} onOpen={(s) => setOpen(s)} />
