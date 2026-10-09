@@ -86,20 +86,19 @@ create function public.sync_codigo() returns trigger
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   e_var boolean := tg_table_name = 'produto_variacoes';
-  o_cod text; n_cod text; v_prod uuid; v_var uuid;
+  o jsonb := case when tg_op <> 'INSERT' then to_jsonb(old) end;
+  n jsonb := case when tg_op <> 'DELETE' then to_jsonb(new) end;
+  o_cod text := case when o->>'removida_em' is null then o->>'codigo_barras' end;
+  n_cod text := case when n->>'removida_em' is null then n->>'codigo_barras' end;
 begin
-  if tg_op <> 'INSERT' then
-    o_cod := case when e_var and old.removida_em is not null then null else old.codigo_barras end; end if;
-  if tg_op <> 'DELETE' then
-    n_cod := case when e_var and new.removida_em is not null then null else new.codigo_barras end;
-    v_prod := case when e_var then new.produto_id else new.id end;
-    v_var := case when e_var then new.id end; end if;
   if o_cod is not distinct from n_cod then return coalesce(new, old); end if;
   if o_cod is not null then
-    delete from codigos_barras where comercio_id = old.comercio_id and codigo = o_cod; end if;
+    delete from codigos_barras where comercio_id = (o->>'comercio_id')::uuid and codigo = o_cod; end if;
   if n_cod is not null then
     begin
-      insert into codigos_barras values (new.comercio_id, n_cod, v_prod, v_var);
+      insert into codigos_barras values ((n->>'comercio_id')::uuid, n_cod,
+        (case when e_var then n->>'produto_id' else n->>'id' end)::uuid,
+        (case when e_var then n->>'id' end)::uuid);
     exception when unique_violation then
       raise exception 'codigo_em_uso: %', n_cod using errcode = '23505';
     end;
@@ -250,13 +249,14 @@ create trigger movimentos_vinculos before insert on public.movimentos for each r
 -- Histórico imutável: sem exclusão nem alteração.
 create function public.bloquear_alteracao() returns trigger
 language plpgsql set search_path = public, pg_temp as $$
+declare o jsonb := to_jsonb(old); n jsonb := case when tg_op = 'UPDATE' then to_jsonb(new) end;
 begin
-  if tg_table_name = 'operacoes' and tg_op = 'UPDATE' and old.resultado is null
-     and new.id = old.id and new.hash = old.hash and new.user_id = old.user_id then return new; end if;
-  if tg_table_name = 'saldos' and tg_op = 'UPDATE'
-     and (new.id, new.comercio_id, new.produto_id, new.variacao_id, new.area, new.lote_id, new.origem_id, new.pendente)
-         is not distinct from (old.id, old.comercio_id, old.produto_id, old.variacao_id, old.area, old.lote_id, old.origem_id, old.pendente)
-     then return new; end if;
+  -- operacoes: só o preenchimento único do resultado.
+  if tg_table_name = 'operacoes' and n is not null and o->'resultado' = 'null'::jsonb
+     and (n - 'resultado') = (o - 'resultado') then return new; end if;
+  -- saldos: só a quantidade muda (identidade e vínculos fixos).
+  if tg_table_name = 'saldos' and n is not null
+     and (n - 'quantidade' - 'updated_at') = (o - 'quantidade' - 'updated_at') then return new; end if;
   raise exception 'historico_imutavel: %', tg_table_name using errcode = '42501';
 end $$;
 create trigger operacoes_imutavel before update or delete on public.operacoes for each row execute function public.bloquear_alteracao();
