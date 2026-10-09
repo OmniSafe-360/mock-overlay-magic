@@ -11,8 +11,8 @@ import {
 } from "@/lib/embalagem";
 import { ImprimirEtiquetaSheet } from "@/components/Etiqueta";
 import { avisoCodigo } from "@/lib/codigoBarras";
-import { CATEGORIAS, UNIDADES } from "@/lib/listas";
-import { AUTOPECAS_VARS_MSG, POSICAO_MSG, CONSTRUCAO_VARS_MSG, CONTROLADO_MSG, ESPECIE_MSG, PET_VARS_MSG, FARMACIA_VARS_MSG, firstInvalidStep, typeRuleError, type TypeRules, mainCodeError, usedCodes, variationErrors, variationOk } from "@/lib/variations";
+import { CATEGORIAS, DETALHES, UNIDADES } from "@/lib/listas";
+import { AUTOPECAS_VARS_MSG, CONSTRUCAO_VARS_MSG, PET_VARS_MSG, FARMACIA_VARS_MSG, msgDetalheFixo, firstInvalidStep, typeRuleError, type TypeRules, mainCodeError, usedCodes, variationErrors, variationOk } from "@/lib/variations";
 import {
   ACIMA_MAX, LOCAL_DUP, LOCAL_PENDENTE, REMOCAO_BLOQUEADA, SEM_CONFIG, TEMPORARIO, aceitaFracao, fmtQ, limitesErro, limitesStatus, localDuplicado,
   localTravadoMsg, locaisDoComercio, newUid, parseNum, qtdUn, temQtdPositiva, toInput, unidadeTravadaMsg, type Deposito,
@@ -53,15 +53,6 @@ export type Product = {
   confirmarVencimento?: boolean | undefined;
 };
 
-type DField = { k: string; label: string; hint: string; ph?: string; opts?: string[] };
-const DETALHES: Record<string, DField[]> = {
-  mercado: [{ k: "marca", label: "Marca", hint: "Fabricante do produto.", ph: "Ex.: Camil" }, { k: "peso", label: "Peso ou volume da embalagem", hint: "Como aparece no rótulo.", ph: "Ex.: 1 kg, 500 ml" }],
-  farmacia: [{ k: "principio", label: "Princípio ativo", hint: "Substância principal.", ph: "Ex.: Dipirona" }, { k: "apresentacao", label: "Apresentação", hint: "Forma e quantidade.", ph: "Ex.: 10 comprimidos 500 mg" }, { k: "marca", label: "Marca", hint: "Laboratório ou marca.", ph: "Ex.: EMS" }, { k: "controlado", label: "É medicamento controlado?", hint: "Exige retenção de receita.", opts: ["Sim", "Não"] }],
-  roupas: [{ k: "marca", label: "Marca", hint: "Marca da peça.", ph: "Ex.: Hering" }],
-  construcao: [{ k: "marca", label: "Marca", hint: "Fabricante.", ph: "Ex.: Tigre" }, { k: "medida", label: "Medida / especificação", hint: "Tamanho, bitola ou tipo.", ph: "Ex.: Cano PVC 25 mm" }],
-  pet: [{ k: "marca", label: "Marca", hint: "Fabricante.", ph: "Ex.: Golden" }, { k: "especie", label: "Espécie", hint: "Para qual animal.", opts: ["Cão", "Gato", "Outros"] }, { k: "peso", label: "Peso da embalagem", hint: "Como no rótulo.", ph: "Ex.: 15 kg" }],
-  autopecas: [{ k: "referencia", label: "Código do fabricante", hint: "Referência da peça.", ph: "Ex.: KYB-334" }, { k: "marca", label: "Marca", hint: "Fabricante da peça.", ph: "Ex.: Bosch" }, { k: "aplicacao", label: "Aplicação", hint: "Marca, modelo e ano do veículo.", ph: "Ex.: Fiat Uno 2015" }, { k: "posicao", label: "Posição", hint: "Onde vai no veículo.", opts: ["Dianteira", "Traseira", "Esquerda", "Direita", "Não se aplica"] }],
-};
 const TAMANHOS = ["P", "M", "G", "GG", "36", "38", "40", "42", "44"];
 
 export const brl2 = (cents: number) => (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -336,6 +327,10 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const [unidade, setUnidade] = useState(initial?.unidade ?? ini.unidade ?? "");
   const [categoria, setCategoria] = useState(initial?.categoria ?? ini.categoria ?? "");
   const [det, setDet] = useState<Record<string, string>>(initial?.detalhes ?? {});
+  /* Detalhes: os opcionais ficam fechados em "Mais detalhes" (abertos se o produto já tem algum preenchido). */
+  const extrasDet = (DETALHES[tipo] ?? []).filter((f) => f.opcional);
+  const [maisDet, setMaisDet] = useState(() => extrasDet.some((f) => !!initial?.detalhes?.[f.k]));
+  const camposDet = (DETALHES[tipo] ?? []).filter((f) => !f.opcional || maisDet);
   const [vars, setVars] = useState<Variation[]>(() => (initial?.variacoes ?? []).map((v) => (v.uid ? v : { ...v, uid: newUid() })));
   const [forn, setForn] = useState<number | null | undefined>(initial ? initial.fornecedor : ini.fornecedor);
   const [varSheet, setVarSheet] = useState<number | null>(null);
@@ -397,16 +392,15 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const codeErr = mainCodeError(codigo, used, isRoupas ? vars : [])
     || (!isRoupas && codigo.trim() && embs.some((e) => e.codigo.trim() === codigo.trim()) ? "Este código já pertence a uma embalagem deste produto." : "");
   const [triedSave, setTriedSave] = useState(false);
+  /** Detalhes com opções fixas do tipo: se preenchidos, precisam estar na lista (o banco confere igual). */
+  const fixos = (DETALHES[tipo] ?? []).filter((f) => f.opts).map((f) => ({ k: f.k, opts: f.opts!, msg: msgDetalheFixo(f.label) }));
   const rules: TypeRules | undefined =
     tipo === "mercado" ? { unidades: UNIDADES["mercado"]!, categorias: CATEGORIAS["mercado"]!, semVariacoes: true }
-    : tipo === "farmacia" ? { unidades: UNIDADES["farmacia"]!, categorias: CATEGORIAS["farmacia"]!, semVariacoes: true, varsMsg: FARMACIA_VARS_MSG,
-        detalhesFixos: [{ k: "controlado", opts: DETALHES["farmacia"]!.find((f) => f.k === "controlado")?.opts ?? [], msg: CONTROLADO_MSG }] }
-    : tipo === "construcao" ? { unidades: UNIDADES["construcao"]!, categorias: CATEGORIAS["construcao"]!, semVariacoes: true, varsMsg: CONSTRUCAO_VARS_MSG }
-    : tipo === "pet" ? { unidades: UNIDADES["pet"]!, categorias: CATEGORIAS["pet"]!, semVariacoes: true, varsMsg: PET_VARS_MSG,
-        detalhesFixos: [{ k: "especie", opts: DETALHES["pet"]!.find((f) => f.k === "especie")?.opts ?? [], msg: ESPECIE_MSG }] }
-    : tipo === "autopecas" ? { unidades: UNIDADES["autopecas"]!, categorias: CATEGORIAS["autopecas"]!, semVariacoes: true, varsMsg: AUTOPECAS_VARS_MSG,
-        detalhesFixos: [{ k: "posicao", opts: DETALHES["autopecas"]!.find((f) => f.k === "posicao")?.opts ?? [], msg: POSICAO_MSG }] }
-    : tipo === "roupas" ? { unidades: UNIDADES["roupas"]!, categorias: CATEGORIAS["roupas"]! } // variações continuam obrigatórias
+    : tipo === "farmacia" ? { unidades: UNIDADES["farmacia"]!, categorias: CATEGORIAS["farmacia"]!, semVariacoes: true, varsMsg: FARMACIA_VARS_MSG, detalhesFixos: fixos }
+    : tipo === "construcao" ? { unidades: UNIDADES["construcao"]!, categorias: CATEGORIAS["construcao"]!, semVariacoes: true, varsMsg: CONSTRUCAO_VARS_MSG, detalhesFixos: fixos }
+    : tipo === "pet" ? { unidades: UNIDADES["pet"]!, categorias: CATEGORIAS["pet"]!, semVariacoes: true, varsMsg: PET_VARS_MSG, detalhesFixos: fixos }
+    : tipo === "autopecas" ? { unidades: UNIDADES["autopecas"]!, categorias: CATEGORIAS["autopecas"]!, semVariacoes: true, varsMsg: AUTOPECAS_VARS_MSG, detalhesFixos: fixos }
+    : tipo === "roupas" ? { unidades: UNIDADES["roupas"]!, categorias: CATEGORIAS["roupas"]!, detalhesFixos: fixos } // variações continuam obrigatórias
     : undefined;
   const ruleErr = typeRuleError({ unidade, categoria, variacoes: vars, detalhes: det }, rules);
   const dup = !!codeErr;
@@ -865,7 +859,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
 
               {step === 2 && (
                 <>
-                  {(DETALHES[tipo] ?? []).map((f, i, arr) =>
+                  {camposDet.map((f, i, arr) =>
                     f.opts ? (
                       <Chips key={f.k} label={f.label} hint={f.hint} opts={f.opts} value={det[f.k] ?? ""} onChange={(v) => setDet({ ...det, [f.k]: v })} />
                     ) : (
@@ -874,6 +868,11 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                         onKeyDown={(() => { const n = arr.slice(i + 1).find((x) => !x.opts); return n ? nextOnEnter(`d-${n.k}`) : undefined; })()}
                         value={det[f.k] ?? ""} onChange={(e) => setDet({ ...det, [f.k]: e.target.value })} />
                     ),
+                  )}
+                  {extrasDet.length > 0 && !maisDet && (
+                    <button type="button" onClick={() => setMaisDet(true)} className="flex min-h-12 items-center gap-1.5 text-base font-semibold text-primary">
+                      <Plus size={18} /> Mais detalhes (opcional)
+                    </button>
                   )}
                   {isRoupas && (
                     <div className="space-y-2">
@@ -1411,10 +1410,10 @@ function Chips({ label, hint, opts, value, onChange }: { label: string; hint: st
   return (
     <div className="space-y-1">
       <p className="text-sm font-medium text-muted-foreground">{label}</p>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5">
         {opts.map((o) => (
           <button key={o} type="button" aria-pressed={value === o} onClick={() => onChange(o)}
-            className={`min-h-12 rounded-2xl border px-4 text-base font-semibold transition ${value === o ? "border-accent bg-accent/10 text-foreground" : "border-border bg-background-deep/60 text-muted-foreground hover:border-primary"}`}>{o}</button>
+            className={`min-h-12 rounded-2xl border px-3.5 text-base font-semibold transition ${value === o ? "border-accent bg-accent/10 text-foreground" : "border-border bg-background-deep/60 text-muted-foreground hover:border-primary"}`}>{o}</button>
         ))}
       </div>
       <p className="text-xs text-muted-foreground">{hint}</p>

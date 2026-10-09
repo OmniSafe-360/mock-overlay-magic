@@ -23,8 +23,17 @@ describe("opções do Pet shop", () => {
   it.each(["Unidade", "Kg", "Litro", "Pacote", "Caixa"])("aceita a unidade %s", (u) => {
     const t = setup({ ...ok, unidade: u }); run(t.submit, 8); expect(t.onSave.mock.calls[0]![0].unidade).toBe(u);
   });
-  it.each(["Cão", "Gato", "Outros", ""])("aceita a espécie '%s'", (e) => {
+  it.each(["Cão", "Gato", "Pássaro", "Peixe", "Roedor", "Outros", ""])("aceita a espécie '%s'", (e) => {
     const t = setup({ ...ok, detalhes: { marca: "X", especie: e } }); run(t.submit, 8); expect(t.onSave).toHaveBeenCalledTimes(1);
+  });
+  it("porte e fase da lista são aceitos", () => {
+    const t = setup({ ...ok, detalhes: { especie: "Cão", porte: "Grande", fase: "Filhote" } }); run(t.submit, 8);
+    expect(t.onSave.mock.calls[0]![0].detalhes).toMatchObject({ porte: "Grande", fase: "Filhote" });
+  });
+  it("porte fora da lista impede salvar", () => {
+    const t = setup({ ...ok, detalhes: { porte: "Gigante" } }); run(t.submit);
+    expect(t.onSave).not.toHaveBeenCalled();
+    expect(screen.getByText(/Escolha uma das opções da lista em "Porte"/)).toBeTruthy();
   });
   it("espécie ausente é aceita", () => {
     const t = setup({ ...ok, detalhes: { marca: "X" } }); run(t.submit, 8); expect(t.onSave).toHaveBeenCalledTimes(1);
@@ -39,8 +48,8 @@ describe("opções do Pet shop", () => {
     expect(screen.getByText(/Categoria incompatível/)).toBeTruthy();
   });
 
-  it("espécie Peixe é recusada; escolher Outros libera", () => {
-    const t = setup({ ...ok, detalhes: { especie: "Peixe" } }); run(t.submit);
+  it("espécie fora da lista (Cavalo) é recusada; escolher Outros libera", () => {
+    const t = setup({ ...ok, detalhes: { especie: "Cavalo" } }); run(t.submit);
     expect(t.onSave).not.toHaveBeenCalled();
     expect(screen.getByText(ESPECIE_MSG)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Outros" }));

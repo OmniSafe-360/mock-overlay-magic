@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ProductWizard, type Product } from "@/components/ProductArea";
-import { CONTROLADO_MSG, FARMACIA_VARS_MSG } from "@/lib/variations";
+import { FARMACIA_VARS_MSG, TARJA_MSG } from "@/lib/variations";
 
 vi.mock("@/components/Scanner", () => ({ Scanner: () => null }));
 
 const store = { id: "f1", nome: "Farmácia", tipo: "farmacia" } as never;
 const ok: Product = { id: 4, codigo: "456", nome: "Dipirona", compra: 500, venda: 900, unidade: "Caixa", categoria: "Medicamentos",
-  detalhes: { principio: "Dipirona", controlado: "Não" }, variacoes: [], fornecedor: null };
+  detalhes: { principio: "Dipirona", tarja: "Sem tarja (venda livre)" }, variacoes: [], fornecedor: null };
 
 function setup(initial: Product) {
   const onSave = vi.fn();
@@ -19,8 +19,8 @@ const run = (submit: () => void, n = 9) => { for (let i = 0; i < n; i++) submit(
 describe("opções da Farmácia", () => {
   it("produto válido salva", () => { const t = setup(ok); run(t.submit, 8); expect(t.onSave).toHaveBeenCalledTimes(1); });
 
-  it("controlado aceita Sim e ausência", () => {
-    const a = setup({ ...ok, detalhes: { controlado: "Sim" } }); run(a.submit, 8); expect(a.onSave).toHaveBeenCalledTimes(1);
+  it.each(["Tarja vermelha", "Tarja vermelha (retém receita)", "Tarja preta"])("tarja %s salva", (tarja) => {
+    const a = setup({ ...ok, detalhes: { tarja } }); run(a.submit, 8); expect(a.onSave).toHaveBeenCalledTimes(1);
   });
   it("produto sem detalhes salva (Pular)", () => {
     const t = setup({ ...ok, detalhes: {} }); run(t.submit, 8); expect(t.onSave).toHaveBeenCalledTimes(1);
@@ -42,15 +42,15 @@ describe("opções da Farmácia", () => {
     expect(v).toHaveLength(1);
   });
 
-  it("controlado inválido impede salvar; corrigir libera", () => {
-    const t = setup({ ...ok, detalhes: { controlado: "Talvez" } }); run(t.submit);
+  it("tarja inválida impede salvar; corrigir libera", () => {
+    const t = setup({ ...ok, detalhes: { tarja: "Tarja azul" } }); run(t.submit);
     expect(t.onSave).not.toHaveBeenCalled();
-    expect(screen.getByText(CONTROLADO_MSG)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Sim" }));
-    expect(screen.queryByText(CONTROLADO_MSG)).toBeNull();
+    expect(screen.getByText(TARJA_MSG)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Tarja preta" }));
+    expect(screen.queryByText(TARJA_MSG)).toBeNull();
     run(t.submit, 6);
     expect(t.onSave).toHaveBeenCalledTimes(1);
-    expect(t.onSave.mock.calls[0]![0].detalhes.controlado).toBe("Sim");
+    expect(t.onSave.mock.calls[0]![0].detalhes.tarja).toBe("Tarja preta");
   });
 
   it("corrigir unidade e categoria remove avisos e permite concluir", () => {
