@@ -19,20 +19,20 @@ const rules = { unidades: ["Unidade", "Kg", "Litro", "Pacote", "Caixa"], categor
 describe("opções do Mercado", () => {
   it("opções válidas continuam salvando", () => {
     const { onSave, submit } = setup(ok);
-    for (let i = 0; i < 6; i++) submit();
+    for (let i = 0; i < 7; i++) submit();
     expect(onSave).toHaveBeenCalledTimes(1);
   });
 
   it("unidade de outro tipo (Peça) impede salvar", () => {
     const { onSave, submit } = setup({ ...ok, unidade: "Peça" });
-    for (let i = 0; i < 7; i++) submit();
+    for (let i = 0; i < 8; i++) submit();
     expect(onSave).not.toHaveBeenCalled();
     expect(screen.getByText(/Unidade incompatível/)).toBeTruthy();
   });
 
   it("categoria de outro tipo (Camisetas) impede salvar", () => {
     const { onSave, submit } = setup({ ...ok, categoria: "Camisetas" });
-    for (let i = 0; i < 7; i++) submit();
+    for (let i = 0; i < 8; i++) submit();
     expect(onSave).not.toHaveBeenCalled();
     expect(screen.getByText(/Categoria incompatível/)).toBeTruthy();
   });
@@ -40,7 +40,7 @@ describe("opções do Mercado", () => {
   it("com variações impede salvar e não apaga as variações", () => {
     const v = [{ tam: "M", cor: "Azul", codigo: "1", qtd: 1 }];
     const { onSave, submit } = setup({ ...ok, variacoes: v });
-    for (let i = 0; i < 7; i++) submit();
+    for (let i = 0; i < 8; i++) submit();
     expect(onSave).not.toHaveBeenCalled();
     expect(screen.getByText(MERCADO_VARS_MSG)).toBeTruthy();
     expect(v).toHaveLength(1);
@@ -53,7 +53,7 @@ describe("opções do Mercado", () => {
     expect(screen.getByText(/Categoria incompatível/)).toBeTruthy();
     fireEvent.change(document.getElementById("cat")!, { target: { value: "Bebidas" } });
     expect(screen.queryByText(/incompatível/)).toBeNull();
-    for (let i = 0; i < 5; i++) submit();
+    for (let i = 0; i < 6; i++) submit();
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(onSave.mock.calls[0]![0]).toMatchObject({ unidade: "Pacote", categoria: "Bebidas" });
   });

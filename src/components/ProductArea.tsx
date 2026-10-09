@@ -7,6 +7,10 @@ import {
   ACIMA_MAX, LOCAL_DUP, LOCAL_PENDENTE, REMOCAO_BLOQUEADA, SEM_CONFIG, TEMPORARIO, aceitaFracao, fmtQ, limitesErro, limitesStatus, localDuplicado,
   localTravadoMsg, locaisDoComercio, newUid, parseNum, temQtdPositiva, toInput, unidadeTravadaMsg, type Deposito,
 } from "@/lib/deposito";
+import {
+  EXEMPLO_LOCAL, SEM_REPOSICAO, VEN_ACIMA_MAX, VEN_LOCAL_DUP, VEN_LOCAL_PENDENTE, VEN_SEM_CONFIG, limitesVendaStatus,
+  locaisVendaDoComercio, totalTexto, venLocalTravadoMsg, type AreaVenda,
+} from "@/lib/areaVenda";
 
 /* ---------- tipos e dados por comércio ---------- */
 export type Supplier = { id: number; nome: string; tel: string; email: string };
@@ -16,6 +20,8 @@ export type Product = {
   id: number; codigo: string; nome: string; compra: number; venda: number; unidade: string; categoria: string;
   detalhes: Record<string, string>; variacoes: Variation[]; fornecedor: number | null;
   deposito?: Deposito | undefined;
+  /** Área de venda (gôndola, prateleira, arara...). Não confundir com `venda`, que é o preço. */
+  areaVenda?: AreaVenda | undefined;
 };
 
 const UNIDADES: Record<string, string[]> = {
@@ -119,6 +125,8 @@ export function ProductDetail({ p, tipo, suppliers, onBack, onEdit }: { p: Produ
         )}
         <Row t="Fornecedor">{f ? <>{f.nome}{f.tel ? ` · ${f.tel}` : ""}</> : "Definir depois"}</Row>
         <Row t="Depósito"><DepositoInfo p={p} /></Row>
+        <Row t="Área de venda"><AreaVendaInfo p={p} /></Row>
+        <Row t="Total para conferência"><TotalInfo p={p} /></Row>
       </div>
       <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">{TEMPORARIO}</p>
       <button type="button" onClick={onEdit} className={`flex items-center justify-center gap-2 ${btnPrimary(true)}`}><Pencil size={18} /> Editar</button>
@@ -160,11 +168,48 @@ export function DepositoInfo({ p }: { p: Product }) {
   );
 }
 
-/* ---------- cadastro em 6 etapas (Depósito tem 3 subpassos) ---------- */
-const TITLES = ["Qual é o código do produto?", "Preço e unidade", "Detalhes do produto", "Quem é o fornecedor?", "Depósito", "Conferir e salvar"];
+/** Situação da área de venda, mostrada no detalhe do produto. */
+export function AreaVendaInfo({ p }: { p: Product }) {
+  const a = p.areaVenda;
+  if (!a) return <span className="block">{VEN_SEM_CONFIG}</span>;
+  return (
+    <>
+      <span className="block">{a.local ? `Local: ${a.local}` : VEN_LOCAL_PENDENTE}</span>
+      {a.vars ? (
+        p.variacoes.map((v, i) => {
+          const c = v.uid ? a.vars?.[v.uid] : undefined;
+          return (
+            <span key={v.uid ?? i} className="block">
+              {v.tam} · {v.cor}: {c ? <>Quantidade na área de venda: {fmtQ(c.qtd)} {p.unidade} · {limitesVendaStatus(c.min, c.max)}</> : VEN_SEM_CONFIG}
+            </span>
+          );
+        })
+      ) : (
+        <>
+          <span className="block">Quantidade na área de venda: {a.qtd != null ? `${fmtQ(a.qtd)} ${p.unidade}` : "não informada"}</span>
+          <span className="block">{limitesVendaStatus(a.min, a.max)}</span>
+        </>
+      )}
+      <span className="block text-sm text-muted-foreground">{SEM_REPOSICAO}</span>
+    </>
+  );
+}
+
+/** Contagem confirmada de uma área (produto inteiro ou variação). Nunca usa a quantidade do cadastro. */
+const qtdArea = (d: Deposito | undefined, uid?: string) => (!d ? null : uid ? d.vars?.[uid]?.qtd ?? null : d.vars ? null : d.qtd);
+export function TotalInfo({ p }: { p: Product }) {
+  if (p.variacoes.length && (p.deposito?.vars || p.areaVenda?.vars))
+    return <>{p.variacoes.map((v, i) => <span key={v.uid ?? i} className="block">{v.tam} · {v.cor}: {totalTexto(qtdArea(p.deposito, v.uid), qtdArea(p.areaVenda, v.uid), p.unidade)}</span>)}</>;
+  return <span className="block">{totalTexto(qtdArea(p.deposito), qtdArea(p.areaVenda), p.unidade)}</span>;
+}
+
+/* ---------- cadastro em 7 etapas (Depósito e Área de venda têm 3 subpassos) ---------- */
+const TITLES = ["Qual é o código do produto?", "Preço e unidade", "Detalhes do produto", "Quem é o fornecedor?", "Depósito", "Área de venda", "Conferir e salvar"];
 const DEP_TITLES = ["Onde fica no depósito?", "Quanto há no depósito?", "Limites de estoque"];
+const VEN_TITLES = ["Área de venda: onde fica?", "Área de venda: quantidade", "Área de venda: limites"];
 const STEP_DEP = 4;
-const STEP_REV = 5;
+const STEP_VEN = 5;
+const STEP_REV = 6;
 const TOTAL = TITLES.length;
 
 type VarDep = { qtd?: string | undefined; min: string; max: string };
@@ -211,6 +256,20 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     Object.fromEntries(Object.entries(initDep?.vars ?? {}).map(([k, c]) => [k, { qtd: toInput(c.qtd), min: toInput(c.min), max: toInput(c.max) }])));
   const [subTried, setSubTried] = useState(false);
 
+  /* ----- área de venda (em memória, conjunto de locais separado do depósito) ----- */
+  const initVen = initial?.areaVenda;
+  const vendaSalva = !!initVen;
+  const locaisV = useMemo(() => locaisVendaDoComercio(products), [products]);
+  const [vLocal, setVLocal] = useState<string | null | undefined>(initVen ? initVen.local : undefined);
+  const [vManter, setVManter] = useState(!!initial && !initVen);
+  const [vNovo, setVNovo] = useState<string | null>(null);
+  const [vLocalMsg, setVLocalMsg] = useState("");
+  const [vQtd, setVQtd] = useState(toInput(initVen?.qtd));
+  const [vMin, setVMin] = useState(toInput(initVen?.min));
+  const [vMax, setVMax] = useState(toInput(initVen?.max));
+  const [vVar, setVVar] = useState<Record<string, VarDep>>(() =>
+    Object.fromEntries(Object.entries(initVen?.vars ?? {}).map(([k, c]) => [k, { qtd: toInput(c.qtd), min: toInput(c.min), max: toInput(c.max) }])));
+
   const used = useMemo(() => usedCodes(products, initial?.id), [products, initial?.id]);
   const isRoupas = tipo === "roupas";
   const codeErr = mainCodeError(codigo, used, isRoupas ? vars : []);
@@ -231,7 +290,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const varsOk = vars.length > 0 && vars.every((v, i) => variationOk(v, i, vars, codigo, used));
 
   /* validações do depósito */
-  const unidadeTravada = configSalva && unidade !== initial!.unidade;
+  const unidadeTravada = (configSalva || vendaSalva) && unidade !== initial!.unidade;
   const localTravado = !!initDep?.local && temQtdPositiva(initDep);
   const qtdTravada = configSalva && !isRoupas;
   const q = qtdTravada ? { v: initDep!.qtd, err: "" } : parseNum(dQtd, unidade, false);
@@ -253,12 +312,34 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     : !qtdOk ? { sub: 1, msg: pendentes.length ? "Responda se as quantidades estão no depósito." : "Corrija a quantidade contada." }
     : !limOk ? { sub: 2, msg: "Corrija os limites marcados em vermelho." } : null;
 
+  /* validações da área de venda */
+  const vLocalTravado = !!initVen?.local && temQtdPositiva(initVen);
+  const vQtdTravada = vendaSalva && !isRoupas;
+  const vq = vQtdTravada ? { v: initVen!.qtd, err: "" } : parseNum(vQtd, unidade, false);
+  const vmn = parseNum(vMin, unidade, true);
+  const vmx = parseNum(vMax, unidade, true);
+  const vLimErr = limitesErro(vmn.v, vmx.v);
+  const varsVen = vars.map((v) => {
+    const d = vVar[v.uid!] ?? { qtd: "", min: "", max: "" };
+    const saved = v.uid ? initVen?.vars?.[v.uid] : undefined;
+    const qv = saved ? { v: saved.qtd as number | null, err: "" } : parseNum(d.qtd ?? "", unidade, false);
+    const a = parseNum(d.min, unidade, true), b = parseNum(d.max, unidade, true);
+    return { v, d, travada: !!saved, q: qv, mn: a, mx: b, lim: limitesErro(a.v, b.v) };
+  });
+  const vLocalOk = vManter || vLocal !== undefined;
+  const vQtdOk = vManter || (isRoupas ? varsVen.length > 0 && varsVen.every((x) => !x.q.err) : !vq.err);
+  const vLimOk = vManter || (isRoupas ? varsVen.every((x) => !x.mn.err && !x.mx.err && !x.lim) : !vmn.err && !vmx.err && !vLimErr);
+  const venBad = !vLocalOk ? { sub: 0, msg: "Escolha um local de venda ou \"Definir depois\"." }
+    : !vQtdOk ? { sub: 1, msg: "Corrija a quantidade contada na área de venda." }
+    : !vLimOk ? { sub: 2, msg: "Corrija os limites marcados em vermelho." } : null;
+
   const valid = [
     !!codigo.trim() && !dup && !!nome.trim(),
     compra > 0 && venda > 0 && !!unidade && !!categoria && ruleErr?.step !== 1 && !unidadeTravada,
     (!isRoupas || varsOk) && ruleErr?.step !== 2,
     forn !== undefined,
     [localOk, qtdOk, limOk][sub]!,
+    [vLocalOk, vQtdOk, vLimOk][sub]!,
     true,
   ][step]!;
   const lucro = venda - compra;
@@ -268,8 +349,10 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const go = (to: number, s = 0) => { setDir(to * 10 + s > step * 10 + sub ? 1 : -1); setStep(to); setSub(s); setSubTried(false); };
   const baseBad = firstInvalidStep({ codigo, nome, compra, venda, unidade, categoria, variacoes: vars, detalhes: det, fornecedor: forn }, isRoupas, used, rules);
   const bad: { step: number; sub?: number; msg: string } | null =
-    unidadeTravada ? { step: 1, msg: unidadeTravadaMsg(initial!.unidade) } : baseBad ?? (depBad ? { step: STEP_DEP, sub: depBad.sub, msg: depBad.msg } : null);
-  const here = (b: { step: number; sub?: number }) => b.step === step && (step !== STEP_DEP || (b.sub ?? 0) === sub);
+    unidadeTravada ? { step: 1, msg: unidadeTravadaMsg(initial!.unidade) }
+    : baseBad ?? (depBad ? { step: STEP_DEP, sub: depBad.sub, msg: depBad.msg } : venBad ? { step: STEP_VEN, sub: venBad.sub, msg: venBad.msg } : null);
+  const hasSub = step === STEP_DEP || step === STEP_VEN;
+  const here = (b: { step: number; sub?: number }) => b.step === step && (!hasSub || (b.sub ?? 0) === sub);
   const saveErr = triedSave && bad && here(bad) ? bad.msg : ruleErr && ruleErr.step === step ? ruleErr.msg : "";
 
   const buildDeposito = (): Deposito | undefined => {
@@ -279,25 +362,38 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
         vars: Object.fromEntries(varsDep.map((x) => [x.v.uid!, { qtd: x.q.v ?? 0, min: x.mn.v, max: x.mx.v }])) };
     return { local: dLocal ?? null, qtd: q.v, min: mn.v, max: mx.v };
   };
+  const buildVenda = (): AreaVenda | undefined => {
+    if (vManter) return undefined;
+    if (isRoupas)
+      return { local: vLocal ?? null, qtd: null, min: null, max: null,
+        vars: Object.fromEntries(varsVen.map((x) => [x.v.uid!, { qtd: x.q.v ?? 0, min: x.mn.v, max: x.mx.v }])) };
+    return { local: vLocal ?? null, qtd: vq.v, min: vmn.v, max: vmx.v };
+  };
   const save = () => {
     if (bad) { setTriedSave(true); setFromReview(true); return go(bad.step, bad.sub ?? 0); }
     onSave({ id: initial?.id ?? Date.now(), codigo: codigo.trim(), nome: nome.trim(), compra, venda, unidade, categoria, detalhes: det, variacoes: vars,
-      fornecedor: forn ?? null, deposito: buildDeposito() });
+      fornecedor: forn ?? null, deposito: buildDeposito(), areaVenda: buildVenda() });
   };
   const next = () => {
-    if (!valid) { if (step === STEP_DEP) setSubTried(true); return; }
+    if (!valid) { if (hasSub) setSubTried(true); return; }
     if (step === STEP_REV) return save();
     if (step === STEP_DEP) {
-      if (manterSem || sub === 2 || (fromReview && !depBad)) { setFromReview(false); return go(STEP_REV); }
+      if (fromReview && !depBad) { setFromReview(false); return go(STEP_REV); }
+      if (manterSem || sub === 2) return go(STEP_VEN);
       return go(STEP_DEP, sub + 1);
+    }
+    if (step === STEP_VEN) {
+      if (vManter || sub === 2 || (fromReview && !venBad)) { setFromReview(false); return go(STEP_REV); }
+      return go(STEP_VEN, sub + 1);
     }
     if (fromReview) { setFromReview(false); return go(STEP_REV); }
     go(step + 1);
   };
   const back = () => {
     setFromReview(false);
-    if (step === STEP_DEP && sub > 0) return go(STEP_DEP, sub - 1);
-    if (step === STEP_REV) return go(STEP_DEP, manterSem ? 0 : 2);
+    if (hasSub && sub > 0) return go(step, sub - 1);
+    if (step === STEP_VEN) return go(STEP_DEP, manterSem ? 0 : 2);
+    if (step === STEP_REV) return go(STEP_VEN, vManter ? 0 : 2);
     go(step - 1);
   };
   const edit = (s: number, ss = 0) => { setFromReview(true); go(s, ss); };
@@ -309,22 +405,40 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const listaLocais = dLocal && !localDuplicado(dLocal, locais) ? [...locais, dLocal] : locais;
   const novoDup = novoLocal !== null && !!novoLocal.trim() && localDuplicado(novoLocal, listaLocais);
   const addLocal = () => { if (novoLocal && novoLocal.trim() && !novoDup) pickLocal(novoLocal.trim()); };
+  const pickVLocal = (l: string | null) => {
+    if (vLocalTravado && l !== initVen!.local) { setVLocalMsg(venLocalTravadoMsg(initVen!.local!)); return; }
+    setVLocal(l); setVManter(false); setVLocalMsg(""); setVNovo(null);
+  };
+  const listaVLocais = vLocal && !localDuplicado(vLocal, locaisV) ? [...locaisV, vLocal] : locaisV;
+  const vNovoDup = vNovo !== null && !!vNovo.trim() && localDuplicado(vNovo, listaVLocais);
+  const addVLocal = () => { if (vNovo && vNovo.trim() && !vNovoDup) pickVLocal(vNovo.trim()); };
   const setVD = (uid: string, patch: Partial<VarDep>) => setDVar((m) => ({ ...m, [uid]: { ...(m[uid] ?? { min: "", max: "" }), ...patch } }));
+  const setVV = (uid: string, patch: Partial<VarDep>) => setVVar((m) => ({ ...m, [uid]: { ...(m[uid] ?? { qtd: "", min: "", max: "" }), ...patch } }));
   const numIn = (s: string) => s.replace(/[^\d,.-]/g, "").slice(0, 12);
   const fr = aceitaFracao(unidade);
   const numProps = { inputMode: fr ? ("decimal" as const) : ("numeric" as const), autoComplete: "off", placeholder: fr ? "Ex.: 12,5" : "Ex.: 40" };
   const showErr = (txt: string, err: string) => (txt.trim() || subTried ? err : "");
   const removeVar = (i: number) => {
-    const x = varsDep[i];
-    if (x && (x.q.v ?? 0) > 0) { setVarMsg(REMOCAO_BLOQUEADA); return; }
+    const x = varsDep[i], y = varsVen[i];
+    if ((x && (x.q.v ?? 0) > 0) || (y && (y.q.v ?? 0) > 0)) { setVarMsg(REMOCAO_BLOQUEADA); return; }
     setVarMsg("");
     setVars(vars.filter((_, j) => j !== i));
-    if (x?.v.uid) { const k = x.v.uid; setDVar((m) => { const n = { ...m }; delete n[k]; return n; }); }
+    if (x?.v.uid) { const k = x.v.uid; const del = (m: Record<string, VarDep>) => { const n = { ...m }; delete n[k]; return n; }; setDVar(del); setVVar(del); }
   };
   const resumoLocal = manterSem ? SEM_CONFIG : dLocal ? dLocal : LOCAL_PENDENTE;
   const resumoQtd = isRoupas
     ? varsDep.map((x) => `${x.v.tam}/${x.v.cor}: ${x.q.v != null ? fmtQ(x.q.v) : "—"}`).join(", ")
     : q.v != null ? `${fmtQ(q.v)} ${unidade}` : "—";
+  const resumoVLocal = vManter ? VEN_SEM_CONFIG : vLocal ? vLocal : VEN_LOCAL_PENDENTE;
+  const resumoVQtd = isRoupas
+    ? varsVen.map((x) => `${x.v.tam}/${x.v.cor}: ${x.q.v != null && !x.q.err ? fmtQ(x.q.v) : "—"}`).join(", ")
+    : vq.v != null && !vq.err ? `${fmtQ(vq.v)} ${unidade}` : "—";
+  const resumoVLim = isRoupas ? varsVen.map((x) => `${x.v.tam}/${x.v.cor}: ${limitesVendaStatus(x.mn.v, x.mx.v)}`).join(" · ") : limitesVendaStatus(vmn.v, vmx.v);
+  /* total visual: só com as duas contagens confirmadas; nunca usa a quantidade do cadastro */
+  const okQ = (r: { v: number | null; err: string }) => (r.err ? null : r.v);
+  const totalLinhas = isRoupas
+    ? vars.map((v, i) => `${v.tam} · ${v.cor}: ${totalTexto(manterSem ? null : okQ(varsDep[i]!.q), vManter ? null : okQ(varsVen[i]!.q), unidade)}`)
+    : [totalTexto(manterSem ? null : okQ(q), vManter ? null : okQ(vq), unidade)];
   const resumoLim = isRoupas ? varsDep.map((x) => `${x.v.tam}/${x.v.cor}: ${limitesStatus(x.mn.v, x.mx.v)}`).join(" · ") : limitesStatus(mn.v, mx.v);
 
   return (
@@ -339,11 +453,11 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
           <form noValidate onSubmit={(e) => { e.preventDefault(); next(); }} className="flex min-h-0 flex-1 flex-col">
             <div className="mt-2 shrink-0">
               <div className="mb-2 flex items-baseline justify-between gap-2">
-                <h1 className="min-w-0 text-lg font-bold short:text-base">{step === STEP_DEP ? DEP_TITLES[sub] : TITLES[step]}</h1>
-                <span className="shrink-0 text-xs text-muted-foreground">Passo {step + 1} de {TOTAL}{step === STEP_DEP && !manterSem ? ` · ${sub + 1}/3` : ""}</span>
+                <h1 className="min-w-0 text-lg font-bold short:text-base">{step === STEP_DEP ? DEP_TITLES[sub] : step === STEP_VEN ? VEN_TITLES[sub] : TITLES[step]}</h1>
+                <span className="shrink-0 text-xs text-muted-foreground">Passo {step + 1} de {TOTAL}{(step === STEP_DEP && !manterSem) || (step === STEP_VEN && !vManter) ? ` · ${sub + 1}/3` : ""}</span>
               </div>
               <div className="h-1 overflow-hidden rounded-full bg-secondary">
-                <div className="h-full rounded-full bg-progress transition-all duration-500" style={{ width: `${((step + (step === STEP_DEP ? (sub + 1) / 3 : 1)) / TOTAL) * 100}%` }} />
+                <div className="h-full rounded-full bg-progress transition-all duration-500" style={{ width: `${((step + (hasSub ? (sub + 1) / 3 : 1)) / TOTAL) * 100}%` }} />
               </div>
             </div>
 
@@ -385,7 +499,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                     <p className="-mt-1 text-xs text-warning">O preço de venda está menor que o de compra. Você terá prejuízo.</p>
                   )}
                   <Chips label="Unidade de medida" hint="Como você vende este produto." opts={UNIDADES[tipo] ?? []} value={unidade}
-                    onChange={(u) => { if (configSalva && u !== initial!.unidade) { setUnitMsg(unidadeTravadaMsg(initial!.unidade)); return; } setUnitMsg(""); setUnidade(u); }} />
+                    onChange={(u) => { if ((configSalva || vendaSalva) && u !== initial!.unidade) { setUnitMsg(unidadeTravadaMsg(initial!.unidade)); return; } setUnitMsg(""); setUnidade(u); }} />
                   {(unitMsg || unidadeTravada) && <p role="alert" className="-mt-1 text-sm text-destructive">{unitMsg || unidadeTravadaMsg(initial!.unidade)}</p>}
                   <div className="space-y-1">
                     <label htmlFor="cat" className="text-sm font-medium text-muted-foreground">Categoria</label>
@@ -569,6 +683,118 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                 </>
               )}
 
+              {step === STEP_VEN && (
+                <>
+                  <p className="text-xs text-muted-foreground">{TEMPORARIO} {SEM_REPOSICAO}</p>
+
+                  {sub === 0 && (
+                    <>
+                      <p className="text-base font-semibold">Onde este produto fica para venda?</p>
+                      <div className="grid grid-cols-1 gap-2">
+                        {listaVLocais.map((l) => (
+                          <Pick key={l} on={!vManter && vLocal === l} onClick={() => pickVLocal(l)}><span className="truncate">{l}</span></Pick>
+                        ))}
+                        {vNovo === null ? (
+                          <button type="button" onClick={() => setVNovo("")} className="flex min-h-13 items-center gap-2 rounded-2xl border-2 border-dashed border-accent/70 px-4 text-base font-semibold text-accent"><Plus size={18} /> Novo local de venda</button>
+                        ) : (
+                          <div className="space-y-2 rounded-2xl border border-border p-3">
+                            <Field label="Nome do local de venda" name="vlocal" autoFocus autoComplete="off" enterKeyHint="done" placeholder={`Ex.: ${EXEMPLO_LOCAL[tipo] ?? "Gôndola 3 · Prateleira 2"}`}
+                              value={vNovo} onChange={(e) => setVNovo(e.target.value.slice(0, 60))}
+                              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addVLocal(); } }}
+                              error={vNovoDup ? VEN_LOCAL_DUP : ""} hint="Um nome simples. Corredor e nível não são obrigatórios." />
+                            <div className="flex gap-2">
+                              <button type="button" onClick={() => setVNovo(null)} className={`flex-1 ${btnGhost}`}>Cancelar</button>
+                              <button type="button" disabled={!vNovo.trim() || vNovoDup} onClick={addVLocal} className={`flex-1 ${btnPrimary(!!vNovo.trim() && !vNovoDup)}`}>Usar este local de venda</button>
+                            </div>
+                          </div>
+                        )}
+                        <Pick on={!vManter && vLocal === null} onClick={() => pickVLocal(null)}><span>Definir depois</span></Pick>
+                        {initial && !initVen && (
+                          <Pick on={vManter} onClick={() => { setVManter(true); setVLocalMsg(""); }}><span>Manter sem configurar por enquanto</span></Pick>
+                        )}
+                      </div>
+                      {vLocalMsg && <p role="alert" className="text-sm text-destructive">{vLocalMsg}</p>}
+                      <p className="text-xs text-muted-foreground">{isRoupas ? "Um local de venda para o produto. Vale para todas as variações." : "Um local de venda para o produto inteiro."} Os locais de venda são separados dos locais do depósito.</p>
+                      {!vManter && vLocal === null && <p className="text-xs text-warning">{VEN_LOCAL_PENDENTE}</p>}
+                    </>
+                  )}
+
+                  {sub === 1 && !isRoupas && (
+                    <>
+                      {vQtdTravada ? (
+                        <div className="rounded-2xl border border-border bg-background-deep/60 p-3 text-sm">
+                          <p>Quantidade confirmada na área de venda: <b>{vq.v != null ? `${fmtQ(vq.v)} ${unidade}` : "—"}</b></p>
+                          <p className="mt-1 text-xs text-muted-foreground">Alterar a contagem ficará para uma etapa futura.</p>
+                        </div>
+                      ) : (
+                        <Field label={`Quanto deste produto já está neste local? (${unidade})`} name="vqtd" {...numProps} enterKeyHint="done"
+                          value={vQtd} onChange={(e) => setVQtd(numIn(e.target.value))} error={showErr(vQtd, vq.err)}
+                          hint={fr ? "Aceita vírgula. Ex.: 12,5" : "Somente números inteiros."} />
+                      )}
+                      <p className="text-xs text-muted-foreground">Conte só o que está exposto para venda. É separado do depósito e não é uma transferência. Se não houver nenhuma, digite 0.</p>
+                      <p className="rounded-2xl border border-border bg-background-deep/60 p-3 text-sm">{totalLinhas[0]}</p>
+                    </>
+                  )}
+
+                  {sub === 1 && isRoupas && (
+                    <>
+                      {varsVen.map((x, i) => (
+                        <div key={x.v.uid} className="space-y-1.5 rounded-2xl border border-border bg-background-deep/60 p-3">
+                          <p className="text-sm font-semibold">{x.v.tam} · {x.v.cor}</p>
+                          {x.travada ? (
+                            <>
+                              <p className="text-sm">Quantidade confirmada na área de venda: <b>{fmtQ(x.q.v ?? 0)} {unidade}</b></p>
+                              <p className="text-xs text-muted-foreground">Alterar a contagem ficará para uma etapa futura.</p>
+                            </>
+                          ) : (
+                            <Field label={`Quanto desta variação já está neste local? (${unidade})`} name={`vq-${x.v.uid}`} {...numProps} placeholder="Ex.: 3"
+                              value={x.d.qtd ?? ""} onChange={(e) => setVV(x.v.uid!, { qtd: numIn(e.target.value) })} error={showErr(x.d.qtd ?? "", x.q.err)} />
+                          )}
+                          <p className="text-xs text-muted-foreground">{totalLinhas[i]}</p>
+                        </div>
+                      ))}
+                      <p className="text-xs text-muted-foreground">Conte cada tamanho e cor. A quantidade do cadastro não é copiada. Zero é aceito.</p>
+                    </>
+                  )}
+
+                  {sub === 2 && !isRoupas && (
+                    <>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <Field label={`Mínimo (${unidade})`} name="vmin" {...numProps} enterKeyHint="next" onKeyDown={nextOnEnter("vmax")} placeholder="Opcional"
+                          value={vMin} onChange={(e) => setVMin(numIn(e.target.value))} error={vmn.err} />
+                        <Field label={`Máximo que cabe (${unidade})`} name="vmax" id="vmax" {...numProps} enterKeyHint="done" placeholder="Opcional"
+                          value={vMax} onChange={(e) => setVMax(numIn(e.target.value))} error={vmx.err || vLimErr} />
+                      </div>
+                      <p className="text-sm text-muted-foreground">{limitesVendaStatus(vmn.v, vmx.v)}</p>
+                      {vq.v != null && vmx.v != null && vq.v > vmx.v && <p className="text-sm text-warning">{VEN_ACIMA_MAX}</p>}
+                      <LimitesVendaAjuda />
+                    </>
+                  )}
+
+                  {sub === 2 && isRoupas && (
+                    <>
+                      {varsVen.length > 1 && (
+                        <button type="button" onClick={() => { const f = varsVen[0]!; setVVar((m) => { const n = { ...m }; for (const x of varsVen) n[x.v.uid!] = { ...(n[x.v.uid!] ?? { qtd: "" }), min: f.d.min, max: f.d.max }; return n; }); }}
+                          className={btnGhost}>Usar os mesmos limites para todas</button>
+                      )}
+                      {varsVen.length > 1 && <p className="-mt-1 text-xs text-muted-foreground">Copia os limites de {varsVen[0]!.v.tam} · {varsVen[0]!.v.cor} para as demais.</p>}
+                      {varsVen.map((x) => (
+                        <div key={x.v.uid} className="space-y-1.5 rounded-2xl border border-border bg-background-deep/60 p-3">
+                          <p className="text-sm font-semibold">{x.v.tam} · {x.v.cor}</p>
+                          <div className="grid grid-cols-2 gap-2.5">
+                            <Field label="Mínimo" name={`vmin-${x.v.uid}`} {...numProps} placeholder="Opcional" value={x.d.min} onChange={(e) => setVV(x.v.uid!, { min: numIn(e.target.value) })} error={x.mn.err} />
+                            <Field label="Máximo que cabe" name={`vmax-${x.v.uid}`} {...numProps} placeholder="Opcional" value={x.d.max} onChange={(e) => setVV(x.v.uid!, { max: numIn(e.target.value) })} error={x.mx.err || x.lim} />
+                          </div>
+                          <p className="text-xs text-muted-foreground">{limitesVendaStatus(x.mn.v, x.mx.v)}</p>
+                          {x.q.v != null && x.mx.v != null && x.q.v > x.mx.v && <p className="text-xs text-warning">{VEN_ACIMA_MAX}</p>}
+                        </div>
+                      ))}
+                      <LimitesVendaAjuda />
+                    </>
+                  )}
+                </>
+              )}
+
               {step === STEP_REV && (
                 <div className="divide-y divide-border rounded-2xl border border-border bg-background-deep/60">
                   <Sum t="Código e nome" onEdit={() => edit(0)}>{nome}<br />Cód. {codigo}</Sum>
@@ -587,7 +813,20 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                       <Sum t="Limites" onEdit={() => edit(STEP_DEP, 2)}>{resumoLim}</Sum>
                     </>
                   )}
-                  <p className="p-3.5 text-xs text-muted-foreground">{TEMPORARIO}</p>
+                  {vManter ? (
+                    <Sum t="Área de venda" onEdit={() => edit(STEP_VEN, 0)}>{VEN_SEM_CONFIG}</Sum>
+                  ) : (
+                    <>
+                      <Sum t="Local de venda" onEdit={() => edit(STEP_VEN, 0)}>{resumoVLocal}</Sum>
+                      <Sum t="Quantidade na área de venda" onEdit={() => edit(STEP_VEN, 1)}>{resumoVQtd}</Sum>
+                      <Sum t="Limites da área de venda" onEdit={() => edit(STEP_VEN, 2)}>{resumoVLim}</Sum>
+                    </>
+                  )}
+                  <div className="p-3.5 text-sm">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total para conferência</p>
+                    {totalLinhas.map((t, i) => <p key={i} className="mt-0.5">{t}</p>)}
+                  </div>
+                  <p className="p-3.5 text-xs text-muted-foreground">{TEMPORARIO} {SEM_REPOSICAO}</p>
                 </div>
               )}
             </div>
@@ -623,6 +862,15 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   );
 }
 
+function LimitesVendaAjuda() {
+  return (
+    <div className="space-y-1 text-xs text-muted-foreground">
+      <p><b>Mínimo:</b> quando chegar a esta quantidade, será necessário repor.</p>
+      <p><b>Máximo:</b> quanto deste produto cabe neste local.</p>
+      <p>Valem para este produto neste local, não para a gôndola inteira. A reposição automática depende de local, quantidade e mínimo definidos — e não funciona nesta versão.</p>
+    </div>
+  );
+}
 function LimitesAjuda() {
   return (
     <div className="space-y-1 text-xs text-muted-foreground">
