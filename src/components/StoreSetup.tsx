@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
 import { ArrowLeft, Check, CheckCircle2, Hammer, PawPrint, Wrench, MapPin, Pencil, Pill, Shirt, ShoppingCart, X, Loader2 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
+import { exemplos } from "@/lib/exemplos";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -358,7 +359,7 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
 
                 {step === 1 && (
                   <>
-                    <Field label="Nome do comércio" name="nome" autoComplete="organization" enterKeyHint="next" placeholder="Ex.: Mercado Bom Preço"
+                    <Field label="Nome do comércio" name="nome" autoComplete="organization" enterKeyHint="next" placeholder={`Ex.: ${exemplos(tipo).comercio}`}
                       onKeyDown={nextOnEnter("doc")} value={nome} onChange={(x) => setNome(x.target.value)} onBlur={blur("nome")}
                       error={touched["nome"] ? errs.nome : ""} hint="O nome que seus clientes conhecem." />
                     <Field label="Documento" name="doc" inputMode="numeric" autoComplete="off" enterKeyHint="next"
