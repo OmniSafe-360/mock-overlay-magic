@@ -71,10 +71,10 @@ export function pedidosPendencias(antes: Validade | undefined, depois: Validade 
 }
 
 /** Lotes cujo vencimento será definido agora e precisam de confirmação explícita. */
-export const lotesAConfirmar = (antes: Validade | undefined, depois: Validade | undefined, farm: boolean) =>
-  pedidosPendencias(antes, depois, farm).filter((r) => r.precisaConfirmar)
-    .map((r) => (antes!.dep[Object.keys(antes!.dep).find((k) => antes!.dep[k]!.some((l) => l.id === r.origem)) ?? ""] ?? Object.values(antes!.ven).flat())
-      .find((l) => l.id === r.origem)?.lote ?? "");
+export function lotesAConfirmar(antes: Validade | undefined, depois: Validade | undefined, farm: boolean): string[] {
+  const todas = antes ? [...Object.values(antes.dep), ...Object.values(antes.ven)].flat() : [];
+  return pedidosPendencias(antes, depois, farm).filter((r) => r.precisaConfirmar).map((r) => todas.find((l) => l.id === r.origem)?.lote ?? "");
+}
 
 /** Pedido único para salvar_cadastro: produto + pendências na mesma transação. Ids novos a cada montagem. */
 export function montarCadastro(p: Product, antes: Product | undefined, comercioId: string, farm: boolean, suppliers: Supplier[], novoId: () => string) {
@@ -95,7 +95,7 @@ export type Sessao = { dbId: string; incerto: { pedido: object } | null };
 /** Sem resposta do servidor: não se sabe se gravou. */
 export const ehIncerto = (e: unknown) => {
   const m = String((e as { message?: string } | null)?.message ?? e ?? "");
-  return /fetch|network|Failed to|timeout|aborted|Load failed/i.test(m) || (e as { code?: string } | null)?.code === "" ;
+  return /fetch|network|Failed to|timeout|aborted|Load failed/i.test(m);
 };
 /**
  * Se o envio anterior ficou sem resposta, repete EXATAMENTE o mesmo pedido (mesmo id) antes de tudo.
@@ -104,8 +104,7 @@ export const ehIncerto = (e: unknown) => {
  */
 export async function enviarCadastro(s: Sessao, montar: () => object, rpc: Rpc): Promise<"gravado" | "anterior_gravado"> {
   if (s.incerto) {
-    let r: { error: ErroRpc };
-    try { r = await rpc(s.incerto.pedido); } catch (e) { throw e; }
+    const r = await rpc(s.incerto.pedido);
     if (!r.error) { s.incerto = null; return "anterior_gravado"; }
     if (ehIncerto(r.error)) throw r.error;
     s.incerto = null;
