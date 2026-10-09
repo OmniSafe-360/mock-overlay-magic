@@ -13,7 +13,9 @@ export const Route = createFileRoute("/funcionario")({
       { name: "description", content: "App da equipe: receber mercadoria e repor a gôndola." },
       { name: "robots", content: "noindex, nofollow" },
       { name: "referrer", content: "no-referrer" },
+      { name: "apple-mobile-web-app-title", content: "Omni Operação" },
     ],
+    links: [{ rel: "manifest", href: "/manifest-funcionario.webmanifest" }],
   }),
   component: Pagina,
 });

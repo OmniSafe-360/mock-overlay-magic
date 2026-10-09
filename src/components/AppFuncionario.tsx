@@ -1,10 +1,12 @@
 /* App do funcionário "Omni Operação" (E1): entrada com o código de 6 números e o PIN de 4, e a tela inicial
  * com os botões grandes Receber mercadoria / Repor gôndola. As telas de cada botão chegam nas etapas E2 e E3. */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowLeft, Delete, LogOut, PackageOpen, RefreshCw, ShoppingBasket } from "lucide-react";
+import { ArrowLeft, Delete, Download, EllipsisVertical, LogOut, PackageOpen, RefreshCw, Share, ShoppingBasket, SquarePlus } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import { ReceberMercadoria, type ApiReceber } from "@/components/ReceberMercadoria";
 import { ReporGondola, type ApiRepor } from "@/components/ReporGondola";
+import { Sheet } from "@/components/ProductArea";
+import { abertoComoApp, adiado, adiar, instalar, jaInstalado, ouvirInstalacao, podeInstalarDireto, prepararInstalacaoFuncionario, tipoAparelho } from "@/lib/instalar";
 import { TIPO_FROM_DB, btnGhost, btnPrimary } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";
 import {
@@ -42,6 +44,7 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO }: { codigoInic
     } catch { setTela({ t: "erro" }); }
   }, [api]);
 
+  useEffect(() => { prepararInstalacaoFuncionario(); }, []);
   useEffect(() => {
     const chave = lerChave();
     if (chave) { void abrirInicio(chave); return; }
@@ -213,6 +216,7 @@ function TelaInicio({ dados, onAtualizar, onSair, onReceber, onRepor }: { dados:
         </button>
       </header>
       <p className="text-2xl font-bold">Olá, {dados.nome.split(" ")[0]}!</p>
+      <CartaoInstalar />
 
       <div className="grid flex-1 grid-cols-1 content-start gap-4">
         {fazReceber(dados.funcao) && (
@@ -257,5 +261,55 @@ function BotaoGrande({ icone, titulo, detalhe, numero, destaque, onClick }: {
         <span className="block text-base text-muted-foreground">{detalhe}</span>
       </span>
     </button>
+  );
+}
+
+/** "Instalar o app": aparece depois do acesso, enquanto o app não estiver instalado. */
+function CartaoInstalar() {
+  const [, atualizar] = useState(0);
+  const [fechado, setFechado] = useState(() => abertoComoApp() || jaInstalado() || adiado());
+  const [passos, setPassos] = useState(false);
+  const [ok, setOk] = useState(false);
+  useEffect(() => ouvirInstalacao(() => atualizar((n) => n + 1)), []);
+  if (ok) return <p role="status" className="rounded-2xl border border-accent/50 bg-accent/10 p-3 text-sm font-semibold text-accent">Pronto! O Omni Operação está na tela inicial do seu celular.</p>;
+  if (fechado) return null;
+  const aparelho = tipoAparelho();
+  const direto = podeInstalarDireto();
+  return (
+    <section aria-label="Instalar o app" className="rounded-3xl border border-primary/50 bg-primary/10 p-4">
+      <p className="flex items-center gap-2 text-base font-bold"><Download size={20} className="text-primary" /> Instale o app no celular</p>
+      <p className="mt-1 text-sm text-muted-foreground">Ele fica na tela inicial, abre direto aqui e funciona como um aplicativo.</p>
+      <div className="mt-3 grid grid-cols-1 gap-2">
+        <button type="button" className={`flex items-center justify-center gap-2 ${btnPrimary(true)}`}
+          onClick={() => { if (direto) void instalar().then((v) => { if (v) setOk(true); }); else setPassos(true); }}>
+          <Download size={20} /> Instalar o app
+        </button>
+        <button type="button" onClick={() => { adiar(); setFechado(true); }} className="min-h-11 text-sm font-semibold text-muted-foreground">Agora não</button>
+      </div>
+      {passos && (
+        <Sheet title="Instalar o Omni Operação" onClose={() => setPassos(false)}>
+          <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3 text-base">
+            {aparelho === "iphone" ? (
+              <ol className="space-y-3">
+                <li className="flex gap-3"><b className="text-primary">1.</b><span>Abra esta página no <b>Safari</b>.</span></li>
+                <li className="flex gap-3"><b className="text-primary">2.</b><span>Toque em <b>Compartilhar</b> <Share size={18} className="inline align-text-bottom" /> (o quadrado com a seta para cima, embaixo da tela).</span></li>
+                <li className="flex gap-3"><b className="text-primary">3.</b><span>Role e toque em <b>Adicionar à Tela de Início</b> <SquarePlus size={18} className="inline align-text-bottom" />.</span></li>
+                <li className="flex gap-3"><b className="text-primary">4.</b><span>Toque em <b>Adicionar</b>. Pronto: o ícone aparece na tela inicial.</span></li>
+              </ol>
+            ) : (
+              <ol className="space-y-3">
+                <li className="flex gap-3"><b className="text-primary">1.</b><span>Toque nos <b>três pontinhos</b> <EllipsisVertical size={18} className="inline align-text-bottom" /> do navegador (em cima, à direita).</span></li>
+                <li className="flex gap-3"><b className="text-primary">2.</b><span>Toque em <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.</span></li>
+                <li className="flex gap-3"><b className="text-primary">3.</b><span>Confirme. O ícone do Omni Operação aparece na tela inicial.</span></li>
+              </ol>
+            )}
+            <p className="text-sm text-muted-foreground">{aparelho === "iphone"
+              ? "Depois é só abrir pelo ícone. Na primeira vez pelo ícone, digite o código e o seu PIN de novo."
+              : "Depois é só abrir pelo ícone: ele já entra direto."}</p>
+          </div>
+          <div className="px-5 pt-2"><button type="button" onClick={() => setPassos(false)} className={`w-full ${btnGhost}`}>Entendi</button></div>
+        </Sheet>
+      )}
+    </section>
   );
 }
