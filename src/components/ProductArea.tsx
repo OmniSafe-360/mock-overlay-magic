@@ -157,7 +157,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const used = useMemo(() => usedCodes(products, initial?.id), [products, initial?.id]);
   const isRoupas = tipo === "roupas";
   const codeErr = mainCodeError(codigo, used, isRoupas ? vars : []);
-  const [saveErr, setSaveErr] = useState("");
+  const [triedSave, setTriedSave] = useState(false);
   const dup = !!codeErr;
   const varsOk = vars.length > 0 && vars.every((v, i) => variationOk(v, i, vars, codigo, used));
   const valid = [
@@ -172,10 +172,10 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const fornNome = forn ? suppliers.find((s) => s.id === forn)?.nome : "Definir depois";
 
   const go = (to: number) => { setDir(to > step ? 1 : -1); setStep(to); };
+  const bad = firstInvalidStep({ codigo, nome, compra, venda, unidade, categoria, variacoes: vars, fornecedor: forn }, isRoupas, used);
+  const saveErr = triedSave && bad && bad.step === step ? bad.msg : "";
   const save = () => {
-    const bad = firstInvalidStep({ codigo, nome, compra, venda, unidade, categoria, variacoes: vars, fornecedor: forn }, isRoupas, used);
-    if (bad) { setSaveErr(bad.msg); setFromReview(true); return go(bad.step); }
-    setSaveErr("");
+    if (bad) { setTriedSave(true); setFromReview(true); return go(bad.step); }
     onSave({ id: initial?.id ?? Date.now(), codigo: codigo.trim(), nome: nome.trim(), compra, venda, unidade, categoria, detalhes: det, variacoes: vars, fornecedor: forn ?? null });
   };
   const next = () => {
