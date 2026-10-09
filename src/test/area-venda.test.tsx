@@ -22,6 +22,16 @@ function setup(tipo: string, initial?: Product, products: Product[] = initial ? 
 }
 const novoLocalVenda = (nome: string) => { click(/Novo local de venda/); typeIn("Nome do local de venda", nome); click("Usar este local de venda"); };
 
+
+/** Produto novo: responde o passo Validade (Farmácia: controle fixo em Sim, distribui as contagens). */
+function passarValidade(tipo: string, t: { submit: () => void }, dep = "40", ven = "8") {
+  expect(screen.getByText("Controle de validade")).toBeTruthy();
+  if (tipo !== "farmacia") { click("Não"); t.submit(); return; }
+  t.submit(); t.submit();
+  typeIn(/^Quantidade \(/, dep); typeIn("Vence em", "10/12/2026"); typeIn(/^Lote/, "A12"); t.submit();
+  typeIn(/^Quantidade \(/, ven); typeIn("Vence em", "10/12/2026"); typeIn(/^Lote/, "A12"); t.submit();
+}
+
 /** Preenche um produto realmente novo, do formulário vazio até o passo Área de venda. */
 function novoAteVenda(tipo: string, unidade: string, categoria: string) {
   const t = setup(tipo);
@@ -55,6 +65,7 @@ describe("produto novo, do formulário vazio até salvar, nos seis tipos", () =>
     expect(screen.getByText(`Depósito 40 + Área de venda 8 = 48 ${u} no total`)).toBeTruthy();
     t.submit();
     typeIn(/^Mínimo/, "4"); typeIn(/^Máximo que cabe/, "12"); t.submit();
+    passarValidade(tipo, t);
     expect(screen.getByText("Salvar produto")).toBeTruthy();
     t.submit();
     const p = saved(t.onSave);
@@ -69,7 +80,7 @@ describe("produto novo, do formulário vazio até salvar, nos seis tipos", () =>
     t.submit(); expect(screen.getByText(QTD_VAZIA)).toBeTruthy();
     fireEvent.change(campo, { target: { value: "3" } });
     expect(screen.getByText("M · Azul: Depósito 5 + Área de venda 3 = 8 Peça no total")).toBeTruthy();
-    t.submit(); t.submit(); t.submit();
+    t.submit(); t.submit(); passarValidade("roupas", t); t.submit();
     const p = saved(t.onSave); const uid = p.variacoes[0]!.uid!;
     expect(p.areaVenda).toEqual({ local: "Arara 2", qtd: null, min: null, max: null, vars: { [uid]: { qtd: 3, min: null, max: null } } });
     expect(p.variacoes[0]!.qtd).toBe(2);
