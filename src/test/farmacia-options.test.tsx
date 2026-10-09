@@ -20,7 +20,7 @@ describe("opções da Farmácia", () => {
   it("produto válido salva", () => { const t = setup(ok); run(t.submit, 8); expect(t.onSave).toHaveBeenCalledTimes(1); });
 
   it("controlado aceita Sim e ausência", () => {
-    const a = setup({ ...ok, detalhes: { controlado: "Sim" } }); run(a.submit, 7); expect(a.onSave).toHaveBeenCalledTimes(1);
+    const a = setup({ ...ok, detalhes: { controlado: "Sim" } }); run(a.submit, 8); expect(a.onSave).toHaveBeenCalledTimes(1);
   });
   it("produto sem detalhes salva (Pular)", () => {
     const t = setup({ ...ok, detalhes: {} }); run(t.submit, 8); expect(t.onSave).toHaveBeenCalledTimes(1);
