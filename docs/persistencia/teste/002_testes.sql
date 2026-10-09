@@ -15,15 +15,15 @@ exception when others then
 end $$;
 create function public.t_ok(_cond boolean, _nome text) returns text language plpgsql as $$
 begin if _cond is not true then raise exception 'FALHOU: %', _nome; end if; return 'OK ' || _nome; end $$;
-create function public.t_p(op text, prod text, com text, un text, ctrl boolean, areas jsonb,
-  vars jsonb default '[]', cod text default null, forn uuid default null, preco numeric default 2) returns jsonb
+create function public.t_p(op text, prod text, com text, un text, ctrl boolean, areas text,
+  vars text default '[]', cod text default null, forn uuid default null, preco numeric default 2) returns jsonb
 language sql immutable as $$
   select jsonb_build_object('operacao_id', u(op), 'produto', jsonb_build_object(
     'id', u(prod), 'comercio_id', u(com), 'nome', 'Produto ' || prod, 'unidade', un,
     'preco_compra', 1, 'preco_venda', preco, 'controla_validade', ctrl, 'codigo_barras', cod,
-    'fornecedor_id', forn, 'avisos_dias', '[30,60]'::jsonb), 'variacoes', vars, 'areas', areas) $$;
+    'fornecedor_id', forn, 'avisos_dias', '[30,60]'::jsonb), 'variacoes', vars::jsonb, 'areas', areas::jsonb) $$;
 grant execute on function public.u(text), public.t_erro(text, text), public.t_ok(boolean, text),
-  public.t_p(text, text, text, text, boolean, jsonb, jsonb, text, uuid, numeric) to authenticated, anon;
+  public.t_p(text, text, text, text, boolean, text, text, text, uuid, numeric) to authenticated, anon;
 
 -- ---------- Dados ----------
 insert into auth.users values (u('A'), 'a@x'), (u('B'), 'b@x');
@@ -188,9 +188,9 @@ select 'OK pendencia protegida contra outro dono';
 -- ---------- Roupas: variações ----------
 select salvar_produto(t_p('op20','R2','cr1','Unidade',null,
   ('[{"area":"deposito","variacao_id":"'||u('w1')||'","local":{"nome":"Estoque"},"contagem":{"quantidade":5}},
-     {"area":"deposito","variacao_id":"'||u('w2')||'","local":{"nome":"Estoque"},"contagem":{"quantidade":0}}]')::jsonb,
+     {"area":"deposito","variacao_id":"'||u('w2')||'","local":{"nome":"Estoque"},"contagem":{"quantidade":0}}]'),
   ('[{"id":"'||u('w1')||'","tamanho":"M","cor":"Azul","codigo_barras":"701","qtd_informada":7},
-     {"id":"'||u('w2')||'","tamanho":"G","cor":"Azul","codigo_barras":"702","qtd_informada":3}]')::jsonb, '700'));
+     {"id":"'||u('w2')||'","tamanho":"G","cor":"Azul","codigo_barras":"702","qtd_informada":3}]'), '700'));
 reset role;
 select t_ok((select qtd_informada from produto_variacoes where id = u('w1')) = 7 and (select sum(quantidade) from saldos where variacao_id = u('w1')) = 5,
   'quantidade informada no cadastro separada da contada');
