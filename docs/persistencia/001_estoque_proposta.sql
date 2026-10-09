@@ -358,7 +358,7 @@ declare
   x jsonb; pt jsonb; vr record;
   v_var uuid; v_area area_estoque; v_local uuid; v_min numeric; v_max numeric; v_old_local uuid; v_tem_cfg boolean;
   v_q numeric; v_pq numeric; v_soma numeric; v_venc date; v_lote uuid; v_pend boolean; v_saldo uuid;
-  v_ids uuid[] := '{}'; v_cont int := 0;
+  v_ids uuid[] := '{}'; v_cont int := 0; v_var_existe boolean;
 begin
   v_prev := public._iniciar_operacao(v_op, v_com, v_id, 'salvar_produto', md5((p - 'operacao_id')::text));
   if v_prev is not null then return v_prev; end if;
@@ -408,16 +408,17 @@ begin
   -- Variações: ids estáveis do app; nunca de outro produto.
   for x in select * from jsonb_array_elements(coalesce(p->'variacoes', '[]')) loop
     select * into vr from produto_variacoes where id = (x->>'id')::uuid;
-    if found and (vr.produto_id <> v_id or vr.comercio_id <> v_com) then
+    v_var_existe := found;
+    if v_var_existe and (vr.produto_id <> v_id or vr.comercio_id <> v_com) then
       raise exception 'variacao_de_outro_produto' using errcode = '42501'; end if;
-    if found and vr.removida_em is not null then
+    if v_var_existe and vr.removida_em is not null then
       raise exception 'variacao_removida' using errcode = '23514'; end if;
     if x->>'codigo_barras' is not null and exists (select 1 from codigos_barras where comercio_id = v_com
        and codigo = x->>'codigo_barras' and variacao_id is distinct from (x->>'id')::uuid) then
       raise exception 'codigo_em_uso: %', x->>'codigo_barras' using errcode = '23505'; end if;
     if x->>'qtd_informada' is not null then
       perform public.qtd_valida((x->>'qtd_informada')::numeric, v_un, true); end if;
-    if found then
+    if v_var_existe then
       update produto_variacoes set tamanho = x->>'tamanho', cor = x->>'cor', codigo_barras = x->>'codigo_barras',
         qtd_informada = (x->>'qtd_informada')::numeric where id = vr.id;
     else
