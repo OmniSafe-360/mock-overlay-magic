@@ -18,7 +18,7 @@ import {
 } from "@/lib/validade";
 
 /* ---------- tipos e dados por comércio ---------- */
-export type Supplier = { id: number; nome: string; tel: string; email: string };
+export type Supplier = { id: number; nome: string; tel: string; email: string; dbId?: string | undefined };
 /** `uid` liga a variação à sua configuração de depósito, sem depender da posição na lista. */
 export type Variation = { tam: string; cor: string; qtd: number; codigo?: string | undefined; uid?: string | undefined };
 export type Product = {
@@ -29,6 +29,8 @@ export type Product = {
   areaVenda?: AreaVenda | undefined;
   /** Controle de validade e divisão das contagens confirmadas por vencimento/lote. */
   validade?: Validade | undefined;
+  /** Vínculo com o banco: id real e áreas cuja contagem inicial já foi registrada ("deposito:_", "venda:<uid>"). */
+  db?: { id: string; contadas: string[] } | undefined;
 };
 
 const UNIDADES: Record<string, string[]> = {
@@ -281,9 +283,10 @@ function linhasIniciais(v: Validade | undefined, farm: boolean): Record<string, 
 
 type VarDep = { qtd?: string | undefined; min: string; max: string };
 
-export function ProductWizard({ store, products, initial, suppliers, onAddSupplier, onCancel, onSave }: {
+export function ProductWizard({ store, products, initial, suppliers, onAddSupplier, onCancel, onSave, saving = false, erro = "" }: {
   store: StoreData; products: Product[]; initial?: Product | undefined; suppliers: Supplier[];
   onAddSupplier: (s: Omit<Supplier, "id">) => number; onCancel: () => void; onSave: (p: Product) => void;
+  saving?: boolean; erro?: string;
 }) {
   const kb = useKeyboard();
   const tipo = store.tipo;
@@ -516,9 +519,10 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     return { controla: true, avisos: [...avisos].sort((a, b) => a - b), dep: area(gDep), ven: area(gVen) };
   };
   const save = () => {
+    if (saving) return;
     if (bad) { setTriedSave(true); setFromReview(true); return go(bad.step, bad.sub ?? 0); }
     onSave({ id: initial?.id ?? Date.now(), codigo: codigo.trim(), nome: nome.trim(), compra, venda, unidade, categoria, detalhes: det, variacoes: vars,
-      fornecedor: forn ?? null, deposito: buildDeposito(), areaVenda: buildVenda(), validade: buildValidade() });
+      fornecedor: forn ?? null, deposito: buildDeposito(), areaVenda: buildVenda(), validade: buildValidade(), db: initial?.db });
   };
   const next = () => {
     if (!valid) { if (hasSub) setSubTried(true); return; }
@@ -1136,6 +1140,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
               )}
             </div>
 
+            {erro && step === STEP_REV && <p role="alert" className="shrink-0 pt-3 text-sm font-semibold text-destructive">{erro}</p>}
             <div className={`flex shrink-0 gap-2 ${kb ? "pt-2" : "pt-4 short:pt-3"}`}>
               {step > 0 && (
                 <button type="button" onClick={back} className={btnGhost}><span className="flex items-center gap-1.5"><ArrowLeft size={18} />Voltar</span></button>
@@ -1143,7 +1148,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
               {step === 2 && !isRoupas && !Object.values(det).some(Boolean) ? (
                 <button type="submit" className={`flex-1 ${btnPrimary(true)}`}>Pular</button>
               ) : (
-                <button type="submit" disabled={!valid} className={`flex-1 ${btnPrimary(valid)}`}>{step === STEP_REV ? "Salvar produto" : "Continuar"}</button>
+                <button type="submit" disabled={!valid || (step === STEP_REV && saving)} className={`flex-1 ${btnPrimary(valid && !(step === STEP_REV && saving))}`}>{step === STEP_REV ? (saving ? "Salvando…" : "Salvar produto") : "Continuar"}</button>
               )}
             </div>
           </form>
