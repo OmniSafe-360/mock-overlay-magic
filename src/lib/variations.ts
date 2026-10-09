@@ -53,6 +53,7 @@ export type TypeRules = {
   detalhesFixos?: { k: string; opts: string[]; msg: string }[];
 };
 export const FARMACIA_VARS_MSG = "Este produto de Farmácia contém variações incompatíveis. O salvamento foi bloqueado.";
+export const CONSTRUCAO_VARS_MSG = "Este produto de Material de construção contém variações incompatíveis. O salvamento foi bloqueado.";
 export const CONTROLADO_MSG = "Escolha Sim ou Não para informar se o medicamento é controlado.";
 export const MERCADO_VARS_MSG = "Este produto de Mercado contém variações incompatíveis. O salvamento foi bloqueado.";
 
