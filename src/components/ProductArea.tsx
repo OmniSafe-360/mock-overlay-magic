@@ -6,12 +6,12 @@ import { Scanner } from "@/components/Scanner";
 import { ganhoSobreCompra, lerPct, mostrarPct, vendaPorGanho } from "@/lib/preco";
 import { escolhasDoUltimo } from "@/lib/ultimaEscolha";
 import {
-  EMB_VAZIA, MAX_EMBALAGENS, TIPOS_EMBALAGEM, descricaoEmbalagem, errosEmbalagem, lerQtdEmbalagem, perguntaQtd, precoUnidade, rotuloContarPor, rotuloFechadas,
+  EMB_VAZIA, MAX_EMBALAGENS, descricaoEmbalagem, embalagensDoTipo, rotuloComoChega, rotuloPrecoEmbalagem, errosEmbalagem, lerQtdEmbalagem, perguntaQtd, precoUnidade, rotuloContarPor, rotuloFechadas,
   rotuloSoltas, totalContado, type Embalagem,
 } from "@/lib/embalagem";
 import { ImprimirEtiquetaSheet } from "@/components/Etiqueta";
 import { avisoCodigo } from "@/lib/codigoBarras";
-import { exemplos } from "@/lib/exemplos";
+import { LOCAIS_SUGERIDOS, exemplos, textoDoTipo } from "@/lib/exemplos";
 import { CATEGORIAS, DETALHES, GRUPOS_TAMANHO, UNICO, UNIDADES, grupoInicial } from "@/lib/listas";
 import { AUTOPECAS_VARS_MSG, CONSTRUCAO_VARS_MSG, PET_VARS_MSG, FARMACIA_VARS_MSG, msgDetalheFixo, firstInvalidStep, typeRuleError, type TypeRules, mainCodeError, usedCodes, variationErrors, variationOk } from "@/lib/variations";
 import {
@@ -142,9 +142,9 @@ export function ProductDetail({ p, tipo, suppliers, onBack, onEdit }: { p: Produ
             )) : "Por unidade"}
           </Row>
         )}
-        <Row t="Depósito"><DepositoInfo p={p} /></Row>
+        <Row t={textoDoTipo(tipo)("Depósito")}><DepositoInfo p={p} tipo={tipo} /></Row>
         <Row t="Área de venda"><AreaVendaInfo p={p} /></Row>
-        <Row t="Total para conferência"><TotalInfo p={p} /></Row>
+        <Row t="Total para conferência"><TotalInfo p={p} tipo={tipo} /></Row>
         {!(tipoSemValidade(tipo) && !p.validade?.controla) && <Row t="Validade"><ValidadeInfo p={p} tipo={tipo} /></Row>}
       </div>
       <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">{TEMPORARIO}</p>
@@ -164,24 +164,25 @@ function Row({ t, children }: { t: string; children: ReactNode }) {
 }
 
 /** Situação do depósito, mostrada no detalhe do produto. */
-export function DepositoInfo({ p }: { p: Product }) {
+export function DepositoInfo({ p, tipo }: { p: Product; tipo?: string }) {
+  const T = textoDoTipo(tipo);
   const d = p.deposito;
-  if (!d) return <span className="block">{SEM_CONFIG}</span>;
+  if (!d) return <span className="block">{T(SEM_CONFIG)}</span>;
   return (
     <>
-      <span className="block">{d.local ? `Local: ${d.local}` : LOCAL_PENDENTE}</span>
+      <span className="block">{d.local ? `Local: ${d.local}` : T(LOCAL_PENDENTE)}</span>
       {d.vars ? (
         p.variacoes.map((v, i) => {
           const c = v.uid ? d.vars?.[v.uid] : undefined;
           return (
             <span key={v.uid ?? i} className="block">
-              {v.tam} · {v.cor}: {c ? <>Quantidade confirmada no depósito: {fmtQ(c.qtd)} {p.unidade} · {limitesStatus(c.min, c.max)}</> : "Depósito não configurado"}
+              {v.tam} · {v.cor}: {c ? <>{T("Quantidade confirmada no depósito")}: {qtdUn(c.qtd, p.unidade)} · {limitesStatus(c.min, c.max)}</> : T("Depósito não configurado")}
             </span>
           );
         })
       ) : (
         <>
-          <span className="block">Quantidade confirmada no depósito: {d.qtd != null ? `${qtdUn(d.qtd, p.unidade)}` : "não informada"}</span>
+          <span className="block">{T("Quantidade confirmada no depósito")}: {d.qtd != null ? `${qtdUn(d.qtd, p.unidade)}` : "não informada"}</span>
           <span className="block">{limitesStatus(d.min, d.max)}</span>
         </>
       )}
@@ -218,10 +219,11 @@ export function AreaVendaInfo({ p }: { p: Product }) {
 
 /** Contagem confirmada de uma área (produto inteiro ou variação). Nunca usa a quantidade do cadastro. */
 const qtdArea = (d: Deposito | undefined, uid?: string) => (!d ? null : uid ? d.vars?.[uid]?.qtd ?? null : d.vars ? null : d.qtd);
-export function TotalInfo({ p }: { p: Product }) {
+export function TotalInfo({ p, tipo }: { p: Product; tipo?: string }) {
+  const T = textoDoTipo(tipo);
   if (p.variacoes.length && (p.deposito?.vars || p.areaVenda?.vars))
-    return <>{p.variacoes.map((v, i) => <span key={v.uid ?? i} className="block">{v.tam} · {v.cor}: {totalTexto(qtdArea(p.deposito, v.uid), qtdArea(p.areaVenda, v.uid), p.unidade)}</span>)}</>;
-  return <span className="block">{totalTexto(qtdArea(p.deposito), qtdArea(p.areaVenda), p.unidade)}</span>;
+    return <>{p.variacoes.map((v, i) => <span key={v.uid ?? i} className="block">{v.tam} · {v.cor}: {T(totalTexto(qtdArea(p.deposito, v.uid), qtdArea(p.areaVenda, v.uid), p.unidade))}</span>)}</>;
+  return <span className="block">{T(totalTexto(qtdArea(p.deposito), qtdArea(p.areaVenda), p.unidade))}</span>;
 }
 
 /** Linhas de conferência da validade (resumo e detalhe). Nunca afirma que avisos ou bloqueios funcionam. */
@@ -263,7 +265,7 @@ export function ValidadeInfo({ p, tipo }: { p: Product; tipo: string }) {
   const hoje = hojeEm();
   return (
     <>
-      {validadeLinhas(p.validade, tipo === "farmacia", p.unidade, nomeVar, hoje, keys, cont).map((t, i) => <span key={i} className="block">{t}</span>)}
+      {validadeLinhas(p.validade, tipo === "farmacia", p.unidade, nomeVar, hoje, keys, cont).map(textoDoTipo(tipo)).map((t, i) => <span key={i} className="block">{t}</span>)}
       {temVencidoNaVenda(p.validade, hoje) && <span role="alert" className="block font-semibold text-destructive">{vencidoAVendaMsg(tipo === "farmacia")}</span>}
     </>
   );
@@ -311,6 +313,9 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
 }) {
   const kb = useKeyboard();
   const tipo = store.tipo;
+  /** Textos com "depósito" viram "estoque" nos tipos que falam assim. */
+  const T = textoDoTipo(tipo);
+  const dep = T("depósito");
   const [step, setStep] = useState(0);
   const [sub, setSub] = useState(0);
   const [dir, setDir] = useState<1 | -1>(1);
@@ -448,7 +453,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const qtdOk = manterSem || (isRoupas ? varsDep.length > 0 && varsDep.every((x) => !x.q.err) : !q.err);
   const limOk = manterSem || (isRoupas ? varsDep.every((x) => !x.mn.err && !x.mx.err && !x.lim) : !mn.err && !mx.err && !limErr);
   const depBad = !localOk ? { sub: 0, msg: "Escolha um local ou \"Definir depois\"." }
-    : !qtdOk ? { sub: 1, msg: pendentes.length ? "Responda se as quantidades estão no depósito." : "Corrija a quantidade contada." }
+    : !qtdOk ? { sub: 1, msg: pendentes.length ? T("Responda se as quantidades estão no depósito.") : "Corrija a quantidade contada." }
     : !limOk ? { sub: 2, msg: "Corrija os limites marcados em vermelho." } : null;
 
   /* validações da área de venda */
@@ -563,7 +568,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   };
   const baseBad = firstInvalidStep({ codigo, nome, compra, venda, unidade, categoria, variacoes: vars, detalhes: det, fornecedor: forn }, isRoupas, used, rules);
   const bad: { step: number; sub?: number; msg: string } | null =
-    unidadeTravada ? { step: 1, msg: unidadeTravadaMsg(initial!.unidade) }
+    unidadeTravada ? { step: 1, msg: T(unidadeTravadaMsg(initial!.unidade)) }
     : baseBad ?? (embBad ? { step: 3, msg: EMB_VAZIA } : depBad ? { step: STEP_DEP, sub: depBad.sub, msg: depBad.msg } : venBad ? { step: STEP_VEN, sub: venBad.sub, msg: venBad.msg }
       : valBad ? { step: STEP_VAL, sub: valBad.sub, msg: valBad.msg } : null);
   const hasSub = step === STEP_DEP || step === STEP_VEN || step === STEP_VAL;
@@ -637,7 +642,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const edit = (s: number, ss = 0) => { setFromReview(true); go(s, ss); };
 
   const pickLocal = (l: string | null) => {
-    if (localTravado && l !== initDep!.local) { setLocalMsg(localTravadoMsg(initDep!.local!)); return; }
+    if (localTravado && l !== initDep!.local) { setLocalMsg(T(localTravadoMsg(initDep!.local!))); return; }
     setDLocal(l); setManterSem(false); setLocalMsg(""); setNovoLocal(null);
   };
   const listaLocais = dLocal && !localDuplicado(dLocal, locais) ? [...locais, dLocal] : locais;
@@ -658,7 +663,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const showErr = (txt: string, err: string) => (txt.trim() || subTried ? err : "");
   const removeVar = (i: number) => {
     const x = varsDep[i], y = varsVen[i];
-    if ((x && (x.q.v ?? 0) > 0) || (y && (y.q.v ?? 0) > 0)) { setVarMsg(REMOCAO_BLOQUEADA); return; }
+    if ((x && (x.q.v ?? 0) > 0) || (y && (y.q.v ?? 0) > 0)) { setVarMsg(T(REMOCAO_BLOQUEADA)); return; }
     setVarMsg("");
     setVars(vars.filter((_, j) => j !== i));
     if (x?.v.uid) {
@@ -666,7 +671,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
       setLin((m) => { const n = { ...m }; delete n[`dep:${k}`]; delete n[`ven:${k}`]; return n; }); // configuração de validade sem saldo
     }
   };
-  const resumoLocal = manterSem ? SEM_CONFIG : dLocal ? dLocal : LOCAL_PENDENTE;
+  const resumoLocal = T(manterSem ? SEM_CONFIG : dLocal ? dLocal : LOCAL_PENDENTE);
   const resumoQtd = isRoupas
     ? varsDep.map((x) => `${x.v.tam}/${x.v.cor}: ${x.q.v != null ? fmtQ(x.q.v) : "—"}`).join(", ")
     : q.v != null ? `${qtdUn(q.v, unidade)}` : "—";
@@ -678,8 +683,8 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   /* total visual: só com as duas contagens confirmadas; nunca usa a quantidade do cadastro */
   const okQ = (r: { v: number | null; err: string }) => (r.err ? null : r.v);
   const totalLinhas = isRoupas
-    ? vars.map((v, i) => `${v.tam} · ${v.cor}: ${totalTexto(manterSem ? null : okQ(varsDep[i]!.q), vManter ? null : okQ(varsVen[i]!.q), unidade)}`)
-    : [totalTexto(manterSem ? null : okQ(q), vManter ? null : okQ(vq), unidade)];
+    ? vars.map((v, i) => `${v.tam} · ${v.cor}: ${T(totalTexto(manterSem ? null : okQ(varsDep[i]!.q), vManter ? null : okQ(varsVen[i]!.q), unidade))}`)
+    : [T(totalTexto(manterSem ? null : okQ(q), vManter ? null : okQ(vq), unidade))];
   const resumoLim = isRoupas ? varsDep.map((x) => `${x.v.tam}/${x.v.cor}: ${limitesStatus(x.mn.v, x.mx.v)}`).join(" · ") : limitesStatus(mn.v, mx.v);
 
   /* ----- validade: edição das linhas ----- */
@@ -689,7 +694,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const aplicarSug = (s: { data: string; ids: string[] }) =>
     setLin((m) => Object.fromEntries(Object.entries(m).map(([k, ls]) => [k, ls.map((l) => (s.ids.includes(l.id) ? { ...l, semData: false, data: fmtData(s.data), conf: false } : l))])));
   const varNome = (k: string) => { const v = vars.find((x) => x.uid === k); return v ? `${v.tam} · ${v.cor}` : "variação"; };
-  const resumoVal = validadeLinhas(buildValidade(), isFarm, unidade, varNome, hoje, valKeys, contagem);
+  const resumoVal = validadeLinhas(buildValidade(), isFarm, unidade, varNome, hoje, valKeys, contagem).map(T);
 
   const renderLinha = (key: string, l: LinhaEd, r: ReturnType<typeof valLinha>, i: number) => {
     const f = r.dv ? faixa(r.dv, hoje) : l.semData ? ("desconhecida" as const) : null;
@@ -750,7 +755,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     const gs = area === "dep" ? gDep : gVen;
     return (
       <>
-        <p className="text-sm text-muted-foreground">Divida a contagem {area === "dep" ? "do depósito" : "da área de venda"} pelas validades. Isso não cria entrada nem transferência.</p>
+        <p className="text-sm text-muted-foreground">Divida a contagem {area === "dep" ? `do ${dep}` : "da área de venda"} pelas validades. Isso não cria entrada nem transferência.</p>
         {gs.map((g) => {
           const key = `${area}:${g.k}`;
           const temSalva = g.ls.some((l) => l.saved);
@@ -793,7 +798,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
           <form noValidate onSubmit={(e) => { e.preventDefault(); next(); }} className="flex min-h-0 flex-1 flex-col">
             <div className="mt-2 shrink-0">
               <div className="mb-2 flex items-baseline justify-between gap-2">
-                <h1 className="min-w-0 text-lg font-bold short:text-base">{step === STEP_DEP ? DEP_TITLES[sub] : step === STEP_VEN ? VEN_TITLES[sub] : step === STEP_VAL ? VAL_TITLES[sub] : TITLES[step]}</h1>
+                <h1 className="min-w-0 text-lg font-bold short:text-base">{T(step === STEP_DEP ? DEP_TITLES[sub]! : step === STEP_VEN ? VEN_TITLES[sub]! : step === STEP_VAL ? VAL_TITLES[sub]! : TITLES[step]!)}</h1>
                 <span className="shrink-0 text-xs text-muted-foreground">Passo {numPasso} de {total}{(step === STEP_DEP && !manterSem) || (step === STEP_VEN && !vManter) ? ` · ${sub + 1}/3` : step === STEP_VAL && valAtivo ? ` · ${sub + 1}/4` : ""}</span>
               </div>
               <div className="h-1 overflow-hidden rounded-full bg-secondary">
@@ -863,8 +868,8 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                     <p className="-mt-1 text-xs text-warning">O preço de venda está menor que o de compra. Você terá prejuízo.</p>
                   )}
                   <Chips label="Unidade de medida" hint="Como você vende este produto." opts={UNIDADES[tipo] ?? []} value={unidade}
-                    onChange={(u) => { if ((configSalva || vendaSalva) && u !== initial!.unidade) { setUnitMsg(unidadeTravadaMsg(initial!.unidade)); return; } setUnitMsg(""); setUnidade(u); }} />
-                  {(unitMsg || unidadeTravada) && <p role="alert" className="-mt-1 text-sm text-destructive">{unitMsg || unidadeTravadaMsg(initial!.unidade)}</p>}
+                    onChange={(u) => { if ((configSalva || vendaSalva) && u !== initial!.unidade) { setUnitMsg(T(unidadeTravadaMsg(initial!.unidade))); return; } setUnitMsg(""); setUnidade(u); }} />
+                  {(unitMsg || unidadeTravada) && <p role="alert" className="-mt-1 text-sm text-destructive">{unitMsg || T(unidadeTravadaMsg(initial!.unidade))}</p>}
                   <div className="space-y-1">
                     <label htmlFor="cat" className="text-sm font-medium text-muted-foreground">Categoria</label>
                     <select id="cat" value={categoria} onChange={(e) => setCategoria(e.target.value)}
@@ -931,7 +936,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                       <div className="grid grid-cols-1 gap-2">
                         <Pick on={embModo === "unidade"} onClick={() => setEmbModo("unidade")}><span>Por unidade, igual vende</span></Pick>
                         <Pick on={embModo === "embalagem"} onClick={() => { setEmbModo("embalagem"); if (!embs.length) setEmbSheet(-1); }}>
-                          <Package size={18} className="shrink-0 text-primary" /><span>Em caixa, fardo ou pacote</span>
+                          <Package size={18} className="shrink-0 text-primary" /><span>{rotuloComoChega(tipo)}</span>
                         </Pick>
                       </div>
                       {embModo === "embalagem" && (
@@ -978,6 +983,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                               value={novoLocal} onChange={(e) => setNovoLocal(e.target.value.slice(0, 60))}
                               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addLocal(); } }}
                               error={novoDup ? LOCAL_DUP : ""} hint="Um nome simples. Corredor e nível não são obrigatórios." />
+                            {!novoLocal && <LocaisSugeridos opts={LOCAIS_SUGERIDOS[tipo]?.dep ?? []} campo="dlocal" onPick={setNovoLocal} />}
                             <div className="flex gap-2">
                               <button type="button" onClick={() => setNovoLocal(null)} className={`flex-1 ${btnGhost}`}>Cancelar</button>
                               <button type="button" disabled={!novoLocal.trim() || novoDup} onClick={addLocal} className={`flex-1 ${btnPrimary(!!novoLocal.trim() && !novoDup)}`}>Usar este local</button>
@@ -991,7 +997,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                       </div>
                       {localMsg && <p role="alert" className="text-sm text-destructive">{localMsg}</p>}
                       <p className="text-xs text-muted-foreground">{isRoupas ? "Um local para o produto. Vale para todas as variações." : "Um local para o produto inteiro."}</p>
-                      {!manterSem && dLocal === null && <p className="text-xs text-warning">{LOCAL_PENDENTE}</p>}
+                      {!manterSem && dLocal === null && <p className="text-xs text-warning">{T(LOCAL_PENDENTE)}</p>}
                     </>
                   )}
 
@@ -999,7 +1005,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                     <>
                       {qtdTravada ? (
                         <div className="rounded-2xl border border-border bg-background-deep/60 p-3 text-sm">
-                          <p>Quantidade confirmada no depósito: <b>{q.v != null ? `${qtdUn(q.v, unidade)}` : "—"}</b></p>
+                          <p>Quantidade confirmada no {dep}: <b>{q.v != null ? `${qtdUn(q.v, unidade)}` : "—"}</b></p>
                           <p className="mt-1 text-xs text-muted-foreground">Alterar a contagem ficará para uma etapa futura.</p>
                         </div>
                       ) : (
@@ -1019,12 +1025,12 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                               <Field label={rotuloSoltas(unidade)} name="soltas" {...numProps} placeholder="0" enterKeyHint="done"
                                 value={soltas} onChange={(ev) => setSoltas(numIn(ev.target.value))} />
                               <div className="rounded-2xl border border-border bg-background-deep/60 p-3 text-sm">
-                                Total no depósito: <b>{cont.total != null ? qtdUn(cont.total, unidade) : "—"}</b>
+                                Total no {dep}: <b>{cont.total != null ? qtdUn(cont.total, unidade) : "—"}</b>
                               </div>
                               {(cont.err || (subTried && q.err)) && <p role="alert" className="text-sm text-destructive">{cont.err || q.err}</p>}
                             </>
                           ) : (
-                            <Field label={`Quanto você contou no depósito agora? (${unPlural(unidade)})`} name="dqtd" {...numProps} enterKeyHint="done"
+                            <Field label={`Quanto você contou no ${dep} agora? (${unPlural(unidade)})`} name="dqtd" {...numProps} enterKeyHint="done"
                               value={dQtd} onChange={(e) => setDQtd(numIn(e.target.value))} error={showErr(dQtd, q.err)}
                               hint={fr ? "Aceita vírgula. Ex.: 12,5" : "Somente números inteiros."} />
                           )}
@@ -1038,15 +1044,15 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                     <>
                       {pendentes.length > 0 && (
                         <div className="space-y-2 rounded-2xl border border-accent/50 bg-accent/10 p-3">
-                          <p className="text-base font-semibold">Essas quantidades estão no depósito?</p>
+                          <p className="text-base font-semibold">Essas quantidades estão no {dep}?</p>
                           {pendentes.map((x) => (
                             <p key={x.v.uid} className="text-sm">{x.v.tam} · {x.v.cor} · Quantidade informada no cadastro: {qtdUn(x.v.qtd, unidade)}</p>
                           ))}
                           <div className="flex flex-col gap-2">
                             <button type="button" onClick={() => setDVar((m) => { const n = { ...m }; for (const x of pendentes) n[x.v.uid!] = { ...(n[x.v.uid!] ?? { min: "", max: "" }), qtd: String(x.v.qtd) }; return n; })}
-                              className={btnPrimary(true)}>Sim, estão no depósito</button>
+                              className={btnPrimary(true)}>Sim, estão no {dep}</button>
                             <button type="button" onClick={() => setDVar((m) => { const n = { ...m }; for (const x of pendentes) n[x.v.uid!] = { ...(n[x.v.uid!] ?? { min: "", max: "" }), qtd: "" }; return n; })}
-                              className={btnGhost}>Não, vou contar o depósito</button>
+                              className={btnGhost}>Não, vou contar o {dep}</button>
                           </div>
                         </div>
                       )}
@@ -1056,11 +1062,11 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                           <p className="text-xs text-muted-foreground">Quantidade informada no cadastro: {x.v.qtd}</p>
                           {x.travada ? (
                             <>
-                              <p className="text-sm">Quantidade confirmada no depósito: <b>{qtdUn(x.q.v ?? 0, unidade)}</b></p>
+                              <p className="text-sm">Quantidade confirmada no {dep}: <b>{qtdUn(x.q.v ?? 0, unidade)}</b></p>
                               <p className="text-xs text-muted-foreground">Alterar a contagem ficará para uma etapa futura.</p>
                             </>
                           ) : (
-                            <Field label={`Quantidade confirmada no depósito (${unPlural(unidade)})`} name={`dq-${x.v.uid}`} {...numProps} placeholder="Ex.: 10"
+                            <Field label={`Quantidade confirmada no ${dep} (${unPlural(unidade)})`} name={`dq-${x.v.uid}`} {...numProps} placeholder="Ex.: 10"
                               value={x.d.qtd ?? ""} onChange={(e) => setVD(x.v.uid!, { qtd: numIn(e.target.value) })} error={showErr(x.d.qtd ?? "", x.q.err)} />
                           )}
                         </div>
@@ -1079,7 +1085,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                       </div>
                       <p className="text-sm text-muted-foreground">{limitesStatus(mn.v, mx.v)}</p>
                       {q.v != null && mx.v != null && q.v > mx.v && <p className="text-sm text-warning">{ACIMA_MAX}</p>}
-                      <LimitesAjuda />
+                      <LimitesAjuda dep={dep} />
                     </>
                   )}
 
@@ -1101,7 +1107,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                           {x.q.v != null && x.mx.v != null && x.q.v > x.mx.v && <p className="text-xs text-warning">{ACIMA_MAX}</p>}
                         </div>
                       ))}
-                      <LimitesAjuda />
+                      <LimitesAjuda dep={dep} />
                     </>
                   )}
                 </>
@@ -1126,6 +1132,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                               value={vNovo} onChange={(e) => setVNovo(e.target.value.slice(0, 60))}
                               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addVLocal(); } }}
                               error={vNovoDup ? VEN_LOCAL_DUP : ""} hint="Um nome simples. Corredor e nível não são obrigatórios." />
+                            {!vNovo && <LocaisSugeridos opts={LOCAIS_SUGERIDOS[tipo]?.ven ?? []} campo="vlocal" onPick={setVNovo} />}
                             <div className="flex gap-2">
                               <button type="button" onClick={() => setVNovo(null)} className={`flex-1 ${btnGhost}`}>Cancelar</button>
                               <button type="button" disabled={!vNovo.trim() || vNovoDup} onClick={addVLocal} className={`flex-1 ${btnPrimary(!!vNovo.trim() && !vNovoDup)}`}>Usar este local de venda</button>
@@ -1138,7 +1145,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                         )}
                       </div>
                       {vLocalMsg && <p role="alert" className="text-sm text-destructive">{vLocalMsg}</p>}
-                      <p className="text-xs text-muted-foreground">{isRoupas ? "Um local de venda para o produto. Vale para todas as variações." : "Um local de venda para o produto inteiro."} Os locais de venda são separados dos locais do depósito.</p>
+                      <p className="text-xs text-muted-foreground">{isRoupas ? "Um local de venda para o produto. Vale para todas as variações." : "Um local de venda para o produto inteiro."} Os locais de venda são separados dos locais do {dep}.</p>
                       {!vManter && vLocal === null && <p className="text-xs text-warning">{VEN_LOCAL_PENDENTE}</p>}
                     </>
                   )}
@@ -1155,7 +1162,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                           value={vQtd} onChange={(e) => setVQtd(numIn(e.target.value))} error={showErr(vQtd, vq.err)}
                           hint={fr ? "Aceita vírgula. Ex.: 12,5" : "Somente números inteiros."} />
                       )}
-                      <p className="text-xs text-muted-foreground">Conte só o que está exposto para venda. É separado do depósito e não é uma transferência. Se não houver nenhuma, digite 0.</p>
+                      <p className="text-xs text-muted-foreground">Conte só o que está exposto para venda. É separado do {dep} e não é uma transferência. Se não houver nenhuma, digite 0.</p>
                       <p className="rounded-2xl border border-border bg-background-deep/60 p-3 text-sm">{totalLinhas[0]}</p>
                     </>
                   )}
@@ -1278,11 +1285,11 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                   <Sum t="Fornecedor" onEdit={() => edit(3)}>{fornNome}</Sum>
                   {!isRoupas && <Sum t="Como chega" onEdit={() => edit(3)}>{embModo === "unidade" || !embs.length ? "Por unidade" : embs.map((e) => descricaoEmbalagem(e, unidade)).join(" · ")}</Sum>}
                   {manterSem ? (
-                    <Sum t="Depósito" onEdit={() => edit(STEP_DEP, 0)}>{SEM_CONFIG}</Sum>
+                    <Sum t={T("Depósito")} onEdit={() => edit(STEP_DEP, 0)}>{T(SEM_CONFIG)}</Sum>
                   ) : (
                     <>
                       <Sum t="Local" onEdit={() => edit(STEP_DEP, 0)}>{resumoLocal}</Sum>
-                      <Sum t="Quantidade no depósito" onEdit={() => edit(STEP_DEP, 1)}>{resumoQtd}</Sum>
+                      <Sum t={T("Quantidade no depósito")} onEdit={() => edit(STEP_DEP, 1)}>{resumoQtd}</Sum>
                       <Sum t="Limites" onEdit={() => edit(STEP_DEP, 2)}>{resumoLim}</Sum>
                     </>
                   )}
@@ -1353,7 +1360,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
           setVars(varSheet < 0 ? [...vars, nv] : vars.map((x, j) => (j === varSheet ? nv : x)));
           setVarSheet(null);
         }} />}
-      {embSheet !== null && <EmbalagemSheet index={embSheet} lista={embs} unidade={unidade} codigoProduto={codigo} usados={used} compra={compra}
+      {embSheet !== null && <EmbalagemSheet tipoComercio={tipo} index={embSheet} lista={embs} unidade={unidade} codigoProduto={codigo} usados={used} compra={compra}
         onGerarCodigo={onGerarCodigo} onClose={() => setEmbSheet(null)}
         onSave={(e, novaCompra) => {
           const uid = embSheet < 0 ? newUid() : embs[embSheet]?.uid ?? newUid();
@@ -1380,11 +1387,26 @@ function LimitesVendaAjuda() {
     </div>
   );
 }
-function LimitesAjuda() {
+/** Atalhos para o nome do local: um toque preenche o começo e o comerciante completa ("Gôndola 3"). */
+function LocaisSugeridos({ opts, campo, onPick }: { opts: string[]; campo: string; onPick: (v: string) => void }) {
+  if (!opts.length) return null;
+  return (
+    <div className="space-y-1">
+      <p className="text-xs text-muted-foreground">Toque para começar:</p>
+      <div className="flex flex-wrap gap-1.5">
+        {opts.map((o) => (
+          <button key={o} type="button" onClick={() => { onPick(`${o} `); setTimeout(() => document.getElementById(campo)?.focus(), 60); }}
+            className="min-h-11 rounded-2xl border border-border bg-background-deep/60 px-3 text-sm font-semibold text-muted-foreground hover:border-primary">{o}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+function LimitesAjuda({ dep }: { dep: string }) {
   return (
     <div className="space-y-1 text-xs text-muted-foreground">
       <p><b>Mínimo:</b> avise quando a quantidade chegar a este valor. Será a referência para aviso de compra — nenhum alerta funciona nesta versão.</p>
-      <p><b>Máximo desejado:</b> quanto você deseja manter no depósito. Não bloqueia recebimentos.</p>
+      <p><b>Máximo desejado:</b> quanto você deseja manter no {dep}. Não bloqueia recebimentos.</p>
     </div>
   );
 }
@@ -1541,14 +1563,17 @@ function VariationSheet({ index, vars, categoria, mainCode, used, onGerarCodigo,
     </Sheet>
   );
 }
-function EmbalagemSheet({ index, lista, unidade, codigoProduto, usados, compra, onGerarCodigo, onClose, onSave }: {
-  index: number; lista: Embalagem[]; unidade: string; codigoProduto: string; usados: Set<string>; compra: number;
+function EmbalagemSheet({ tipoComercio, index, lista, unidade, codigoProduto, usados, compra, onGerarCodigo, onClose, onSave }: {
+  tipoComercio: string; index: number; lista: Embalagem[]; unidade: string; codigoProduto: string; usados: Set<string>; compra: number;
   onGerarCodigo?: (() => Promise<string>) | undefined; onClose: () => void;
   /** `novaCompra`: preço de compra da unidade calculado pela embalagem, quando o comerciante escolheu usar. */
   onSave: (e: Omit<Embalagem, "uid">, novaCompra: number | null) => void;
 }) {
   const init = index >= 0 ? lista[index] : undefined;
-  const [tipo, setTipo] = useState(init?.tipo ?? "Caixa");
+  /* Embalagens do tipo de comércio (a mais comum primeiro); uma antiga fora da lista continua aparecendo para não sumir. */
+  const doTipo = embalagensDoTipo(tipoComercio);
+  const [tipo, setTipo] = useState(init?.tipo ?? doTipo[0] ?? "Caixa");
+  const opcoesTipo = init && !doTipo.includes(init.tipo) ? [...doTipo, init.tipo] : doTipo;
   const [qtdTxt, setQtdTxt] = useState(init ? toInput(init.qtd) : "");
   const [cod, setCod] = useState(init?.codigo ?? "");
   const [preco, setPreco] = useState(init?.preco ?? 0);
@@ -1568,7 +1593,7 @@ function EmbalagemSheet({ index, lista, unidade, codigoProduto, usados, compra, 
     <Sheet title={index >= 0 ? "Editar embalagem" : "Nova embalagem"} onClose={onClose}>
       <form noValidate onSubmit={(ev) => { ev.preventDefault(); if (!ok) { setTentou(true); return; } onSave({ tipo, qtd: q.v!, codigo: cod.trim(), preco }, mudaCompra && usar ? unit : null); }} className="flex min-h-0 flex-col">
         <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3">
-          <Chips label="Tipo de embalagem" hint="Como vem do fornecedor." opts={[...TIPOS_EMBALAGEM]} value={tipo} onChange={setTipo} />
+          <Chips label="Tipo de embalagem" hint="Como vem do fornecedor." opts={opcoesTipo} value={tipo} onChange={setTipo} />
           <Field label={perguntaQtd(unidade)} name="eqtd" id="eqtd" inputMode={aceitaFracao(unidade) ? "decimal" : "numeric"} enterKeyHint="next" onKeyDown={nextOnEnter("ecod")}
             placeholder={aceitaFracao(unidade) ? "Ex.: 25" : "Ex.: 12"} value={qtdTxt} onChange={(e) => setQtdTxt(e.target.value.replace(/[^\d,.-]/g, "").slice(0, 10))}
             error={qErr} hint={`Ex.: ${unidade === "Caixa" ? "fardo" : "caixa"} com ${qtdUn(12, unidade)}.`} />
@@ -1583,7 +1608,7 @@ function EmbalagemSheet({ index, lista, unidade, codigoProduto, usados, compra, 
             </button>
           )}
           {gerador.erro && <p role="alert" className="text-sm text-destructive">{gerador.erro}</p>}
-          <Field label={`Preço da ${tipo.toLowerCase()} (opcional)`} name="epreco" id="epreco" inputMode="numeric" enterKeyHint="done" placeholder="R$ 0,00"
+          <Field label={`${rotuloPrecoEmbalagem(tipo)} (opcional)`} name="epreco" id="epreco" inputMode="numeric" enterKeyHint="done" placeholder="R$ 0,00"
             value={preco ? brl2(preco) : ""} onChange={(e) => setPreco(moneyIn(e.target.value))} hint="Quanto você paga pela embalagem inteira." />
           {unit > 0 && (
             <div className="space-y-2 rounded-2xl border border-border bg-background-deep/60 p-3">
