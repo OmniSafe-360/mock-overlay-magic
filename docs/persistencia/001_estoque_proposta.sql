@@ -235,10 +235,10 @@ begin
        or s.lote_id::text is distinct from r->>'lote_id' then
       raise exception 'vinculo_incompativel: saldo' using errcode = '23514'; end if;
   end if;
-  if tg_table_name = 'saldos' and new.origem_id is not null then
-    select * into s from saldos where id = new.origem_id;
-    if s.comercio_id <> new.comercio_id or s.produto_id <> new.produto_id
-       or s.variacao_id is distinct from new.variacao_id or s.area <> new.area or not s.pendente then
+  if r->>'origem_id' is not null then
+    select * into s from saldos where id = (r->>'origem_id')::uuid;
+    if s.comercio_id::text <> r->>'comercio_id' or s.produto_id::text <> r->>'produto_id'
+       or s.variacao_id::text is distinct from r->>'variacao_id' or s.area::text <> r->>'area' or not s.pendente then
       raise exception 'vinculo_incompativel: origem' using errcode = '23514'; end if;
   end if;
   return new;
