@@ -1,7 +1,8 @@
 /* App do funcionário "Omni Operação" (E1): entrada com o código de 6 números e o PIN de 4, e a tela inicial
- * com os botões grandes Receber mercadoria / Repor gôndola. As telas de cada botão chegam nas etapas E2 e E3. */
+ * com os botões grandes Receber mercadoria / Repor gôndola (E2 e E3).
+ * O celular fica lembrado, mas o app pede o PIN toda vez que é aberto e depois de alguns minutos fora da tela. */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowLeft, Check, Delete, Download, EllipsisVertical, LogOut, PackageOpen, RefreshCw, Share, ShoppingBasket, SquarePlus } from "lucide-react";
+import { ArrowLeft, Check, Delete, Lock, Download, EllipsisVertical, LogOut, PackageOpen, RefreshCw, Share, ShoppingBasket, SquarePlus } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import { ReceberMercadoria, type ApiReceber } from "@/components/ReceberMercadoria";
 import { ReporGondola, type ApiRepor } from "@/components/ReporGondola";
@@ -17,28 +18,37 @@ export type ApiFuncionario = {
   conferir: typeof banco.conferirCodigoFuncionario;
   entrar: typeof banco.entrarFuncionario;
   inicio: typeof banco.inicioFuncionario;
+  desbloquear: typeof banco.desbloquearFuncionario;
   sair: typeof banco.sairFuncionario;
   receber?: ApiReceber | undefined;
   repor?: ApiRepor | undefined;
 };
-const API_PADRAO: ApiFuncionario = { conferir: banco.conferirCodigoFuncionario, entrar: banco.entrarFuncionario, inicio: banco.inicioFuncionario, sair: banco.sairFuncionario };
+const API_PADRAO: ApiFuncionario = { conferir: banco.conferirCodigoFuncionario, entrar: banco.entrarFuncionario, inicio: banco.inicioFuncionario, desbloquear: banco.desbloquearFuncionario, sair: banco.sairFuncionario };
 
 type Tela =
   | { t: "abrindo" }
   | { t: "codigo"; aviso?: string }
   | { t: "pin"; codigo: string; novo: boolean }
+  | { t: "travado"; dados: banco.InicioFuncionario }
   | { t: "inicio"; dados: banco.InicioFuncionario }
   | { t: "receber" }
   | { t: "repor" }
   | { t: "erro" };
 
+/** Minutos com o app fora da tela (minimizado, celular apagado) antes de pedir o PIN de novo. */
+export const MINUTOS_PARA_TRAVAR = 5;
+
 export function AppFuncionario({ codigoInicial, api = API_PADRAO }: { codigoInicial?: string | undefined; api?: ApiFuncionario }) {
   const [tela, setTela] = useState<Tela>({ t: "abrindo" });
+  const ultimo = useRef<banco.InicioFuncionario | null>(null);
+  const telaRef = useRef(tela);
+  telaRef.current = tela;
 
-  const abrirInicio = useCallback(async (chave: string, avisoSeDesligado = true) => {
+  /** Abre a tela inicial; com `travar`, mostra antes a tela do PIN (ao abrir o app). */
+  const abrirInicio = useCallback(async (chave: string, avisoSeDesligado = true, travar = false) => {
     try {
       const d = await api.inicio(chave);
-      if (d) { setTela({ t: "inicio", dados: d }); return; }
+      if (d) { ultimo.current = d; setTela({ t: travar || d.pinNecessario ? "travado" : "inicio", dados: d }); return; }
       apagarChave();
       setTela({ t: "codigo", ...(avisoSeDesligado ? { aviso: "Este celular saiu do app (o dono bloqueou ou gerou um acesso novo). Peça o código ao dono." } : {}) });
     } catch { setTela({ t: "erro" }); }
@@ -47,10 +57,26 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO }: { codigoInic
   useEffect(() => { prepararInstalacaoFuncionario(); }, []);
   useEffect(() => {
     const chave = lerChave();
-    if (chave) { void abrirInicio(chave); return; }
+    if (chave) { void abrirInicio(chave, true, true); return; }
     setTela({ t: "codigo" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // Ficou fora da tela por alguns minutos: pede o PIN de novo ao voltar.
+  useEffect(() => {
+    let saiu: number | null = null;
+    const mudou = () => {
+      if (document.visibilityState === "hidden") { saiu = Date.now(); return; }
+      const fora = saiu == null ? 0 : Date.now() - saiu;
+      saiu = null;
+      const t = telaRef.current.t;
+      if (fora >= MINUTOS_PARA_TRAVAR * 60_000 && ultimo.current && lerChave() && t !== "codigo" && t !== "pin" && t !== "travado") {
+        setTela({ t: "travado", dados: ultimo.current });
+      }
+    };
+    document.addEventListener("visibilitychange", mudou);
+    return () => document.removeEventListener("visibilitychange", mudou);
+  }, []);
+  const sair = async () => { const c = lerChave(); apagarChave(); ultimo.current = null; if (c) await api.sair(c).catch(() => {}); setTela({ t: "codigo" }); };
 
   return (
     <div className="min-h-dvh bg-app text-foreground">
@@ -70,6 +96,10 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO }: { codigoInic
           <TelaPin codigo={tela.codigo} novo={tela.novo} api={api} onVoltar={() => setTela({ t: "codigo" })}
             onEntrou={(chave) => { guardarChave(chave); void abrirInicio(chave, false); }} />
         )}
+        {tela.t === "travado" && (
+          <TelaTravado dados={tela.dados} api={api} onSair={sair}
+            onDestravou={() => { const c = lerChave(); if (c) void abrirInicio(c); else setTela({ t: "codigo" }); }} />
+        )}
         {tela.t === "receber" && (
           <ReceberMercadoria chave={lerChave() ?? ""} api={api.receber}
             onVoltar={() => { const c = lerChave(); if (c) void abrirInicio(c); else setTela({ t: "codigo" }); }} />
@@ -80,7 +110,7 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO }: { codigoInic
         )}
         {tela.t === "inicio" && (
           <TelaInicio dados={tela.dados} onReceber={() => setTela({ t: "receber" })} onRepor={() => setTela({ t: "repor" })} onAtualizar={async () => { const c = lerChave(); if (c) await abrirInicio(c); }}
-            onSair={async () => { const c = lerChave(); apagarChave(); if (c) await api.sair(c).catch(() => {}); setTela({ t: "codigo" }); }} />
+            onSair={sair} />
         )}
       </main>
     </div>
@@ -174,20 +204,84 @@ function TelaPin({ codigo, novo, api, onVoltar, onEntrou }: {
         <p className="text-xl font-bold">{titulo}</p>
         {ajuda && <p className="text-sm text-muted-foreground">{ajuda}</p>}
       </div>
+      <TecladoPin pin={pin} erro={erro} ocupado={enviando ? "Entrando…" : ""} onTecla={tecla} onApagar={() => setPin((p) => p.slice(0, -1))} />
+    </div>
+  );
+}
+
+/** As 4 bolinhas, o erro e o teclado grande do PIN. */
+function TecladoPin({ pin, erro, ocupado, onTecla, onApagar }: { pin: string; erro: string; ocupado: string; onTecla: (d: string) => void; onApagar: () => void }) {
+  return (
+    <>
       <div aria-label={`${pin.length} de 4 números digitados`} className="flex justify-center gap-4">
         {[0, 1, 2, 3].map((i) => (
           <span key={i} className={`h-5 w-5 rounded-full border-2 ${i < pin.length ? "border-primary bg-primary" : "border-border"}`} />
         ))}
       </div>
       {erro && <p role="alert" className="text-center text-sm font-semibold text-destructive">{erro}</p>}
-      {enviando && <p className="text-center text-sm text-muted-foreground">Entrando…</p>}
+      {ocupado && <p className="text-center text-sm text-muted-foreground">{ocupado}</p>}
       <div className="mx-auto grid max-w-[300px] grid-cols-3 gap-3">
         {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
-          <button key={d} type="button" onClick={() => tecla(d)} className="h-16 rounded-2xl border border-border bg-secondary/60 text-2xl font-bold active:scale-95">{d}</button>
+          <button key={d} type="button" onClick={() => onTecla(d)} className="h-16 rounded-2xl border border-border bg-secondary/60 text-2xl font-bold active:scale-95">{d}</button>
         ))}
         <span />
-        <button type="button" onClick={() => tecla("0")} className="h-16 rounded-2xl border border-border bg-secondary/60 text-2xl font-bold active:scale-95">0</button>
-        <button type="button" aria-label="Apagar" onClick={() => setPin((p) => p.slice(0, -1))} className="flex h-16 items-center justify-center rounded-2xl text-muted-foreground active:scale-95"><Delete size={26} /></button>
+        <button type="button" onClick={() => onTecla("0")} className="h-16 rounded-2xl border border-border bg-secondary/60 text-2xl font-bold active:scale-95">0</button>
+        <button type="button" aria-label="Apagar" onClick={onApagar} className="flex h-16 items-center justify-center rounded-2xl text-muted-foreground active:scale-95"><Delete size={26} /></button>
+      </div>
+    </>
+  );
+}
+
+/** App travado: o celular é conhecido, só falta o PIN. */
+function TelaTravado({ dados, api, onDestravou, onSair }: { dados: banco.InicioFuncionario; api: ApiFuncionario; onDestravou: () => void; onSair: () => Promise<void> }) {
+  const [pin, setPin] = useState("");
+  const [erro, setErro] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [ajuda, setAjuda] = useState(false);
+  const [sair, setSair] = useState(false);
+  const tecla = (d: string) => {
+    if (enviando) return;
+    const p = (pin + d).slice(0, 4);
+    setPin(p); setErro("");
+    if (p.length !== 4) return;
+    const chave = lerChave();
+    if (!chave) { void onSair(); return; }
+    setEnviando(true);
+    void api.desbloquear(chave, p).then(onDestravou, (e: unknown) => {
+      const m = String((e as { message?: string } | null)?.message ?? e ?? "");
+      if (m.includes("acesso_encerrado")) { void onSair(); return; }
+      setErro(mensagemEntrada(e)); setPin(""); setEnviando(false);
+    });
+  };
+  return (
+    <div className="my-auto space-y-6">
+      <div className="flex flex-col items-center gap-2 text-center">
+        <LogoMark size={56} />
+        <p className="text-sm text-muted-foreground">{NOME_APP_FUNCIONARIO} · {dados.comercio.nome}</p>
+      </div>
+      <div className="space-y-1 text-center">
+        <p className="text-2xl font-bold">Olá, {dados.nome.split(" ")[0]}!</p>
+        <p className="flex items-center justify-center gap-2 text-xl font-bold"><Lock size={20} className="text-primary" /> Digite seu PIN</p>
+        <p className="text-sm text-muted-foreground">A sua senha de 4 números.</p>
+      </div>
+      <TecladoPin pin={pin} erro={erro} ocupado={enviando ? "Abrindo…" : ""} onTecla={tecla} onApagar={() => setPin((p) => p.slice(0, -1))} />
+      <div className="space-y-1 text-center">
+        {!ajuda ? (
+          <button type="button" onClick={() => setAjuda(true)} className="min-h-11 w-full text-sm font-semibold text-primary">Esqueci meu PIN</button>
+        ) : (
+          <p role="status" className="rounded-2xl border border-border p-3 text-sm">
+            Peça ao dono: na <b>Equipe</b>, ele toca no seu nome e em <b>"Esqueceu o PIN ou trocou de celular?"</b>. Ele te passa um código novo e você cria outro PIN.
+          </p>
+        )}
+        {!sair ? (
+          <button type="button" onClick={() => setSair(true)} className="flex min-h-11 w-full items-center justify-center gap-2 text-sm font-semibold text-muted-foreground"><LogOut size={16} /> Não sou {dados.nome.split(" ")[0]} · sair deste celular</button>
+        ) : (
+          <div className="space-y-2 rounded-2xl border border-border p-3 text-center">
+            <p className="text-sm">Para entrar de novo, vai precisar do código e do PIN.</p>
+            <button type="button" onClick={() => void onSair()} className={`w-full ${btnGhost}`}>Sim, sair</button>
+            <button type="button" onClick={() => setSair(false)} className="min-h-11 w-full text-sm font-semibold text-muted-foreground">Voltar</button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -344,7 +438,7 @@ function PassosInstalar({ onClose }: { onClose: () => void }) {
         )}
         {!noAppDono && <p className="text-sm text-muted-foreground">{aparelho === "iphone"
           ? "Depois é só abrir pelo ícone. Na primeira vez pelo ícone, digite o código e o seu PIN de novo."
-          : "Depois é só abrir pelo ícone: ele já entra direto."}</p>}
+          : "Depois é só abrir pelo ícone e digitar o seu PIN."}</p>}
       </div>
       <div className="px-5 pt-2"><button type="button" onClick={onClose} className={`w-full ${btnGhost}`}>Entendi</button></div>
     </Sheet>

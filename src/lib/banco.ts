@@ -318,6 +318,8 @@ export async function novoAcessoFuncionario(id: string): Promise<string> {
 export type InicioFuncionario = {
   nome: string; funcao: Funcao; comercio: { nome: string; tipo: string };
   avisos: { entregas: number; entregasHoje: number; repor: number };
+  /** O app travou: precisa digitar o PIN neste celular (os avisos vêm zerados). */
+  pinNecessario?: boolean | undefined;
 };
 /** 'novo' (criar PIN), 'pin', 'expirado' ou null (código não vale). */
 export async function conferirCodigoFuncionario(codigo: string): Promise<"novo" | "pin" | "expirado" | null> {
@@ -338,9 +340,16 @@ export async function inicioFuncionario(chave: string): Promise<InicioFuncionari
   if (error) throw error;
   if (!data) return null;
   return {
+    ...(data.pin_necessario ? { pinNecessario: true } : {}),
     nome: data.nome, funcao: data.funcao, comercio: { nome: data.comercio?.nome ?? "", tipo: data.comercio?.tipo ?? "" },
     avisos: { entregas: Number(data.avisos?.entregas ?? 0), entregasHoje: Number(data.avisos?.entregas_hoje ?? 0), repor: Number(data.avisos?.repor ?? 0) },
   };
+}
+/** Destrava o app com o PIN. PIN errado vem como erro (pin_errado:N / muitas_tentativas:N). */
+export async function desbloquearFuncionario(chave: string, pin: string) {
+  const { data, error } = await db.rpc("funcionario_desbloquear", { _chave: chave, _pin: pin });
+  if (error) throw error;
+  if (data?.erro) throw new Error(String(data.erro));
 }
 export async function sairFuncionario(chave: string) {
   const { error } = await db.rpc("sair_funcionario", { _chave: chave });

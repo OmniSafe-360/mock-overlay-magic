@@ -25,6 +25,7 @@ const MSG_REPOR: [string, string][] = [
   ["deposito_insuficiente", "O depósito não tem essa quantidade. Confira quanto você pegou."],
   ["funcao_nao_permite_repor", "Sua função não inclui repor. Fale com o dono."],
   ["acesso_encerrado", "Este celular saiu do app. Entre de novo com o código do dono."],
+  ["pin_necessario", "Por segurança, o app travou. Volte ao início e digite seu PIN."],
 ];
 const erroTexto = (e: unknown) => {
   const m = String((e as { message?: string } | null)?.message ?? e ?? "");
