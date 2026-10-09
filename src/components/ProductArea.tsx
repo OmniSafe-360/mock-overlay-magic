@@ -158,7 +158,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const isRoupas = tipo === "roupas";
   const codeErr = mainCodeError(codigo, used, isRoupas ? vars : []);
   const [triedSave, setTriedSave] = useState(false);
-  const rules: TypeRules | undefined = tipo === "mercado" ? { unidades: UNIDADES.mercado!, categorias: CATEGORIAS.mercado!, semVariacoes: true } : undefined;
+  const rules: TypeRules | undefined = tipo === "mercado" ? { unidades: UNIDADES["mercado"]!, categorias: CATEGORIAS["mercado"]!, semVariacoes: true } : undefined;
   const ruleErr = typeRuleError({ unidade, categoria, variacoes: vars }, rules);
   const dup = !!codeErr;
   const varsOk = vars.length > 0 && vars.every((v, i) => variationOk(v, i, vars, codigo, used));
