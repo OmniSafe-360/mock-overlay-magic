@@ -11,6 +11,7 @@ import {
 } from "@/lib/embalagem";
 import { ImprimirEtiquetaSheet } from "@/components/Etiqueta";
 import { avisoCodigo } from "@/lib/codigoBarras";
+import { CATEGORIAS, UNIDADES } from "@/lib/listas";
 import { AUTOPECAS_VARS_MSG, POSICAO_MSG, CONSTRUCAO_VARS_MSG, CONTROLADO_MSG, ESPECIE_MSG, PET_VARS_MSG, FARMACIA_VARS_MSG, firstInvalidStep, typeRuleError, type TypeRules, mainCodeError, usedCodes, variationErrors, variationOk } from "@/lib/variations";
 import {
   ACIMA_MAX, LOCAL_DUP, LOCAL_PENDENTE, REMOCAO_BLOQUEADA, SEM_CONFIG, TEMPORARIO, aceitaFracao, fmtQ, limitesErro, limitesStatus, localDuplicado,
@@ -52,19 +53,6 @@ export type Product = {
   confirmarVencimento?: boolean | undefined;
 };
 
-const UNIDADES: Record<string, string[]> = {
-  mercado: ["Unidade", "Kg", "Litro", "Pacote", "Caixa"], pet: ["Unidade", "Kg", "Litro", "Pacote", "Caixa"],
-  farmacia: ["Caixa", "Cartela", "Frasco", "Unidade"], roupas: ["Peça", "Par"],
-  construcao: ["Unidade", "Metro", "m²", "Kg", "Saco", "Caixa", "Lata"], autopecas: ["Unidade", "Par", "Jogo", "Kit"],
-};
-const CATEGORIAS: Record<string, string[]> = {
-  mercado: ["Mercearia", "Bebidas", "Hortifrúti", "Frios e laticínios", "Limpeza", "Higiene"],
-  farmacia: ["Medicamentos", "Genéricos", "Higiene", "Dermocosméticos", "Infantil", "Suplementos"],
-  roupas: ["Camisetas", "Calças", "Vestidos", "Calçados", "Íntima", "Acessórios"],
-  construcao: ["Básico", "Hidráulica", "Elétrica", "Pintura", "Ferramentas", "Acabamento"],
-  pet: ["Ração", "Petiscos", "Higiene", "Acessórios", "Farmácia pet", "Brinquedos"],
-  autopecas: ["Motor", "Freios", "Suspensão", "Elétrica", "Filtros", "Acessórios"],
-};
 type DField = { k: string; label: string; hint: string; ph?: string; opts?: string[] };
 const DETALHES: Record<string, DField[]> = {
   mercado: [{ k: "marca", label: "Marca", hint: "Fabricante do produto.", ph: "Ex.: Camil" }, { k: "peso", label: "Peso ou volume da embalagem", hint: "Como aparece no rótulo.", ph: "Ex.: 1 kg, 500 ml" }],
@@ -849,7 +837,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                       <span className="block text-xs text-muted-foreground">Quero ganhar</span>
                       <span className="relative block">
                         <input id="ganho" name="ganho" inputMode="decimal" autoComplete="off" enterKeyHint="done" disabled={compra <= 0}
-                          placeholder={compra > 0 ? "Ex.: 30" : "Falta a compra"} aria-describedby="ganho-dica"
+                          placeholder={compra > 0 ? "Ex.: 30" : "—"} aria-describedby="ganho-dica"
                           value={pctDigitado ?? ganhoTexto} onChange={(e) => mudarPct(e.target.value)}
                           className={`mt-0.5 h-8 w-full rounded-xl border border-border bg-background-deep/60 pl-3 pr-8 text-base font-bold outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60 ${lucro < 0 ? "text-destructive" : "text-accent"}`} />
                         <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-base font-bold text-muted-foreground">%</span>
