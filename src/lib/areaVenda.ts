@@ -1,5 +1,5 @@
 /* Regras do passo Área de venda (somente em memória nesta versão). Reaproveita as regras numéricas do Depósito. */
-import { fmtQ, locaisDoComercio, type Deposito } from "@/lib/deposito";
+import { fmtQ, locaisDoComercio, qtdUn, type Deposito } from "@/lib/deposito";
 
 /** Mesma forma do Depósito, mas é um conjunto separado de locais e quantidades. */
 export type AreaVenda = Deposito;
@@ -37,5 +37,5 @@ export const locaisVendaDoComercio = (products: { areaVenda?: AreaVenda | undefi
 export function totalTexto(dep: number | null | undefined, ven: number | null | undefined, unidade: string): string {
   if (dep == null || ven == null) return TOTAL_INDISPONIVEL;
   const t = Math.round((dep + ven) * 1000) / 1000;
-  return `Depósito ${fmtQ(dep)} + Área de venda ${fmtQ(ven)} = ${fmtQ(t)} ${unidade} no total`;
+  return `Depósito ${fmtQ(dep)} + Área de venda ${fmtQ(ven)} = ${qtdUn(t, unidade)} no total`;
 }

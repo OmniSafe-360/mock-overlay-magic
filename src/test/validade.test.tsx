@@ -238,7 +238,7 @@ describe("pendências registradas: proteção por origem", () => {
   const duas: Validade = { controla: true, avisos: [], ven: {}, dep: { _: [
     { id: "p1", qtd: 10, data: "2027-04-12", lote: null, pendConf: true }, { id: "p2", qtd: 10, data: "2027-05-12", lote: null, pendConf: true },
   ] } };
-  const msg1 = /A pendência registrada de 10 Caixa \(vence 12\/04\/2027\) agora soma 15 Caixa/;
+  const msg1 = /A pendência registrada de 10 caixas \(vence 12\/04\/2027\) agora soma 15 caixas/;
   const irDep = (t: { submit: () => void }) => { for (let i = 0; i < 12; i++) t.submit(); expect(screen.getByText("Validades no depósito")).toBeTruthy(); };
 
   it("duas pendências de 10 não podem virar 15 e 5, mesmo com o total da área correto", () => {

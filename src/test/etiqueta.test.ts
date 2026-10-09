@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { qtdUn } from "@/lib/deposito";
 import { MODELOS, folhasA4, modeloPorId, posicaoNaFolha, precoEtiqueta, regraPagina } from "@/lib/etiqueta";
 
 const a4 = modeloPorId("a4-21");
@@ -33,5 +34,19 @@ describe("etiquetas", () => {
     expect(precoEtiqueta(349, "Unidade").replace(/\s/g, " ")).toBe("R$ 3,49");
     expect(precoEtiqueta(650, "Kg").replace(/\s/g, " ")).toBe("R$ 6,50 / Kg");
     expect(precoEtiqueta(5990, "Peça").replace(/\s/g, " ")).toBe("R$ 59,90");
+  });
+});
+
+describe("quantidade com a unidade no plural", () => {
+  it("fala como o comerciante", () => {
+    expect(qtdUn(100, "Unidade")).toBe("100 unidades");
+    expect(qtdUn(1, "Unidade")).toBe("1 unidade");
+    expect(qtdUn(0, "Unidade")).toBe("0 unidades");
+    expect(qtdUn(1.5, "Litro")).toBe("1,5 litro");
+    expect(qtdUn(2, "Litro")).toBe("2 litros");
+    expect(qtdUn(2.5, "Kg")).toBe("2,5 Kg");
+    expect(qtdUn(3, "Par")).toBe("3 pares");
+    expect(qtdUn(4, "m²")).toBe("4 m²");
+    expect(qtdUn(48, "Pacote")).toBe("48 pacotes");
   });
 });

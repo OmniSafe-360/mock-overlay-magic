@@ -1,5 +1,5 @@
 /* Regras do passo Validade (somente em memória nesta versão). Distribui a contagem já confirmada; nunca cria estoque. */
-import { fmtQ } from "@/lib/deposito";
+import { fmtQ, qtdUn } from "@/lib/deposito";
 
 /** Fuso padrão explícito desta versão para definir "hoje". Não existe configuração no banco. */
 export const TZ_PADRAO = "America/Sao_Paulo";
@@ -135,7 +135,7 @@ export function analisarLotes(linhas: { id: string; lote: string | null; data: s
 export const avisosTexto = (a: number[]) => (a.length ? `Avisar ${[...a].sort((x, y) => x - y).join(", ")} dias antes do vencimento (ainda não ativo)` : AVISOS_NAO);
 
 export function linhaTexto(l: LinhaVal, unidade: string, hoje: string, farmacia: boolean): string {
-  const partes = [`${fmtQ(l.qtd)} ${unidade}`, l.data ? `vence ${fmtData(l.data)}` : "validade desconhecida"];
+  const partes = [`${qtdUn(l.qtd, unidade)}`, l.data ? `vence ${fmtData(l.data)}` : "validade desconhecida"];
   if (l.lote) partes.push(`lote ${l.lote}`); else if (farmacia) partes.push("lote pendente");
   const f = faixa(l.data, hoje);
   if (f !== "desconhecida") partes.push(FAIXA_TXT[f]);
