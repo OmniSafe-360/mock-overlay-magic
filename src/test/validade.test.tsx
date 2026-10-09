@@ -110,7 +110,7 @@ describe("produto novo com validade", () => {
     click("Sim"); t.submit(); click("30 dias"); click("90 dias"); t.submit();
     typeIn(/^Quantidade \(/, "41"); typeIn("Vence em", "10/12/2026");
     expect(screen.getByText(ACIMA)).toBeTruthy();
-    t.submit(); expect(screen.getByText("Validades no depósito")).toBeTruthy();
+    t.submit(); expect(screen.getByText(/^Validades no (depósito|estoque)$/)).toBeTruthy();
     typeIn(/^Quantidade \(/, "30"); t.submit();
     expect(screen.getByText(faltaMsg("10"))).toBeTruthy();
     click(/Adicionar outra validade/);
@@ -213,7 +213,7 @@ describe("edição", () => {
     const t = setup("farmacia", { ...base({ validade: val }), unidade: "Caixa", categoria: "Medicamentos" });
     for (let i = 0; i < 8; i++) t.submit();
     t.submit(); t.submit();
-    expect(screen.getByText("Validades no depósito")).toBeTruthy();
+    expect(screen.getByText(/^Validades no (depósito|estoque)$/)).toBeTruthy();
     click("Dividir esta pendência");
     typeAll(/^Quantidade \(/, ["4", "6"]); typeAll(/^Lote/, ["F40", "F41"]);
     t.submit(); t.submit(); t.submit();
@@ -239,7 +239,7 @@ describe("pendências registradas: proteção por origem", () => {
     { id: "p1", qtd: 10, data: "2027-04-12", lote: null, pendConf: true }, { id: "p2", qtd: 10, data: "2027-05-12", lote: null, pendConf: true },
   ] } };
   const msg1 = /A pendência registrada de 10 caixas \(vence 12\/04\/2027\) agora soma 15 caixas/;
-  const irDep = (t: { submit: () => void }) => { for (let i = 0; i < 12; i++) t.submit(); expect(screen.getByText("Validades no depósito")).toBeTruthy(); };
+  const irDep = (t: { submit: () => void }) => { for (let i = 0; i < 12; i++) t.submit(); expect(screen.getByText(/^Validades no (depósito|estoque)$/)).toBeTruthy(); };
 
   it("duas pendências de 10 não podem virar 15 e 5, mesmo com o total da área correto", () => {
     const t = setup("farmacia", farmBase(duas));
@@ -247,7 +247,7 @@ describe("pendências registradas: proteção por origem", () => {
     typeAll(/^Quantidade \(/, ["15", "5"]);
     t.submit();
     expect(screen.getByText(msg1)).toBeTruthy();
-    expect(screen.getByText("Validades no depósito")).toBeTruthy();
+    expect(screen.getByText(/^Validades no (depósito|estoque)$/)).toBeTruthy();
     for (let i = 0; i < 4; i++) t.submit();
     expect(t.onSave).not.toHaveBeenCalled();
     typeAll(/^Quantidade \(/, ["10", "10"]);
@@ -285,7 +285,7 @@ describe("pendências registradas: proteção por origem", () => {
     typeAll(/^Quantidade \(/, ["10", "10", "0"]);
     t.submit();
     expect(screen.getByText("A quantidade precisa ser maior que zero.")).toBeTruthy();
-    expect(screen.getByText("Validades no depósito")).toBeTruthy();
+    expect(screen.getByText(/^Validades no (depósito|estoque)$/)).toBeTruthy();
   });
 
   it("editar pelo resumo não contorna a proteção", () => {
@@ -294,7 +294,7 @@ describe("pendências registradas: proteção por origem", () => {
     expect(screen.getByText("Salvar produto")).toBeTruthy();
     const sec = screen.getByText("Validades por área").closest("div")!.parentElement!;
     fireEvent.click(sec.querySelector("button")!);
-    expect(screen.getByText("Validades no depósito")).toBeTruthy();
+    expect(screen.getByText(/^Validades no (depósito|estoque)$/)).toBeTruthy();
     typeAll(/^Quantidade \(/, ["15", "5"]);
     t.submit(); t.submit(); t.submit();
     expect(t.onSave).not.toHaveBeenCalled();
@@ -325,7 +325,7 @@ describe("cadastro realmente novo com validade nos seis tipos", () => {
     click(/Adicionar variação/); click("M"); typeIn("Cor", "Azul"); typeIn("Código de barras", "5550001"); typeIn(/^Quantidade$/, "2"); click("Adicionar");
     t.submit(); click("Definir depois"); t.submit();
     click(/^Novo local$/); typeIn("Nome do local", "Estante A"); click("Usar este local"); t.submit();
-    click("Não, vou contar o depósito"); typeIn(/Quantidade confirmada no depósito/, "5"); t.submit(); t.submit();
+    click(/^Não, vou contar o (depósito|estoque)$/); typeIn(/Quantidade confirmada no (depósito|estoque)/, "5"); t.submit(); t.submit();
     click(/Novo local de venda/); typeIn("Nome do local de venda", "Arara"); click("Usar este local de venda"); t.submit();
     typeIn(/Quanto desta variação já está neste local/, "0"); t.submit(); t.submit();
     expect(screen.queryByText("Controle de validade")).toBeNull();

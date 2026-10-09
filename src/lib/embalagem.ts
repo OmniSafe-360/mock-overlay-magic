@@ -3,7 +3,24 @@
 import { aceitaFracao, fmtQ, parseNum, qtdUn, unPlural } from "@/lib/deposito";
 
 export type Embalagem = { uid: string; tipo: string; qtd: number; codigo: string; preco: number };
-export const TIPOS_EMBALAGEM = ["Caixa", "Fardo", "Pacote", "Display", "Saco"] as const;
+/** Todas as embalagens que o banco aceita (função _salvar_embalagens). */
+export const TIPOS_EMBALAGEM = ["Caixa", "Fardo", "Pacote", "Display", "Saco", "Pallet", "Milheiro"] as const;
+/** As que cada tipo de comércio recebe no dia a dia (farmácia não recebe fardo; construção recebe pallet e milheiro). */
+export const EMBALAGENS_POR_TIPO: Record<string, string[]> = {
+  mercado: ["Caixa", "Fardo", "Pacote", "Display", "Saco"],
+  farmacia: ["Caixa", "Display", "Pacote"],
+  construcao: ["Saco", "Pallet", "Milheiro", "Caixa", "Pacote"],
+  pet: ["Saco", "Caixa", "Fardo", "Pacote", "Display"],
+  autopecas: ["Caixa", "Pacote", "Display"],
+};
+export const embalagensDoTipo = (tipo: string): string[] => EMBALAGENS_POR_TIPO[tipo] ?? [...TIPOS_EMBALAGEM];
+/** Texto do botão "Em caixa, fardo ou pacote", com as embalagens do tipo. */
+export const rotuloComoChega = (tipo: string) => {
+  const l = embalagensDoTipo(tipo).slice(0, 3).map((t) => t.toLowerCase());
+  return `Em ${l.slice(0, -1).join(", ")} ou ${l.at(-1)}`;
+};
+/** "Preço da caixa", "Preço do fardo", "Preço do pallet". */
+export const rotuloPrecoEmbalagem = (tipo: string) => `Preço ${tipo === "Caixa" ? "da" : "do"} ${tipo.toLowerCase()}`;
 export const MAX_EMBALAGENS = 5;
 export const EMB_VAZIA = "Adicione pelo menos uma embalagem ou escolha \"Por unidade\".";
 
@@ -46,7 +63,7 @@ export function errosEmbalagem(e: Pick<Embalagem, "tipo" | "qtd" | "codigo">, in
 }
 
 /* ---------- contagem por embalagem (depósito) ---------- */
-const PLURAL: Record<string, string> = { Caixa: "Caixas", Fardo: "Fardos", Pacote: "Pacotes", Display: "Displays", Saco: "Sacos" };
+const PLURAL: Record<string, string> = { Caixa: "Caixas", Fardo: "Fardos", Pacote: "Pacotes", Display: "Displays", Saco: "Sacos", Pallet: "Pallets", Milheiro: "Milheiros" };
 
 /** "Caixas com 12 fechadas", "Fardos com 72 fechados", "Sacos com 25,5 Kg fechados". */
 export function rotuloFechadas(e: Pick<Embalagem, "tipo" | "qtd">, unidade: string) {

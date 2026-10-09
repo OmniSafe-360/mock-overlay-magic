@@ -4,6 +4,8 @@ import { AreaVendaInfo, ProductWizard, TotalInfo, type Product } from "@/compone
 import { REMOCAO_BLOQUEADA, MAX_MENOR, NEGATIVO, QTD_VAZIA, qtdUn } from "@/lib/deposito";
 import { TOTAL_INDISPONIVEL, VEN_ACIMA_MAX, VEN_LOCAL_DUP, VEN_LOCAL_PENDENTE, VEN_SEM_CONFIG, locaisVendaDoComercio, totalTexto } from "@/lib/areaVenda";
 
+import { textoDoTipo } from "@/lib/exemplos";
+
 vi.mock("@/components/Scanner", () => ({ Scanner: () => null }));
 
 const base = (unidade: string, categoria: string, extra: Partial<Product> = {}): Product => ({
@@ -44,7 +46,7 @@ function novoAteVenda(tipo: string, unidade: string, categoria: string) {
   click("Definir depois"); t.submit(); // fornecedor
   // depósito
   click(/^Novo local$/); typeIn("Nome do local", "Estante A"); click("Usar este local"); t.submit();
-  if (tipo === "roupas") { click("Não, vou contar o depósito"); typeIn(/Quantidade confirmada no depósito/, "5"); }
+  if (tipo === "roupas") { click(/^Não, vou contar o (depósito|estoque)$/); typeIn(/Quantidade confirmada no (depósito|estoque)/, "5"); }
   else typeIn(/Quanto você contou/, "40");
   t.submit(); t.submit();
   expect(screen.getByText("Área de venda: onde fica?")).toBeTruthy();
@@ -62,7 +64,7 @@ describe("produto novo, do formulário vazio até salvar, nos seis tipos", () =>
     expect(screen.queryByRole("button", { name: "Estante A" })).toBeNull(); // locais do depósito não aparecem aqui
     novoLocalVenda("Estante A"); t.submit(); // mesmo nome é permitido: conjunto diferente
     typeIn(/Quanto deste produto já está neste local/, "8");
-    expect(screen.getByText(`Depósito 40 + Área de venda 8 = ${qtdUn(48, u)} no total`)).toBeTruthy();
+    expect(screen.getByText(textoDoTipo(tipo)(`Depósito 40 + Área de venda 8 = ${qtdUn(48, u)} no total`))).toBeTruthy();
     t.submit();
     typeIn(/^Mínimo/, "4"); typeIn(/^Máximo que cabe/, "12"); t.submit();
     passarValidade(tipo, t);
@@ -79,7 +81,7 @@ describe("produto novo, do formulário vazio até salvar, nos seis tipos", () =>
     expect(campo.value).toBe("");
     t.submit(); expect(screen.getByText(QTD_VAZIA)).toBeTruthy();
     fireEvent.change(campo, { target: { value: "3" } });
-    expect(screen.getByText("M · Azul: Depósito 5 + Área de venda 3 = 8 peças no total")).toBeTruthy();
+    expect(screen.getByText("M · Azul: Estoque 5 + Área de venda 3 = 8 peças no total")).toBeTruthy();
     t.submit(); t.submit(); // roupas não tem o passo de validade: vai direto ao resumo
     expect(screen.getByText("Salvar produto")).toBeTruthy(); t.submit();
     const p = saved(t.onSave); const uid = p.variacoes[0]!.uid!;
@@ -170,7 +172,7 @@ describe("produtos antigos, bloqueios e variações", () => {
     const p = base("Peça", "Camisetas", { variacoes: vars, areaVenda: { local: "Arara", qtd: null, min: null, max: null, vars: { a: { qtd: 2, min: 1, max: 4 }, b: { qtd: 0, min: null, max: null } } } });
     const t = setup("roupas", p); t.submit(); t.submit();
     const rem = screen.getAllByRole("button", { name: "Remover variação" });
-    fireEvent.click(rem[1]!); expect(screen.getByText(REMOCAO_BLOQUEADA)).toBeTruthy();
+    fireEvent.click(rem[1]!); expect(screen.getByText(textoDoTipo("roupas")(REMOCAO_BLOQUEADA))).toBeTruthy();
     fireEvent.click(rem[0]!);
     for (let i = 0; i < 6; i++) t.submit(); t.submit();
     const s = saved(t.onSave); expect(s.variacoes.map((v) => v.uid)).toEqual(["a"]); expect(s.areaVenda?.vars).toEqual({ a: { qtd: 2, min: 1, max: 4 } });

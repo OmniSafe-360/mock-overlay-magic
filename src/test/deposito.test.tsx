@@ -3,6 +3,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { DepositoInfo, ProductWizard, type Product } from "@/components/ProductArea";
 import { LOCAL_DUP, LOCAL_PENDENTE, MAX_MENOR, NEGATIVO, QTD_VAZIA, REMOCAO_BLOQUEADA, SEM_CONFIG, ACIMA_MAX, locaisDoComercio, parseNum } from "@/lib/deposito";
 
+import { textoDoTipo } from "@/lib/exemplos";
+
 vi.mock("@/components/Scanner", () => ({ Scanner: () => null }));
 
 const base = (tipo: string, unidade: string, categoria: string, extra: Partial<Product> = {}): Product => ({
@@ -39,7 +41,7 @@ describe("passo Depósito — fluxo completo nos seis tipos", () => {
   it("roupas salva com confirmação e um local para todas as variações", () => {
     const t = setup("roupas", roupa()); t.toDeposito();
     novoLocal("Arara 1"); t.submit();
-    click("Sim, estão no depósito"); t.submit(); t.submit(); t.submit(); t.submit();
+    click(/^Sim, estão no (depósito|estoque)$/); t.submit(); t.submit(); t.submit(); t.submit();
     expect(saved(t.onSave).deposito).toEqual({ local: "Arara 1", qtd: null, min: null, max: null, vars: { a: { qtd: 2, min: null, max: null } } });
   });
 });
@@ -64,7 +66,7 @@ describe("quantidade", () => {
     const a = setup("mercado", base("mercado", "Caixa", "Mercearia")); a.toDeposito();
     click("Definir depois"); a.submit(); typeIn(/Quanto você contou/, "1,5"); a.submit();
     expect(screen.getByText("Use um número inteiro para Caixa.")).toBeTruthy();
-    expect(screen.getByText("Quanto há no depósito?")).toBeTruthy();
+    expect(screen.getByText(/^Quanto há no (depósito|estoque)\?$/)).toBeTruthy();
   });
   it("Kg salva fração", () => {
     const t = setup("mercado", base("mercado", "Kg", "Mercearia")); t.toDeposito();
@@ -91,9 +93,9 @@ describe("limites", () => {
 describe("roupas", () => {
   it("contagem separada aceita zero e não soma com a quantidade do cadastro", () => {
     const t = setup("roupas", roupa()); t.toDeposito(); click("Definir depois"); t.submit();
-    click("Não, vou contar o depósito"); t.submit();
+    click(/^Não, vou contar o (depósito|estoque)$/); t.submit();
     expect(screen.getByText(QTD_VAZIA)).toBeTruthy();
-    typeIn(/Quantidade confirmada no depósito/, "0"); t.submit(); t.submit(); t.submit(); t.submit();
+    typeIn(/Quantidade confirmada no (depósito|estoque)/, "0"); t.submit(); t.submit(); t.submit(); t.submit();
     const p = saved(t.onSave); expect(p.deposito?.vars?.["a"]?.qtd).toBe(0); expect(p.variacoes[0]!.qtd).toBe(2);
   });
   it("editar a quantidade do cadastro não altera o depósito confirmado", () => {
@@ -108,7 +110,7 @@ describe("roupas", () => {
     const p = roupa({ variacoes: vars, deposito: { local: "Arara", qtd: null, min: null, max: null, vars: { a: { qtd: 5, min: 1, max: 9 }, b: { qtd: 0, min: null, max: null } } } });
     const t = setup("roupas", p); t.submit(); t.submit();
     const rem = screen.getAllByRole("button", { name: "Remover variação" });
-    fireEvent.click(rem[0]!); expect(screen.getByText(REMOCAO_BLOQUEADA)).toBeTruthy();
+    fireEvent.click(rem[0]!); expect(screen.getByText(textoDoTipo("roupas")(REMOCAO_BLOQUEADA))).toBeTruthy();
     fireEvent.click(rem[1]!);
     for (let i = 0; i < 6; i++) t.submit(); t.submit();
     const s = saved(t.onSave); expect(s.variacoes.map((v) => v.uid)).toEqual(["a"]); expect(s.deposito?.vars).toEqual({ a: { qtd: 5, min: 1, max: 9 } });
@@ -117,13 +119,13 @@ describe("roupas", () => {
     const p = roupa({ variacoes: [{ tam: "M", cor: "Azul", codigo: "222", qtd: 2, uid: "a" }, { tam: "P", cor: "Azul", codigo: "444", qtd: 3, uid: "n" }],
       deposito: { local: "Arara", qtd: null, min: null, max: null, vars: { a: { qtd: 2, min: null, max: null } } } });
     const t = setup("roupas", p); t.toDeposito(); t.submit();
-    expect(screen.getByText("Essas quantidades estão no depósito?")).toBeTruthy();
+    expect(screen.getByText(/^Essas quantidades estão no (depósito|estoque)\?$/)).toBeTruthy();
     expect(screen.getByText(/P · Azul · Quantidade informada no cadastro: 3/)).toBeTruthy();
-    t.submit(); expect(screen.getByText("Quanto há no depósito?")).toBeTruthy();
+    t.submit(); expect(screen.getByText(/^Quanto há no (depósito|estoque)\?$/)).toBeTruthy();
   });
   it("usar os mesmos limites para todas", () => {
     const p = roupa({ variacoes: [{ tam: "M", cor: "Azul", codigo: "222", qtd: 2, uid: "a" }, { tam: "G", cor: "Azul", codigo: "333", qtd: 1, uid: "b" }] });
-    const t = setup("roupas", p); t.toDeposito(); click("Definir depois"); t.submit(); click("Sim, estão no depósito"); t.submit();
+    const t = setup("roupas", p); t.toDeposito(); click("Definir depois"); t.submit(); click(/^Sim, estão no (depósito|estoque)$/); t.submit();
     fireEvent.change(document.querySelector('input[name="dmin-a"]')!, { target: { value: "1" } });
     fireEvent.change(document.querySelector('input[name="dmax-a"]')!, { target: { value: "5" } });
     click("Usar os mesmos limites para todas"); t.submit(); t.submit(); t.submit();
