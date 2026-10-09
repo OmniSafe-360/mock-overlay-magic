@@ -1,4 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { carregarFornecedores, carregarProdutos, criarFornecedor, salvarProduto, type LocaisCadastrados } from "@/lib/banco";
+import { ehIncerto, mensagemErro, type Sessao } from "@/lib/persistencia";
+import { newUid } from "@/lib/deposito";
 import { AlertTriangle, Bell, CalendarClock, ChevronRight, Home, PackageX, Plus, ShoppingBag, Store, UserCircle, Users, CheckCircle2 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import { StoreSetup, TIPOS, type StoreData } from "@/components/StoreSetup";
@@ -36,12 +39,34 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
   const [stores, setStores] = useState<StoreData[]>(initial);
   const [tab, setTab] = useState<Tab>("inicio");
   const [adding, setAdding] = useState(false);
-  const [open, setOpen] = useState<number | null>(null);
+  const [open, setOpen] = useState<StoreData | null>(null);
   const [toast, setToast] = useState("");
-  const [products, setProducts] = useState<Record<number, Product[]>>({});
+  const [products, setProducts] = useState<Record<string, Product[]>>({});
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [wizard, setWizard] = useState<{ initial?: Product | undefined } | null>(null);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveErro, setSaveErro] = useState("");
+  const [carga, setCarga] = useState<"ok" | "carregando" | "erro">("ok");
+  /** Identificadores estáveis do envio aberto: repetir o envio usa os mesmos e não duplica nada. */
+  const sessao = useRef<Sessao | null>(null);
+  const [locais, setLocais] = useState<Record<string, LocaisCadastrados>>({});
+  const suppRef = useRef<Supplier[]>([]);
+  suppRef.current = suppliers;
+
+  const recarregar = useCallback(async (comercioId: string) => {
+    setCarga("carregando");
+    try {
+      const fs = await carregarFornecedores();
+      setSuppliers(fs); suppRef.current = fs;
+      const r = await carregarProdutos(comercioId, fs);
+      setProducts((m) => ({ ...m, [comercioId]: r.produtos }));
+      setLocais((m) => ({ ...m, [comercioId]: r.locais }));
+      setCarga("ok");
+    } catch { setCarga("erro"); }
+  }, []);
+  const openSid = typeof open?.id === "string" && open.id.trim() ? open.id : null;
+  useEffect(() => { if (openSid) void recarregar(openSid); }, [openSid, recarregar]);
 
   useEffect(() => {
     if (!toast) return;
@@ -55,15 +80,45 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
         onFinish={(s) => { setStores((l) => [...l, s]); setAdding(false); setTab("inicio"); setToast("Comércio adicionado!"); }} />
     );
 
-  const cur = open !== null ? stores[open] : undefined;
-  if (wizard && cur && open !== null)
+  const cur = open ?? undefined;
+  const sid = typeof cur?.id === "string" && cur.id.trim() ? cur.id : null;
+  const list = sid ? products[sid] ?? [] : [];
+  const NO_ID = "Este comércio ainda não foi salvo. Não é possível cadastrar ou editar produtos.";
+  const openWizard = (initial?: Product) => {
+    if (!sid) { setToast(NO_ID); return; }
+    sessao.current = { dbId: initial?.db?.id ?? newUid(), incerto: null };
+    setSaveErro(""); setWizard({ initial });
+  };
+  if (wizard && cur && sid)
     return (
-      <ProductWizard store={cur} products={products[open] ?? []} initial={wizard.initial} suppliers={suppliers}
-        onAddSupplier={(f) => { const id = Date.now(); setSuppliers((l) => [...l, { ...f, id }]); return id; }}
-        onCancel={() => setWizard(null)}
-        onSave={(p) => {
-          setProducts((m) => { const l = m[open] ?? []; return { ...m, [open]: l.some((x) => x.id === p.id) ? l.map((x) => (x.id === p.id ? p : x)) : [p, ...l] }; });
-          setSaved(!wizard.initial); setWizard(null); if (wizard.initial) setToast("Produto atualizado!");
+      <ProductWizard store={cur} products={list} initial={wizard.initial} suppliers={suppliers} saving={saving} erro={saveErro} locaisCadastrados={locais[sid]}
+        onAddSupplier={async (f) => {
+          const dbId = newUid();
+          try { await criarFornecedor(dbId, f); }
+          catch (e) { throw new Error(`Não foi possível guardar o fornecedor. ${mensagemErro(e).replace(/^Não foi possível salvar agora\. /, "")}`); }
+          const novo = { ...f, id: Date.now(), dbId };
+          suppRef.current = [...suppRef.current, novo];
+          setSuppliers((l) => [...l, novo]);
+          return novo.id;
+        }}
+        onCancel={() => { if (!saving) setWizard(null); }}
+        onSave={async (p) => {
+          if (saving || !sessao.current) return;
+          setSaving(true); setSaveErro("");
+          const comDb: Product = { ...p, db: p.db ?? { id: sessao.current.dbId, contadas: [] } };
+          let res: "gravado" | "anterior_gravado";
+          try {
+            res = await salvarProduto(sessao.current, comDb, wizard.initial, sid, cur.tipo === "farmacia", suppRef.current, newUid);
+          } catch (e) {
+            setSaveErro(ehIncerto(e)
+              ? "Não foi possível confirmar se o produto foi salvo. Toque em Salvar de novo: o mesmo envio será repetido sem duplicar."
+              : mensagemErro(e));
+            setSaving(false); return;
+          }
+          await recarregar(sid);
+          setSaving(false); setWizard(null);
+          if (res === "anterior_gravado") setToast("O envio anterior já tinha sido salvo. Abra o produto para conferir.");
+          else { setSaved(!wizard.initial); if (wizard.initial) setToast("Produto atualizado!"); }
         }} />
     );
 
@@ -104,11 +159,21 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
         </header>
 
         <main className="mx-auto max-w-[1100px] px-5 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 md:pb-10">
-          {tab === "inicio" && cur && open !== null ? (
-            <StoreSpace key={open} store={cur} products={products[open] ?? []} suppliers={suppliers} saved={saved}
-              onBack={() => { setOpen(null); setSaved(false); }} onNew={() => setWizard({})} onEdit={(p) => setWizard({ initial: p })} onDismissSaved={() => setSaved(false)} />
+          {tab === "inicio" && cur && carga !== "ok" && !list.length ? (
+            <div className="flex flex-col items-center gap-4 py-24 text-center">
+              <p className="text-muted-foreground">{carga === "carregando" ? "Carregando produtos…" : "Não foi possível carregar os produtos. Verifique sua internet."}</p>
+              {carga === "erro" && (
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setOpen(null)} className="h-12 rounded-2xl border border-border px-5 font-semibold">Voltar</button>
+                  <button type="button" onClick={() => sid && void recarregar(sid)} className="h-12 rounded-2xl bg-primary px-5 font-semibold text-primary-foreground">Tentar de novo</button>
+                </div>
+              )}
+            </div>
+          ) : tab === "inicio" && cur ? (
+            <StoreSpace key={sid ?? "sem-id"} store={cur} products={list} suppliers={suppliers} saved={saved}
+              onBack={() => { setOpen(null); setSaved(false); }} onNew={() => openWizard()} onEdit={(p) => openWizard(p)} onDismissSaved={() => setSaved(false)} />
           ) : tab === "inicio" ? (
-            <HomeContent stores={stores} onAdd={() => setAdding(true)} onOpen={setOpen} />
+            <HomeContent stores={stores} onAdd={() => setAdding(true)} onOpen={(s) => setOpen(s)} />
           ) : tab === "conta" ? (
             <div className="mx-auto max-w-md space-y-4 animate-in fade-in duration-300">
               <div className="rounded-3xl border border-border bg-secondary/70 p-5">
@@ -153,7 +218,7 @@ export function OwnerApp({ owner, initial, fullName = "", email = "", onLogout }
   );
 }
 
-function HomeContent({ stores, onAdd, onOpen }: { stores: StoreData[]; onAdd: () => void; onOpen: (i: number) => void }) {
+function HomeContent({ stores, onAdd, onOpen }: { stores: StoreData[]; onAdd: () => void; onOpen: (s: StoreData) => void }) {
   const totals = stores.reduce((a, _, i) => ({ v: a.v + sample(i).vendas, al: a.al + sample(i).alertas }), { v: 0, al: 0 });
   const n = stores.length;
   const kpis = [
@@ -194,7 +259,7 @@ function HomeContent({ stores, onAdd, onOpen }: { stores: StoreData[]; onAdd: ()
             const Icon = iconOf(s.tipo);
             const m = sample(i);
             return (
-              <button key={i} type="button" onClick={() => onOpen(i)}
+              <button key={s.id ?? i} type="button" onClick={() => onOpen(s)}
                 className="flex min-h-[112px] items-center gap-4 rounded-3xl border border-border bg-secondary/70 p-4 text-left transition hover:border-primary focus-visible:outline-2 focus-visible:outline-ring">
                 <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-background-deep/60 text-primary"><Icon size={24} /></span>
                 <div className="min-w-0 flex-1">

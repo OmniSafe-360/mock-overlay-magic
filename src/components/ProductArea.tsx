@@ -1,14 +1,45 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { lotesAConfirmar } from "@/lib/persistencia";
 import { ArrowLeft, Check, CheckCircle2, Keyboard, Package, Pencil, Plus, ScanLine, Search, Truck, X } from "lucide-react";
 import { Field, btnGhost, btnPrimary, digits, maskPhone, nextOnEnter, useKeyboard, type StoreData } from "@/components/StoreSetup";
 import { Scanner } from "@/components/Scanner";
+import { AUTOPECAS_VARS_MSG, POSICAO_MSG, CONSTRUCAO_VARS_MSG, CONTROLADO_MSG, ESPECIE_MSG, PET_VARS_MSG, FARMACIA_VARS_MSG, firstInvalidStep, typeRuleError, type TypeRules, mainCodeError, usedCodes, variationErrors, variationOk } from "@/lib/variations";
+import {
+  ACIMA_MAX, LOCAL_DUP, LOCAL_PENDENTE, REMOCAO_BLOQUEADA, SEM_CONFIG, TEMPORARIO, aceitaFracao, fmtQ, limitesErro, limitesStatus, localDuplicado,
+  localTravadoMsg, locaisDoComercio, newUid, parseNum, temQtdPositiva, toInput, unidadeTravadaMsg, type Deposito,
+} from "@/lib/deposito";
+import {
+  EXEMPLO_LOCAL, SEM_REPOSICAO, VEN_ACIMA_MAX, VEN_LOCAL_DUP, VEN_LOCAL_PENDENTE, VEN_SEM_CONFIG, limitesVendaStatus,
+  locaisVendaDoComercio, totalTexto, venLocalTravadoMsg, type AreaVenda,
+} from "@/lib/areaVenda";
+import {
+  ACIMA, AGUARDANDO, AVISOS, CHAVE_PRODUTO, DESLIGAR_BLOQ, FAIXA_TXT, LINHAS_SEM_CONTAGEM, PEND_CONF, PEND_FALTA, QTD_ZERO, SEM_AVISOS, SEM_ESTOQUE,
+  AREA_SEM_ESTOQUE, CONF_INCOMPLETA, VAL_AREA_PENDENTE, conferirOrigens, origemMsg, TZ_PADRAO, VAL_FARM_INCOMPLETA, VAL_SEM_CONFIG, analisarLotes, avisosTexto, conferencia, conferirSoma, conflitoMsg, faixa, fmtData, hojeEm,
+  linhaTexto, lotePendente, maskData, mil, parseData, proximoVencimento, temQtdValidade, type LinhaVal, type Validade,
+} from "@/lib/validade";
 
 /* ---------- tipos e dados por comércio ---------- */
-export type Supplier = { id: number; nome: string; tel: string; email: string };
-export type Variation = { tam: string; cor: string; qtd: number };
+/** Junta listas de locais sem repetir (maiúsculas e espaços ignorados), mantendo a primeira grafia. */
+function juntarLocais(...listas: string[][]): string[] {
+  const m = new Map<string, string>();
+  for (const l of listas.flat()) { const k = l.trim().toLowerCase().replace(/\s+/g, " "); if (k && !m.has(k)) m.set(k, l); }
+  return [...m.values()];
+}
+export type Supplier = { id: number; nome: string; tel: string; email: string; dbId?: string | undefined };
+/** `uid` liga a variação à sua configuração de depósito, sem depender da posição na lista. */
+export type Variation = { tam: string; cor: string; qtd: number; codigo?: string | undefined; uid?: string | undefined };
 export type Product = {
   id: number; codigo: string; nome: string; compra: number; venda: number; unidade: string; categoria: string;
   detalhes: Record<string, string>; variacoes: Variation[]; fornecedor: number | null;
+  deposito?: Deposito | undefined;
+  /** Área de venda (gôndola, prateleira, arara...). Não confundir com `venda`, que é o preço. */
+  areaVenda?: AreaVenda | undefined;
+  /** Controle de validade e divisão das contagens confirmadas por vencimento/lote. */
+  validade?: Validade | undefined;
+  /** Vínculo com o banco: id real e áreas cuja contagem inicial já foi registrada ("deposito:_", "venda:<uid>"). */
+  db?: { id: string; contadas: string[] } | undefined;
+  /** Só true depois que o usuário marcou a confirmação do vencimento do lote. */
+  confirmarVencimento?: boolean | undefined;
 };
 
 const UNIDADES: Record<string, string[]> = {
@@ -107,12 +138,16 @@ export function ProductDetail({ p, tipo, suppliers, onBack, onEdit }: { p: Produ
         {(det.length > 0 || p.variacoes.length > 0) && (
           <Row t="Detalhes">
             {det.map(([k, v]) => <span key={k} className="block">{labelOf(tipo, k)}: {v}</span>)}
-            {p.variacoes.map((v, i) => <span key={i} className="block">{v.tam} · {v.cor} · {v.qtd} un.</span>)}
+            {p.variacoes.map((v, i) => <span key={v.uid ?? i} className="block">{v.tam} · {v.cor} · Cód. {v.codigo || "sem código"} · Quantidade informada no cadastro: {v.qtd}</span>)}
           </Row>
         )}
         <Row t="Fornecedor">{f ? <>{f.nome}{f.tel ? ` · ${f.tel}` : ""}</> : "Definir depois"}</Row>
+        <Row t="Depósito"><DepositoInfo p={p} /></Row>
+        <Row t="Área de venda"><AreaVendaInfo p={p} /></Row>
+        <Row t="Total para conferência"><TotalInfo p={p} /></Row>
+        <Row t="Validade"><ValidadeInfo p={p} tipo={tipo} /></Row>
       </div>
-      <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">Depósito e gôndola: configuraremos na próxima etapa.</p>
+      <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">{TEMPORARIO}</p>
       <button type="button" onClick={onEdit} className={`flex items-center justify-center gap-2 ${btnPrimary(true)}`}><Pencil size={18} /> Editar</button>
     </div>
   );
@@ -126,16 +161,148 @@ function Row({ t, children }: { t: string; children: ReactNode }) {
   );
 }
 
-/* ---------- cadastro em 5 etapas ---------- */
-const TITLES = ["Qual é o código do produto?", "Preço e unidade", "Detalhes do produto", "Quem é o fornecedor?", "Conferir e salvar"];
+/** Situação do depósito, mostrada no detalhe do produto. */
+export function DepositoInfo({ p }: { p: Product }) {
+  const d = p.deposito;
+  if (!d) return <span className="block">{SEM_CONFIG}</span>;
+  return (
+    <>
+      <span className="block">{d.local ? `Local: ${d.local}` : LOCAL_PENDENTE}</span>
+      {d.vars ? (
+        p.variacoes.map((v, i) => {
+          const c = v.uid ? d.vars?.[v.uid] : undefined;
+          return (
+            <span key={v.uid ?? i} className="block">
+              {v.tam} · {v.cor}: {c ? <>Quantidade confirmada no depósito: {fmtQ(c.qtd)} {p.unidade} · {limitesStatus(c.min, c.max)}</> : "Depósito não configurado"}
+            </span>
+          );
+        })
+      ) : (
+        <>
+          <span className="block">Quantidade confirmada no depósito: {d.qtd != null ? `${fmtQ(d.qtd)} ${p.unidade}` : "não informada"}</span>
+          <span className="block">{limitesStatus(d.min, d.max)}</span>
+        </>
+      )}
+    </>
+  );
+}
 
-export function ProductWizard({ store, products, initial, suppliers, onAddSupplier, onCancel, onSave }: {
+/** Situação da área de venda, mostrada no detalhe do produto. */
+export function AreaVendaInfo({ p }: { p: Product }) {
+  const a = p.areaVenda;
+  if (!a) return <span className="block">{VEN_SEM_CONFIG}</span>;
+  return (
+    <>
+      <span className="block">{a.local ? `Local: ${a.local}` : VEN_LOCAL_PENDENTE}</span>
+      {a.vars ? (
+        p.variacoes.map((v, i) => {
+          const c = v.uid ? a.vars?.[v.uid] : undefined;
+          return (
+            <span key={v.uid ?? i} className="block">
+              {v.tam} · {v.cor}: {c ? <>Quantidade na área de venda: {fmtQ(c.qtd)} {p.unidade} · {limitesVendaStatus(c.min, c.max)}</> : VEN_SEM_CONFIG}
+            </span>
+          );
+        })
+      ) : (
+        <>
+          <span className="block">Quantidade na área de venda: {a.qtd != null ? `${fmtQ(a.qtd)} ${p.unidade}` : "não informada"}</span>
+          <span className="block">{limitesVendaStatus(a.min, a.max)}</span>
+        </>
+      )}
+      <span className="block text-sm text-muted-foreground">{SEM_REPOSICAO}</span>
+    </>
+  );
+}
+
+/** Contagem confirmada de uma área (produto inteiro ou variação). Nunca usa a quantidade do cadastro. */
+const qtdArea = (d: Deposito | undefined, uid?: string) => (!d ? null : uid ? d.vars?.[uid]?.qtd ?? null : d.vars ? null : d.qtd);
+export function TotalInfo({ p }: { p: Product }) {
+  if (p.variacoes.length && (p.deposito?.vars || p.areaVenda?.vars))
+    return <>{p.variacoes.map((v, i) => <span key={v.uid ?? i} className="block">{v.tam} · {v.cor}: {totalTexto(qtdArea(p.deposito, v.uid), qtdArea(p.areaVenda, v.uid), p.unidade)}</span>)}</>;
+  return <span className="block">{totalTexto(qtdArea(p.deposito), qtdArea(p.areaVenda), p.unidade)}</span>;
+}
+
+/** Linhas de conferência da validade (resumo e detalhe). Nunca afirma que avisos ou bloqueios funcionam. */
+/** Contagem confirmada por área e chave (uid da variação ou produto). null = sem contagem confirmada. */
+export type ContagemFn = (area: "dep" | "ven", k: string) => number | null;
+export function validadeLinhas(v: Validade | undefined, farm: boolean, unidade: string, nomeVar: (k: string) => string, hoje: string,
+  keys: string[] = [CHAVE_PRODUTO], cont: ContagemFn = () => null): string[] {
+  if (!v) return [farm ? VAL_FARM_INCOMPLETA : VAL_SEM_CONFIG];
+  if (!v.controla) return ["Não controla validade"];
+  const out = ["Controla validade", avisosTexto(v.avisos), SEM_AVISOS];
+  const todas: LinhaVal[] = [];
+  const faltas: string[] = [];
+  for (const [area, nome] of [["dep", "Depósito"], ["ven", "Área de venda"]] as const) {
+    for (const k of keys) {
+      const ls = v[area][k] ?? [];
+      const c = cont(area, k);
+      const pre = k === CHAVE_PRODUTO ? nome : `${nome} · ${nomeVar(k)}`;
+      if (c == null) { out.push(`${pre}: ${AGUARDANDO}`); faltas.push(`${pre} aguardando contagem`); continue; }
+      if (mil(c) === 0) { out.push(`${pre}: ${AREA_SEM_ESTOQUE}`); continue; }
+      if (!ls.length) { out.push(`${pre}: ${VAL_AREA_PENDENTE} (${fmtQ(c)} ${unidade} contados)`); faltas.push(`${pre} com validade pendente`); continue; }
+      todas.push(...ls);
+      out.push(`${pre}: ${ls.map((l) => linhaTexto(l, unidade, hoje, farm)).join("; ")}`);
+    }
+  }
+  const c = conferencia(todas, hoje, farm);
+  const soma = `não vencida ${fmtQ(c.conhecida)} + vencida ${fmtQ(c.vencida)} + sem data ${fmtQ(c.semData)} = ${fmtQ(c.fisica)} (${unidade})`;
+  out.push(faltas.length ? `${CONF_INCOMPLETA}: ${faltas.join("; ")}. Só nas partes com validade: ${soma}` : `Física contada ${fmtQ(c.fisica)} = ${soma}`);
+  if (c.vencida > 0) out.push(`Vencidos: ${fmtQ(c.vencida)} ${unidade} (continuam contados)`);
+  if (c.semData > 0) out.push(`Validade desconhecida: ${fmtQ(c.semData)} ${unidade}`);
+  if (c.lotePend > 0) out.push(`Lote pendente: ${fmtQ(c.lotePend)} ${unidade}`);
+  const pr = proximoVencimento(todas, hoje);
+  out.push(pr ? `Próximo vencimento não vencido: ${fmtData(pr.data)} (${fmtQ(pr.qtd)} ${unidade})` : "Sem próximo vencimento não vencido");
+  return out;
+}
+export function ValidadeInfo({ p, tipo }: { p: Product; tipo: string }) {
+  const nomeVar = (k: string) => { const v = p.variacoes.find((x) => x.uid === k); return v ? `${v.tam} · ${v.cor}` : "variação"; };
+  const keys = p.variacoes.length ? p.variacoes.map((v) => v.uid ?? "") : [CHAVE_PRODUTO];
+  const cont: ContagemFn = (area, k) => qtdArea(area === "dep" ? p.deposito : p.areaVenda, k === CHAVE_PRODUTO ? undefined : k);
+  return <>{validadeLinhas(p.validade, tipo === "farmacia", p.unidade, nomeVar, hojeEm(), keys, cont).map((t, i) => <span key={i} className="block">{t}</span>)}</>;
+}
+
+/* ---------- cadastro em 8 etapas (Depósito e Área de venda têm 3 subpassos; Validade tem 4) ---------- */
+const TITLES = ["Qual é o código do produto?", "Preço e unidade", "Detalhes do produto", "Quem é o fornecedor?", "Depósito", "Área de venda", "Validade", "Conferir e salvar"];
+const DEP_TITLES = ["Onde fica no depósito?", "Quanto há no depósito?", "Limites de estoque"];
+const VEN_TITLES = ["Área de venda: onde fica?", "Área de venda: quantidade", "Área de venda: limites"];
+const VAL_TITLES = ["Controle de validade", "Avisos de validade", "Validades no depósito", "Validades na área de venda"];
+const STEP_DEP = 4;
+const STEP_VEN = 5;
+const STEP_VAL = 6;
+const STEP_REV = 7;
+const TOTAL = TITLES.length;
+
+type LinhaEd = { id: string; qtd: string; data: string; semData: boolean; lote: string; conf: boolean; saved: boolean; lockData: boolean; lockLote: boolean; ro: boolean;
+  /** Pendência registrada de origem (ela mesma ou a pendência que foi dividida). null = linha livre (antes do 1º salvamento). */
+  origem: string | null };
+const novaLinha = (b: Partial<LinhaEd> = {}): LinhaEd =>
+  ({ id: newUid(), qtd: "", data: "", semData: false, lote: "", conf: false, saved: false, lockData: false, lockLote: false, ro: false, origem: null, ...b });
+/** Linhas já salvas: conhecidas ficam só para consulta; pendências podem ser completadas sem perder o que já se sabe. */
+function linhasIniciais(v: Validade | undefined, farm: boolean): Record<string, LinhaEd[]> {
+  const out: Record<string, LinhaEd[]> = {};
+  for (const area of ["dep", "ven"] as const)
+    for (const [k, ls] of Object.entries(v?.[area] ?? {}))
+      out[`${area}:${k}`] = ls.map((l) => {
+        const pend = !l.data || lotePendente(l, farm);
+        return { id: l.id, qtd: toInput(l.qtd), data: l.data ? fmtData(l.data) : "", semData: !l.data, lote: l.lote ?? "", conf: !!l.pendConf,
+          saved: true, lockData: !!l.data, lockLote: !!l.lote, ro: !pend, origem: pend ? l.id : null };
+      });
+  return out;
+}
+
+type VarDep = { qtd?: string | undefined; min: string; max: string };
+
+export function ProductWizard({ store, products, initial, suppliers, onAddSupplier, onCancel, onSave, saving = false, erro = "", locaisCadastrados }: {
   store: StoreData; products: Product[]; initial?: Product | undefined; suppliers: Supplier[];
-  onAddSupplier: (s: Omit<Supplier, "id">) => number; onCancel: () => void; onSave: (p: Product) => void;
+  onAddSupplier: (s: Omit<Supplier, "id">) => number | Promise<number>; onCancel: () => void; onSave: (p: Product) => void;
+  saving?: boolean; erro?: string;
+  /** Todos os locais cadastrados do comércio, por área, inclusive os sem produto. */
+  locaisCadastrados?: { deposito: string[]; venda: string[] } | undefined;
 }) {
   const kb = useKeyboard();
   const tipo = store.tipo;
   const [step, setStep] = useState(0);
+  const [sub, setSub] = useState(0);
   const [dir, setDir] = useState<1 | -1>(1);
   const [fromReview, setFromReview] = useState(false);
   const [codeMode, setCodeMode] = useState<"choose" | "type">(initial ? "type" : "choose");
@@ -148,33 +315,402 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const [unidade, setUnidade] = useState(initial?.unidade ?? "");
   const [categoria, setCategoria] = useState(initial?.categoria ?? "");
   const [det, setDet] = useState<Record<string, string>>(initial?.detalhes ?? {});
-  const [vars, setVars] = useState<Variation[]>(initial?.variacoes ?? []);
+  const [vars, setVars] = useState<Variation[]>(() => (initial?.variacoes ?? []).map((v) => (v.uid ? v : { ...v, uid: newUid() })));
   const [forn, setForn] = useState<number | null | undefined>(initial ? initial.fornecedor : undefined);
-  const [varSheet, setVarSheet] = useState(false);
+  const [varSheet, setVarSheet] = useState<number | null>(null);
   const [suppSheet, setSuppSheet] = useState(false);
+  const [varMsg, setVarMsg] = useState("");
+  const [unitMsg, setUnitMsg] = useState("");
 
-  const dup = !!codigo.trim() && products.some((p) => p.codigo === codigo.trim() && p.id !== initial?.id);
+  /* ----- depósito (em memória) ----- */
+  const initDep = initial?.deposito;
+  const configSalva = !!initDep;
+  const locais = useMemo(() => juntarLocais(locaisCadastrados?.deposito ?? [], locaisDoComercio(products)), [products, locaisCadastrados]);
+  const [dLocal, setDLocal] = useState<string | null | undefined>(initDep ? initDep.local : undefined);
+  const [manterSem, setManterSem] = useState(!!initial && !initDep);
+  const [novoLocal, setNovoLocal] = useState<string | null>(null);
+  const [localMsg, setLocalMsg] = useState("");
+  const [dQtd, setDQtd] = useState(toInput(initDep?.qtd));
+  const [dMin, setDMin] = useState(toInput(initDep?.min));
+  const [dMax, setDMax] = useState(toInput(initDep?.max));
+  const [dVar, setDVar] = useState<Record<string, VarDep>>(() =>
+    Object.fromEntries(Object.entries(initDep?.vars ?? {}).map(([k, c]) => [k, { qtd: toInput(c.qtd), min: toInput(c.min), max: toInput(c.max) }])));
+  const [subTried, setSubTried] = useState(false);
+
+  /* ----- área de venda (em memória, conjunto de locais separado do depósito) ----- */
+  const initVen = initial?.areaVenda;
+  const vendaSalva = !!initVen;
+  const locaisV = useMemo(() => juntarLocais(locaisCadastrados?.venda ?? [], locaisVendaDoComercio(products)), [products, locaisCadastrados]);
+  const [confVenc, setConfVenc] = useState(false);
+  const [vLocal, setVLocal] = useState<string | null | undefined>(initVen ? initVen.local : undefined);
+  const [vManter, setVManter] = useState(!!initial && !initVen);
+  const [vNovo, setVNovo] = useState<string | null>(null);
+  const [vLocalMsg, setVLocalMsg] = useState("");
+  const [vQtd, setVQtd] = useState(toInput(initVen?.qtd));
+  const [vMin, setVMin] = useState(toInput(initVen?.min));
+  const [vMax, setVMax] = useState(toInput(initVen?.max));
+  const [vVar, setVVar] = useState<Record<string, VarDep>>(() =>
+    Object.fromEntries(Object.entries(initVen?.vars ?? {}).map(([k, c]) => [k, { qtd: toInput(c.qtd), min: toInput(c.min), max: toInput(c.max) }])));
+
+  /* ----- validade (em memória) ----- */
+  const isFarm = tipo === "farmacia";
+  const initVal = initial?.validade;
+  const hoje = useMemo(() => hojeEm(TZ_PADRAO), []);
+  const [vControla, setVControla] = useState<boolean | undefined>(isFarm ? true : initVal?.controla);
+  const [valManter, setValManter] = useState(!!initial && !initVal);
+  const [avisos, setAvisos] = useState<number[]>(initVal?.avisos ?? []);
+  const [valMsg, setValMsg] = useState("");
+  const [lin, setLin] = useState<Record<string, LinhaEd[]>>(() => linhasIniciais(initVal, isFarm));
+  const desligarBloq = temQtdValidade(initVal);
+
+  const used = useMemo(() => usedCodes(products, initial?.id), [products, initial?.id]);
   const isRoupas = tipo === "roupas";
+  const codeErr = mainCodeError(codigo, used, isRoupas ? vars : []);
+  const [triedSave, setTriedSave] = useState(false);
+  const rules: TypeRules | undefined =
+    tipo === "mercado" ? { unidades: UNIDADES["mercado"]!, categorias: CATEGORIAS["mercado"]!, semVariacoes: true }
+    : tipo === "farmacia" ? { unidades: UNIDADES["farmacia"]!, categorias: CATEGORIAS["farmacia"]!, semVariacoes: true, varsMsg: FARMACIA_VARS_MSG,
+        detalhesFixos: [{ k: "controlado", opts: DETALHES["farmacia"]!.find((f) => f.k === "controlado")?.opts ?? [], msg: CONTROLADO_MSG }] }
+    : tipo === "construcao" ? { unidades: UNIDADES["construcao"]!, categorias: CATEGORIAS["construcao"]!, semVariacoes: true, varsMsg: CONSTRUCAO_VARS_MSG }
+    : tipo === "pet" ? { unidades: UNIDADES["pet"]!, categorias: CATEGORIAS["pet"]!, semVariacoes: true, varsMsg: PET_VARS_MSG,
+        detalhesFixos: [{ k: "especie", opts: DETALHES["pet"]!.find((f) => f.k === "especie")?.opts ?? [], msg: ESPECIE_MSG }] }
+    : tipo === "autopecas" ? { unidades: UNIDADES["autopecas"]!, categorias: CATEGORIAS["autopecas"]!, semVariacoes: true, varsMsg: AUTOPECAS_VARS_MSG,
+        detalhesFixos: [{ k: "posicao", opts: DETALHES["autopecas"]!.find((f) => f.k === "posicao")?.opts ?? [], msg: POSICAO_MSG }] }
+    : tipo === "roupas" ? { unidades: UNIDADES["roupas"]!, categorias: CATEGORIAS["roupas"]! } // variações continuam obrigatórias
+    : undefined;
+  const ruleErr = typeRuleError({ unidade, categoria, variacoes: vars, detalhes: det }, rules);
+  const dup = !!codeErr;
+  const varsOk = vars.length > 0 && vars.every((v, i) => variationOk(v, i, vars, codigo, used));
+
+  /* validações do depósito */
+  const unidadeTravada = (configSalva || vendaSalva) && unidade !== initial!.unidade;
+  const localTravado = !!initDep?.local && temQtdPositiva(initDep);
+  const qtdTravada = configSalva && !isRoupas;
+  const q = qtdTravada ? { v: initDep!.qtd, err: "" } : parseNum(dQtd, unidade, false);
+  const mn = parseNum(dMin, unidade, true);
+  const mx = parseNum(dMax, unidade, true);
+  const limErr = limitesErro(mn.v, mx.v);
+  const varsDep = vars.map((v) => {
+    const d = dVar[v.uid!] ?? { min: "", max: "" };
+    const saved = v.uid ? initDep?.vars?.[v.uid] : undefined;
+    const qv = saved ? { v: saved.qtd as number | null, err: "" } : d.qtd === undefined ? { v: null, err: "pendente" } : parseNum(d.qtd, unidade, false);
+    const a = parseNum(d.min, unidade, true), b = parseNum(d.max, unidade, true);
+    return { v, d, travada: !!saved, q: qv, mn: a, mx: b, lim: limitesErro(a.v, b.v) };
+  });
+  const pendentes = varsDep.filter((x) => !x.travada && x.d.qtd === undefined);
+  const localOk = manterSem || dLocal !== undefined;
+  const qtdOk = manterSem || (isRoupas ? varsDep.length > 0 && varsDep.every((x) => !x.q.err) : !q.err);
+  const limOk = manterSem || (isRoupas ? varsDep.every((x) => !x.mn.err && !x.mx.err && !x.lim) : !mn.err && !mx.err && !limErr);
+  const depBad = !localOk ? { sub: 0, msg: "Escolha um local ou \"Definir depois\"." }
+    : !qtdOk ? { sub: 1, msg: pendentes.length ? "Responda se as quantidades estão no depósito." : "Corrija a quantidade contada." }
+    : !limOk ? { sub: 2, msg: "Corrija os limites marcados em vermelho." } : null;
+
+  /* validações da área de venda */
+  const vLocalTravado = !!initVen?.local && temQtdPositiva(initVen);
+  const vQtdTravada = vendaSalva && !isRoupas;
+  const vq = vQtdTravada ? { v: initVen!.qtd, err: "" } : parseNum(vQtd, unidade, false);
+  const vmn = parseNum(vMin, unidade, true);
+  const vmx = parseNum(vMax, unidade, true);
+  const vLimErr = limitesErro(vmn.v, vmx.v);
+  const varsVen = vars.map((v) => {
+    const d = vVar[v.uid!] ?? { qtd: "", min: "", max: "" };
+    const saved = v.uid ? initVen?.vars?.[v.uid] : undefined;
+    const qv = saved ? { v: saved.qtd as number | null, err: "" } : parseNum(d.qtd ?? "", unidade, false);
+    const a = parseNum(d.min, unidade, true), b = parseNum(d.max, unidade, true);
+    return { v, d, travada: !!saved, q: qv, mn: a, mx: b, lim: limitesErro(a.v, b.v) };
+  });
+  const vLocalOk = vManter || vLocal !== undefined;
+  const vQtdOk = vManter || (isRoupas ? varsVen.length > 0 && varsVen.every((x) => !x.q.err) : !vq.err);
+  const vLimOk = vManter || (isRoupas ? varsVen.every((x) => !x.mn.err && !x.mx.err && !x.lim) : !vmn.err && !vmx.err && !vLimErr);
+  const venBad = !vLocalOk ? { sub: 0, msg: "Escolha um local de venda ou \"Definir depois\"." }
+    : !vQtdOk ? { sub: 1, msg: "Corrija a quantidade contada na área de venda." }
+    : !vLimOk ? { sub: 2, msg: "Corrija os limites marcados em vermelho." } : null;
+
+  /* validações da validade: distribui só contagens confirmadas, soma exata em milésimos */
+  const valKeys = isRoupas ? vars.map((v) => v.uid!) : [CHAVE_PRODUTO];
+  const contagem = (area: "dep" | "ven", k: string): number | null => {
+    if (area === "dep") {
+      if (manterSem) return null;
+      if (k === CHAVE_PRODUTO) return q.err ? null : q.v;
+      const x = varsDep.find((y) => y.v.uid === k); return x && !x.q.err ? x.q.v : null;
+    }
+    if (vManter) return null;
+    if (k === CHAVE_PRODUTO) return vq.err ? null : vq.v;
+    const x = varsVen.find((y) => y.v.uid === k); return x && !x.q.err ? x.q.v : null;
+  };
+  const valLinha = (l: LinhaEd) => {
+    const qq = parseNum(l.qtd, unidade, false);
+    const qErr = qq.err || (qq.v != null && mil(qq.v) <= 0 ? QTD_ZERO : "");
+    const dd = l.semData ? { v: null, err: "" } : parseData(l.data);
+    const pend = isFarm && (l.semData || !l.lote.trim());
+    return { qv: qErr ? null : qq.v, qErr, dv: dd.v, dErr: dd.err, pend, pErr: pend && !l.conf ? PEND_FALTA : "" };
+  };
+  const grupos = (area: "dep" | "ven") => valKeys.map((k) => {
+    const ls = lin[`${area}:${k}`] ?? [];
+    const cont = contagem(area, k);
+    const vs = ls.map((l) => ({ l, r: valLinha(l) }));
+    const soma = cont == null ? null : conferirSoma(cont, vs.map((x) => x.r.qv ?? 0));
+    /* pendências já registradas: cada origem preserva exatamente sua quantidade original */
+    const originais = Object.fromEntries((initVal?.[area][k] ?? []).filter((l) => !l.data || lotePendente(l, isFarm)).map((l) => [l.id, l.qtd]));
+    const quebradas = conferirOrigens(vs.map((x) => ({ origem: x.l.origem, qtd: x.r.qv })), originais).map((o) => {
+      const l = initVal![area][k]!.find((y) => y.id === o.id)!;
+      return { ...o, msg: origemMsg(`${fmtQ(o.original)} ${unidade}`, `${fmtQ(o.atual)} ${unidade}`, l.data ? ` (vence ${fmtData(l.data)})` : l.lote ? ` (lote ${l.lote})` : "") };
+    });
+    const err = cont == null ? (ls.length ? LINHAS_SEM_CONTAGEM : "")
+      : vs.some((x) => x.r.qErr || x.r.dErr || x.r.pErr) ? "Corrija as validades marcadas em vermelho."
+      : quebradas.length ? quebradas[0]!.msg : soma!.err;
+    return { k, ls, cont, vs, soma, err, quebradas };
+  });
+  const gDep = grupos("dep"), gVen = grupos("ven");
+  const analises = valKeys.map((k) => analisarLotes([...gDep, ...gVen].filter((g) => g.k === k).flatMap((g) => g.vs.map((x) => ({ id: x.l.id, lote: x.l.lote, data: x.r.dv })))));
+  const conflitos = analises.flatMap((a) => a.conflitos);
+  const sugestoes = analises.flatMap((a) => a.sugestoes);
+  const valAtivo = !valManter && vControla === true;
+  const valOk0 = valManter || vControla !== undefined;
+  const valOk2 = !valAtivo || gDep.every((g) => !g.err);
+  const valOk3 = !valAtivo || (gVen.every((g) => !g.err) && !conflitos.length);
+  const valBad = !valOk0 ? { sub: 0, msg: "Responda se este produto tem validade." }
+    : !valOk2 ? { sub: 2, msg: gDep.find((g) => g.err)!.err }
+    : !valOk3 ? { sub: 3, msg: conflitos.length ? conflitoMsg(conflitos[0]!.lote, conflitos[0]!.datas.map(fmtData)) : gVen.find((g) => g.err)!.err } : null;
+
   const valid = [
     !!codigo.trim() && !dup && !!nome.trim(),
-    compra > 0 && venda > 0 && !!unidade && !!categoria,
-    !isRoupas || vars.length > 0,
+    compra > 0 && venda > 0 && !!unidade && !!categoria && ruleErr?.step !== 1 && !unidadeTravada,
+    (!isRoupas || varsOk) && ruleErr?.step !== 2,
     forn !== undefined,
+    [localOk, qtdOk, limOk][sub]!,
+    [vLocalOk, vQtdOk, vLimOk][sub]!,
+    [valOk0, true, valOk2, valOk3][sub]!,
     true,
   ][step]!;
   const lucro = venda - compra;
   const margem = venda > 0 ? (lucro / venda) * 100 : 0;
   const fornNome = forn ? suppliers.find((s) => s.id === forn)?.nome : "Definir depois";
 
-  const go = (to: number) => { setDir(to > step ? 1 : -1); setStep(to); };
-  const save = () => onSave({ id: initial?.id ?? Date.now(), codigo: codigo.trim(), nome: nome.trim(), compra, venda, unidade, categoria, detalhes: det, variacoes: vars, fornecedor: forn ?? null });
+  /** Ao abrir as validades de uma área com contagem positiva, começa com uma linha simples. Nunca cria linha para zero ou sem contagem. */
+  const seed = (area: "dep" | "ven") => setLin((m) => {
+    const n = { ...m };
+    for (const k of valKeys) { const c = contagem(area, k), key = `${area}:${k}`; if (c != null && mil(c) > 0 && !n[key]?.length) n[key] = [novaLinha()]; }
+    return n;
+  });
+  const go = (to: number, s = 0) => {
+    setDir(to * 10 + s > step * 10 + sub ? 1 : -1); setStep(to); setSub(s); setSubTried(false);
+    if (to === STEP_VAL && s === 2) seed("dep");
+    if (to === STEP_VAL && s === 3) seed("ven");
+  };
+  const baseBad = firstInvalidStep({ codigo, nome, compra, venda, unidade, categoria, variacoes: vars, detalhes: det, fornecedor: forn }, isRoupas, used, rules);
+  const bad: { step: number; sub?: number; msg: string } | null =
+    unidadeTravada ? { step: 1, msg: unidadeTravadaMsg(initial!.unidade) }
+    : baseBad ?? (depBad ? { step: STEP_DEP, sub: depBad.sub, msg: depBad.msg } : venBad ? { step: STEP_VEN, sub: venBad.sub, msg: venBad.msg }
+      : valBad ? { step: STEP_VAL, sub: valBad.sub, msg: valBad.msg } : null);
+  const hasSub = step === STEP_DEP || step === STEP_VEN || step === STEP_VAL;
+  const nSub = step === STEP_VAL ? 4 : 3;
+  const here = (b: { step: number; sub?: number }) => b.step === step && (!hasSub || (b.sub ?? 0) === sub);
+  const saveErr = triedSave && bad && here(bad) ? bad.msg : ruleErr && ruleErr.step === step ? ruleErr.msg : "";
+
+  const buildDeposito = (): Deposito | undefined => {
+    if (manterSem) return undefined;
+    if (isRoupas)
+      return { local: dLocal ?? null, qtd: null, min: null, max: null,
+        vars: Object.fromEntries(varsDep.map((x) => [x.v.uid!, { qtd: x.q.v ?? 0, min: x.mn.v, max: x.mx.v }])) };
+    return { local: dLocal ?? null, qtd: q.v, min: mn.v, max: mx.v };
+  };
+  const buildVenda = (): AreaVenda | undefined => {
+    if (vManter) return undefined;
+    if (isRoupas)
+      return { local: vLocal ?? null, qtd: null, min: null, max: null,
+        vars: Object.fromEntries(varsVen.map((x) => [x.v.uid!, { qtd: x.q.v ?? 0, min: x.mn.v, max: x.mx.v }])) };
+    return { local: vLocal ?? null, qtd: vq.v, min: vmn.v, max: vmx.v };
+  };
+  const buildValidade = (): Validade | undefined => {
+    if (valManter) return initVal;
+    if (!vControla) return { controla: false, avisos: [], dep: {}, ven: {} };
+    const area = (gs: typeof gDep) => Object.fromEntries(gs.filter((g) => g.cont != null && g.ls.length).map((g) => [g.k,
+      g.vs.map(({ l, r }): LinhaVal => ({ id: l.id, qtd: r.qv ?? 0, data: r.dv, lote: l.lote.trim() || null,
+        ...(r.pend ? { pendConf: true } : {}), ...(l.origem && l.origem !== l.id ? { origem: l.origem } : {}) }))]));
+    return { controla: true, avisos: [...avisos].sort((a, b) => a - b), dep: area(gDep), ven: area(gVen) };
+  };
+  const lotesConf = valAtivo ? lotesAConfirmar(initVal, buildValidade(), isFarm) : [];
+  const save = () => {
+    if (saving) return;
+    if (!bad && lotesConf.length && !confVenc) { setTriedSave(true); return; }
+    if (bad) { setTriedSave(true); setFromReview(true); return go(bad.step, bad.sub ?? 0); }
+    onSave({ id: initial?.id ?? Date.now(), codigo: codigo.trim(), nome: nome.trim(), compra, venda, unidade, categoria, detalhes: det, variacoes: vars,
+      fornecedor: forn ?? null, deposito: buildDeposito(), areaVenda: buildVenda(), validade: buildValidade(), db: initial?.db,
+      ...(lotesConf.length && confVenc ? { confirmarVencimento: true } : {}) });
+  };
   const next = () => {
-    if (!valid) return;
-    if (step === 4) return save();
-    if (fromReview) { setFromReview(false); return go(4); }
+    if (!valid) { if (hasSub) setSubTried(true); return; }
+    if (step === STEP_REV) return save();
+    if (step === STEP_DEP) {
+      if (fromReview && !depBad) { setFromReview(false); return go(STEP_REV); }
+      if (manterSem || sub === 2) return go(STEP_VEN);
+      return go(STEP_DEP, sub + 1);
+    }
+    if (step === STEP_VEN) {
+      if (fromReview && !venBad) { setFromReview(false); return go(STEP_REV); }
+      if (vManter || sub === 2) return go(STEP_VAL);
+      return go(STEP_VEN, sub + 1);
+    }
+    if (step === STEP_VAL) {
+      if (fromReview && !valBad) { setFromReview(false); return go(STEP_REV); }
+      if (sub === 3 || (sub === 0 && !valAtivo)) { setFromReview(false); return go(STEP_REV); }
+      return go(STEP_VAL, sub + 1);
+    }
+    if (fromReview) { setFromReview(false); return go(STEP_REV); }
     go(step + 1);
   };
-  const edit = (s: number) => { setFromReview(true); go(s); };
+  const back = () => {
+    setFromReview(false);
+    if (hasSub && sub > 0) return go(step, sub - 1);
+    if (step === STEP_VEN) return go(STEP_DEP, manterSem ? 0 : 2);
+    if (step === STEP_VAL) return go(STEP_VEN, vManter ? 0 : 2);
+    if (step === STEP_REV) return go(STEP_VAL, valAtivo ? 3 : 0);
+    go(step - 1);
+  };
+  const edit = (s: number, ss = 0) => { setFromReview(true); go(s, ss); };
+
+  const pickLocal = (l: string | null) => {
+    if (localTravado && l !== initDep!.local) { setLocalMsg(localTravadoMsg(initDep!.local!)); return; }
+    setDLocal(l); setManterSem(false); setLocalMsg(""); setNovoLocal(null);
+  };
+  const listaLocais = dLocal && !localDuplicado(dLocal, locais) ? [...locais, dLocal] : locais;
+  const novoDup = novoLocal !== null && !!novoLocal.trim() && localDuplicado(novoLocal, listaLocais);
+  const addLocal = () => { if (novoLocal && novoLocal.trim() && !novoDup) pickLocal(novoLocal.trim()); };
+  const pickVLocal = (l: string | null) => {
+    if (vLocalTravado && l !== initVen!.local) { setVLocalMsg(venLocalTravadoMsg(initVen!.local!)); return; }
+    setVLocal(l); setVManter(false); setVLocalMsg(""); setVNovo(null);
+  };
+  const listaVLocais = vLocal && !localDuplicado(vLocal, locaisV) ? [...locaisV, vLocal] : locaisV;
+  const vNovoDup = vNovo !== null && !!vNovo.trim() && localDuplicado(vNovo, listaVLocais);
+  const addVLocal = () => { if (vNovo && vNovo.trim() && !vNovoDup) pickVLocal(vNovo.trim()); };
+  const setVD = (uid: string, patch: Partial<VarDep>) => setDVar((m) => ({ ...m, [uid]: { ...(m[uid] ?? { min: "", max: "" }), ...patch } }));
+  const setVV = (uid: string, patch: Partial<VarDep>) => setVVar((m) => ({ ...m, [uid]: { ...(m[uid] ?? { qtd: "", min: "", max: "" }), ...patch } }));
+  const numIn = (s: string) => s.replace(/[^\d,.-]/g, "").slice(0, 12);
+  const fr = aceitaFracao(unidade);
+  const numProps = { inputMode: fr ? ("decimal" as const) : ("numeric" as const), autoComplete: "off", placeholder: fr ? "Ex.: 12,5" : "Ex.: 40" };
+  const showErr = (txt: string, err: string) => (txt.trim() || subTried ? err : "");
+  const removeVar = (i: number) => {
+    const x = varsDep[i], y = varsVen[i];
+    if ((x && (x.q.v ?? 0) > 0) || (y && (y.q.v ?? 0) > 0)) { setVarMsg(REMOCAO_BLOQUEADA); return; }
+    setVarMsg("");
+    setVars(vars.filter((_, j) => j !== i));
+    if (x?.v.uid) {
+      const k = x.v.uid; const del = (m: Record<string, VarDep>) => { const n = { ...m }; delete n[k]; return n; }; setDVar(del); setVVar(del);
+      setLin((m) => { const n = { ...m }; delete n[`dep:${k}`]; delete n[`ven:${k}`]; return n; }); // configuração de validade sem saldo
+    }
+  };
+  const resumoLocal = manterSem ? SEM_CONFIG : dLocal ? dLocal : LOCAL_PENDENTE;
+  const resumoQtd = isRoupas
+    ? varsDep.map((x) => `${x.v.tam}/${x.v.cor}: ${x.q.v != null ? fmtQ(x.q.v) : "—"}`).join(", ")
+    : q.v != null ? `${fmtQ(q.v)} ${unidade}` : "—";
+  const resumoVLocal = vManter ? VEN_SEM_CONFIG : vLocal ? vLocal : VEN_LOCAL_PENDENTE;
+  const resumoVQtd = isRoupas
+    ? varsVen.map((x) => `${x.v.tam}/${x.v.cor}: ${x.q.v != null && !x.q.err ? fmtQ(x.q.v) : "—"}`).join(", ")
+    : vq.v != null && !vq.err ? `${fmtQ(vq.v)} ${unidade}` : "—";
+  const resumoVLim = isRoupas ? varsVen.map((x) => `${x.v.tam}/${x.v.cor}: ${limitesVendaStatus(x.mn.v, x.mx.v)}`).join(" · ") : limitesVendaStatus(vmn.v, vmx.v);
+  /* total visual: só com as duas contagens confirmadas; nunca usa a quantidade do cadastro */
+  const okQ = (r: { v: number | null; err: string }) => (r.err ? null : r.v);
+  const totalLinhas = isRoupas
+    ? vars.map((v, i) => `${v.tam} · ${v.cor}: ${totalTexto(manterSem ? null : okQ(varsDep[i]!.q), vManter ? null : okQ(varsVen[i]!.q), unidade)}`)
+    : [totalTexto(manterSem ? null : okQ(q), vManter ? null : okQ(vq), unidade)];
+  const resumoLim = isRoupas ? varsDep.map((x) => `${x.v.tam}/${x.v.cor}: ${limitesStatus(x.mn.v, x.mx.v)}`).join(" · ") : limitesStatus(mn.v, mx.v);
+
+  /* ----- validade: edição das linhas ----- */
+  const setL = (key: string, id: string, patch: Partial<LinhaEd>) => setLin((m) => ({ ...m, [key]: (m[key] ?? []).map((l) => (l.id === id ? { ...l, ...patch } : l)) }));
+  const addL = (key: string, b?: Partial<LinhaEd>) => setLin((m) => ({ ...m, [key]: [...(m[key] ?? []), novaLinha(b)] }));
+  const delL = (key: string, id: string) => setLin((m) => ({ ...m, [key]: (m[key] ?? []).filter((l) => l.id !== id) }));
+  const aplicarSug = (s: { data: string; ids: string[] }) =>
+    setLin((m) => Object.fromEntries(Object.entries(m).map(([k, ls]) => [k, ls.map((l) => (s.ids.includes(l.id) ? { ...l, semData: false, data: fmtData(s.data), conf: false } : l))])));
+  const varNome = (k: string) => { const v = vars.find((x) => x.uid === k); return v ? `${v.tam} · ${v.cor}` : "variação"; };
+  const resumoVal = validadeLinhas(buildValidade(), isFarm, unidade, varNome, hoje, valKeys, contagem);
+
+  const renderLinha = (key: string, l: LinhaEd, r: ReturnType<typeof valLinha>, i: number) => {
+    const f = r.dv ? faixa(r.dv, hoje) : l.semData ? ("desconhecida" as const) : null;
+    if (l.ro)
+      return (
+        <div key={l.id} className={`rounded-xl border p-2.5 text-sm ${f === "vencido" ? "border-destructive/70 bg-destructive/10" : "border-border"}`}>
+          <p>{linhaTexto({ id: l.id, qtd: r.qv ?? 0, data: r.dv, lote: l.lote || null, pendConf: l.conf }, unidade, hoje, isFarm)}</p>
+          <p className="text-xs text-muted-foreground">Registro confirmado: somente consulta. Correções virão numa etapa futura, com histórico.</p>
+        </div>
+      );
+    return (
+      <div key={l.id} className={`space-y-2 rounded-xl border p-2.5 ${f === "vencido" ? "border-destructive/70 bg-destructive/10" : "border-border"}`}>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-semibold text-muted-foreground">Validade {i + 1}{l.saved ? " · pendência registrada" : ""}</p>
+          {!l.saved && <button type="button" aria-label="Remover validade" onClick={() => delL(key, l.id)} className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground"><X size={16} /></button>}
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label={`Quantidade (${unidade})`} name={`lq-${l.id}`} {...numProps} value={l.qtd} onChange={(e) => setL(key, l.id, { qtd: numIn(e.target.value) })} error={showErr(l.qtd, r.qErr)} />
+          {l.lockData ? (
+            <div><p className="text-sm font-medium text-muted-foreground">Vence em</p><p className="mt-3 text-base">{l.data}</p></div>
+          ) : (
+            <Field label="Vence em" name={`ld-${l.id}`} inputMode="numeric" autoComplete="off" placeholder="DD/MM/AAAA" disabled={l.semData}
+              value={l.semData ? "" : l.data} onChange={(e) => setL(key, l.id, { data: maskData(e.target.value) })} error={l.semData ? "" : showErr(l.data, r.dErr)} />
+          )}
+        </div>
+        {!l.lockData && (
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
+            <input type="checkbox" checked={l.semData} onChange={(e) => setL(key, l.id, { semData: e.target.checked, conf: false })} className="h-5 w-5 accent-primary" />
+            Validade desconhecida
+          </label>
+        )}
+        {l.lockLote ? <p className="text-sm">Lote: {l.lote}</p> : (
+          <Field label={isFarm ? "Lote" : "Lote (opcional)"} name={`ll-${l.id}`} autoComplete="off" placeholder="Ex.: A12" value={l.lote}
+            onChange={(e) => setL(key, l.id, { lote: e.target.value.slice(0, 30), conf: false })} />
+        )}
+        {f && <p className={`text-xs font-semibold ${f === "vencido" ? "text-destructive" : "text-muted-foreground"}`}>{FAIXA_TXT[f]}{f === "vencido" ? " · continua contado no total" : ""}{isFarm && !l.lote.trim() ? " · Lote pendente" : ""}</p>}
+        {r.pend && (l.conf ? (
+          <p className="flex items-center gap-2 text-xs font-semibold text-warning">Pendente de conferência
+            <button type="button" onClick={() => setL(key, l.id, { conf: false })} className="font-semibold text-primary underline">Desfazer</button></p>
+        ) : (
+          <div className="space-y-2 rounded-xl border border-border p-2.5 text-xs">
+            <p>{PEND_CONF}</p>
+            <button type="button" onClick={() => setL(key, l.id, { conf: true })} className={btnGhost}>Registrar como pendente de conferência</button>
+            {subTried && <p className="text-destructive">{PEND_FALTA}</p>}
+          </div>
+        ))}
+        {l.saved && (
+          <button type="button" onClick={() => addL(key, { origem: l.origem, conf: l.conf, lockData: l.lockData, data: l.lockData ? l.data : "", semData: !l.lockData && l.semData, lockLote: l.lockLote, lote: l.lockLote ? l.lote : "" })}
+            className={btnGhost}>Dividir esta pendência</button>
+        )}
+      </div>
+    );
+  };
+  const renderArea = (area: "dep" | "ven") => {
+    const gs = area === "dep" ? gDep : gVen;
+    return (
+      <>
+        <p className="text-sm text-muted-foreground">Divida a contagem {area === "dep" ? "do depósito" : "da área de venda"} pelas validades. Isso não cria entrada nem transferência.</p>
+        {gs.map((g) => {
+          const key = `${area}:${g.k}`;
+          const temSalva = g.ls.some((l) => l.saved);
+          return (
+            <div key={key} className="space-y-2 rounded-2xl border border-border bg-background-deep/60 p-3">
+              {isRoupas && <p className="text-sm font-semibold">{varNome(g.k)}</p>}
+              {g.cont == null ? <p className="text-sm text-warning">{AGUARDANDO}</p> : (
+                <p className="text-sm">Contado: <b>{fmtQ(g.cont)} {unidade}</b> · Distribuído: {fmtQ(g.soma!.distribuido)} · Falta distribuir: {fmtQ(g.soma!.falta)}</p>
+              )}
+              {g.cont != null && mil(g.cont) === 0 && !g.ls.length && <p className="text-xs text-muted-foreground">{SEM_ESTOQUE}</p>}
+              {g.vs.map(({ l, r }, i) => renderLinha(key, l, r, i))}
+              {g.cont != null && mil(g.cont) > 0 && !temSalva && (
+                <button type="button" onClick={() => addL(key)} className="flex min-h-12 w-full items-center gap-2 rounded-2xl border-2 border-dashed border-accent/70 px-4 text-base font-semibold text-accent"><Plus size={18} /> Adicionar outra validade</button>
+              )}
+              {g.err && (subTried || g.cont == null || g.soma?.err === ACIMA) && <p role="alert" className="text-sm text-destructive">{g.err}</p>}
+            </div>
+          );
+        })}
+        {conflitos.map((c) => <p key={c.lote} role="alert" className="text-sm font-semibold text-destructive">{conflitoMsg(c.lote, c.datas.map(fmtData))}</p>)}
+        {sugestoes.map((s) => (
+          <div key={s.lote} className="space-y-2 rounded-2xl border border-border p-3 text-sm">
+            <p>O lote {s.lote} tem vencimento {fmtData(s.data)} em outra linha, e aqui está sem data. Confirme se é a mesma data.</p>
+            <button type="button" onClick={() => aplicarSug(s)} className={btnGhost}>Usar {fmtData(s.data)} neste lote</button>
+          </div>
+        ))}
+        <p className="text-xs text-muted-foreground">Vencido a partir do dia seguinte à data. “Hoje” segue o horário de Brasília ({TZ_PADRAO}).</p>
+      </>
+    );
+  };
 
   return (
     <div className="relative h-app overflow-hidden bg-app">
@@ -188,15 +724,16 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
           <form noValidate onSubmit={(e) => { e.preventDefault(); next(); }} className="flex min-h-0 flex-1 flex-col">
             <div className="mt-2 shrink-0">
               <div className="mb-2 flex items-baseline justify-between gap-2">
-                <h1 className="min-w-0 text-lg font-bold short:text-base">{TITLES[step]}</h1>
-                <span className="shrink-0 text-xs text-muted-foreground">Passo {step + 1} de 5</span>
+                <h1 className="min-w-0 text-lg font-bold short:text-base">{step === STEP_DEP ? DEP_TITLES[sub] : step === STEP_VEN ? VEN_TITLES[sub] : step === STEP_VAL ? VAL_TITLES[sub] : TITLES[step]}</h1>
+                <span className="shrink-0 text-xs text-muted-foreground">Passo {step + 1} de {TOTAL}{(step === STEP_DEP && !manterSem) || (step === STEP_VEN && !vManter) ? ` · ${sub + 1}/3` : step === STEP_VAL && valAtivo ? ` · ${sub + 1}/4` : ""}</span>
               </div>
               <div className="h-1 overflow-hidden rounded-full bg-secondary">
-                <div className="h-full rounded-full bg-progress transition-all duration-500" style={{ width: `${((step + 1) / 5) * 100}%` }} />
+                <div className="h-full rounded-full bg-progress transition-all duration-500" style={{ width: `${((step + (hasSub ? (sub + 1) / nSub : 1)) / TOTAL) * 100}%` }} />
               </div>
             </div>
 
-            <div key={step} data-kb-scroll className={`min-h-0 flex-1 overflow-y-auto overscroll-contain animate-in fade-in duration-300 ${kb ? "mt-2 space-y-2 pb-1 [&_.field-hint]:hidden" : "mt-4 space-y-3 short:mt-3 short:space-y-2.5"} ${dir === 1 ? "slide-in-from-right-8" : "slide-in-from-left-8"}`}>
+            <div key={`${step}-${sub}`} data-kb-scroll className={`min-h-0 flex-1 overflow-y-auto overscroll-contain animate-in fade-in duration-300 ${kb ? "mt-2 space-y-2 pb-1 [&_.field-hint]:hidden" : "mt-4 space-y-3 short:mt-3 short:space-y-2.5"} ${dir === 1 ? "slide-in-from-right-8" : "slide-in-from-left-8"}`}>
+              {saveErr && step !== STEP_REV && <p role="alert" className="text-sm font-semibold text-destructive">{saveErr}</p>}
               {step === 0 && (
                 <>
                   {codeMode === "choose" && !codigo ? (
@@ -207,7 +744,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                   ) : (
                     <Field label="Código do produto" name="codigo" inputMode="numeric" autoComplete="off" enterKeyHint="next" placeholder="Ex.: 7891234567890"
                       autoFocus={!codigo} onKeyDown={nextOnEnter("pnome")} value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\s/g, "").slice(0, 60))}
-                      error={dup ? "Este código já está cadastrado" : ""}
+                      error={codeErr}
                       hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : "Os números abaixo do código de barras."}
                       extra={<button type="button" onClick={() => { setDenied(false); setScan(true); }} className="flex min-h-9 items-center gap-1 text-sm font-semibold text-primary"><ScanLine size={16} /> Escanear</button>} />
                   )}
@@ -232,7 +769,9 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                   {compra > 0 && venda > 0 && venda < compra && (
                     <p className="-mt-1 text-xs text-warning">O preço de venda está menor que o de compra. Você terá prejuízo.</p>
                   )}
-                  <Chips label="Unidade de medida" hint="Como você vende este produto." opts={UNIDADES[tipo] ?? []} value={unidade} onChange={setUnidade} />
+                  <Chips label="Unidade de medida" hint="Como você vende este produto." opts={UNIDADES[tipo] ?? []} value={unidade}
+                    onChange={(u) => { if ((configSalva || vendaSalva) && u !== initial!.unidade) { setUnitMsg(unidadeTravadaMsg(initial!.unidade)); return; } setUnitMsg(""); setUnidade(u); }} />
+                  {(unitMsg || unidadeTravada) && <p role="alert" className="-mt-1 text-sm text-destructive">{unitMsg || unidadeTravadaMsg(initial!.unidade)}</p>}
                   <div className="space-y-1">
                     <label htmlFor="cat" className="text-sm font-medium text-muted-foreground">Categoria</label>
                     <select id="cat" value={categoria} onChange={(e) => setCategoria(e.target.value)}
@@ -261,15 +800,18 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                     <div className="space-y-2">
                       <p className="text-sm font-medium text-muted-foreground">Grade de variações</p>
                       <div className="flex flex-wrap gap-2">
-                        {vars.map((v, i) => (
-                          <span key={i} className="flex items-center gap-1 rounded-full border border-accent/50 bg-accent/10 py-1 pl-3 pr-1 text-sm">
-                            {v.tam} · {v.cor} · {v.qtd}
-                            <button type="button" aria-label="Remover variação" onClick={() => setVars(vars.filter((_, j) => j !== i))} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-accent/20"><X size={14} /></button>
+                        {vars.map((v, i) => { const bad = !variationOk(v, i, vars, codigo, used); return (
+                          <span key={v.uid ?? i} className={`flex items-center gap-1 rounded-full border py-1 pl-1 pr-1 text-sm ${bad ? "border-destructive/70 bg-destructive/10" : "border-accent/50 bg-accent/10"}`}>
+                            <button type="button" aria-label="Editar variação" onClick={() => setVarSheet(i)} className="flex min-h-8 items-center gap-1 rounded-full px-2 hover:bg-accent/20">
+                              {v.tam} · {v.cor} · {v.codigo || "sem código"} · {v.qtd} <Pencil size={12} />
+                            </button>
+                            <button type="button" aria-label="Remover variação" onClick={() => removeVar(i)} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-accent/20"><X size={14} /></button>
                           </span>
-                        ))}
+                        ); })}
                       </div>
-                      <button type="button" onClick={() => setVarSheet(true)} className="flex min-h-12 items-center gap-2 rounded-2xl border-2 border-dashed border-accent/70 px-4 text-base font-semibold text-accent"><Plus size={18} /> Adicionar variação</button>
-                      <p className="text-xs text-muted-foreground">{vars.length ? "Tamanho, cor e quantidade de cada peça." : "Adicione pelo menos 1 variação."}</p>
+                      {varMsg && <p role="alert" className="text-sm text-destructive">{varMsg}</p>}
+                      <button type="button" onClick={() => setVarSheet(-1)} className="flex min-h-12 items-center gap-2 rounded-2xl border-2 border-dashed border-accent/70 px-4 text-base font-semibold text-accent"><Plus size={18} /> Adicionar variação</button>
+                      <p className="text-xs text-muted-foreground">{!vars.length ? "Adicione pelo menos 1 variação." : !varsOk ? <span className="text-destructive">Toque nas variações em vermelho para completar ou corrigir.</span> : "Tamanho, cor, código e quantidade de cada peça."}</p>
                     </div>
                   )}
                 </>
@@ -288,27 +830,347 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                 </>
               )}
 
-              {step === 4 && (
+              {step === STEP_DEP && (
+                <>
+                  <p className="text-xs text-muted-foreground">{TEMPORARIO}</p>
+
+                  {sub === 0 && (
+                    <>
+                      <div className="grid grid-cols-1 gap-2">
+                        {listaLocais.map((l) => (
+                          <Pick key={l} on={!manterSem && dLocal === l} onClick={() => pickLocal(l)}><span className="truncate">{l}</span></Pick>
+                        ))}
+                        {novoLocal === null ? (
+                          <button type="button" onClick={() => setNovoLocal("")} className="flex min-h-13 items-center gap-2 rounded-2xl border-2 border-dashed border-accent/70 px-4 text-base font-semibold text-accent"><Plus size={18} /> Novo local</button>
+                        ) : (
+                          <div className="space-y-2 rounded-2xl border border-border p-3">
+                            <Field label="Nome do local" name="dlocal" autoFocus autoComplete="off" enterKeyHint="done" placeholder="Ex.: Estante A · Prateleira 2"
+                              value={novoLocal} onChange={(e) => setNovoLocal(e.target.value.slice(0, 60))}
+                              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addLocal(); } }}
+                              error={novoDup ? LOCAL_DUP : ""} hint="Um nome simples. Corredor e nível não são obrigatórios." />
+                            <div className="flex gap-2">
+                              <button type="button" onClick={() => setNovoLocal(null)} className={`flex-1 ${btnGhost}`}>Cancelar</button>
+                              <button type="button" disabled={!novoLocal.trim() || novoDup} onClick={addLocal} className={`flex-1 ${btnPrimary(!!novoLocal.trim() && !novoDup)}`}>Usar este local</button>
+                            </div>
+                          </div>
+                        )}
+                        <Pick on={!manterSem && dLocal === null} onClick={() => pickLocal(null)}><span>Definir depois</span></Pick>
+                        {initial && !initDep && (
+                          <Pick on={manterSem} onClick={() => { setManterSem(true); setLocalMsg(""); }}><span>Manter sem configurar por enquanto</span></Pick>
+                        )}
+                      </div>
+                      {localMsg && <p role="alert" className="text-sm text-destructive">{localMsg}</p>}
+                      <p className="text-xs text-muted-foreground">{isRoupas ? "Um local para o produto. Vale para todas as variações." : "Um local para o produto inteiro."}</p>
+                      {!manterSem && dLocal === null && <p className="text-xs text-warning">{LOCAL_PENDENTE}</p>}
+                    </>
+                  )}
+
+                  {sub === 1 && !isRoupas && (
+                    <>
+                      {qtdTravada ? (
+                        <div className="rounded-2xl border border-border bg-background-deep/60 p-3 text-sm">
+                          <p>Quantidade confirmada no depósito: <b>{q.v != null ? `${fmtQ(q.v)} ${unidade}` : "—"}</b></p>
+                          <p className="mt-1 text-xs text-muted-foreground">Alterar a contagem ficará para uma etapa futura.</p>
+                        </div>
+                      ) : (
+                        <Field label={`Quanto você contou no depósito agora? (${unidade})`} name="dqtd" {...numProps} enterKeyHint="done"
+                          value={dQtd} onChange={(e) => setDQtd(numIn(e.target.value))} error={showErr(dQtd, q.err)}
+                          hint={fr ? "Aceita vírgula. Ex.: 12,5" : "Somente números inteiros."} />
+                      )}
+                      <p className="text-xs text-muted-foreground">Não é o peso ou volume da embalagem. É quanto você tem guardado. Se não houver nenhuma, digite 0.</p>
+                    </>
+                  )}
+
+                  {sub === 1 && isRoupas && (
+                    <>
+                      {pendentes.length > 0 && (
+                        <div className="space-y-2 rounded-2xl border border-accent/50 bg-accent/10 p-3">
+                          <p className="text-base font-semibold">Essas quantidades estão no depósito?</p>
+                          {pendentes.map((x) => (
+                            <p key={x.v.uid} className="text-sm">{x.v.tam} · {x.v.cor} · Quantidade informada no cadastro: {x.v.qtd} {unidade}</p>
+                          ))}
+                          <div className="flex flex-col gap-2">
+                            <button type="button" onClick={() => setDVar((m) => { const n = { ...m }; for (const x of pendentes) n[x.v.uid!] = { ...(n[x.v.uid!] ?? { min: "", max: "" }), qtd: String(x.v.qtd) }; return n; })}
+                              className={btnPrimary(true)}>Sim, estão no depósito</button>
+                            <button type="button" onClick={() => setDVar((m) => { const n = { ...m }; for (const x of pendentes) n[x.v.uid!] = { ...(n[x.v.uid!] ?? { min: "", max: "" }), qtd: "" }; return n; })}
+                              className={btnGhost}>Não, vou contar o depósito</button>
+                          </div>
+                        </div>
+                      )}
+                      {varsDep.filter((x) => x.travada || x.d.qtd !== undefined).map((x) => (
+                        <div key={x.v.uid} className="space-y-1.5 rounded-2xl border border-border bg-background-deep/60 p-3">
+                          <p className="text-sm font-semibold">{x.v.tam} · {x.v.cor}</p>
+                          <p className="text-xs text-muted-foreground">Quantidade informada no cadastro: {x.v.qtd}</p>
+                          {x.travada ? (
+                            <>
+                              <p className="text-sm">Quantidade confirmada no depósito: <b>{fmtQ(x.q.v ?? 0)} {unidade}</b></p>
+                              <p className="text-xs text-muted-foreground">Alterar a contagem ficará para uma etapa futura.</p>
+                            </>
+                          ) : (
+                            <Field label={`Quantidade confirmada no depósito (${unidade})`} name={`dq-${x.v.uid}`} {...numProps} placeholder="Ex.: 10"
+                              value={x.d.qtd ?? ""} onChange={(e) => setVD(x.v.uid!, { qtd: numIn(e.target.value) })} error={showErr(x.d.qtd ?? "", x.q.err)} />
+                          )}
+                        </div>
+                      ))}
+                      <p className="text-xs text-muted-foreground">Não é o peso da peça. É quanto você tem guardado. Zero é aceito.</p>
+                    </>
+                  )}
+
+                  {sub === 2 && !isRoupas && (
+                    <>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <Field label={`Mínimo (${unidade})`} name="dmin" {...numProps} enterKeyHint="next" onKeyDown={nextOnEnter("dmax")} placeholder="Opcional"
+                          value={dMin} onChange={(e) => setDMin(numIn(e.target.value))} error={mn.err} />
+                        <Field label={`Máximo desejado (${unidade})`} name="dmax" id="dmax" {...numProps} enterKeyHint="done" placeholder="Opcional"
+                          value={dMax} onChange={(e) => setDMax(numIn(e.target.value))} error={mx.err || limErr} />
+                      </div>
+                      <p className="text-sm text-muted-foreground">{limitesStatus(mn.v, mx.v)}</p>
+                      {q.v != null && mx.v != null && q.v > mx.v && <p className="text-sm text-warning">{ACIMA_MAX}</p>}
+                      <LimitesAjuda />
+                    </>
+                  )}
+
+                  {sub === 2 && isRoupas && (
+                    <>
+                      {varsDep.length > 1 && (
+                        <button type="button" onClick={() => { const f = varsDep[0]!; setDVar((m) => { const n = { ...m }; for (const x of varsDep) n[x.v.uid!] = { ...(n[x.v.uid!] ?? {}), min: f.d.min, max: f.d.max }; return n; }); }}
+                          className={btnGhost}>Usar os mesmos limites para todas</button>
+                      )}
+                      {varsDep.length > 1 && <p className="-mt-1 text-xs text-muted-foreground">Copia os limites de {varsDep[0]!.v.tam} · {varsDep[0]!.v.cor} para as demais.</p>}
+                      {varsDep.map((x) => (
+                        <div key={x.v.uid} className="space-y-1.5 rounded-2xl border border-border bg-background-deep/60 p-3">
+                          <p className="text-sm font-semibold">{x.v.tam} · {x.v.cor}</p>
+                          <div className="grid grid-cols-2 gap-2.5">
+                            <Field label="Mínimo" name={`dmin-${x.v.uid}`} {...numProps} placeholder="Opcional" value={x.d.min} onChange={(e) => setVD(x.v.uid!, { min: numIn(e.target.value) })} error={x.mn.err} />
+                            <Field label="Máximo desejado" name={`dmax-${x.v.uid}`} {...numProps} placeholder="Opcional" value={x.d.max} onChange={(e) => setVD(x.v.uid!, { max: numIn(e.target.value) })} error={x.mx.err || x.lim} />
+                          </div>
+                          <p className="text-xs text-muted-foreground">{limitesStatus(x.mn.v, x.mx.v)}</p>
+                          {x.q.v != null && x.mx.v != null && x.q.v > x.mx.v && <p className="text-xs text-warning">{ACIMA_MAX}</p>}
+                        </div>
+                      ))}
+                      <LimitesAjuda />
+                    </>
+                  )}
+                </>
+              )}
+
+              {step === STEP_VEN && (
+                <>
+                  <p className="text-xs text-muted-foreground">{TEMPORARIO} {SEM_REPOSICAO}</p>
+
+                  {sub === 0 && (
+                    <>
+                      <p className="text-base font-semibold">Onde este produto fica para venda?</p>
+                      <div className="grid grid-cols-1 gap-2">
+                        {listaVLocais.map((l) => (
+                          <Pick key={l} on={!vManter && vLocal === l} onClick={() => pickVLocal(l)}><span className="truncate">{l}</span></Pick>
+                        ))}
+                        {vNovo === null ? (
+                          <button type="button" onClick={() => setVNovo("")} className="flex min-h-13 items-center gap-2 rounded-2xl border-2 border-dashed border-accent/70 px-4 text-base font-semibold text-accent"><Plus size={18} /> Novo local de venda</button>
+                        ) : (
+                          <div className="space-y-2 rounded-2xl border border-border p-3">
+                            <Field label="Nome do local de venda" name="vlocal" autoFocus autoComplete="off" enterKeyHint="done" placeholder={`Ex.: ${EXEMPLO_LOCAL[tipo] ?? "Gôndola 3 · Prateleira 2"}`}
+                              value={vNovo} onChange={(e) => setVNovo(e.target.value.slice(0, 60))}
+                              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addVLocal(); } }}
+                              error={vNovoDup ? VEN_LOCAL_DUP : ""} hint="Um nome simples. Corredor e nível não são obrigatórios." />
+                            <div className="flex gap-2">
+                              <button type="button" onClick={() => setVNovo(null)} className={`flex-1 ${btnGhost}`}>Cancelar</button>
+                              <button type="button" disabled={!vNovo.trim() || vNovoDup} onClick={addVLocal} className={`flex-1 ${btnPrimary(!!vNovo.trim() && !vNovoDup)}`}>Usar este local de venda</button>
+                            </div>
+                          </div>
+                        )}
+                        <Pick on={!vManter && vLocal === null} onClick={() => pickVLocal(null)}><span>Definir depois</span></Pick>
+                        {initial && !initVen && (
+                          <Pick on={vManter} onClick={() => { setVManter(true); setVLocalMsg(""); }}><span>Manter sem configurar por enquanto</span></Pick>
+                        )}
+                      </div>
+                      {vLocalMsg && <p role="alert" className="text-sm text-destructive">{vLocalMsg}</p>}
+                      <p className="text-xs text-muted-foreground">{isRoupas ? "Um local de venda para o produto. Vale para todas as variações." : "Um local de venda para o produto inteiro."} Os locais de venda são separados dos locais do depósito.</p>
+                      {!vManter && vLocal === null && <p className="text-xs text-warning">{VEN_LOCAL_PENDENTE}</p>}
+                    </>
+                  )}
+
+                  {sub === 1 && !isRoupas && (
+                    <>
+                      {vQtdTravada ? (
+                        <div className="rounded-2xl border border-border bg-background-deep/60 p-3 text-sm">
+                          <p>Quantidade confirmada na área de venda: <b>{vq.v != null ? `${fmtQ(vq.v)} ${unidade}` : "—"}</b></p>
+                          <p className="mt-1 text-xs text-muted-foreground">Alterar a contagem ficará para uma etapa futura.</p>
+                        </div>
+                      ) : (
+                        <Field label={`Quanto deste produto já está neste local? (${unidade})`} name="vqtd" {...numProps} enterKeyHint="done"
+                          value={vQtd} onChange={(e) => setVQtd(numIn(e.target.value))} error={showErr(vQtd, vq.err)}
+                          hint={fr ? "Aceita vírgula. Ex.: 12,5" : "Somente números inteiros."} />
+                      )}
+                      <p className="text-xs text-muted-foreground">Conte só o que está exposto para venda. É separado do depósito e não é uma transferência. Se não houver nenhuma, digite 0.</p>
+                      <p className="rounded-2xl border border-border bg-background-deep/60 p-3 text-sm">{totalLinhas[0]}</p>
+                    </>
+                  )}
+
+                  {sub === 1 && isRoupas && (
+                    <>
+                      {varsVen.map((x, i) => (
+                        <div key={x.v.uid} className="space-y-1.5 rounded-2xl border border-border bg-background-deep/60 p-3">
+                          <p className="text-sm font-semibold">{x.v.tam} · {x.v.cor}</p>
+                          {x.travada ? (
+                            <>
+                              <p className="text-sm">Quantidade confirmada na área de venda: <b>{fmtQ(x.q.v ?? 0)} {unidade}</b></p>
+                              <p className="text-xs text-muted-foreground">Alterar a contagem ficará para uma etapa futura.</p>
+                            </>
+                          ) : (
+                            <Field label={`Quanto desta variação já está neste local? (${unidade})`} name={`vq-${x.v.uid}`} {...numProps} placeholder="Ex.: 3"
+                              value={x.d.qtd ?? ""} onChange={(e) => setVV(x.v.uid!, { qtd: numIn(e.target.value) })} error={showErr(x.d.qtd ?? "", x.q.err)} />
+                          )}
+                          <p className="text-xs text-muted-foreground">{totalLinhas[i]}</p>
+                        </div>
+                      ))}
+                      <p className="text-xs text-muted-foreground">Conte cada tamanho e cor. A quantidade do cadastro não é copiada. Zero é aceito.</p>
+                    </>
+                  )}
+
+                  {sub === 2 && !isRoupas && (
+                    <>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <Field label={`Mínimo (${unidade})`} name="vmin" {...numProps} enterKeyHint="next" onKeyDown={nextOnEnter("vmax")} placeholder="Opcional"
+                          value={vMin} onChange={(e) => setVMin(numIn(e.target.value))} error={vmn.err} />
+                        <Field label={`Máximo que cabe (${unidade})`} name="vmax" id="vmax" {...numProps} enterKeyHint="done" placeholder="Opcional"
+                          value={vMax} onChange={(e) => setVMax(numIn(e.target.value))} error={vmx.err || vLimErr} />
+                      </div>
+                      <p className="text-sm text-muted-foreground">{limitesVendaStatus(vmn.v, vmx.v)}</p>
+                      {vq.v != null && vmx.v != null && vq.v > vmx.v && <p className="text-sm text-warning">{VEN_ACIMA_MAX}</p>}
+                      <LimitesVendaAjuda />
+                    </>
+                  )}
+
+                  {sub === 2 && isRoupas && (
+                    <>
+                      {varsVen.length > 1 && (
+                        <button type="button" onClick={() => { const f = varsVen[0]!; setVVar((m) => { const n = { ...m }; for (const x of varsVen) n[x.v.uid!] = { ...(n[x.v.uid!] ?? { qtd: "" }), min: f.d.min, max: f.d.max }; return n; }); }}
+                          className={btnGhost}>Usar os mesmos limites para todas</button>
+                      )}
+                      {varsVen.length > 1 && <p className="-mt-1 text-xs text-muted-foreground">Copia os limites de {varsVen[0]!.v.tam} · {varsVen[0]!.v.cor} para as demais.</p>}
+                      {varsVen.map((x) => (
+                        <div key={x.v.uid} className="space-y-1.5 rounded-2xl border border-border bg-background-deep/60 p-3">
+                          <p className="text-sm font-semibold">{x.v.tam} · {x.v.cor}</p>
+                          <div className="grid grid-cols-2 gap-2.5">
+                            <Field label="Mínimo" name={`vmin-${x.v.uid}`} {...numProps} placeholder="Opcional" value={x.d.min} onChange={(e) => setVV(x.v.uid!, { min: numIn(e.target.value) })} error={x.mn.err} />
+                            <Field label="Máximo que cabe" name={`vmax-${x.v.uid}`} {...numProps} placeholder="Opcional" value={x.d.max} onChange={(e) => setVV(x.v.uid!, { max: numIn(e.target.value) })} error={x.mx.err || x.lim} />
+                          </div>
+                          <p className="text-xs text-muted-foreground">{limitesVendaStatus(x.mn.v, x.mx.v)}</p>
+                          {x.q.v != null && x.mx.v != null && x.q.v > x.mx.v && <p className="text-xs text-warning">{VEN_ACIMA_MAX}</p>}
+                        </div>
+                      ))}
+                      <LimitesVendaAjuda />
+                    </>
+                  )}
+                </>
+              )}
+
+              {step === STEP_VAL && (
+                <>
+                  <p className="text-xs text-muted-foreground">{TEMPORARIO}</p>
+                  {sub === 0 && (
+                    <>
+                      <p className="text-base font-semibold">Este produto tem validade?</p>
+                      {isFarm ? (
+                        <div className="rounded-2xl border border-accent/50 bg-accent/10 p-3 text-sm">
+                          <p className="font-semibold">Sim</p>
+                          <p className="text-xs text-muted-foreground">Na farmácia o controle de validade é obrigatório.</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          <Pick on={!valManter && vControla === true} onClick={() => { setVControla(true); setValManter(false); setValMsg(""); }}><span>Sim</span></Pick>
+                          <Pick on={!valManter && vControla === false} onClick={() => { if (desligarBloq) { setValMsg(DESLIGAR_BLOQ); return; } setVControla(false); setValManter(false); setValMsg(""); }}><span>Não</span></Pick>
+                        </div>
+                      )}
+                      {initial && !initVal && (
+                        <div className="grid grid-cols-1 gap-2">
+                          {isFarm && <Pick on={!valManter} onClick={() => setValManter(false)}><span>Configurar validade agora</span></Pick>}
+                          <Pick on={valManter} onClick={() => { setValManter(true); setValMsg(""); }}><span>Manter sem configurar por enquanto</span></Pick>
+                        </div>
+                      )}
+                      {valManter && <p className="text-xs text-warning">{isFarm ? VAL_FARM_INCOMPLETA : VAL_SEM_CONFIG}</p>}
+                      {valMsg && <p role="alert" className="text-sm text-destructive">{valMsg}</p>}
+                      {!isFarm && <p className="text-xs text-muted-foreground">Escolha “Não” para produtos que não vencem.</p>}
+                    </>
+                  )}
+                  {sub === 1 && (
+                    <>
+                      <p className="text-base font-semibold">Quando você quer ser avisado?</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {AVISOS.map((d) => (
+                          <Pick key={d} on={avisos.includes(d)} onClick={() => setAvisos((a) => (a.includes(d) ? a.filter((x) => x !== d) : [...a, d]))}><span>{d} dias</span></Pick>
+                        ))}
+                      </div>
+                      <p className="text-sm text-muted-foreground">{avisosTexto(avisos)}</p>
+                      <p className="text-sm text-warning">{SEM_AVISOS}</p>
+                      <p className="text-xs text-muted-foreground">Pode marcar vários ou nenhum. A situação de cada validade (vencido, vence hoje, próximos dias) aparece mesmo sem aviso.</p>
+                    </>
+                  )}
+                  {sub === 2 && renderArea("dep")}
+                  {sub === 3 && renderArea("ven")}
+                </>
+              )}
+
+              {step === STEP_REV && (
                 <div className="divide-y divide-border rounded-2xl border border-border bg-background-deep/60">
                   <Sum t="Código e nome" onEdit={() => edit(0)}>{nome}<br />Cód. {codigo}</Sum>
                   <Sum t="Preços" onEdit={() => edit(1)}>{brl2(compra)} → {brl2(venda)} / {unidade}<br />{categoria} · margem {margem.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</Sum>
                   <Sum t="Detalhes" onEdit={() => edit(2)}>
                     {Object.entries(det).filter(([, v]) => v).map(([k, v]) => `${labelOf(tipo, k)}: ${v}`).join(" · ") || (vars.length ? "" : "Nenhum")}
-                    {vars.length > 0 && <><br />{vars.map((v) => `${v.tam}/${v.cor}/${v.qtd}`).join(", ")}</>}
+                    {vars.length > 0 && <><br />{vars.map((v) => `${v.tam}/${v.cor}/Cód. ${v.codigo || "—"}/${v.qtd}`).join(", ")}</>}
                   </Sum>
                   <Sum t="Fornecedor" onEdit={() => edit(3)}>{fornNome}</Sum>
+                  {manterSem ? (
+                    <Sum t="Depósito" onEdit={() => edit(STEP_DEP, 0)}>{SEM_CONFIG}</Sum>
+                  ) : (
+                    <>
+                      <Sum t="Local" onEdit={() => edit(STEP_DEP, 0)}>{resumoLocal}</Sum>
+                      <Sum t="Quantidade no depósito" onEdit={() => edit(STEP_DEP, 1)}>{resumoQtd}</Sum>
+                      <Sum t="Limites" onEdit={() => edit(STEP_DEP, 2)}>{resumoLim}</Sum>
+                    </>
+                  )}
+                  {vManter ? (
+                    <Sum t="Área de venda" onEdit={() => edit(STEP_VEN, 0)}>{VEN_SEM_CONFIG}</Sum>
+                  ) : (
+                    <>
+                      <Sum t="Local de venda" onEdit={() => edit(STEP_VEN, 0)}>{resumoVLocal}</Sum>
+                      <Sum t="Quantidade na área de venda" onEdit={() => edit(STEP_VEN, 1)}>{resumoVQtd}</Sum>
+                      <Sum t="Limites da área de venda" onEdit={() => edit(STEP_VEN, 2)}>{resumoVLim}</Sum>
+                    </>
+                  )}
+                  <div className="p-3.5 text-sm">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total para conferência</p>
+                    {totalLinhas.map((t, i) => <p key={i} className="mt-0.5">{t}</p>)}
+                  </div>
+                  <Sum t="Validade" onEdit={() => edit(STEP_VAL, 0)}>{resumoVal[0]}</Sum>
+                  {valAtivo && (
+                    <>
+                      <Sum t="Avisos" onEdit={() => edit(STEP_VAL, 1)}>{avisosTexto(avisos)}<br />{SEM_AVISOS}</Sum>
+                      <Sum t="Validades por área" onEdit={() => edit(STEP_VAL, 2)}>{resumoVal.slice(3).map((t, i) => <span key={i} className={`block ${/^Vencidos/.test(t) ? "font-semibold text-destructive" : ""}`}>{t}</span>)}</Sum>
+                    </>
+                  )}
+                  <p className="p-3.5 text-xs text-muted-foreground">{TEMPORARIO} {SEM_REPOSICAO}</p>
                 </div>
               )}
             </div>
 
+            {step === STEP_REV && lotesConf.length > 0 && (
+              <label className="flex shrink-0 items-start gap-3 pt-3 text-sm">
+                <input type="checkbox" className="mt-1 h-5 w-5" checked={confVenc} onChange={(e) => setConfVenc(e.target.checked)} />
+                <span>Confirmo o vencimento informado para o lote {lotesConf.filter(Boolean).join(", ")}. Depois de salvo, ele não poderá ser trocado.</span>
+              </label>
+            )}
+            {step === STEP_REV && triedSave && lotesConf.length > 0 && !confVenc && <p role="alert" className="shrink-0 pt-2 text-sm font-semibold text-destructive">Confirme o vencimento do lote para salvar.</p>}
+            {erro && step === STEP_REV && <p role="alert" className="shrink-0 pt-3 text-sm font-semibold text-destructive">{erro}</p>}
             <div className={`flex shrink-0 gap-2 ${kb ? "pt-2" : "pt-4 short:pt-3"}`}>
               {step > 0 && (
-                <button type="button" onClick={() => { setFromReview(false); go(step - 1); }} className={btnGhost}><span className="flex items-center gap-1.5"><ArrowLeft size={18} />Voltar</span></button>
+                <button type="button" onClick={back} className={btnGhost}><span className="flex items-center gap-1.5"><ArrowLeft size={18} />Voltar</span></button>
               )}
               {step === 2 && !isRoupas && !Object.values(det).some(Boolean) ? (
                 <button type="submit" className={`flex-1 ${btnPrimary(true)}`}>Pular</button>
               ) : (
-                <button type="submit" disabled={!valid} className={`flex-1 ${btnPrimary(valid)}`}>{step === 4 ? "Salvar produto" : "Continuar"}</button>
+                <button type="submit" disabled={!valid || (step === STEP_REV && saving)} className={`flex-1 ${btnPrimary(valid && !(step === STEP_REV && saving))}`}>{step === STEP_REV ? (saving ? "Salvando…" : "Salvar produto") : "Continuar"}</button>
               )}
             </div>
           </form>
@@ -320,8 +1182,36 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
           onDenied={() => { setScan(false); setDenied(true); setCodeMode("type"); }}
           onCode={(c) => { setScan(false); setCodigo(c); setCodeMode("type"); setTimeout(() => document.getElementById("pnome")?.focus(), 80); }} />
       )}
-      {varSheet && <VariationSheet onClose={() => setVarSheet(false)} onSave={(v) => { setVars([...vars, v]); setVarSheet(false); }} />}
-      {suppSheet && <SupplierSheet onClose={() => setSuppSheet(false)} onSave={(s) => { setForn(onAddSupplier(s)); setSuppSheet(false); }} />}
+      {varSheet !== null && <VariationSheet index={varSheet} vars={vars} mainCode={codigo} used={used} onClose={() => setVarSheet(null)}
+        onSave={(v) => {
+          const uid = varSheet < 0 ? newUid() : vars[varSheet]?.uid ?? newUid();
+          const nv = { ...v, uid };
+          setVars(varSheet < 0 ? [...vars, nv] : vars.map((x, j) => (j === varSheet ? nv : x)));
+          setVarSheet(null);
+        }} />}
+      {suppSheet && <SupplierSheet onClose={() => setSuppSheet(false)} onSave={(s) => {
+        const r = onAddSupplier(s);
+        if (typeof r === "number") { setForn(r); setSuppSheet(false); return; }
+        return r.then((id) => { setForn(id); setSuppSheet(false); });
+      }} />}
+    </div>
+  );
+}
+
+function LimitesVendaAjuda() {
+  return (
+    <div className="space-y-1 text-xs text-muted-foreground">
+      <p><b>Mínimo:</b> quando chegar a esta quantidade, será necessário repor.</p>
+      <p><b>Máximo:</b> quanto deste produto cabe neste local.</p>
+      <p>Valem para este produto neste local, não para a gôndola inteira. A reposição automática depende de local, quantidade e mínimo definidos — e não funciona nesta versão.</p>
+    </div>
+  );
+}
+function LimitesAjuda() {
+  return (
+    <div className="space-y-1 text-xs text-muted-foreground">
+      <p><b>Mínimo:</b> avise quando a quantidade chegar a este valor. Será a referência para aviso de compra — nenhum alerta funciona nesta versão.</p>
+      <p><b>Máximo desejado:</b> quanto você deseja manter no depósito. Não bloqueia recebimentos.</p>
     </div>
   );
 }
@@ -382,35 +1272,61 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
     </div>
   );
 }
-function VariationSheet({ onClose, onSave }: { onClose: () => void; onSave: (v: Variation) => void }) {
-  const [tam, setTam] = useState(""); const [cor, setCor] = useState(""); const [qtd, setQtd] = useState("");
-  const ok = !!tam && !!cor.trim() && Number(qtd) > 0;
+function VariationSheet({ index, vars, mainCode, used, onClose, onSave }: {
+  index: number; vars: Variation[]; mainCode: string; used: Set<string>; onClose: () => void; onSave: (v: Variation) => void;
+}) {
+  const init = index >= 0 ? vars[index] : undefined;
+  const [tam, setTam] = useState(init?.tam ?? ""); const [cor, setCor] = useState(init?.cor ?? "");
+  const [cod, setCod] = useState(init?.codigo ?? ""); const [qtd, setQtd] = useState(init ? String(init.qtd) : "");
+  const [scan, setScan] = useState(false); const [denied, setDenied] = useState(false);
+  const errs = variationErrors({ tam, cor, codigo: cod }, index, vars, mainCode, used);
+  const ok = !!tam && !!cor.trim() && Number(qtd) > 0 && !errs.combo && !errs.codigo;
   return (
-    <Sheet title="Nova variação" onClose={onClose}>
-      <form noValidate onSubmit={(e) => { e.preventDefault(); if (ok) onSave({ tam, cor: cor.trim(), qtd: Number(qtd) }); }} className="flex min-h-0 flex-col">
+    <Sheet title={index >= 0 ? "Editar variação" : "Nova variação"} onClose={onClose}>
+      <form noValidate onSubmit={(e) => { e.preventDefault(); if (ok) onSave({ tam, cor: cor.trim(), codigo: cod.trim(), qtd: Number(qtd) }); }} className="flex min-h-0 flex-col">
         <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3">
           <Chips label="Tamanho" hint="Letra ou número." opts={TAMANHOS} value={tam} onChange={setTam} />
-          <Field label="Cor" name="vcor" enterKeyHint="next" onKeyDown={nextOnEnter("vqtd")} placeholder="Ex.: Azul" value={cor} onChange={(e) => setCor(e.target.value)} hint="Cor desta peça." />
-          <Field label="Quantidade" name="vqtd" inputMode="numeric" enterKeyHint="done" placeholder="0" value={qtd} onChange={(e) => setQtd(digits(e.target.value).slice(0, 5))} hint="Quantas peças você tem." />
+          <Field label="Cor" name="vcor" enterKeyHint="next" onKeyDown={nextOnEnter("vcod")} placeholder="Ex.: Azul" value={cor} onChange={(e) => setCor(e.target.value)} hint="Cor desta peça."
+            error={tam && cor.trim() && errs.combo ? errs.combo : ""} />
+          <Field label="Código de barras" name="vcod" id="vcod" inputMode="numeric" autoComplete="off" enterKeyHint="next" onKeyDown={nextOnEnter("vqtd")} placeholder="Ex.: 7891234567890"
+            value={cod} onChange={(e) => setCod(e.target.value.replace(/\s/g, "").slice(0, 60))}
+            error={cod.trim() || init ? errs.codigo ?? "" : ""}
+            hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : "Código próprio deste tamanho e cor."}
+            extra={<button type="button" onClick={() => { setDenied(false); setScan(true); }} className="flex min-h-9 items-center gap-1 text-sm font-semibold text-primary"><ScanLine size={16} /> Escanear</button>} />
+          <Field label="Quantidade" name="vqtd" id="vqtd" inputMode="numeric" enterKeyHint="done" placeholder="0" value={qtd} onChange={(e) => setQtd(digits(e.target.value).slice(0, 5))} hint="Quantas peças você tem." />
         </div>
-        <div className="px-5 pt-2"><button type="submit" disabled={!ok} className={btnPrimary(ok)}>Adicionar</button></div>
+        <div className="px-5 pt-2"><button type="submit" disabled={!ok} className={btnPrimary(ok)}>{index >= 0 ? "Salvar variação" : "Adicionar"}</button></div>
       </form>
+      {scan && (
+        <Scanner onClose={() => setScan(false)} onType={() => setScan(false)}
+          onDenied={() => { setScan(false); setDenied(true); }}
+          onCode={(c) => { setScan(false); setCod(c); setTimeout(() => document.getElementById("vqtd")?.focus(), 80); }} />
+      )}
     </Sheet>
   );
 }
-function SupplierSheet({ onClose, onSave }: { onClose: () => void; onSave: (s: Omit<Supplier, "id">) => void }) {
+function SupplierSheet({ onClose, onSave }: { onClose: () => void; onSave: (s: Omit<Supplier, "id">) => void | Promise<void> }) {
   const [nome, setNome] = useState(""); const [tel, setTel] = useState(""); const [email, setEmail] = useState("");
+  const [salvando, setSalvando] = useState(false); const [erro, setErro] = useState("");
+  const enviar = () => {
+    if (salvando) return;
+    const r = onSave({ nome: nome.trim(), tel, email });
+    if (!r) return;
+    setSalvando(true); setErro("");
+    r.catch((e: unknown) => { setErro(String((e as { message?: string })?.message ?? "Não foi possível guardar o fornecedor.")); setSalvando(false); });
+  };
   const emailOk = !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const ok = !!nome.trim() && emailOk && (!tel || digits(tel).length >= 10);
   return (
-    <Sheet title="Novo fornecedor" onClose={onClose}>
-      <form noValidate onSubmit={(e) => { e.preventDefault(); if (ok) onSave({ nome: nome.trim(), tel, email }); }} className="flex min-h-0 flex-col">
+    <Sheet title="Novo fornecedor" onClose={() => { if (!salvando) onClose(); }}>
+      <form noValidate onSubmit={(e) => { e.preventDefault(); if (ok) enviar(); }} className="flex min-h-0 flex-col">
         <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3">
           <Field label="Nome" name="fnome" autoComplete="organization" enterKeyHint="next" onKeyDown={nextOnEnter("ftel")} placeholder="Ex.: Distribuidora Sol" value={nome} onChange={(e) => setNome(e.target.value)} hint="Nome da empresa ou do vendedor." />
           <Field label="Telefone / WhatsApp" name="ftel" type="tel" inputMode="tel" autoComplete="tel" enterKeyHint="next" onKeyDown={nextOnEnter("femail")} placeholder="(11) 99999-9999" value={tel} onChange={(e) => setTel(maskPhone(e.target.value))} hint="Para fazer pedidos." />
           <Field label="E-mail" name="femail" type="email" inputMode="email" autoComplete="email" enterKeyHint="done" placeholder="Opcional" value={email} onChange={(e) => setEmail(e.target.value)} error={!emailOk ? "E-mail inválido." : ""} hint="Opcional." />
         </div>
-        <div className="px-5 pt-2"><button type="submit" disabled={!ok} className={btnPrimary(ok)}>Salvar fornecedor</button></div>
+        {erro && <p role="alert" className="px-5 pt-2 text-sm font-semibold text-destructive">{erro}</p>}
+        <div className="px-5 pt-2"><button type="submit" disabled={!ok || salvando} className={btnPrimary(ok && !salvando)}>{salvando ? "Salvando…" : "Salvar fornecedor"}</button></div>
       </form>
     </Sheet>
   );
