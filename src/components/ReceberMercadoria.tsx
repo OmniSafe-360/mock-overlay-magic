@@ -51,11 +51,11 @@ type Tela =
   | { t: "contando"; aberto: banco.RecebimentoAberto; kr: string; fornecedorId: string | null }
   | { t: "pronto"; avisos: boolean; produtos: number };
 
-export function ReceberMercadoria({ chave, onVoltar, api: apiDada }: { chave: string; onVoltar: () => void; api?: ApiReceber | undefined }) {
-  return <ReceberPorAcesso key={chave} chave={chave} onVoltar={onVoltar} apiDada={apiDada} />;
+export function ReceberMercadoria({ chave, onVoltar, api: apiDada, mercado = false }: { chave: string; onVoltar: () => void; api?: ApiReceber | undefined; mercado?: boolean }) {
+  return <ReceberPorAcesso key={chave} mercado={mercado} chave={chave} onVoltar={onVoltar} apiDada={apiDada} />;
 }
 
-function ReceberPorAcesso({ chave, onVoltar, apiDada }: { chave: string; onVoltar: () => void; apiDada?: ApiReceber | undefined }) {
+function ReceberPorAcesso({ chave, onVoltar, apiDada, mercado }: { chave: string; onVoltar: () => void; apiDada?: ApiReceber | undefined; mercado: boolean }) {
   const api = apiDada ?? API_PADRAO;
   const [tela, setTela] = useState<Tela>({ t: "lista" });
   const [erro, setErro] = useState("");
@@ -69,7 +69,7 @@ function ReceberPorAcesso({ chave, onVoltar, apiDada }: { chave: string; onVolta
     } catch (e) { setErro(erroTexto(e)); }
   };
   if (tela.t === "contando")
-    return <Contando chave={chave} api={api} aberto={tela.aberto} kr={tela.kr} fornecedorId={tela.fornecedorId} onSair={() => setTela({ t: "lista" })} onPronto={(avisos, produtos) => setTela({ t: "pronto", avisos, produtos })} />;
+    return <Contando mercado={mercado} chave={chave} api={api} aberto={tela.aberto} kr={tela.kr} fornecedorId={tela.fornecedorId} onSair={() => setTela({ t: "lista" })} onPronto={(avisos, produtos) => setTela({ t: "pronto", avisos, produtos })} />;
   if (tela.t === "pronto")
     return (
       <div className="m-auto flex w-full flex-col items-center gap-4 py-10 text-center">
@@ -141,9 +141,9 @@ function ListaEntregas({ chave, api, erroAbrir, onVoltar, onAbrir }: {
 }
 
 /* ---------- contagem ---------- */
-function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto }: {
+function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, mercado }: {
   chave: string; api: ApiReceber; aberto: banco.RecebimentoAberto; onSair: () => void; onPronto: (avisos: boolean, produtos: number) => void;
-  kr: string; fornecedorId: string | null;
+  kr: string; fornecedorId: string | null; mercado: boolean;
 }) {
   const inicial = useMemo(() => {
     const r = lerRascunho(kr);
@@ -304,7 +304,7 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto }: {
         </div>
       </div>
 
-      {scan && <Scanner onClose={() => setScan(false)} onType={() => { setScan(false); setBusca(true); }} onDenied={() => { setScan(false); setBusca(true); }}
+      {scan && <Scanner mercado={mercado} onClose={() => setScan(false)} onType={() => { setScan(false); setBusca(true); }} onDenied={() => { setScan(false); setBusca(true); }}
         onCode={(c) => { setScan(false); void lerCodigo(c); }} />}
       {busca && <BuscarProduto chave={chave} api={api} onClose={() => setBusca(false)} onEscolher={(p) => { setBusca(false); escolher(p); }} />}
       {sel && aberta && contagens[aberta] && (

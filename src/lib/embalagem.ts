@@ -1,6 +1,7 @@
 /* Embalagens de compra: o fornecedor entrega Caixa/Fardo/Pacote/Display/Saco; a loja vende na unidade do produto.
  * O estoque fica sempre na unidade de venda; a embalagem só diz quanto vem dentro. Preços em centavos. */
 import { aceitaFracao, fmtQ, parseNum, qtdUn, unPlural, unSingular } from "@/lib/deposito";
+import { codigoComparavel, codigosIguais } from "@/lib/codigoBarras";
 
 export type Embalagem = { uid: string; tipo: string; qtd: number; codigo: string; preco: number };
 /** Todas as embalagens que o banco aceita (função _salvar_embalagens). */
@@ -61,14 +62,14 @@ export const codigoIgualProdutoMsg = (tipo: string, unidade: string) => {
   return `Este é o código de cada ${unSingular(unidade) || "unidade"} (o mesmo do produto). ${e.charAt(0).toUpperCase()}${e.slice(1)} tem um código próprio, impresso ${tipo === "Caixa" ? "nela" : "nele"}. Se não tiver, deixe este campo em branco.`;
 };
 
-export function errosEmbalagem(e: Pick<Embalagem, "tipo" | "qtd" | "codigo">, index: number, lista: Embalagem[], codigoProduto: string, usados: Set<string>, unidade = "Unidade") {
+export function errosEmbalagem(e: Pick<Embalagem, "tipo" | "qtd" | "codigo">, index: number, lista: Embalagem[], codigoProduto: string, usados: Set<string>, unidade = "Unidade", mercado = false) {
   const out: { repetida?: string; codigo?: string } = {};
   if (lista.some((o, i) => i !== index && o.tipo === e.tipo && o.qtd === e.qtd)) out.repetida = "Já existe esta embalagem neste produto.";
   const c = e.codigo.trim();
   if (c) {
-    if (c === codigoProduto.trim()) out.codigo = codigoIgualProdutoMsg(e.tipo, unidade);
-    else if (lista.some((o, i) => i !== index && o.codigo.trim() === c)) out.codigo = "Outra embalagem deste produto já usa este código.";
-    else if (usados.has(c)) out.codigo = "Este código já está cadastrado";
+    if (codigosIguais(c, codigoProduto, mercado)) out.codigo = codigoIgualProdutoMsg(e.tipo, unidade);
+    else if (lista.some((o, i) => i !== index && codigosIguais(o.codigo, c, mercado))) out.codigo = "Outra embalagem deste produto já usa este código.";
+    else if (usados.has(codigoComparavel(c, mercado))) out.codigo = "Este código já está cadastrado";
   }
   return out;
 }
