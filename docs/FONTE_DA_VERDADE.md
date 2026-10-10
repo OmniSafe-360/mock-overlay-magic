@@ -315,10 +315,9 @@ Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Pos
 - Ver o estoque: ficha, lista, Depósito, Gôndolas e "Atenção hoje".
 - Fornecedores (aba), pedido de compra, link do fornecedor e contas a pagar.
 - Equipe (QR, bloquear, novo acesso) e app Omni Operação: instalar, PIN ao abrir, receber mercadoria e repor gôndola.
+- Tela inicial com números reais ("Resumo de hoje" e situação de cada comércio), menus **Comércios** e **Alertas** (10/10/2026).
 
 ### 12.3 Ainda não existe ou está incompleto
-- **Tela inicial com "Dados de exemplo"** (números inventados).
-- **Menus Comércios e Alertas com "Em breve".**
 - **Aba Vendas** — "Em breve" (Fase 3).
 - "Esqueci minha senha", que falha por falta de e-mail próprio.
 - Código de barras do Arroz, que parece digitado errado (aguarda o número certo do dono).
@@ -333,7 +332,7 @@ Cada fase termina com o roteiro de teste para o dono.
 | Fase | O que é | Situação |
 |---|---|---|
 | **1. Base** | Contas, comércios, cadastro, estoque, pedidos, equipe, receber, repor | ✅ feita (parte falta testar, 12.2) |
-| **2. Arrumação** | 2.1 este documento · 2.2 **tela inicial com números reais e os menus Comércios e Alertas** · 2.3 velocidade do banco | **▶ ETAPA ATUAL** |
+| **2. Arrumação** | 2.1 este documento ✅ · 2.2 tela inicial com números reais e os menus Comércios e Alertas ✅ · 2.3 **velocidade do banco** | **▶ ETAPA ATUAL** |
 | **3. Vendas pelo caixa** | 3.0 piloto com um arquivo de nota real · 3.1 banco das vendas (desenho aprovado antes) · 3.2 Omni Conector e aba Vendas/Caixas · 3.3 vendas em tempo real e "Vendido sem cadastro" | aguarda as respostas do dono (seção 14) |
 | **4. Fechar a conta** | Registrar perda · conferir o depósito todo dia (E4) · reposição acusando diferença · quadro Diferenças | depois da Fase 3 |
 | **5. Antifurto** | Relatórios do que sumiu (produto, lugar, horário, valor), alertas, painel de todos os comércios | depois da Fase 4 |

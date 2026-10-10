@@ -10,14 +10,18 @@ import { PainelFornecedores } from "@/components/PainelFornecedores";
 import { PainelEquipe } from "@/components/PainelEquipe";
 import { PainelPedidos, type DadosPagamento, type SalvarPedido } from "@/components/PainelPedidos";
 import { resumoPagamentos } from "@/lib/pagamento";
-import { precisaDecidir, type Recebimento } from "@/lib/recebimento";
+import type { Recebimento } from "@/lib/recebimento";
+import { entregasParaDecidir, produtosJaPedidos } from "@/lib/resumoGeral";
 import { hojeEm } from "@/lib/validade";
-import { pedidoAberto, type CanalPedido, type Pedido } from "@/lib/pedido";
+import type { CanalPedido, Pedido } from "@/lib/pedido";
 import type { LocaisCadastrados } from "@/lib/banco";
 
 const TABS = ["Produtos", "Depósito", "Gôndolas", "Pedidos", "Fornecedores", "Equipe", "Vendas"] as const;
 
-export function StoreSpace({ store, products, suppliers, saved, locais, pedidos = [], pedidosProntos = true, pedidosCarregados = true, atualizando = false, onAtualizar, onSalvarPedido, onPedidoEnviado, onCancelarPedido, onNovoLinkPedido, onPagamentoPedido, onResolverRecebimento, onCarregarSemPedido, onAddSupplier, onUpdateSupplier, onBack, onNew, onEdit, onDismissSaved }: {
+/** Por onde o comércio abre quando vem do menu Alertas: um produto (a ficha), ou a aba Pedidos (montar um pedido ou só as contas a pagar). */
+export type InicioComercio = { produtoId: Product["id"] } | { pedidos: "montar" | "contas" | "lista" };
+
+export function StoreSpace({ store, products, suppliers, saved, locais, pedidos = [], pedidosProntos = true, pedidosCarregados = true, atualizando = false, onAtualizar, onSalvarPedido, onPedidoEnviado, onCancelarPedido, onNovoLinkPedido, onPagamentoPedido, onResolverRecebimento, onCarregarSemPedido, onAddSupplier, onUpdateSupplier, onBack, onNew, onEdit, onDismissSaved, inicio }: {
   store: StoreData; products: Product[]; suppliers: Supplier[]; saved: boolean; locais?: LocaisCadastrados | undefined;
   pedidos?: Pedido[] | undefined; onSalvarPedido: SalvarPedido; onPedidoEnviado: (id: string, canal: CanalPedido) => Promise<unknown>; onCancelarPedido: (id: string) => Promise<unknown>; onNovoLinkPedido: (id: string) => Promise<string>; onPagamentoPedido: (id: string, d: DadosPagamento) => Promise<unknown>;
   onResolverRecebimento?: ((itemId: string, acao: "aceitar" | "recusar", tentativa: number | null) => Promise<unknown>) | undefined;
@@ -25,16 +29,17 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
   pedidosProntos?: boolean; pedidosCarregados?: boolean; atualizando?: boolean; onAtualizar?: () => void;
   onAddSupplier: (f: Omit<Supplier, "id">) => Promise<unknown>; onUpdateSupplier: (s: Supplier, f: Omit<Supplier, "id">) => Promise<unknown>;
   onBack: () => void; onNew: () => void; onEdit: (p: Product) => void; onDismissSaved: () => void;
+  inicio?: InicioComercio | undefined;
 }) {
-  const [tab, setTab] = useState<(typeof TABS)[number]>("Produtos");
-  const [view, setView] = useState<Product | null>(null);
-  const entregasDecidir = useMemo(() => pedidos.reduce((n, p) => n + (p.recebimento?.itens.filter(precisaDecidir).length ?? 0), 0), [pedidos]);
+  const [tab, setTab] = useState<(typeof TABS)[number]>(inicio && "pedidos" in inicio ? "Pedidos" : "Produtos");
+  const [view, setView] = useState<Product | null>(() => (inicio && "produtoId" in inicio ? products.find((p) => p.id === inicio.produtoId) ?? null : null));
+  const entregasDecidir = useMemo(() => entregasParaDecidir(pedidos), [pedidos]);
   /** Muda a cada "Fazer pedido" para abrir a aba Pedidos já na montagem. */
-  const [montar, setMontar] = useState(0);
+  const [montar, setMontar] = useState(inicio && "pedidos" in inicio && inicio.pedidos === "montar" ? 1 : 0);
   /** Muda a cada toque nas contas do "Atenção hoje" para abrir a aba Pedidos em "Só a pagar". */
-  const [verPagar, setVerPagar] = useState(0);
+  const [verPagar, setVerPagar] = useState(inicio && "pedidos" in inicio && inicio.pedidos === "contas" ? 1 : 0);
   const contas = useMemo(() => resumoPagamentos(pedidos, hojeEm()), [pedidos]);
-  const jaPedidos = useMemo(() => new Set(pedidos.filter(pedidoAberto).flatMap((p) => p.itens.map((i) => i.produtoId))), [pedidos]);
+  const jaPedidos = useMemo(() => produtosJaPedidos(pedidos), [pedidos]);
   const Icon = TIPOS.find((t) => t.id === store.tipo)?.Icon ?? Store;
   const current = view ? products.find((p) => p.id === view.id) ?? null : null;
 

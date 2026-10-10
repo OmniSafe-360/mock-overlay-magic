@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { conferirEnvio, carregarFornecedores, carregarProdutos, atualizarFornecedor, criarFornecedor, gerarCodigoInterno, salvarProduto, carregarPedidos, salvarPedido, marcarPedidoEnviado, cancelarPedido, novoLinkPedido, atualizarPagamento, resolverItemRecebimento, carregarRecebimentos, type LocaisCadastrados } from "@/lib/banco";
 import type { CanalPedido, LinhaPedido, Pedido } from "@/lib/pedido";
 import type { DadosPagamento } from "@/components/PainelPedidos";
@@ -6,10 +6,14 @@ import type { Recebimento } from "@/lib/recebimento";
 import { ehIncerto, mensagemErro, type Sessao } from "@/lib/persistencia";
 import { ERRO_REGISTRO, registroEnvio, type TipoEnvio } from "@/lib/envios";
 import { newUid } from "@/lib/deposito";
-import { AlertTriangle, Bell, CalendarClock, ChevronRight, Home, PackageX, Plus, ShoppingBag, Store, UserCircle, Users, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, Bell, CalendarClock, ChevronRight, CircleCheck, Home, Plus, ShoppingBasket, ShoppingCart, Store, UserCircle, Users, CheckCircle2 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import { StoreSetup, TIPOS, type StoreData } from "@/components/StoreSetup";
-import { StoreSpace } from "@/components/StoreSpace";
+import { StoreSpace, type InicioComercio } from "@/components/StoreSpace";
+import { AtencaoHoje } from "@/components/AtencaoHoje";
+import { resumoPagamentos } from "@/lib/pagamento";
+import { hojeEm } from "@/lib/validade";
+import { deOlho, entregasParaDecidir, fraseComercio, paraResolver, produtosJaPedidos, resumoComercio, somaResumos, type ResumoComercio } from "@/lib/resumoGeral";
 import { PainelEquipe } from "@/components/PainelEquipe";
 import { ProductWizard, type Product, type Supplier } from "@/components/ProductArea";
 
@@ -22,14 +26,12 @@ const NAV: { id: Tab; label: string; Icon: typeof Home }[] = [
   { id: "conta", label: "Conta", Icon: UserCircle },
 ];
 
-/* valores de exemplo, estáveis por posição */
-const sample = (i: number) => ({ vendas: [1840, 920, 2310, 1275, 640][i % 5]!, alertas: [3, 1, 0, 2, 4][i % 5]! });
-const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 const iconOf = (tipo: string) => TIPOS.find((t) => t.id === tipo)?.Icon ?? Store;
+const idDe = (s: StoreData) => (typeof s.id === "string" && s.id.trim() ? s.id : null);
 
-function Badge() {
-  return <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">Dados de exemplo</span>;
-}
+/** Dados de um comércio para o resumo geral (tela inicial, Comércios e Alertas). */
+type Geral = { estado: "ok" | "carregando" | "erro"; produtos: Product[]; pedidos: Pedido[] };
+type VisaoGeral = { geral: Record<string, Geral>; resumos: Record<string, ResumoComercio>; total: ResumoComercio; carregando: boolean; erro: boolean };
 
 function Backdrop() {
   return (
@@ -108,6 +110,46 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
       return false;
     }
   }, [recarregarPedidos]);
+  /* ---------- resumo de todos os comércios (tela inicial, Comércios e Alertas) ---------- */
+  const [geral, setGeral] = useState<Record<string, Geral>>({});
+  const [fornGeral, setFornGeral] = useState<Supplier[]>([]);
+  const [inicioLoja, setInicioLoja] = useState<InicioComercio | undefined>(undefined);
+  const geralVersao = useRef(0);
+  const carregarGeral = useCallback(async (ids: string[]) => {
+    const v = ++geralVersao.current;
+    const vigente = () => ativo.current && geralVersao.current === v;
+    setGeral((m) => Object.fromEntries(ids.map((id) => [id, { produtos: m[id]?.produtos ?? [], pedidos: m[id]?.pedidos ?? [], estado: "carregando" as const }])));
+    let fs: Supplier[] = [];
+    try { fs = await carregarFornecedores(); } catch { /* sem os nomes dos fornecedores; as contas continuam certas */ }
+    if (vigente()) setFornGeral(fs);
+    await Promise.all(ids.map(async (id) => {
+      try {
+        const [r, ps] = await Promise.all([carregarProdutos(id, fs), carregarPedidos(id)]);
+        if (vigente()) setGeral((m) => ({ ...m, [id]: { estado: "ok", produtos: r.produtos, pedidos: ps } }));
+      } catch {
+        if (vigente()) setGeral((m) => ({ ...m, [id]: { produtos: m[id]?.produtos ?? [], pedidos: m[id]?.pedidos ?? [], estado: "erro" } }));
+      }
+    }));
+  }, []);
+  const idsLojas = stores.map(idDe).filter((x): x is string => !!x).join(",");
+  const telaGeral = !open && (tab === "inicio" || tab === "comercios" || tab === "alertas");
+  useEffect(() => { if (telaGeral && idsLojas) void carregarGeral(idsLojas.split(",")); }, [telaGeral, idsLojas, carregarGeral]);
+  useEffect(() => {
+    if (!telaGeral || !idsLojas) return;
+    const atualizar = () => { if (document.visibilityState === "visible") void carregarGeral(idsLojas.split(",")); };
+    window.addEventListener("online", atualizar);
+    document.addEventListener("visibilitychange", atualizar);
+    return () => { window.removeEventListener("online", atualizar); document.removeEventListener("visibilitychange", atualizar); };
+  }, [telaGeral, idsLojas, carregarGeral]);
+  const hojeGeral = hojeEm();
+  const visao: VisaoGeral = useMemo(() => {
+    const resumos: Record<string, ResumoComercio> = {};
+    for (const s of stores) { const id = idDe(s); const g = id ? geral[id] : undefined; if (id && g && (g.estado === "ok" || g.produtos.length)) resumos[id] = resumoComercio(g.produtos, s.tipo, hojeGeral, g.pedidos); }
+    const gs = Object.values(geral);
+    return { geral, resumos, total: somaResumos(Object.values(resumos)), carregando: gs.some((g) => g.estado === "carregando"), erro: gs.some((g) => g.estado === "erro") };
+  }, [stores, geral, hojeGeral]);
+  const abrirLoja = (s: StoreData, inicio?: InicioComercio) => { setInicioLoja(inicio); setSaved(false); setOpen(s); setTab("inicio"); };
+
   const openSid = typeof open?.id === "string" && open.id.trim() ? open.id : null;
   useEffect(() => { if (openSid) void recarregar(openSid); }, [openSid, recarregar]);
   // Voltar ao app ou recuperar a internet atualiza o mesmo modelo usado pelas abas.
@@ -293,10 +335,10 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
               <span className="md:hidden"><LogoMark size={36} /></span>
               <p className="truncate text-lg font-bold">{owner ? `Olá, ${owner}` : "Olá!"}</p>
             </div>
-            <button type="button" aria-label="Notificações" onClick={() => setTab("alertas")}
+            <button type="button" aria-label={paraResolver(visao.total) ? `Alertas: ${paraResolver(visao.total)} para resolver agora` : "Alertas"} onClick={() => { setTab("alertas"); setOpen(null); }}
               className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-secondary/60 text-foreground hover:border-primary">
               <Bell size={20} />
-              <span className="absolute right-3 top-3 h-2 w-2 rounded-full bg-accent" />
+              {(paraResolver(visao.total) > 0 || deOlho(visao.total) > 0) && <span className={`absolute right-3 top-3 h-2.5 w-2.5 rounded-full ${paraResolver(visao.total) ? "bg-destructive" : "bg-warning"}`} />}
             </button>
           </div>
         </header>
@@ -343,9 +385,21 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
               onPagamentoPedido={sid ? pedidoPagamento(sid) : async () => { throw new Error(NO_ID); }}
               onResolverRecebimento={sid ? resolverRecebimento(sid) : undefined}
               onCarregarSemPedido={sid ? semPedido(sid) : undefined}
-              onBack={() => { setOpen(null); setSaved(false); }} onNew={() => openWizard()} onEdit={(p) => openWizard(p)} onDismissSaved={() => setSaved(false)} />
+              inicio={inicioLoja}
+              onBack={() => { setOpen(null); setSaved(false); setInicioLoja(undefined); }} onNew={() => openWizard()} onEdit={(p) => openWizard(p)} onDismissSaved={() => setSaved(false)} />
           ) : tab === "inicio" ? (
-            <HomeContent stores={stores} onAdd={() => setAdding(true)} onOpen={(s) => setOpen(s)} />
+            <HomeContent stores={stores} visao={visao} onAdd={() => setAdding(true)} onOpen={(s) => abrirLoja(s)} onAlertas={() => setTab("alertas")}
+              onTentar={() => { if (idsLojas) void carregarGeral(idsLojas.split(",")); }} />
+          ) : tab === "comercios" ? (
+            <div className="mx-auto max-w-[1100px] space-y-4 animate-in fade-in duration-300">
+              <div>
+                <h1 className="text-xl font-bold">Comércios</h1>
+                <p className="text-sm text-muted-foreground">Toque num comércio para ver produtos, depósito, pedidos e equipe.</p>
+              </div>
+              <CartoesComercios stores={stores} visao={visao} onAdd={() => setAdding(true)} onOpen={(s) => abrirLoja(s)} detalhado />
+            </div>
+          ) : tab === "alertas" ? (
+            <Alertas stores={stores} visao={visao} suppliers={fornGeral} onAbrir={abrirLoja} onTentar={() => { if (idsLojas) void carregarGeral(idsLojas.split(",")); }} />
           ) : tab === "conta" ? (
             <div className="mx-auto max-w-md space-y-4 animate-in fade-in duration-300">
               <div className="rounded-3xl border border-border bg-secondary/70 p-5">
@@ -367,7 +421,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
               {stores.filter((s) => s.id).map((s) => <PainelEquipe key={s.id} comercioId={s.id!} comercioNome={s.nome} titulo />)}
             </div>
           ) : (
-            <Soon title={NAV.find((n) => n.id === tab)!.label} />
+            null
           )}
         </main>
       </div>
@@ -398,80 +452,175 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
   );
 }
 
-function HomeContent({ stores, onAdd, onOpen }: { stores: StoreData[]; onAdd: () => void; onOpen: (s: StoreData) => void }) {
-  const totals = stores.reduce((a, _, i) => ({ v: a.v + sample(i).vendas, al: a.al + sample(i).alertas }), { v: 0, al: 0 });
-  const n = stores.length;
+const COR_FRASE = { urgente: "text-destructive", atencao: "text-warning", ok: "text-accent", vazio: "text-muted-foreground" } as const;
+
+function HomeContent({ stores, visao, onAdd, onOpen, onAlertas, onTentar }: {
+  stores: StoreData[]; visao: VisaoGeral; onAdd: () => void; onOpen: (s: StoreData) => void; onAlertas: () => void; onTentar: () => void;
+}) {
+  const t = visao.total;
+  const pronto = Object.keys(visao.resumos).length > 0;
   const kpis = [
-    { label: "Vendas hoje", value: brl(totals.v), Icon: ShoppingBag, cls: "text-primary" },
-    { label: "Produtos perto de vencer", value: String(n * 7), Icon: CalendarClock, cls: "text-warning" },
-    { label: "Faltas detectadas", value: String(n * 4), Icon: PackageX, cls: "text-destructive" },
-    { label: "Alertas", value: String(totals.al), Icon: AlertTriangle, cls: "text-accent" },
+    { label: "Para resolver agora", n: paraResolver(t), Icon: AlertTriangle, cor: "urgente" as const },
+    { label: "Para repor", n: t.repor, Icon: ShoppingBasket, cor: "atencao" as const },
+    { label: "Para comprar", n: t.comprar, Icon: ShoppingCart, cor: "atencao" as const },
+    { label: t.vencendo === 1 ? "Vence em breve" : "Vencem em breve", n: t.vencendo, Icon: CalendarClock, cor: "atencao" as const },
   ];
+  const tudoCerto = pronto && !visao.carregando && kpis.every((k) => k.n === 0);
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
-      <section>
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-base font-semibold">Resumo geral</h2>
-          <Badge />
-        </div>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {kpis.map(({ label, value, Icon, cls }) => (
-            <div key={label} className="rounded-3xl border border-border bg-secondary/70 p-4">
-              <Icon size={20} className={cls} />
-              <p className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">{value}</p>
-              <p className="mt-1 text-xs leading-tight text-muted-foreground sm:text-sm">{label}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section>
-        <h2 className="mb-3 text-base font-semibold">Seus comércios <span className="text-muted-foreground">({n})</span></h2>
-        {n === 0 && (
-          <div className="mb-3 rounded-3xl border border-border bg-secondary/40 p-6 text-center">
-            <Store size={32} className="mx-auto text-muted-foreground" />
-            <p className="mt-2 font-semibold">Você ainda não tem comércios</p>
-            <p className="mt-1 text-sm text-muted-foreground">Cadastre o primeiro para começar a acompanhar tudo por aqui.</p>
+      {stores.length > 0 && (
+        <section aria-label="Resumo geral">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-base font-semibold">Resumo de hoje</h2>
+            {visao.carregando && <span className="text-xs text-muted-foreground">Atualizando…</span>}
           </div>
-        )}
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {stores.map((s, i) => {
-            const Icon = iconOf(s.tipo);
-            const m = sample(i);
-            return (
-              <button key={s.id ?? i} type="button" onClick={() => onOpen(s)}
-                className="flex min-h-[112px] items-center gap-4 rounded-3xl border border-border bg-secondary/70 p-4 text-left transition hover:border-primary focus-visible:outline-2 focus-visible:outline-ring">
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-background-deep/60 text-primary"><Icon size={24} /></span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{s.nome}</p>
-                  <p className="truncate text-sm text-muted-foreground">{s.cidade} - {s.uf}</p>
-                  <p className="mt-1.5 text-xs text-muted-foreground">
-                    <span className="text-foreground">{brl(m.vendas)}</span> hoje · <span className={m.alertas ? "text-accent" : ""}>{m.alertas} {m.alertas === 1 ? "alerta" : "alertas"}</span>
-                  </p>
-                </div>
-                <ChevronRight size={20} className="shrink-0 text-muted-foreground" />
-              </button>
-            );
-          })}
-          <button type="button" onClick={onAdd}
-            className="flex min-h-[112px] items-center gap-4 rounded-3xl border-2 border-dashed border-accent/80 p-4 text-left transition hover:bg-accent/5 focus-visible:outline-2 focus-visible:outline-ring">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent/15 text-accent"><Plus size={24} /></span>
-            <div className="min-w-0">
-              <p className="font-semibold">Adicionar comércio</p>
-              <p className="text-sm text-muted-foreground">Cadastre outro comércio em poucos passos</p>
+          {visao.erro && !visao.carregando && (
+            <div role="alert" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-warning/60 p-3 text-sm">
+              <span>Não foi possível atualizar algum comércio. Os números podem estar incompletos.</span>
+              <button type="button" onClick={onTentar} className="min-h-11 rounded-xl border border-border px-3 font-semibold">Tentar de novo</button>
             </div>
-          </button>
-        </div>
+          )}
+          {tudoCerto ? (
+            <p className="flex items-center gap-2 rounded-3xl border border-accent/50 bg-accent/10 p-4 text-sm font-semibold text-accent">
+              <CircleCheck size={20} className="shrink-0" /> Tudo certo! Nenhum comércio precisa de atenção agora.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              {kpis.map(({ label, n, Icon, cor }) => {
+                const ativo = n > 0;
+                const borda = !ativo ? "border-border bg-secondary/70" : cor === "urgente" ? "border-destructive/60 bg-destructive/10" : "border-warning/60 bg-warning/10";
+                return (
+                  <button key={label} type="button" onClick={onAlertas} className={`rounded-3xl border p-4 text-left transition hover:border-primary ${borda}`}>
+                    <Icon size={20} className={!ativo ? "text-muted-foreground" : cor === "urgente" ? "text-destructive" : "text-warning"} />
+                    <p className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">{pronto ? n : "…"}</p>
+                    <p className="mt-1 text-xs leading-tight text-muted-foreground sm:text-sm">{label}</p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
+      <section>
+        <h2 className="mb-3 text-base font-semibold">Seus comércios <span className="text-muted-foreground">({stores.length})</span></h2>
+        <CartoesComercios stores={stores} visao={visao} onAdd={onAdd} onOpen={onOpen} />
       </section>
     </div>
   );
 }
 
-function Soon({ title }: { title: string }) {
+/** Cartões dos comércios com a situação de cada um (mesma regra do "Atenção hoje"). */
+function CartoesComercios({ stores, visao, onAdd, onOpen, detalhado = false }: {
+  stores: StoreData[]; visao: VisaoGeral; onAdd: () => void; onOpen: (s: StoreData) => void; detalhado?: boolean;
+}) {
+  const nome = (tipo: string) => TIPOS.find((t) => t.id === tipo)?.nome ?? "";
   return (
-    <div className="flex flex-col items-center justify-center gap-2 py-24 text-center animate-in fade-in duration-300">
-      <h1 className="text-2xl font-bold">{title}</h1>
-      <p className="text-muted-foreground">Em breve</p>
+    <>
+      {stores.length === 0 && (
+        <div className="mb-3 rounded-3xl border border-border bg-secondary/40 p-6 text-center">
+          <Store size={32} className="mx-auto text-muted-foreground" />
+          <p className="mt-2 font-semibold">Você ainda não tem comércios</p>
+          <p className="mt-1 text-sm text-muted-foreground">Cadastre o primeiro para começar a acompanhar tudo por aqui.</p>
+        </div>
+      )}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+        {stores.map((s, i) => {
+          const Icon = iconOf(s.tipo);
+          const id = idDe(s);
+          const r = id ? visao.resumos[id] : undefined;
+          const g = id ? visao.geral[id] : undefined;
+          const f = r ? fraseComercio(r) : null;
+          return (
+            <button key={s.id ?? i} type="button" onClick={() => onOpen(s)}
+              className="flex min-h-[112px] items-center gap-4 rounded-3xl border border-border bg-secondary/70 p-4 text-left transition hover:border-primary focus-visible:outline-2 focus-visible:outline-ring">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-background-deep/60 text-primary"><Icon size={24} /></span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold">{s.nome}</p>
+                <p className="truncate text-sm text-muted-foreground">{detalhado && nome(s.tipo) ? `${nome(s.tipo)} · ` : ""}{s.cidade} - {s.uf}</p>
+                <p className={`mt-1.5 text-xs font-semibold ${f ? COR_FRASE[f.nivel] : "text-muted-foreground"}`}>
+                  {f ? f.texto : g?.estado === "erro" ? "Não foi possível atualizar" : "Carregando…"}
+                </p>
+                {f?.extra && <p className="mt-0.5 text-xs font-semibold text-warning">{f.extra}</p>}
+                {detalhado && r && r.produtos > 0 && <p className="mt-0.5 text-xs text-muted-foreground">{r.produtos} {r.produtos === 1 ? "produto" : "produtos"}</p>}
+              </div>
+              <ChevronRight size={20} className="shrink-0 text-muted-foreground" />
+            </button>
+          );
+        })}
+        <button type="button" onClick={onAdd}
+          className="flex min-h-[112px] items-center gap-4 rounded-3xl border-2 border-dashed border-accent/80 p-4 text-left transition hover:bg-accent/5 focus-visible:outline-2 focus-visible:outline-ring">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent/15 text-accent"><Plus size={24} /></span>
+          <div className="min-w-0">
+            <p className="font-semibold">Adicionar comércio</p>
+            <p className="text-sm text-muted-foreground">Cadastre outro comércio em poucos passos</p>
+          </div>
+        </button>
+      </div>
+    </>
+  );
+}
+
+/** Menu Alertas: o "Atenção hoje" de cada comércio, o mais urgente primeiro. Tocar abre o comércio no lugar certo. */
+function Alertas({ stores, visao, suppliers, onAbrir, onTentar }: {
+  stores: StoreData[]; visao: VisaoGeral; suppliers: Supplier[]; onAbrir: (s: StoreData, inicio?: InicioComercio) => void; onTentar: () => void;
+}) {
+  const hoje = hojeEm();
+  const comId = stores.map((s) => ({ s, id: idDe(s) })).filter((x): x is { s: StoreData; id: string } => !!x.id);
+  const prontos = comId.filter((x) => visao.resumos[x.id]);
+  const comAviso = prontos.filter((x) => paraResolver(visao.resumos[x.id]!) + deOlho(visao.resumos[x.id]!) > 0)
+    .sort((a, b) => paraResolver(visao.resumos[b.id]!) - paraResolver(visao.resumos[a.id]!) || deOlho(visao.resumos[b.id]!) - deOlho(visao.resumos[a.id]!));
+  const semAviso = prontos.filter((x) => !comAviso.includes(x));
+  const faltando = comId.filter((x) => !visao.resumos[x.id]);
+  return (
+    <div className="mx-auto max-w-3xl space-y-5 animate-in fade-in duration-300">
+      <div>
+        <h1 className="text-xl font-bold">Alertas</h1>
+        <p className="text-sm text-muted-foreground">O que precisa de atenção em todos os seus comércios. O mais urgente vem primeiro.</p>
+      </div>
+      {!stores.length && <p className="rounded-3xl border border-border bg-secondary/40 p-6 text-center text-sm text-muted-foreground">Cadastre um comércio para ver os alertas aqui.</p>}
+      {faltando.length > 0 && (
+        <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border p-3 text-sm">
+          <span>{faltando.some((x) => visao.geral[x.id]?.estado === "erro") ? `Não foi possível atualizar: ${faltando.map((x) => x.s.nome).join(", ")}.` : "Carregando os comércios…"}</span>
+          {faltando.some((x) => visao.geral[x.id]?.estado === "erro") && <button type="button" onClick={onTentar} className="min-h-11 rounded-xl border border-border px-3 font-semibold">Tentar de novo</button>}
+        </div>
+      )}
+      {prontos.length > 0 && !comAviso.length && (
+        <p className="flex items-center gap-2 rounded-3xl border border-accent/50 bg-accent/10 p-4 text-sm font-semibold text-accent">
+          <CircleCheck size={20} className="shrink-0" /> Tudo certo! Nenhum comércio precisa de atenção agora.
+        </p>
+      )}
+      {comAviso.map(({ s, id }) => {
+        const g = visao.geral[id]!;
+        const Icon = iconOf(s.tipo);
+        const f = fraseComercio(visao.resumos[id]!);
+        return (
+          <section key={id} aria-label={s.nome} className="space-y-2">
+            <button type="button" onClick={() => onAbrir(s)} className="flex w-full items-center gap-3 rounded-2xl px-1 py-1 text-left">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary"><Icon size={20} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-bold">{s.nome}</span>
+                <span className={`block text-xs font-semibold ${COR_FRASE[f.nivel]}`}>{f.texto}</span>
+                {f.extra && <span className="block text-xs font-semibold text-warning">{f.extra}</span>}
+              </span>
+              <span className="flex shrink-0 items-center text-sm font-semibold text-primary">Abrir <ChevronRight size={18} /></span>
+            </button>
+            <AtencaoHoje products={g.produtos} tipo={s.tipo} suppliers={suppliers} jaPedidos={produtosJaPedidos(g.pedidos)}
+              contas={resumoPagamentos(g.pedidos, hoje)} entregasDecidir={entregasParaDecidir(g.pedidos)}
+              onOpen={(p) => onAbrir(s, { produtoId: p.id })}
+              onFazerPedido={() => onAbrir(s, { pedidos: "montar" })}
+              onVerContas={() => onAbrir(s, { pedidos: "contas" })}
+              onVerEntregas={() => onAbrir(s, { pedidos: "lista" })} />
+          </section>
+        );
+      })}
+      {semAviso.length > 0 && comAviso.length > 0 && (
+        <div className="rounded-2xl border border-border p-3 text-sm">
+          <p className="flex items-center gap-2 font-semibold text-accent"><CircleCheck size={16} /> Tudo certo</p>
+          <p className="mt-1 text-muted-foreground">{semAviso.map((x) => x.s.nome).join(" · ")}</p>
+        </div>
+      )}
     </div>
   );
 }
+
