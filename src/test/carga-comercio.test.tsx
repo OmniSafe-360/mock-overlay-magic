@@ -5,7 +5,7 @@ import type { Product } from "@/components/ProductArea";
 import type { StoreData } from "@/components/StoreSetup";
 import { registroEnvio } from "@/lib/envios";
 
-const banco = vi.hoisted(() => ({ carregarFornecedores: vi.fn(), carregarProdutos: vi.fn(), carregarPedidos: vi.fn(), conferirEnvio: vi.fn(), carregarVendas: vi.fn(), carregarPendentesVenda: vi.fn() }));
+const banco = vi.hoisted(() => ({ carregarFornecedores: vi.fn(), carregarProdutos: vi.fn(), carregarPedidos: vi.fn(), conferirEnvio: vi.fn(), carregarVendas: vi.fn(), carregarPendentesVenda: vi.fn(), contarDiferencasParaDecidir: vi.fn() }));
 vi.mock("@/lib/banco", async (original) => ({ ...await original<object>(), ...banco }));
 vi.mock("@/components/Scanner", () => ({ Scanner: () => null }));
 const store: StoreData = { id: "c1", tipo: "mercado", nome: "Mercado A", cidade: "Bauru", uf: "SP", rua: "Rua A", numero: "1", bairro: "Centro" };
@@ -18,7 +18,7 @@ beforeEach(() => {
   localStorage.clear(); vi.clearAllMocks();
   banco.carregarFornecedores.mockResolvedValue([]);
   banco.carregarProdutos.mockResolvedValue(carga()); banco.carregarPedidos.mockResolvedValue([]);
-  banco.carregarVendas.mockResolvedValue([]); banco.carregarPendentesVenda.mockResolvedValue([]);
+  banco.carregarVendas.mockResolvedValue([]); banco.carregarPendentesVenda.mockResolvedValue([]); banco.contarDiferencasParaDecidir.mockResolvedValue({ perdas: 0, diferencas: 0 });
 });
 async function abrir(stores = [store]) {
   const r = render(<OwnerApp userId="u1" owner="Monica" initial={stores} />);

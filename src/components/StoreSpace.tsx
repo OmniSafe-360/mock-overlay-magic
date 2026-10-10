@@ -9,6 +9,7 @@ import { AtencaoHoje } from "@/components/AtencaoHoje";
 import { PainelFornecedores } from "@/components/PainelFornecedores";
 import { PainelEquipe } from "@/components/PainelEquipe";
 import { PainelVendas } from "@/components/PainelVendas";
+import { PainelDiferencas } from "@/components/PainelDiferencas";
 import { PainelPedidos, type DadosPagamento, type SalvarPedido } from "@/components/PainelPedidos";
 import { resumoPagamentos } from "@/lib/pagamento";
 import type { Recebimento } from "@/lib/recebimento";
@@ -17,12 +18,12 @@ import { hojeEm } from "@/lib/validade";
 import type { CanalPedido, Pedido } from "@/lib/pedido";
 import type { LocaisCadastrados } from "@/lib/banco";
 
-const TABS = ["Produtos", "Depósito", "Gôndolas", "Pedidos", "Fornecedores", "Equipe", "Vendas"] as const;
+const TABS = ["Produtos", "Depósito", "Gôndolas", "Pedidos", "Fornecedores", "Equipe", "Vendas", "Diferenças"] as const;
 
 /** Por onde o comércio abre quando vem do menu Alertas: um produto (a ficha), ou a aba Pedidos (montar um pedido ou só as contas a pagar). */
-export type InicioComercio = { produtoId: Product["id"] } | { pedidos: "montar" | "contas" | "lista" } | { aba: "Vendas" };
+export type InicioComercio = { produtoId: Product["id"] } | { pedidos: "montar" | "contas" | "lista" } | { aba: "Vendas" | "Diferenças" };
 
-export function StoreSpace({ store, products, suppliers, saved, locais, pedidos = [], pedidosProntos = true, pedidosCarregados = true, atualizando = false, onAtualizar, onSalvarPedido, onPedidoEnviado, onCancelarPedido, onNovoLinkPedido, onPagamentoPedido, onResolverRecebimento, onCarregarSemPedido, onAddSupplier, onUpdateSupplier, onBack, onNew, onEdit, onDismissSaved, inicio, vendidoSemCadastro = 0, onVendasMudou }: {
+export function StoreSpace({ store, products, suppliers, saved, locais, pedidos = [], pedidosProntos = true, pedidosCarregados = true, atualizando = false, onAtualizar, onSalvarPedido, onPedidoEnviado, onCancelarPedido, onNovoLinkPedido, onPagamentoPedido, onResolverRecebimento, onCarregarSemPedido, onAddSupplier, onUpdateSupplier, onBack, onNew, onEdit, onDismissSaved, inicio, vendidoSemCadastro = 0, onVendasMudou, diferencasDecidir = 0, onDiferencasMudou }: {
   store: StoreData; products: Product[]; suppliers: Supplier[]; saved: boolean; locais?: LocaisCadastrados | undefined;
   pedidos?: Pedido[] | undefined; onSalvarPedido: SalvarPedido; onPedidoEnviado: (id: string, canal: CanalPedido) => Promise<unknown>; onCancelarPedido: (id: string) => Promise<unknown>; onNovoLinkPedido: (id: string) => Promise<string>; onPagamentoPedido: (id: string, d: DadosPagamento) => Promise<unknown>;
   onResolverRecebimento?: ((itemId: string, acao: "aceitar" | "recusar", tentativa: number | null) => Promise<unknown>) | undefined;
@@ -33,6 +34,8 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
   inicio?: InicioComercio | undefined;
   /** Códigos vendidos no caixa sem produto (do resumo geral). */ vendidoSemCadastro?: number | undefined;
   /** Um item vendido foi ligado a um produto: o estoque mudou. */ onVendasMudou?: (() => void) | undefined;
+  /** Perdas para confirmar + diferenças para explicar (do resumo geral). */ diferencasDecidir?: number | undefined;
+  /** Uma perda ou diferença foi resolvida: o estoque e o resumo mudaram. */ onDiferencasMudou?: (() => void) | undefined;
 }) {
   const [tab, setTab] = useState<(typeof TABS)[number]>(inicio && "pedidos" in inicio ? "Pedidos" : inicio && "aba" in inicio ? inicio.aba : "Produtos");
   const [view, setView] = useState<Product | null>(() => (inicio && "produtoId" in inicio ? products.find((p) => p.id === inicio.produtoId) ?? null : null));
@@ -77,7 +80,8 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
             jaPedidos={jaPedidos} onFazerPedido={pedidosProntos ? () => { onDismissSaved(); setVerPagar(0); setMontar((n) => n + 1); setTab("Pedidos"); } : undefined}
             contas={pedidosProntos ? contas : undefined} onVerContas={() => { onDismissSaved(); setMontar(0); setVerPagar((n) => n + 1); setTab("Pedidos"); }}
             entregasDecidir={entregasDecidir} onVerEntregas={() => { onDismissSaved(); setMontar(0); setVerPagar(0); setTab("Pedidos"); }}
-            semCadastro={vendidoSemCadastro} onVerSemCadastro={() => { onDismissSaved(); setTab("Vendas"); }} />
+            semCadastro={vendidoSemCadastro} onVerSemCadastro={() => { onDismissSaved(); setTab("Vendas"); }}
+            diferencas={diferencasDecidir} onVerDiferencas={() => { onDismissSaved(); setTab("Diferenças"); }} />
           <ListaProdutos products={products} tipo={store.tipo} suppliers={suppliers} onNew={onNew} onOpen={(p) => { onDismissSaved(); setView(p); }} />
         </>
       ) : tab === "Depósito" || tab === "Gôndolas" ? (
@@ -98,6 +102,8 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
         <PainelEquipe comercioId={store.id} comercioNome={store.nome} />
       ) : tab === "Vendas" && store.id ? (
         <PainelVendas comercioId={store.id} tipo={store.tipo} products={products} onMudou={onVendasMudou} />
+      ) : tab === "Diferenças" && store.id ? (
+        <PainelDiferencas comercioId={store.id} tipo={store.tipo} products={products} onMudou={onDiferencasMudou} />
       ) : (
         <div className="flex flex-col items-center gap-2 py-20 text-center">
           <p className="text-xl font-bold">{tab}</p>

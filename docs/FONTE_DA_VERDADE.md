@@ -88,7 +88,7 @@ Este documento é a referência oficial do sistema. Se qualquer instrução, có
 | Lugar | O que fica ali |
 |---|---|
 | **App do dono — barra de baixo** | **Início** (vendas de hoje e resumo de todos os comércios) · **Comércios** · **Alertas** (o que precisa de atenção em todos) · **Equipe** (todas as equipes) · **Conta** |
-| **Dentro de um comércio — abas** | **Produtos** ("Atenção hoje" + lista) · **Depósito/Estoque** · **Gôndolas/Área de venda** · **Pedidos** (compras, contas a pagar, recebimentos) · **Fornecedores** · **Equipe** · **Vendas** (caixas e vendas; Fase 3) |
+| **Dentro de um comércio — abas** | **Produtos** ("Atenção hoje" + lista) · **Depósito/Estoque** · **Gôndolas/Área de venda** · **Pedidos** (compras, contas a pagar, recebimentos) · **Fornecedores** · **Equipe** · **Vendas** (caixas e vendas; Fase 3) · **Diferenças** (perdas para confirmar, diferenças para explicar, com o valor em reais; Fase 4.3) |
 | **Ficha do produto** | Tudo de um produto: situação, quanto tem, onde fica, validade, preço, fornecedor, etiqueta |
 | **App do funcionário — Omni Operação** (`/funcionario`) | Código + PIN; botões grandes **Receber mercadoria**, **Repor gôndola** e **Conferir depósito** (para todos), e o botão **Registrar perda** (Fase 4.2) |
 | **Página do fornecedor** (`/pedido/<link>`) | O fornecedor vê e responde um pedido, sem login |
@@ -217,8 +217,12 @@ FORNECEDOR ──(receber, cego)──▶ DEPÓSITO ──(repor, cego)──▶
 ### 7.7 Perdas e diferenças (Fase 4)
 - **Registrar perda:**
   - o funcionário marca no app o motivo: quebrou, venceu, consumo da loja ou devolvido ao fornecedor;
-  - o dono confirma (proposta).
-- **Quadro "Diferenças":** cada diferença com o lugar, o produto, quem contou e quando. O dono explica: quebra, vencido, erro de contagem ou sumiu.
+  - sai do estoque na hora; o dono confirma na aba **Diferenças** ("Confirmar" ou "Não aconteceu" — recusar vira uma diferença para investigar);
+  - o dono também registra perdas ele mesmo (já confirmadas).
+- **Aba "Diferenças":** cada diferença com o produto, o lugar, de onde veio (conferência, reposição, perda não confirmada), quem contou, quando e o valor em reais (preço de compra). O dono explica: erro de contagem, quebrou, venceu, usado na loja, sumiu ou outro motivo (este pede uma anotação).
+  - Quando as 3 contagens da conferência não bateram, o dono escolhe o número certo (uma das contagens ou "manter o número do sistema"); o estoque é acertado na hora (`resolver_conferencia`).
+  - Resumo do mês: "Faltou este mês" (sem o que foi explicado como erro de contagem) e "Perdas este mês".
+  - O quadro vermelho **"Perdas e diferenças"** aparece no "Atenção hoje", no menu Alertas e conta em "Para resolver agora" na tela inicial.
 - **Antifurto (Fase 5):** o que "sumiu" alimenta os relatórios por produto, lugar, dia e horário, com o valor em reais.
 
 ### 7.8 Cadastro de produto
@@ -295,7 +299,7 @@ Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Pos
   - o envio de e-mail do Supabase tem limite baixo, por isso o "Esqueci minha senha" falhou; precisa de serviço de e-mail próprio;
   - a "proteção contra senhas vazadas" está **desligada**: o dono liga no painel do Supabase.
 - **Vendas (Fase 3, desde 10/10/2026):** `caixas` (código de 8 números para ligar, chave do computador do caixa guardada só como resumo), `vendas` (uma por nota, chave de 44 números única), `venda_itens` (cada item com quanto saiu da gôndola, quanto "faltou" e de quais saldos saiu) e `codigos_pdv` (código do caixa ligado a um produto, ou "não controlar"). O computador do caixa usa `conector_ligar`, `conector_estado`, `conector_enviar_venda` e `conector_cancelar_venda`; o dono, `criar_caixa`, `renomear_caixa`, `novo_codigo_caixa`, `desligar_caixa` e `resolver_item_venda`.
-- **Fechar a conta (Fase 4, desde 10/10/2026):** `perdas` (sai do estoque na hora; o dono confirma ou recusa), `conferencias` (contagem cega do depósito, até 3 vezes) e `diferencas` (o que o sistema tinha × o que foi contado, com o valor em reais; o dono explica o motivo). Funcionário: `funcionario_registrar_perda`, `funcionario_conferencia_lista`, `funcionario_conferencia_contar`; dono: `registrar_perda`, `decidir_perda`, `explicar_diferenca`. A reposição gera diferença na gôndola quando o comércio tem um caixa ligado.
+- **Fechar a conta (Fase 4, desde 10/10/2026):** `perdas` (sai do estoque na hora; o dono confirma ou recusa), `conferencias` (contagem cega do depósito, até 3 vezes) e `diferencas` (o que o sistema tinha × o que foi contado, com o valor em reais; o dono explica o motivo). Funcionário: `funcionario_registrar_perda`, `funcionario_conferencia_lista`, `funcionario_conferencia_contar`; dono: `registrar_perda`, `decidir_perda`, `explicar_diferenca`, `resolver_conferencia` (escolher a contagem certa). A reposição gera diferença na gôndola quando o comércio tem um caixa ligado.
 
 ## 11. INFRAESTRUTURA
 
@@ -318,6 +322,7 @@ Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Pos
 - Ver o estoque: ficha, lista, Depósito, Gôndolas e "Atenção hoje".
 - Fornecedores (aba), pedido de compra, link do fornecedor e contas a pagar.
 - Equipe (QR, bloquear, novo acesso) e app Omni Operação: instalar, PIN ao abrir, receber mercadoria, repor gôndola, conferir depósito e registrar perda (10/10/2026).
+- Aba **Diferenças** do comércio: confirmar perdas, explicar diferenças, escolher a contagem certa e registrar perda pelo dono (10/10/2026).
 - Tela inicial com números reais ("Resumo de hoje" e situação de cada comércio), menus **Comércios** e **Alertas** (10/10/2026).
 - Aba **Vendas** do comércio: ligar caixas com código, situação de cada caixa e vendas do dia (10/10/2026; as vendas só chegam com o Omni Conector, Fase 3.3).
 
@@ -336,8 +341,8 @@ Cada fase termina com o roteiro de teste para o dono.
 | **1. Base** | Contas, comércios, cadastro, estoque, pedidos, equipe, receber, repor | ✅ feita (parte falta testar, 12.2) |
 | **2. Arrumação** | 2.1 este documento ✅ · 2.2 tela inicial com números reais e os menus Comércios e Alertas ✅ · 2.3 velocidade do banco ✅ | ✅ feita |
 | **3. Vendas pelo caixa** | 3.1 banco das vendas ✅ · 3.2 aba Vendas e caixas ✅ · 3.3 Omni Conector ✅ · 3.4 "Vendas hoje" e "Vendido sem cadastro" ✅ · piloto num mercado real junto com o teste geral | ✅ feita (falta o piloto) |
-| **4. Fechar a conta** | 4.1 banco (perdas, conferência do depósito, diferenças; reposição acusando diferença) ✅ · 4.2 app da equipe: Registrar perda e Conferir depósito ✅ · 4.3 **aba Diferenças do dono** | **▶ ETAPA ATUAL** (desenho aprovado em 10/10/2026) |
-| **5. Antifurto** | Relatórios do que sumiu (produto, lugar, horário, valor), alertas, painel de todos os comércios | depois da Fase 4 |
+| **4. Fechar a conta** | 4.1 banco (perdas, conferência do depósito, diferenças; reposição acusando diferença) ✅ · 4.2 app da equipe: Registrar perda e Conferir depósito ✅ · 4.3 aba Diferenças do dono ✅ | ✅ concluída em 10/10/2026 (falta o teste do dono) |
+| **5. Antifurto** | Relatórios do que sumiu (produto, lugar, horário, valor), alertas, painel de todos os comércios | **▶ PRÓXIMA ETAPA** (desenho a apresentar ao dono) |
 | **6. Lançamento** | E-mail próprio ("Esqueci minha senha"), Termos e Privacidade, proteção de senhas, Google verificado, teste em computador, tablet, Android e iPhone | antes de abrir ao público |
 | **7. Depois** | Caixa próprio do Omni · chave para o fornecedor do caixa · gerente · balança do mercado · WhatsApp/e-mail automáticos | a combinar |
 
