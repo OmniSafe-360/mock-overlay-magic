@@ -13,6 +13,7 @@ import type { TipoEnvio } from "@/lib/envios";
 const db = supabase as any;
 
 import type { AreaEstoque, Diferenca, MotivoDiferenca, MotivoPerda, Perda } from "@/lib/diferencas";
+import type { Contagem } from "@/lib/antifurto";
 
 async function todos(tabela: string, colunas: string, filtro: (q: any) => any): Promise<any[]> {
   const out: any[] = [];
@@ -560,4 +561,18 @@ export async function registrarPerdaDono(p: PerdaDono) {
   const { error } = await db.rpc("registrar_perda", { p: { id: p.id, comercio_id: p.comercioId, produto_id: p.produtoId, variacao_id: p.variacaoId,
     area: p.area, quantidade: p.quantidade, motivo: p.motivo, observacao: p.observacao } });
   if (error) throw error;
+}
+
+/* ---------- Antifurto (Fase 5.1): quando cada produto foi contado (começo do intervalo de uma falta) ---------- */
+export async function carregarContagensAntifurto(comercioId: string, desde: string): Promise<Contagem[]> {
+  const [cf, rp, ct] = await Promise.all([
+    todos("conferencias", "produto_id,variacao_id,area,concluida_em", (q) => q.eq("comercio_id", comercioId).eq("situacao", "concluida").gte("concluida_em", desde)),
+    todos("reposicoes", "produto_id,variacao_id,concluido_em", (q) => q.eq("comercio_id", comercioId).eq("situacao", "concluido").gte("concluido_em", desde)),
+    todos("contagens", "produto_id,variacao_id,area,created_at", (q) => q.eq("comercio_id", comercioId).gte("created_at", desde)),
+  ]);
+  return [
+    ...cf.map((r) => ({ produtoId: r.produto_id, variacaoId: r.variacao_id ?? null, area: r.area, em: r.concluida_em })),
+    ...rp.map((r) => ({ produtoId: r.produto_id, variacaoId: r.variacao_id ?? null, area: "venda" as const, em: r.concluido_em })),
+    ...ct.map((r) => ({ produtoId: r.produto_id, variacaoId: r.variacao_id ?? null, area: r.area, em: r.created_at })),
+  ];
 }

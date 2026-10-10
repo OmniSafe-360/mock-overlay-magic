@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, CheckCircle2, ChevronRight, PackageX, RefreshCw, Search } from "lucide-react";
 import { Sheet, type Product } from "@/components/ProductArea";
+import { RelatorioAntifurto, type ApiRelatorio } from "@/components/RelatorioAntifurto";
 import { Contador } from "@/components/ReceberMercadoria";
 import { MOTIVOS_PERDA } from "@/components/RegistrarPerda";
 import { btnGhost, btnPrimary } from "@/components/StoreSetup";
@@ -47,10 +48,11 @@ const listaContagens = (ns: number[], unidade: string) => {
 /** Mostra 30 dias de histórico; abertas e aguardando aparecem sempre. */
 const DIAS_HISTORICO = 30;
 
-export function PainelDiferencas({ comercioId, tipo, products, api = API_PADRAO, onMudou }: {
-  comercioId: string; tipo: string; products: Product[]; api?: ApiDiferencas | undefined;
+export function PainelDiferencas({ comercioId, tipo, products, api = API_PADRAO, apiRelatorio, onMudou }: {
+  comercioId: string; tipo: string; products: Product[]; api?: ApiDiferencas | undefined; apiRelatorio?: ApiRelatorio | undefined;
   /** O estoque ou os números do resumo mudaram. */ onMudou?: (() => void) | undefined;
 }) {
+  const [vista, setVista] = useState<"resolver" | "relatorio">("resolver");
   const [dados, setDados] = useState<{ diferencas: Diferenca[]; perdas: Perda[] } | null>(null);
   const [erro, setErro] = useState(false);
   const [atualizando, setAtualizando] = useState(false);
@@ -85,10 +87,22 @@ export function PainelDiferencas({ comercioId, tipo, products, api = API_PADRAO,
   const difAberta = dados?.diferencas.find((d) => d.id === aberta) ?? null;
   const depois = async (msg: string) => { setPronto(msg); await recarregar(); onMudou?.(); };
 
-  if (!dados && !erro) return <p className="py-10 text-center text-muted-foreground">Carregando…</p>;
+  const abas = (
+    <div className="grid grid-cols-2 gap-1 rounded-2xl border border-border p-1" role="group" aria-label="Ver">
+      {([["resolver", "Para resolver"], ["relatorio", "Relatório"]] as const).map(([k, txt]) => (
+        <button key={k} type="button" aria-pressed={vista === k} onClick={() => setVista(k)}
+          className={`min-h-11 rounded-xl text-sm font-semibold transition ${vista === k ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
+          {txt}{k === "resolver" && dados && resumo.perdas + resumo.diferencas > 0 ? ` (${resumo.perdas + resumo.diferencas})` : ""}
+        </button>
+      ))}
+    </div>
+  );
+  if (vista === "relatorio") return <div className="space-y-5">{abas}<RelatorioAntifurto comercioId={comercioId} tipo={tipo} products={products} api={apiRelatorio} /></div>;
+  if (!dados && !erro) return <div className="space-y-5">{abas}<p className="py-10 text-center text-muted-foreground">Carregando…</p></div>;
 
   return (
     <div className="space-y-5">
+      {abas}
       <section aria-label="Resumo das diferenças" className="rounded-3xl border border-border bg-secondary/40 p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
