@@ -1064,7 +1064,7 @@ type LinhasOperacionais = {
     produto_id: string
     variacao_id: string | null
     embalagem_id: string | null
-    /** Migração 20261010123000: comparação UPC/EAN somente no Mercado; código original preservado. */
+    /** Migração 20261010150302: comparação UPC/EAN somente no Mercado; código original preservado. */
     ean_upc_mercado: string | null
   }
   codigos_pdv: {

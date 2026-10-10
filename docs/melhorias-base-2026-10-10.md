@@ -30,7 +30,7 @@ Entrega autorizada pelo dono em três etapas, preservando os fluxos existentes. 
 
 ## Correção do banco: pronta, pendente de aplicação em produção
 
-Migração: `supabase/migrations/20261010100000_consolidar_reposicao_e_reenvios.sql`.
+Migração: `supabase/migrations/20261010150241_consolidar_reposicao_e_reenvios.sql`.
 
 - Reposição usa somente quantidade conferida, sem pendência e dentro da validade, preservando lote e FEFO. Vencidos permanecem no saldo físico; perdas e ajustes continuam podendo retirá-los.
 - O banco recusa levar mais que a sugestão, a capacidade atual ou o saldo elegível. Contar/concluir com o mesmo identificador e conteúdo não duplica; mudar o conteúdo é recusado.

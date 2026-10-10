@@ -27,7 +27,7 @@ psql_teste=(psql -h "$dir_teste" -p "$porta_teste" -U postgres -v ON_ERROR_STOP=
 "${psql_teste[@]}" -d teste -1 -f "$base_teste/000_base_simulada.sql"
 "${psql_teste[@]}" -d teste -1 -f "$base_teste/000_base_operacional.sql"
 for migracao in "$raiz_repo"/supabase/migrations/*.sql; do
-  if [ "$(basename "$migracao")" = '20261010123000_codigos_mercado_ean_upc.sql' ]; then
+  if [ "$(basename "$migracao")" = '20261010150302_codigos_mercado_ean_upc.sql' ]; then
     # Cópia local anterior à migração: demonstra que duplicados antigos interrompem tudo.
     "${psql_teste[@]}" -d postgres -c 'create database codigos_antigos template teste'
     "${psql_teste[@]}" -d codigos_antigos -f "$base_teste/007_codigos_antigos.sql"
