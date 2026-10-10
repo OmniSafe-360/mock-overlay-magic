@@ -307,7 +307,7 @@ export async function carregarCaixas(comercioId: string): Promise<Caixa[]> {
 }
 /** Vendas a partir de uma data (ISO), com os itens. */
 export async function carregarVendas(comercioId: string, desde: string): Promise<Venda[]> {
-  const vs = await todos("vendas", "id,caixa_id,chave_nota,numero,emitida_em,recebida_em,total,situacao,cancelada_em,pagamentos,origem,troco",
+  const vs = await todos("vendas", "id,caixa_id,chave_nota,numero,emitida_em,recebida_em,total,situacao,cancelada_em,pagamentos,origem,troco,turno_id,cancelada_por,motivo_cancelamento",
     (q) => q.eq("comercio_id", comercioId).gte("recebida_em", desde));
   const ids = vs.map((v) => v.id);
   const its: any[] = [];
@@ -322,7 +322,7 @@ export async function carregarVendas(comercioId: string, desde: string): Promise
   });
   return vs.map((v) => ({
     id: v.id, caixaId: v.caixa_id, chave: v.chave_nota ?? null, numero: v.numero ?? null, emitidaEm: v.emitida_em ?? null, recebidaEm: v.recebida_em,
-    ...(v.origem === "celular" ? { celular: true, troco: centavos(v.troco) } : {}),
+    ...(v.origem === "celular" ? { celular: true, troco: centavos(v.troco), turnoId: v.turno_id ?? null, canceladaPor: v.cancelada_por ?? null, motivoCancelamento: v.motivo_cancelamento ?? null } : {}),
     total: centavos(v.total), situacao: v.situacao, canceladaEm: v.cancelada_em ?? null,
     pagamentos: (Array.isArray(v.pagamentos) ? v.pagamentos : []).map((p: any) => ({ forma: String(p?.forma ?? ""), valor: centavos(p?.valor) })),
     itens: its.filter((i) => i.venda_id === v.id).map(item).sort((a, b) => a.n - b.n),
@@ -609,6 +609,7 @@ const numero = (v: unknown) => Number(v ?? 0);
 export type TurnoCaixa = {
   id: string; abertoEm: string; trocoInicial: number; vendas: number; canceladas: number; total: number;
   porForma: Record<"dinheiro" | "pix" | "cartao" | "fiado", number>; trocoDado: number; sangrias: number; dinheiroEsperado: number;
+  fechado?: boolean | undefined; dinheiroContado?: number | undefined; diferenca?: number | undefined;
 };
 export type VendaDoCaixa = { id: string; numero: number | null; feitaEm: string; total: number; situacao: "finalizada" | "cancelada";
   pagamentos: { forma: string; valor: number }[]; troco: number; cliente: string | null; itens: { descricao: string; qtd: number; valor: number }[] };
@@ -620,6 +621,7 @@ const turno = (t: any): TurnoCaixa => ({
   id: t.id, abertoEm: t.aberto_em, trocoInicial: centavos(t.troco_inicial), vendas: numero(t.vendas), canceladas: numero(t.canceladas), total: centavos(t.total),
   porForma: { dinheiro: centavos(t.por_forma?.dinheiro), pix: centavos(t.por_forma?.pix), cartao: centavos(t.por_forma?.cartao), fiado: centavos(t.por_forma?.fiado) },
   trocoDado: centavos(t.troco_dado), sangrias: centavos(t.sangrias), dinheiroEsperado: centavos(t.dinheiro_esperado),
+  ...(t.situacao === "fechado" ? { fechado: true, dinheiroContado: centavos(t.dinheiro_contado), diferenca: centavos(t.diferenca) } : {}),
 });
 export async function caixaEstado(chave: string): Promise<EstadoCaixa> {
   const { data, error } = await rpc("caixa_estado", { _chave: chave });
@@ -661,4 +663,63 @@ export async function caixaRegistrarVenda(chave: string, venda: ReturnType<typeo
   const { data, error } = await rpc("caixa_registrar_venda", { _chave: chave, _venda: venda as unknown as Json });
   if (error) throw error;
   return { situacao: data.situacao, numero: data.numero ?? null, troco: centavos(data.troco), semCadastro: numero(data.sem_cadastro) };
+}
+
+/** O banco devolve {erro} (sem desfazer) quando o PIN do dono está errado, para a contagem de tentativas ficar gravada. */
+const comErro = (data: any) => { if (data?.erro) throw new Error(String(data.erro)); return data; };
+/** Cancelar uma venda do celular com o PIN do dono: os produtos voltam para a gôndola. */
+export async function caixaCancelarVenda(chave: string, vendaId: string, pinDono: string, motivo: string): Promise<"cancelada" | "repetida"> {
+  const { data, error } = await rpc("caixa_cancelar_venda", { _chave: chave, _venda: vendaId, _pin_dono: pinDono, _motivo: motivo });
+  if (error) throw error;
+  return comErro(data).situacao;
+}
+/** Tirar dinheiro da gaveta (sangria) com o PIN do dono. Repetir o mesmo id não tira duas vezes. */
+export async function caixaSangria(chave: string, id: string, turnoId: string, valorCentavos: number, motivo: string, pinDono: string): Promise<TurnoCaixa> {
+  const { data, error } = await rpc("caixa_sangria", { _chave: chave, _id: id, _turno: turnoId, _valor: valorCentavos / 100, _motivo: motivo, _pin_dono: pinDono });
+  if (error) throw error;
+  return turno(comErro(data).turno);
+}
+/** Fechar o caixa com o dinheiro contado na gaveta. Devolve o esperado e a diferença. */
+export async function caixaFechar(chave: string, turnoId: string, contadoCentavos: number, observacao: string): Promise<TurnoCaixa> {
+  const { data, error } = await rpc("caixa_fechar", { _chave: chave, _turno: turnoId, _contado: contadoCentavos / 100, _observacao: observacao });
+  if (error) throw error;
+  return turno(data.turno);
+}
+
+/* ---------- dono: PIN, cancelamento e fechamentos do caixa do celular ---------- */
+export async function temPinDono(): Promise<boolean> {
+  const { data, error } = await rpc("tem_pin_dono", {});
+  if (error) throw error;
+  return !!data;
+}
+export async function definirPinDono(pin: string) {
+  const { error } = await rpc("definir_pin_dono", { _pin: pin });
+  if (error) throw error;
+}
+export async function cancelarVendaCelular(vendaId: string, motivo: string) {
+  const { error } = await rpc("cancelar_venda_celular", { _venda: vendaId, _motivo: motivo });
+  if (error) throw error;
+}
+export async function conferirFechamentoCaixa(turnoId: string) {
+  const { error } = await rpc("conferir_fechamento_caixa", { _turno: turnoId });
+  if (error) throw error;
+}
+export type FechamentoCaixa = {
+  id: string; caixaId: string; funcionario: string; abertoEm: string; fechadoEm: string | null; trocoInicial: number;
+  esperado: number | null; contado: number | null; diferenca: number | null; observacao: string | null; conferidoEm: string | null;
+  sangrias: number;
+};
+/** Turnos do caixa do celular abertos desde a data (ISO) e os que ainda estão abertos. */
+export async function carregarFechamentos(comercioId: string, desde: string): Promise<FechamentoCaixa[]> {
+  const ts = await todos("caixa_turnos", "id,caixa_id,aberto_em,fechado_em,troco_inicial,dinheiro_esperado,dinheiro_contado,diferenca,observacao,conferido_em,situacao,funcionarios(nome)",
+    (q) => q.eq("comercio_id", comercioId).or(`aberto_em.gte.${desde},situacao.eq.aberto`));
+  const ids = ts.map((t) => t.id);
+  const sg = ids.length ? await todos("caixa_sangrias", "id,turno_id,valor", (q) => q.in("turno_id", ids)) : [];
+  const ct = (v: unknown) => (v == null ? null : centavos(v));
+  return ts.map((t) => ({
+    id: t.id, caixaId: t.caixa_id, funcionario: t.funcionarios?.nome ?? "Funcionário", abertoEm: t.aberto_em, fechadoEm: t.fechado_em ?? null,
+    trocoInicial: centavos(t.troco_inicial), esperado: ct(t.dinheiro_esperado), contado: ct(t.dinheiro_contado), diferenca: ct(t.diferenca),
+    observacao: t.observacao ?? null, conferidoEm: t.conferido_em ?? null,
+    sangrias: sg.filter((x) => x.turno_id === t.id).reduce((a, x) => a + centavos(x.valor), 0),
+  })).sort((a, b) => b.abertoEm.localeCompare(a.abertoEm));
 }

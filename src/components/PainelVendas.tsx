@@ -22,10 +22,15 @@ export type ApiVendas = {
   desligar: (id: string) => Promise<unknown>;
   pendentes: (comercioId: string) => Promise<ItemPendente[]>;
   resolver: (itemId: string, acao: "ligar" | "ignorar", produto: string | null, variacao: string | null, embalagem: string | null) => Promise<{ itens: number; conferir?: number }>;
+  /** Caixa no celular (C3): abertura e fechamento de cada funcionário, ver a diferença e cancelar venda. */
+  fechamentos?: ((comercioId: string, desde: string) => Promise<banco.FechamentoCaixa[]>) | undefined;
+  conferirFechamento?: ((turnoId: string) => Promise<unknown>) | undefined;
+  cancelarCelular?: ((vendaId: string, motivo: string) => Promise<unknown>) | undefined;
 };
 const API_PADRAO: ApiVendas = {
   caixas: banco.carregarCaixas, vendas: banco.carregarVendas, criar: banco.criarCaixa, renomear: banco.renomearCaixa,
   novoCodigo: banco.novoCodigoCaixa, desligar: banco.desligarCaixa, pendentes: banco.carregarPendentesVenda, resolver: banco.resolverItemVenda,
+  fechamentos: banco.carregarFechamentos, conferirFechamento: banco.conferirFechamentoCaixa, cancelarCelular: banco.cancelarVendaCelular,
 };
 const erroTexto = (e: unknown) => mensagemErro(e).replace("Seus dados continuam no formulário. ", "");
 const COR = {
@@ -55,6 +60,7 @@ export function PainelVendas({ comercioId, tipo, products, api = API_PADRAO, onM
   const [pendentes, setPendentes] = useState<ItemPendente[]>([]);
   const [resolvendo, setResolvendo] = useState<string | null>(null);
   const [pronto, setPronto] = useState("");
+  const [fechamentos, setFechamentos] = useState<banco.FechamentoCaixa[]>([]);
 
   const recarregar = useCallback(async () => {
     setAtualizando(true);
@@ -62,6 +68,8 @@ export function PainelVendas({ comercioId, tipo, products, api = API_PADRAO, onM
     // Desde o começo de ontem (São Paulo): cobre "Hoje" e "Ontem".
     const desde = new Date(`${diaSP(t - 86_400_000)}T00:00:00-03:00`).toISOString();
     try {
+      // O quadro do caixa no celular carrega à parte: se falhar ou demorar, não segura o resto da aba.
+      if (api.fechamentos) void api.fechamentos(comercioId, desde).then((f) => setFechamentos(f ?? []), () => {});
       const [cs, vs, ps] = await Promise.all([api.caixas(comercioId), api.vendas(comercioId, desde), api.pendentes(comercioId)]);
       setCaixas(cs); setVendas(vs); setPendentes(ps); setErro(false); setAgora(Date.now());
     } catch { setErro(true); }
@@ -136,6 +144,9 @@ export function PainelVendas({ comercioId, tipo, products, api = API_PADRAO, onM
       </section>
 
       {pronto && <p role="status" className="flex items-center gap-2 rounded-2xl border border-accent/50 bg-accent/10 p-3 text-sm font-semibold text-accent"><Check size={18} /> {pronto}</p>}
+
+      <Fechamentos lista={fechamentos.filter((f) => !f.fechadoEm || diaSP(Date.parse(f.abertoEm)) === diaSel || (f.diferenca && !f.conferidoEm))}
+        vendas={vendas ?? []} onVisto={async (id) => { await (api.conferirFechamento ?? banco.conferirFechamentoCaixa)(id); await recarregar(); }} />
 
       {/* vendido sem cadastro */}
       {grupos.length > 0 && (
@@ -245,7 +256,12 @@ export function PainelVendas({ comercioId, tipo, products, api = API_PADRAO, onM
             await recarregar(); onMudou?.();
           }} />
       )}
-      {vendaSel && <DetalheVenda v={vendaSel} caixa={nomeCaixa(vendaSel.caixaId)} products={products} area={area} onClose={() => setVendaAberta(null)} />}
+      {vendaSel && <DetalheVenda v={vendaSel} caixa={nomeCaixa(vendaSel.caixaId)} products={products} area={area} onClose={() => setVendaAberta(null)}
+        onCancelar={vendaSel.celular && vendaSel.situacao === "finalizada" ? async (motivo) => {
+          await (api.cancelarCelular ?? banco.cancelarVendaCelular)(vendaSel.id, motivo);
+          setPronto(`Venda ${vendaSel.numero ? `nº ${vendaSel.numero} ` : ""}cancelada. Os produtos voltaram para a ${area}.`);
+          await recarregar(); onMudou?.();
+        } : undefined} />}
     </div>
   );
 }
@@ -393,8 +409,14 @@ function DetalheCaixa({ c, agora, api, onMudou, onClose }: { c: Caixa; agora: nu
   );
 }
 
-function DetalheVenda({ v, caixa, products, area, onClose }: { v: Venda; caixa: string; products: Product[]; area: string; onClose: () => void }) {
+function DetalheVenda({ v, caixa, products, area, onClose, onCancelar }: {
+  v: Venda; caixa: string; products: Product[]; area: string; onClose: () => void; onCancelar?: ((motivo: string) => Promise<unknown>) | undefined;
+}) {
   const prod = (id: string | null) => (id ? products.find((p) => (p.db?.id ?? p.id) === id) : undefined);
+  const [cancelar, setCancelar] = useState(false);
+  const [motivo, setMotivo] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const [erro, setErro] = useState("");
   return (
     <Sheet title={`${caixa} · ${horaVenda(v)}`} onClose={onClose}>
       <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3">
@@ -402,7 +424,8 @@ function DetalheVenda({ v, caixa, products, area, onClose }: { v: Venda; caixa: 
           <p className={`text-2xl font-bold ${v.situacao === "cancelada" ? "line-through opacity-60" : ""}`}>{brl(v.total)}</p>
           <p className="text-sm text-muted-foreground">{v.numero ? `${v.celular ? "Venda" : "Nota"} ${v.numero}` : ""}</p>
         </div>
-        {v.situacao === "cancelada" && <p className="rounded-2xl border border-border p-3 text-sm">Venda cancelada no caixa. O que tinha saído voltou para a {area}.</p>}
+        {v.situacao === "cancelada" && <p className="rounded-2xl border border-border p-3 text-sm">
+          {v.canceladaPor === "dono" ? "Cancelada por você" : v.canceladaPor === "funcionario" ? "Cancelada no caixa, com o seu PIN" : "Venda cancelada no caixa"}{v.motivoCancelamento ? ` (${v.motivoCancelamento})` : ""}. O que tinha saído voltou para a {area}.</p>}
         {v.pagamentos.length > 0 && (
           <p className="text-sm text-muted-foreground">{v.pagamentos.map((p) => `${formaPagamento(p.forma)} ${brl(p.valor)}`).join(" · ")}{v.troco ? ` · troco ${brl(v.troco)}` : ""}</p>
         )}
@@ -426,6 +449,19 @@ function DetalheVenda({ v, caixa, products, area, onClose }: { v: Venda; caixa: 
           })}
         </ul>
         <p className="flex items-center gap-2 text-xs text-muted-foreground"><Receipt size={14} /> {v.celular ? "Vendida pelo celular da equipe (sem nota fiscal). Só saiu da gôndola ao finalizar." : "Chegou do caixa depois de finalizada. Bipar sem finalizar não desconta."}</p>
+        {onCancelar && (!cancelar ? (
+          <button type="button" onClick={() => setCancelar(true)} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-destructive/50 px-4 text-base font-semibold text-destructive"><Ban size={18} /> Cancelar esta venda</button>
+        ) : (
+          <div className="space-y-2 rounded-2xl border border-destructive/50 bg-destructive/5 p-3">
+            <p className="text-sm">Os produtos voltam para a {area}. Se foi no fiado, o valor sai da conta do cliente.</p>
+            <input value={motivo} maxLength={200} onChange={(e) => setMotivo(e.target.value)} placeholder="Motivo (opcional)" aria-label="Motivo do cancelamento"
+              className="h-12 w-full rounded-2xl border border-border bg-background-deep/60 px-4 text-base text-foreground outline-none focus-visible:border-primary" />
+            {erro && <p role="alert" className="text-sm font-semibold text-destructive">{erro}</p>}
+            <button type="button" disabled={ocupado} onClick={() => { setOcupado(true); setErro(""); onCancelar(motivo.trim()).then(onClose, (e) => { setErro(erroTexto(e)); setOcupado(false); }); }}
+              className="flex min-h-12 w-full items-center justify-center rounded-2xl bg-destructive px-4 text-base font-semibold text-white disabled:opacity-40">{ocupado ? "Cancelando…" : "Sim, cancelar a venda"}</button>
+            <button type="button" onClick={() => setCancelar(false)} className="min-h-11 w-full text-sm font-semibold text-muted-foreground">Voltar</button>
+          </div>
+        ))}
       </div>
     </Sheet>
   );
@@ -525,5 +561,49 @@ function ResolverPendente({ g, products, area, onResolver, onClose }: {
         )}
       </div>
     </Sheet>
+  );
+}
+
+/** Abertura e fechamento do caixa no celular, com a diferença do dinheiro na gaveta. */
+function Fechamentos({ lista, vendas, onVisto }: { lista: banco.FechamentoCaixa[]; vendas: Venda[]; onVisto: (id: string) => Promise<unknown> }) {
+  const [ocupado, setOcupado] = useState<string | null>(null);
+  if (!lista.length) return null;
+  const hora = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+  const dia = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
+  return (
+    <section aria-label="Caixas do celular" className="space-y-2">
+      <h2 className="flex items-center gap-2 text-base font-bold"><Smartphone size={18} className="text-primary" /> Caixas do celular</h2>
+      <ul className="space-y-2">
+        {lista.map((f) => {
+          const doTurno = vendas.filter((v) => v.turnoId === f.id && v.situacao === "finalizada");
+          const total = doTurno.reduce((t, v) => t + v.total, 0);
+          const d = f.diferenca ?? 0;
+          const alerta = !!f.fechadoEm && d !== 0 && !f.conferidoEm;
+          return (
+            <li key={f.id} className={`rounded-3xl border p-4 text-sm ${alerta ? "border-destructive/60 bg-destructive/10" : "border-border bg-secondary/50"}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-base font-bold">{f.funcionario}</p>
+                  <p className="text-xs text-muted-foreground">{f.fechadoEm ? `${dia(f.abertoEm)} · ${hora(f.abertoEm)} até ${hora(f.fechadoEm)}` : `Aberto desde ${hora(f.abertoEm)}`}</p>
+                </div>
+                <span className="shrink-0 text-right"><b className="block text-base">{brl(total)}</b><span className="text-xs text-muted-foreground">{doTurno.length === 1 ? "1 venda" : `${doTurno.length} vendas`}</span></span>
+              </div>
+              {f.fechadoEm && f.esperado != null && f.contado != null && (
+                <div className="mt-2 space-y-1">
+                  <p className="text-muted-foreground">Deveria ter na gaveta <b className="text-foreground">{brl(f.esperado)}</b> · contou <b className="text-foreground">{brl(f.contado)}</b>{f.sangrias ? ` · tirado ${brl(f.sangrias)}` : ""}</p>
+                  <p className={`font-bold ${d === 0 ? "text-accent" : d < 0 ? "text-destructive" : "text-warning"}`}>{d === 0 ? "Bateu certinho" : d < 0 ? `Faltaram ${brl(-d)}` : `Sobraram ${brl(d)}`}</p>
+                  {f.observacao && <p className="text-xs">Recado: "{f.observacao}"</p>}
+                  {alerta && (
+                    <button type="button" disabled={ocupado === f.id} onClick={() => { setOcupado(f.id); void onVisto(f.id).finally(() => setOcupado(null)); }}
+                      className="mt-1 flex min-h-11 items-center gap-2 rounded-2xl border border-border bg-background/40 px-4 font-semibold"><Check size={16} /> Já vi, tirar o alerta</button>
+                  )}
+                </div>
+              )}
+              {!f.fechadoEm && <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-accent"><span className="h-2 w-2 rounded-full bg-accent" /> Vendendo agora</p>}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

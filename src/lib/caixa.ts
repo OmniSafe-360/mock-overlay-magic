@@ -170,3 +170,74 @@ export function bip() {
     o.start(); o.stop(audio.currentTime + 0.08);
   } catch { /* sem som: segue */ }
 }
+
+/* ---------- C3: PIN do dono e vendas guardadas no celular (sem internet) ---------- */
+
+/** Mensagem do PIN do dono (cancelar venda e tirar dinheiro da gaveta). */
+export function erroPinDono(e: unknown): string {
+  const m = String((e as { message?: string } | null)?.message ?? e ?? "");
+  const n = m.match(/(muitas_tentativas|pin_errado):(\d+)/);
+  if (n?.[1] === "muitas_tentativas") return `Muitas tentativas erradas. Espere ${n[2]} ${n[2] === "1" ? "minuto" : "minutos"} e tente de novo.`;
+  if (n?.[1] === "pin_errado") return n[2] === "1" ? "PIN do dono errado. Falta 1 tentativa antes de travar por 15 minutos." : `PIN do dono errado. Ainda tem ${n[2]} tentativas.`;
+  if (m.includes("dono_sem_pin")) return "O dono ainda não criou o PIN dele. Ele cria no app do dono, na Equipe.";
+  if (m.includes("pin_formato")) return "O PIN do dono tem 4 números.";
+  if (m.includes("turno_fechado")) return "Este caixa já foi fechado.";
+  if (m.includes("valor_invalido")) return "Confira o valor.";
+  return erroCaixa(e);
+}
+
+/** Erros que não se resolvem tentando de novo (a venda fica separada para o dono ver). Os outros: tenta de novo depois. */
+const DEFINITIVOS = ["pagamento_", "item_invalido", "venda_invalida", "venda_sem_itens", "data_invalida", "produto_de_outro_comercio",
+  "variacao_invalida", "embalagem_invalida", "turno_invalido", "cliente_invalido", "fiado_sem_cliente", "nome_cliente_invalido", "telefone_cliente_invalido"];
+export const erroDefinitivo = (e: unknown) => {
+  const m = String((e as { message?: string } | null)?.message ?? e ?? "");
+  return DEFINITIVOS.some((k) => m.includes(k));
+};
+
+export type VendaGuardada = { venda: ReturnType<typeof montarVenda>; total: number; troco: number; formas: string; problema?: string | undefined };
+export const vendaGuardadaValida = (p: unknown): p is VendaGuardada => {
+  const x = p as VendaGuardada | null;
+  return !!x && !!x.venda && typeof x.venda.id === "string" && typeof x.venda.turno_id === "string" && Array.isArray(x.venda.itens) && x.venda.itens.length > 0
+    && Array.isArray(x.venda.pagamentos) && Number.isFinite(x.total) && Number.isFinite(x.troco);
+};
+
+type Armazem = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+/** Vendas finalizadas guardadas neste celular até o Omni confirmar (a mais antiga vai primeiro). Nunca guarda a chave do celular. */
+export function filaCaixa(escopo: string, armazem: Armazem = localStorage) {
+  const chave = `omni.caixa.fila.v1:${escopo}`;
+  const ler = (): VendaGuardada[] => {
+    try { const r = JSON.parse(armazem.getItem(chave) ?? "[]"); return Array.isArray(r) ? r.filter(vendaGuardadaValida) : []; } catch { return []; }
+  };
+  const gravar = (l: VendaGuardada[]) => {
+    try { if (l.length) armazem.setItem(chave, JSON.stringify(l)); else armazem.removeItem(chave); }
+    catch { throw new Error("Não foi possível guardar a venda neste celular. Confira o armazenamento do navegador."); }
+  };
+  return {
+    ler,
+    /** Guarda uma venda nova (mesmo id não entra duas vezes). */
+    por: (v: VendaGuardada) => { const l = ler(); if (!l.some((x) => x.venda.id === v.venda.id)) gravar([...l, v]); },
+    tirar: (id: string) => gravar(ler().filter((x) => x.venda.id !== id)),
+    marcarProblema: (id: string, problema: string) => gravar(ler().map((x) => (x.venda.id === id ? { ...x, problema } : x))),
+  };
+}
+
+/** Envia as vendas guardadas, uma por vez, na ordem. Para no primeiro problema de internet (tenta de novo depois). */
+export async function enviarFila<R>(fila: ReturnType<typeof filaCaixa>, enviar: (v: VendaGuardada) => Promise<R>, aoEnviar?: (v: VendaGuardada, r: R) => void) {
+  for (const v of fila.ler()) {
+    if (v.problema) continue;
+    try { const r = await enviar(v); fila.tirar(v.venda.id); aoEnviar?.(v, r); }
+    catch (e) {
+      if (erroDefinitivo(e)) { fila.marcarProblema(v.venda.id, erroCaixa(e)); continue; }
+      throw e;
+    }
+  }
+}
+
+/** Resultado do fechamento: "Bateu certinho" / "Faltaram R$ 6,28" / "Sobraram R$ 2,00". */
+export function textoDiferencaCaixa(diferenca: number): { nivel: "ok" | "falta" | "sobra"; texto: string } {
+  if (diferenca === 0) return { nivel: "ok", texto: "Bateu certinho" };
+  return diferenca < 0 ? { nivel: "falta", texto: `Faltaram ${brl(-diferenca)}` } : { nivel: "sobra", texto: `Sobraram ${brl(diferenca)}` };
+}
+
+/** O erro foi falta de internet (não uma recusa do banco). */
+export const semInternet = (e: unknown) => /fetch|network|Failed to|Load failed|timeout|aborted/i.test(String((e as { message?: string } | null)?.message ?? e ?? ""));

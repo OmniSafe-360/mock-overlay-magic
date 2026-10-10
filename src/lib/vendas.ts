@@ -22,6 +22,7 @@ export type ItemVenda = {
 export type Venda = {
   id: string; caixaId: string; /** Chave da nota (vazia na venda pelo celular). */ chave: string | null; numero: number | null;
   /** Venda feita no caixa do celular (sem nota fiscal). */ celular?: boolean | undefined; troco?: number | undefined;
+  turnoId?: string | null | undefined; canceladaPor?: string | null | undefined; motivoCancelamento?: string | null | undefined;
   emitidaEm: string | null; recebidaEm: string; total: number; // centavos
   situacao: "finalizada" | "cancelada"; canceladaEm: string | null;
   pagamentos: { forma: string; valor: number }[];

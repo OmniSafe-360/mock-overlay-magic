@@ -5,7 +5,7 @@ import { AppFuncionario } from "@/components/AppFuncionario";
 import { aceitarLeitura } from "@/components/LeitorContinuo";
 import type { EstadoCaixa, InicioFuncionario, TurnoCaixa } from "@/lib/banco";
 import {
-  acharPorCodigo, adicionar, atalhosDinheiro, centavosDigitados, itemDoProduto, lerQuantidade, montarVenda, situacaoPagamento, totalCarrinho, variantesCodigo,
+  acharPorCodigo, adicionar, atalhosDinheiro, enviarFila, erroPinDono, filaCaixa, textoDiferencaCaixa, centavosDigitados, itemDoProduto, lerQuantidade, montarVenda, situacaoPagamento, totalCarrinho, variantesCodigo,
   type ProdutoCaixa,
 } from "@/lib/caixa";
 
@@ -32,6 +32,29 @@ const queijo: ProdutoCaixa = { id: "p-queijo", nome: "Queijo mussarela", unidade
 const PRODUTOS = [tiss, cerveja, queijo];
 
 describe("regras do caixa", () => {
+  it("fila de vendas guardadas: não duplica, para sem internet e separa a venda recusada", async () => {
+    const mem = new Map<string, string>();
+    const arm = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v), removeItem: (k: string) => void mem.delete(k) };
+    const f = filaCaixa("esc", arm);
+    const g = (id: string) => ({ venda: montarVenda(id, "t1", [itemDoProduto("i", acharPorCodigo(PRODUTOS, "7896263503203")!, null)], [{ forma: "pix" as const, valor: 349 }], null), total: 349, troco: 0, formas: "Pix" });
+    f.por(g("a")); f.por(g("a")); f.por(g("b")); f.por(g("c"));
+    expect(f.ler().map((x) => x.venda.id)).toEqual(["a", "b", "c"]);
+    const enviados: string[] = [];
+    await expect(enviarFila(f, async (v) => { if (v.venda.id === "b") throw new Error("pagamento_menor_que_total"); if (v.venda.id === "c") throw new TypeError("Failed to fetch"); enviados.push(v.venda.id); })).rejects.toThrow();
+    expect(enviados).toEqual(["a"]);
+    expect(f.ler().map((x) => [x.venda.id, !!x.problema])).toEqual([["b", true], ["c", false]]);
+    await enviarFila(f, async (v) => { enviados.push(v.venda.id); });
+    expect(enviados).toEqual(["a", "c"]);
+    expect(f.ler().map((x) => x.venda.id)).toEqual(["b"]);
+  });
+  it("textos do fechamento e do PIN do dono", () => {
+    expect(textoDiferencaCaixa(0).texto).toBe("Bateu certinho");
+    expect(textoDiferencaCaixa(-628).texto.replace(/\s/g, " ")).toBe("Faltaram R$ 6,28");
+    expect(textoDiferencaCaixa(200).nivel).toBe("sobra");
+    expect(erroPinDono(new Error("pin_errado:1"))).toMatch(/Falta 1 tentativa/);
+    expect(erroPinDono(new Error("muitas_tentativas:15"))).toMatch(/Espere 15 minutos/);
+    expect(erroPinDono(new Error("dono_sem_pin"))).toMatch(/ainda não criou o PIN/);
+  });
   it("acha o produto pelo código, também com UPC de 12 números e pela embalagem", () => {
     expect(variantesCodigo("012345678905")).toContain("0012345678905");
     expect(acharPorCodigo(PRODUTOS, "012345678905")?.produto.id).toBe("p-cerv");
@@ -191,7 +214,7 @@ describe("caixa no celular", () => {
     expect(venda.pagamentos).toEqual([{ forma: "fiado", valor: 3.49 }]);
   });
 
-  it("sem internet: a venda fica guardada e o novo envio repete a mesma venda", async () => {
+  it("sem internet: a venda finaliza, fica guardada e vai depois, sem contar duas vezes", async () => {
     let falhar = true;
     const api = apiCaixa({ registrar: vi.fn(async () => { if (falhar) throw new TypeError("Failed to fetch"); return { situacao: "registrada" as const, numero: 8, troco: 0, semCadastro: 0 }; }) });
     render(<CaixaCelular chave={CH} api={api} onSair={() => {}} />);
@@ -199,12 +222,80 @@ describe("caixa no celular", () => {
     fireEvent.click(screen.getByRole("button", { name: /Receber/ }));
     fireEvent.click(screen.getByRole("button", { name: /Cartão/ }));
     fireEvent.click(screen.getByRole("button", { name: /Finalizar venda/ }));
-    expect((await screen.findByRole("alert")).textContent).toMatch(/Sem internet/);
-    falhar = false;
-    fireEvent.click(screen.getByRole("button", { name: /Finalizar venda/ }));
     await screen.findByText("Venda finalizada");
-    expect(api.registrar).toHaveBeenCalledTimes(2);
-    expect(envios(api.registrar)[1]![1].id).toBe(envios(api.registrar)[0]![1].id);
+    expect(await screen.findByText(/Guardada no celular/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Próxima venda/ }));
+    expect(await screen.findByText("1 venda guardada")).toBeTruthy();
+    expect(screen.getByText(/Sem internet: pode continuar vendendo/)).toBeTruthy();
+    // vende outra sem internet
+    fireEvent.click(screen.getByRole("button", { name: "ler tiss" }));
+    fireEvent.click(screen.getByRole("button", { name: /Receber/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Pix/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Finalizar venda/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Próxima venda/ }));
+    expect(await screen.findByText("2 vendas guardadas")).toBeTruthy();
+    falhar = false;
+    fireEvent.click(screen.getByRole("button", { name: "Enviar agora" }));
+    await waitFor(() => expect(screen.queryByText(/vendas guardadas/)).toBeNull());
+    const ids = envios(api.registrar).map((c) => c[1].id);
+    expect(new Set(ids).size).toBe(2); // duas vendas diferentes, cada uma reenviada com o mesmo id
+    expect(ids.filter((i) => i === ids[0]).length).toBeGreaterThan(1);
+  });
+
+  it("abre sem internet com o que ficou guardado no celular", async () => {
+    const api = apiCaixa();
+    const { unmount } = render(<CaixaCelular chave={CH} api={api} onSair={() => {}} />);
+    await screen.findByRole("button", { name: "ler tiss" });
+    unmount();
+    const off = apiCaixa({ estado: vi.fn(async () => { throw new TypeError("Failed to fetch"); }), produtos: vi.fn(async () => { throw new TypeError("Failed to fetch"); }) });
+    render(<CaixaCelular chave={CH} api={off} onSair={() => {}} />);
+    expect(await screen.findByText(/Sem internet: pode continuar vendendo/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "ler tiss" }));
+    expect(screen.getByLabelText("Total da venda").textContent?.replace(/\s/g, " ")).toBe("R$ 3,49");
+  });
+
+  it("menu: cancelar venda com o PIN do dono, tirar dinheiro e fechar o caixa", async () => {
+    const vendaFeita = { id: "v9", numero: 9, feitaEm: "2026-10-10T12:00:00Z", total: 698, situacao: "finalizada" as const, troco: 0, cliente: null,
+      pagamentos: [{ forma: "pix", valor: 698 }], itens: [{ descricao: "Refrigerante Tiss", qtd: 2, valor: 698 }] };
+    let pinCerto = false;
+    const api = apiCaixa({
+      estado: vi.fn(async () => ({ ...estado(), vendas: [vendaFeita] })),
+      cancelar: vi.fn(async () => { if (!pinCerto) throw new Error("pin_errado:4"); return "cancelada" as const; }),
+      sangria: vi.fn(async () => ({ ...turno, sangrias: 3000 })),
+      fechar: vi.fn(async () => ({ ...turno, fechado: true, dinheiroEsperado: 13628, dinheiroContado: 13000, diferenca: -628 })),
+    });
+    render(<CaixaCelular chave={CH} api={api} onSair={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Menu do caixa" }));
+    fireEvent.click(screen.getByRole("button", { name: /Vendas deste caixa/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Venda nº 9/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Cancelar esta venda/ }));
+    fireEvent.change(screen.getByLabelText("PIN do dono"), { target: { value: "1357" } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar cancelamento" }));
+    expect((await screen.findByRole("alert")).textContent).toMatch(/PIN do dono errado. Ainda tem 4 tentativas/);
+    pinCerto = true;
+    fireEvent.change(screen.getByLabelText("PIN do dono"), { target: { value: "2468" } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar cancelamento" }));
+    expect(await screen.findByText(/Venda nº 9 cancelada/)).toBeTruthy();
+    expect(api.cancelar).toHaveBeenLastCalledWith(CH, "v9", "2468", "");
+    fireEvent.click(screen.getAllByRole("button", { name: "Fechar" })[0]!);
+
+    fireEvent.click(screen.getByRole("button", { name: "Menu do caixa" }));
+    fireEvent.click(screen.getByRole("button", { name: /Tirar dinheiro da gaveta/ }));
+    fireEvent.change(screen.getByLabelText("Quanto vai tirar?"), { target: { value: "3000" } });
+    fireEvent.change(screen.getByLabelText("PIN do dono"), { target: { value: "2468" } });
+    fireEvent.click(screen.getByRole("button", { name: /Tirar R\$\s30,00/ }));
+    expect(await screen.findByText(/Dinheiro tirado da gaveta/)).toBeTruthy();
+    expect(api.sangria).toHaveBeenCalledWith(CH, expect.any(String), "t1", 3000, "", "2468");
+
+    fireEvent.click(screen.getByRole("button", { name: "Menu do caixa" }));
+    fireEvent.click(screen.getByRole("button", { name: /Fechar o caixa/ }));
+    expect(screen.queryByText(/Deveria ter/)).toBeNull(); // conta sem ver o esperado
+    fireEvent.change(screen.getByLabelText("Quanto tem na gaveta?"), { target: { value: "13000" } });
+    fireEvent.click(screen.getByRole("button", { name: /Fechar o caixa/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Sim, fechar o caixa/ }));
+    expect(await screen.findByText("Faltaram R$ 6,28")).toBeTruthy();
+    expect(screen.getByText("Deveria ter na gaveta")).toBeTruthy();
+    expect(api.fechar).toHaveBeenCalledWith(CH, "t1", 13000, "");
   });
 
   it("o carrinho continua no celular se o app travar no meio da venda", async () => {
@@ -248,5 +339,55 @@ describe("Equipe: ligar o caixa no celular", () => {
     await waitFor(() => expect(screen.getByRole("switch", { name: "Caixa no celular" }).getAttribute("aria-checked")).toBe("true"));
     expect(caixa).toHaveBeenCalledWith("f1", true);
     expect(screen.getByText(/aparece o botão/)).toBeTruthy();
+  });
+});
+
+describe("dono: PIN do caixa, fechamentos e cancelar venda do celular", () => {
+  it("cria o PIN na Equipe (recusa PIN fácil e PINs diferentes)", async () => {
+    const { PainelEquipe } = await import("@/components/PainelEquipe");
+    const lista = [{ id: "f1", nome: "Maria Souza", funcao: "repor" as const, caixa: true, codigo: "255392", codigoGeradoEm: new Date().toISOString(),
+      primeiroAcessoEm: new Date().toISOString(), bloqueadoEm: null, ultimoAcesso: null, travadoAte: null, celulares: 1 }];
+    const definirPin = vi.fn(async () => {});
+    const api = { carregar: vi.fn(async () => lista), criar: vi.fn(), atualizar: vi.fn(), bloquear: vi.fn(), novoAcesso: vi.fn(), temPin: vi.fn(async () => false), definirPin };
+    render(<PainelEquipe comercioId="c1" comercioNome="Mercado" api={api as never} />);
+    expect(await screen.findByText(/sem ele, a equipe não consegue cancelar/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Criar o PIN" }));
+    fireEvent.change(screen.getByLabelText("Novo PIN (4 números)"), { target: { value: "1111" } });
+    expect(screen.getByRole("alert").textContent).toMatch(/fácil de adivinhar/);
+    fireEvent.change(screen.getByLabelText("Novo PIN (4 números)"), { target: { value: "2468" } });
+    fireEvent.change(screen.getByLabelText("Digite de novo"), { target: { value: "2467" } });
+    expect(screen.getByRole("alert").textContent).toMatch(/não são iguais/);
+    fireEvent.change(screen.getByLabelText("Digite de novo"), { target: { value: "2468" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar o PIN" }));
+    expect(await screen.findByText(/PIN salvo/)).toBeTruthy();
+    expect(definirPin).toHaveBeenCalledWith("2468");
+  });
+
+  it("Vendas mostra o fechamento com falta e o dono cancela uma venda do celular", async () => {
+    const { PainelVendas } = await import("@/components/PainelVendas");
+    const hoje = new Date().toISOString();
+    const vendas = [{ id: "v1", caixaId: "cx", chave: null, numero: 3, emitidaEm: hoje, recebidaEm: hoje, total: 698, situacao: "finalizada" as const, canceladaEm: null,
+      pagamentos: [{ forma: "dinheiro", valor: 1000 }], celular: true, troco: 302, turnoId: "t1", itens: [] }];
+    const cancelarCelular = vi.fn(async () => {});
+    const conferirFechamento = vi.fn(async () => {});
+    const api = {
+      caixas: vi.fn(async () => [{ id: "cx", nome: "Celular · Maria", tipo: "celular" as const, codigo: null, codigoGeradoEm: null, ligadoEm: hoje, desligadoEm: null, ultimoContatoEm: hoje, ultimaVendaEm: hoje, aparelho: null }]),
+      vendas: vi.fn(async () => vendas), criar: vi.fn(), renomear: vi.fn(), novoCodigo: vi.fn(), desligar: vi.fn(), pendentes: vi.fn(async () => []), resolver: vi.fn(),
+      fechamentos: vi.fn(async () => [{ id: "t1", caixaId: "cx", funcionario: "Maria", abertoEm: hoje, fechadoEm: hoje, trocoInicial: 10000, esperado: 13628, contado: 13000,
+        diferenca: -628, observacao: "faltou troco", conferidoEm: null, sangrias: 3000 }]),
+      conferirFechamento, cancelarCelular,
+    };
+    render(<PainelVendas comercioId="c1" tipo="mercado" products={[]} api={api as never} />);
+    expect(await screen.findByText("Faltaram R$ 6,28")).toBeTruthy();
+    expect(screen.getByText(/Recado: "faltou troco"/)).toBeTruthy();
+    expect(screen.getByText("Caixa no celular")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Já vi, tirar o alerta/ }));
+    await waitFor(() => expect(conferirFechamento).toHaveBeenCalledWith("t1"));
+    fireEvent.click(screen.getByRole("button", { name: /Venda 3/ }));
+    expect(screen.getByText(/troco R\$\s3,02/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Cancelar esta venda/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Sim, cancelar a venda/ }));
+    await waitFor(() => expect(cancelarCelular).toHaveBeenCalledWith("v1", ""));
+    expect(await screen.findByText(/Venda nº 3 cancelada/)).toBeTruthy();
   });
 });
