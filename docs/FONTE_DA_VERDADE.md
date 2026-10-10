@@ -47,7 +47,7 @@ Este documento é a referência oficial do sistema. Se qualquer instrução, có
 - **Desde 09/10/2026 o Claude executa direto no GitHub e no Supabase** (decisão do dono), uma coisa de cada vez:
   - o Claude mescla o pull request no `main` depois de verificar;
   - o dono usa o Lovable para o visual e para publicar.
-- 09/10/2026: o dono decidiu **ir arrumando e testar mais à frente**. O Claude continua verificando tudo e mantém a lista do que falta o dono testar (seção 12.3).
+- 09/10/2026: o dono decidiu **ir arrumando e testar mais à frente**. 10/10/2026: confirmou que **o teste geral fica para quando tudo estiver pronto** (inclusive as vendas pelo caixa); o roteiro de teste é entregue no fim. O Claude continua verificando tudo e mantém a lista do que falta o dono testar (seção 12.3).
 
 ## 2. REGRAS DE TRABALHO (INEGOCIÁVEIS)
 
@@ -191,7 +191,8 @@ FORNECEDOR ──(receber, cego)──▶ DEPÓSITO ──(repor, cego)──▶
 
 ### 7.6 Vendas — ligação com o caixa do mercado (proposta de 10/10/2026, aguardando o dono)
 - O dono pediu que o Omni **se ligue ao sistema de caixa que o mercado já usa**, com vários caixas por loja (5, 6 ou mais), e que **cada venda desconte da gôndola na hora**.
-- Cada marca de caixa é diferente, mas **toda venda gera a nota fiscal do cupom (NFC-e)**: um arquivo com produto, código de barras, quantidade, hora e número do caixa.
+- **Regra do dono (10/10/2026): só desconta quando a venda é FINALIZADA no caixa** (pagamento aprovado e venda fechada). Bipar não desconta nada; venda desistida antes de fechar não desconta; venda cancelada depois devolve.
+- Cada marca de caixa é diferente, mas **toda venda finalizada gera a nota fiscal do cupom (NFC-e)** — a nota só existe depois que a venda fecha, o que garante a regra acima: um arquivo com produto, código de barras, quantidade, hora e número do caixa.
 - **Caminho principal — Omni Conector:**
   - uma página do Omni instalada como app no computador do caixa;
   - acompanha a pasta das notas e envia cada venda em menos de 1 minuto;
