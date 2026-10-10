@@ -241,3 +241,35 @@ export function textoDiferencaCaixa(diferenca: number): { nivel: "ok" | "falta" 
 
 /** O erro foi falta de internet (não uma recusa do banco). */
 export const semInternet = (e: unknown) => /fetch|network|Failed to|Load failed|timeout|aborted/i.test(String((e as { message?: string } | null)?.message ?? e ?? ""));
+
+/* ---------- C4: comprovante pelo WhatsApp (não é nota fiscal) ---------- */
+export type DadosComprovante = {
+  comercio: { nome: string; endereco: string | null };
+  numero: number | null; feitaEm: string;
+  itens: { descricao: string; qtd: number; valor: number }[];
+  total: number; pagamentos: { forma: string; valor: number }[]; troco: number; cliente: string | null;
+};
+export function textoComprovante(d: DadosComprovante): string {
+  const quando = new Date(d.feitaEm).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+  const forma = (f: string) => FORMA_TXT[f as FormaCaixa] ?? f;
+  const linhas = [
+    `*${d.comercio.nome}*`,
+    ...(d.comercio.endereco ? [d.comercio.endereco] : []),
+    `Comprovante de venda${d.numero ? ` nº ${d.numero}` : ""} · ${quando.replace(",", "")}`,
+    "_Não é documento fiscal_",
+    "",
+    ...d.itens.map((i) => `${qtdTexto(i.qtd)} x ${i.descricao} — ${brl(i.valor)}`),
+    "",
+    `*Total: ${brl(d.total)}*`,
+    ...d.pagamentos.map((p) => `${forma(p.forma)}${p.forma === "fiado" && d.cliente ? ` (${d.cliente})` : ""}: ${brl(p.valor)}`),
+    ...(d.troco > 0 ? [`Troco: ${brl(d.troco)}`] : []),
+    "",
+    "Obrigado pela preferência!",
+  ];
+  return linhas.join("\n").replace(/ /g, " ");
+}
+/** Link do WhatsApp (número do Brasil com DDD; vazio = escolher o contato no WhatsApp). */
+export const linkWhatsApp = (telefone: string, texto: string) => {
+  const t = telefone.replace(/\D/g, "");
+  return `https://wa.me/${t ? `55${t}` : ""}?text=${encodeURIComponent(texto)}`;
+};

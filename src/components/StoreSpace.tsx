@@ -159,7 +159,7 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
       ) : tab === "Equipe" && store.id ? (
         <PainelEquipe comercioId={store.id} comercioNome={store.nome} />
       ) : tab === "Vendas" && store.id ? (
-        <PainelVendas comercioId={store.id} tipo={store.tipo} products={products} onMudou={onVendasMudou} />
+        <PainelVendas comercioId={store.id} comercioNome={store.nome} tipo={store.tipo} products={products} onMudou={onVendasMudou} />
       ) : tab === "Diferenças" && store.id ? (
         <PainelDiferencas key={verRelatorio} comercioId={store.id} tipo={store.tipo} products={products} onMudou={onDiferencasMudou} vistaInicial={verRelatorio > 0 ? "relatorio" : "resolver"} />
       ) : (

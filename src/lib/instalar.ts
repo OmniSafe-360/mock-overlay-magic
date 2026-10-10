@@ -46,16 +46,23 @@ export function tipoAparelho(ua = typeof navigator === "undefined" ? "" : naviga
   return "outro";
 }
 
-/** Na página do funcionário, o celular instala o "Omni Operação" (nome, ícone e início próprios), não o app do dono. */
-export function prepararInstalacaoFuncionario() {
+/** Na página do funcionário, o celular instala o "Omni Operação" (nome, ícone e início próprios), não o app do dono.
+ * Na página /caixa, instala o "Omni Caixa" (abre direto no caixa). */
+export function prepararInstalacaoFuncionario(app: "operacao" | "caixa" = "operacao") {
   if (typeof document === "undefined") return;
+  const caixa = app === "caixa";
   let link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
   if (!link) { link = document.createElement("link"); link.rel = "manifest"; document.head.appendChild(link); }
-  link.href = "/manifest-funcionario.webmanifest";
+  link.href = caixa ? "/manifest-caixa.webmanifest" : "/manifest-funcionario.webmanifest";
   let meta = document.querySelector<HTMLMetaElement>('meta[name="apple-mobile-web-app-title"]');
   if (!meta) { meta = document.createElement("meta"); meta.name = "apple-mobile-web-app-title"; document.head.appendChild(meta); }
-  meta.content = "Omni Operação";
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw-funcionario.js", { scope: "/funcionario" }).catch(() => { /* sem instalação automática: o menu do navegador ainda funciona */ });
+  meta.content = caixa ? "Omni Caixa" : "Omni Operação";
+  if (caixa) {
+    let ic = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]');
+    if (!ic) { ic = document.createElement("link"); ic.rel = "apple-touch-icon"; document.head.appendChild(ic); }
+    ic.href = "/apple-touch-icon-caixa.png";
+  }
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw-funcionario.js", { scope: caixa ? "/caixa" : "/funcionario" }).catch(() => { /* sem instalação automática: o menu do navegador ainda funciona */ });
 }
 
 /** Aberto dentro do app do dono instalado (Omni Safe 360): para instalar o do funcionário, precisa abrir no navegador. */
@@ -63,5 +70,5 @@ export function dentroDoAppDono(): boolean {
   try { return abertoComoApp() && sessionStorage.getItem(DENTRO_DONO) === "1"; } catch { return false; }
 }
 /** Endereço para abrir no navegador. No Android, abre direto no Chrome. */
-export const enderecoFuncionario = () => (typeof window === "undefined" ? "/funcionario" : `${window.location.origin}/funcionario`);
-export const linkChromeAndroid = () => (typeof window === "undefined" ? "" : `intent://${window.location.host}/funcionario#Intent;scheme=https;package=com.android.chrome;end`);
+export const enderecoFuncionario = (caminho = "/funcionario") => (typeof window === "undefined" ? caminho : `${window.location.origin}${caminho}`);
+export const linkChromeAndroid = (caminho = "/funcionario") => (typeof window === "undefined" ? "" : `intent://${window.location.host}${caminho}#Intent;scheme=https;package=com.android.chrome;end`);
