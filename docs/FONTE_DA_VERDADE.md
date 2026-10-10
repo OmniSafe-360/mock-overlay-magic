@@ -225,7 +225,7 @@ FORNECEDOR ──(receber, cego)──▶ DEPÓSITO ──(repor, cego)──▶
   - O quadro vermelho **"Perdas e diferenças"** aparece no "Atenção hoje", no menu Alertas e conta em "Para resolver agora" na tela inicial.
 - **Antifurto (Fase 5, desenho aprovado em 10/10/2026: "Pode fazer", com as 4 recomendações):**
   - **5.1 Relatório do comércio** (aba Diferenças → "Relatório"): este mês / mês passado / últimos 3 meses; total que faltou (falta = diferença negativa, sem as explicadas como erro de contagem e sem contagem para escolher), por motivo, perdas registradas e erros de contagem à parte; **produtos que mais somem** (tocar mostra cada falta com o intervalo "entre a contagem de … e a de …"); **lugares com mais faltas**; **dia da semana** em que a falta foi descoberta; **equipe** ("contou X faltas", "registrou Y perdas" — quem conta não é culpado). O sistema sabe quando a falta foi descoberta, não a hora exata: o intervalo vai da contagem anterior do mesmo produto no mesmo lugar até a que achou a falta.
-  - 5.2 alertas (produto visado: 3 faltas em 30 dias; lugar com 3+ produtos faltando em 30 dias; limite do mês, padrão R$ 200 por comércio, editável) e produto visado conferido todo dia até 7 dias sem faltar;
+  - **5.2 Alertas** (quadros amarelos no "Atenção hoje" e no menu Alertas; contam em "de olho" na tela inicial; tocar abre o Relatório): **produto visado** (3 faltas ou mais em 30 dias, com a última nos últimos 7 dias), **lugar com muitas faltas** (3 produtos diferentes ou mais faltando no mesmo lugar em 30 dias) e **faltou no mês** acima do limite do comércio (padrão R$ 200; o dono muda no Relatório; R$ 0 desliga). O produto visado entra **primeiro na conferência do depósito, todo dia**, além dos 5 do revezamento, até passar 7 dias sem faltar — o funcionário não sabe que é visado;
   - 5.3 quadro "Sumiu este mês" na tela inicial com todos os comércios.
 
 ### 7.8 Cadastro de produto
@@ -302,7 +302,7 @@ Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Pos
   - o envio de e-mail do Supabase tem limite baixo, por isso o "Esqueci minha senha" falhou; precisa de serviço de e-mail próprio;
   - a "proteção contra senhas vazadas" está **desligada**: o dono liga no painel do Supabase.
 - **Vendas (Fase 3, desde 10/10/2026):** `caixas` (código de 8 números para ligar, chave do computador do caixa guardada só como resumo), `vendas` (uma por nota, chave de 44 números única), `venda_itens` (cada item com quanto saiu da gôndola, quanto "faltou" e de quais saldos saiu) e `codigos_pdv` (código do caixa ligado a um produto, ou "não controlar"). O computador do caixa usa `conector_ligar`, `conector_estado`, `conector_enviar_venda` e `conector_cancelar_venda`; o dono, `criar_caixa`, `renomear_caixa`, `novo_codigo_caixa`, `desligar_caixa` e `resolver_item_venda`.
-- **Fechar a conta (Fase 4, desde 10/10/2026):** `perdas` (sai do estoque na hora; o dono confirma ou recusa), `conferencias` (contagem cega do depósito, até 3 vezes) e `diferencas` (o que o sistema tinha × o que foi contado, com o valor em reais; o dono explica o motivo). Funcionário: `funcionario_registrar_perda`, `funcionario_conferencia_lista`, `funcionario_conferencia_contar`; dono: `registrar_perda`, `decidir_perda`, `explicar_diferenca`, `resolver_conferencia` (escolher a contagem certa). A reposição gera diferença na gôndola quando o comércio tem um caixa ligado.
+- **Fechar a conta (Fase 4, desde 10/10/2026):** `perdas` (sai do estoque na hora; o dono confirma ou recusa), `conferencias` (contagem cega do depósito, até 3 vezes) e `diferencas` (o que o sistema tinha × o que foi contado, com o valor em reais; o dono explica o motivo). Funcionário: `funcionario_registrar_perda`, `funcionario_conferencia_lista`, `funcionario_conferencia_contar`; dono: `registrar_perda`, `decidir_perda`, `explicar_diferenca`, `resolver_conferencia` (escolher a contagem certa), `definir_limite_faltas` (coluna `comercios.limite_faltas_mes`). Antifurto: `_produtos_visados` (usada pela lista da conferência). A reposição gera diferença na gôndola quando o comércio tem um caixa ligado.
 
 ## 11. INFRAESTRUTURA
 
@@ -326,7 +326,7 @@ Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Pos
 - Fornecedores (aba), pedido de compra, link do fornecedor e contas a pagar.
 - Equipe (QR, bloquear, novo acesso) e app Omni Operação: instalar, PIN ao abrir, receber mercadoria, repor gôndola, conferir depósito e registrar perda (10/10/2026).
 - Aba **Diferenças** do comércio: confirmar perdas, explicar diferenças, escolher a contagem certa e registrar perda pelo dono (10/10/2026).
-- **Relatório antifurto** do comércio (aba Diferenças → Relatório) (10/10/2026).
+- **Relatório antifurto** do comércio (aba Diferenças → Relatório), com alertas, produto visado conferido todo dia e limite do mês (10/10/2026).
 - Tela inicial com números reais ("Resumo de hoje" e situação de cada comércio), menus **Comércios** e **Alertas** (10/10/2026).
 - Aba **Vendas** do comércio: ligar caixas com código, situação de cada caixa e vendas do dia (10/10/2026; as vendas só chegam com o Omni Conector, Fase 3.3).
 
@@ -346,7 +346,7 @@ Cada fase termina com o roteiro de teste para o dono.
 | **2. Arrumação** | 2.1 este documento ✅ · 2.2 tela inicial com números reais e os menus Comércios e Alertas ✅ · 2.3 velocidade do banco ✅ | ✅ feita |
 | **3. Vendas pelo caixa** | 3.1 banco das vendas ✅ · 3.2 aba Vendas e caixas ✅ · 3.3 Omni Conector ✅ · 3.4 "Vendas hoje" e "Vendido sem cadastro" ✅ · piloto num mercado real junto com o teste geral | ✅ feita (falta o piloto) |
 | **4. Fechar a conta** | 4.1 banco (perdas, conferência do depósito, diferenças; reposição acusando diferença) ✅ · 4.2 app da equipe: Registrar perda e Conferir depósito ✅ · 4.3 aba Diferenças do dono ✅ | ✅ concluída em 10/10/2026 (falta o teste do dono) |
-| **5. Antifurto** | 5.1 relatório do comércio ✅ · 5.2 **alertas e produto visado na conferência diária** · 5.3 painel de todos os comércios na tela inicial | **▶ ETAPA ATUAL** (desenho aprovado em 10/10/2026) |
+| **5. Antifurto** | 5.1 relatório do comércio ✅ · 5.2 alertas e produto visado na conferência diária ✅ · 5.3 **painel de todos os comércios na tela inicial** | **▶ ETAPA ATUAL** (desenho aprovado em 10/10/2026) |
 | **6. Lançamento** | E-mail próprio ("Esqueci minha senha"), Termos e Privacidade, proteção de senhas, Google verificado, teste em computador, tablet, Android e iPhone | antes de abrir ao público |
 | **7. Depois** | Caixa próprio do Omni · chave para o fornecedor do caixa · gerente · balança do mercado · WhatsApp/e-mail automáticos | a combinar |
 

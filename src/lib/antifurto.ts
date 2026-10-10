@@ -1,6 +1,9 @@
 /* Fase 5.1 — relatório antifurto do comércio: o que falta, onde, quando e quem contou.
  * Usa as diferenças e perdas da Fase 4. Falta = diferença negativa que NÃO foi explicada como erro de contagem
  * (e não é uma contagem que ainda espera o dono escolher o número). */
+import type { Product } from "@/components/ProductArea";
+import { textoDoTipo } from "@/lib/exemplos";
+import { nomeVenda } from "@/lib/situacao";
 import { precisaEscolher, type AreaEstoque, type Diferenca, type MotivoDiferenca, type MotivoPerda, type Perda } from "@/lib/diferencas";
 
 export type Periodo = "mes" | "mesPassado" | "tres";
@@ -121,4 +124,60 @@ const fmtDiaHora = (iso: string) => {
 export function intervaloFalta(f: Pick<Falta, "desde" | "criadaEm" | "origem">): string {
   if (f.origem === "perda_recusada") return `Perda não confirmada · ${fmtDiaHora(f.criadaEm)}`;
   return f.desde ? `Entre a contagem de ${fmtDiaHora(f.desde)} e a de ${fmtDiaHora(f.criadaEm)}` : `Descoberta na contagem de ${fmtDiaHora(f.criadaEm)} (primeira contagem conferida)`;
+}
+
+/* ---------- Fase 5.2 — alertas automáticos ---------- */
+/** Faltas para virar "produto visado" (em 30 dias, com a última nos últimos 7) e "lugar com muitas faltas" (produtos diferentes em 30 dias). */
+export const VEZES_VISADO = 3;
+export const PRODUTOS_LUGAR = 3;
+export const LIMITE_PADRAO = 20000; // centavos (R$ 200,00)
+const DIA = 86_400_000;
+
+export type AlertasAntifurto = {
+  visados: { chave: string; produtoId: string; variacaoId: string | null; titulo: string; vezes: number; valor: number }[];
+  lugares: { chave: string; titulo: string; sub: string; produtos: number; vezes: number; valor: number }[];
+  /** Faltou este mês (centavos) e o limite do comércio (centavos). */ faltouMes: number; limite: number; passouLimite: boolean;
+};
+/** Quantos avisos de antifurto há (cada produto visado, cada lugar e o limite contam 1). */
+export const nAlertas = (a: AlertasAntifurto | null | undefined) => (a ? a.visados.length + a.lugares.length + (a.passouLimite ? 1 : 0) : 0);
+
+/** Mesma regra do banco (`_produtos_visados`), para a tela. `agora` em ms. */
+export function alertasAntifurto(difs: Diferenca[], hoje: string, agora: number, info: InfoProduto, nomeArea: (a: AreaEstoque) => string, limite: number): AlertasAntifurto {
+  const ult30 = difs.filter((d) => ehFalta(d) && Date.parse(d.criadaEm) > agora - 30 * DIA);
+  const porProduto = new Map<string, Diferenca[]>();
+  for (const d of ult30) { const k = `${d.produtoId}:${d.variacaoId ?? ""}`; porProduto.set(k, [...(porProduto.get(k) ?? []), d]); }
+  const visados = [...porProduto.entries()]
+    .filter(([, ds]) => ds.length >= VEZES_VISADO && ds.some((d) => Date.parse(d.criadaEm) > agora - 7 * DIA))
+    .map(([chave, ds]) => ({ chave, produtoId: ds[0]!.produtoId, variacaoId: ds[0]!.variacaoId, titulo: info.nome(ds[0]!.produtoId, ds[0]!.variacaoId), vezes: ds.length, valor: ds.reduce((t, d) => t - d.valor, 0) }))
+    .sort((a, b) => b.valor - a.valor);
+  const porLugar = new Map<string, { titulo: string; sub: string; ids: Set<string>; vezes: number; valor: number }>();
+  for (const d of ult30) {
+    const loc = info.local(d.produtoId, d.area);
+    if (!loc) continue;
+    const k = `${d.area}|${loc.toLowerCase()}`;
+    const x = porLugar.get(k) ?? { titulo: loc, sub: nomeArea(d.area), ids: new Set<string>(), vezes: 0, valor: 0 };
+    x.ids.add(`${d.produtoId}:${d.variacaoId ?? ""}`); x.vezes += 1; x.valor += -d.valor;
+    porLugar.set(k, x);
+  }
+  const lugares = [...porLugar.entries()].filter(([, x]) => x.ids.size >= PRODUTOS_LUGAR)
+    .map(([chave, x]) => ({ chave, titulo: x.titulo, sub: x.sub, produtos: x.ids.size, vezes: x.vezes, valor: x.valor })).sort((a, b) => b.valor - a.valor);
+  const faltouMes = difs.filter((d) => ehFalta(d) && diaSP(d.criadaEm).slice(0, 7) === hoje.slice(0, 7)).reduce((t, d) => t - d.valor, 0);
+  return { visados, lugares, faltouMes, limite, passouLimite: limite > 0 && faltouMes > limite };
+}
+
+/** Nome, lugar atual e preço de compra dos produtos do comércio (para o relatório e os alertas). */
+export function infoDosProdutos(products: Product[]): InfoProduto {
+  const prod = (id: string) => products.find((p) => (p.db?.id ?? String(p.id)) === id);
+  return {
+    nome: (id, v) => { const p = prod(id); const x = v ? p?.variacoes.find((y) => y.uid === v) : undefined; return `${p?.nome ?? "Produto removido"}${x ? ` · ${[x.tam, x.cor].filter(Boolean).join(" ")}` : ""}`; },
+    local: (id, a) => (a === "deposito" ? prod(id)?.deposito?.local : prod(id)?.areaVenda?.local) ?? null,
+    compra: (id) => prod(id)?.compra ?? 0,
+  };
+}
+/** "Depósito"/"Estoque" e "Gôndola"/"Área de venda", conforme o tipo. */
+export const nomeAreaDoTipo = (tipo: string) => (a: AreaEstoque) => (a === "deposito" ? textoDoTipo(tipo)("Depósito") : nomeVenda(tipo));
+/** Desde quando carregar as diferenças para os alertas: o começo do mês ou 30 dias atrás, o que vier antes. */
+export function desdeAlertas(hoje: string, agora: number): string {
+  const mes = Date.parse(`${hoje.slice(0, 7)}-01T00:00:00-03:00`);
+  return new Date(Math.min(mes, agora - 30 * DIA)).toISOString();
 }
