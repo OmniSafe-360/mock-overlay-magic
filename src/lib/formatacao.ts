@@ -7,7 +7,8 @@ export const maskPhone = (v: string) => {
   if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 };
-export const formatarReais = (reais: number) => reais.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+/** `|| 0` evita "-R$ 0,00" quando a conta dá menos zero. */
+export const formatarReais = (reais: number) => (reais || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 export const formatarCentavos = (centavos: number) => formatarReais(centavos / 100);
 /** Mesma identidade de local usada pelo índice do banco: ignora caixa e espaços nas pontas. */
 export const normLocal = (s: string) => s.trim().toLowerCase();

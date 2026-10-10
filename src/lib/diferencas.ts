@@ -82,7 +82,7 @@ export function resumoDiferencas(difs: Diferenca[], perdas: Perda[], hoje: strin
   return {
     perdas: perdas.filter((p) => p.situacao === "aguardando").length,
     diferencas: difs.filter((d) => d.situacao === "aberta").length,
-    faltouMes: -difs.filter((d) => mesDe(d.criadaEm) === mes && d.valor < 0 && d.motivo !== "erro_contagem" && !precisaEscolher(d)).reduce((t, d) => t + d.valor, 0),
+    faltouMes: 0 - difs.filter((d) => mesDe(d.criadaEm) === mes && d.valor < 0 && d.motivo !== "erro_contagem" && !precisaEscolher(d)).reduce((t, d) => t + d.valor, 0),
     perdasMes: perdas.filter((p) => p.situacao !== "recusada" && mesDe(p.criadaEm) === mes).reduce((t, p) => t + Math.round(p.baixado * precoCompra(p.produtoId)), 0),
   };
 }

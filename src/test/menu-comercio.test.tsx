@@ -11,25 +11,27 @@ const props = {
   onAddSupplier: f(), onUpdateSupplier: f(), onBack: vi.fn(), onNew: vi.fn(), onEdit: vi.fn(), onDismissSaved: vi.fn(),
 };
 
-describe("barra de navegação do comércio", () => {
-  it("4 partes principais + Mais, com avisos; Mais abre as outras e passa a mostrar a escolhida", () => {
+describe("faixa de navegação do comércio", () => {
+  it("todas as 8 partes numa faixa que corre para os lados, com avisos; sem Mais", () => {
     render(<StoreSpace {...props} vendidoSemCadastro={2} diferencasDecidir={1} onAtualizar={vi.fn()} />);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(loja.nome);
     expect(screen.getByRole("button", { name: "Atualizar" })).toBeTruthy();
     const barra = within(screen.getByRole("navigation", { name: "Partes do comércio" }));
-    expect(barra.getAllByRole("button").map((b) => b.getAttribute("aria-label"))).toEqual(["Produtos", "Estoque", "À venda", "Pedidos", "Mais (3 avisos)"]);
+    expect(barra.getAllByRole("button").map((b) => b.getAttribute("aria-label"))).toEqual([
+      "Produtos", "Estoque", "À venda", "Pedidos", "Fornecedores", "Equipe", "Vendas (2 avisos)", "Diferenças (1 aviso)",
+    ]);
+    expect(screen.queryByRole("button", { name: /^Mais/ })).toBeNull();
     expect(barra.getByRole("button", { name: "Produtos" }).getAttribute("aria-current")).toBe("page");
-    fireEvent.click(barra.getByRole("button", { name: "Estoque" }));
-    expect(barra.getByRole("button", { name: "Estoque" }).getAttribute("aria-current")).toBe("page");
-    fireEvent.click(barra.getByRole("button", { name: /^Mais/ }));
-    const mais = within(screen.getByRole("list", { name: "Mais partes do comércio" }));
-    expect(mais.getAllByRole("button")).toHaveLength(4);
-    expect(mais.getByRole("button", { name: /^Vendas/ }).textContent).toMatch(/2$/);
-    expect(mais.getByRole("button", { name: /^Diferenças/ }).textContent).toMatch(/1$/);
-    fireEvent.click(mais.getByRole("button", { name: /^Fornecedores/ }));
-    expect(screen.queryByRole("list", { name: "Mais partes do comércio" })).toBeNull();
-    const quinto = barra.getAllByRole("button")[4]!;
-    expect(quinto.getAttribute("aria-label")).toBe("Fornecedores (3 avisos)");
-    expect(quinto.getAttribute("aria-current")).toBe("page");
+    fireEvent.click(barra.getByRole("button", { name: "Fornecedores" }));
+    expect(barra.getByRole("button", { name: "Fornecedores" }).getAttribute("aria-current")).toBe("page");
+    expect(barra.getByRole("button", { name: "Produtos" }).getAttribute("aria-current")).toBeNull();
+  });
+});
+
+import { formatarCentavos } from "@/lib/formatacao";
+describe("dinheiro", () => {
+  it("menos zero aparece como R$ 0,00", () => {
+    expect(formatarCentavos(-0)).toMatch(/^R\$\s0,00$/);
+    expect(formatarCentavos(-150)).toMatch(/^-R\$\s1,50$/);
   });
 });
