@@ -9,6 +9,8 @@ import { ERRO_REGISTRO, registroEnvio, type TipoEnvio } from "@/lib/envios";
 import { newUid } from "@/lib/deposito";
 import { AlertTriangle, Bell, CalendarClock, ChevronRight, CircleCheck, Home, Plus, ShieldAlert, ShoppingBag, ShoppingBasket, ShoppingCart, Store, UserCircle, Users, CheckCircle2 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
+import { ContaPerfil } from "@/components/ContaPerfil";
+import type { Perfil } from "@/lib/perfil";
 import { StoreSetup, TIPOS, type StoreData } from "@/components/StoreSetup";
 import { StoreSpace, type InicioComercio } from "@/components/StoreSpace";
 import { AtencaoHoje } from "@/components/AtencaoHoje";
@@ -51,7 +53,7 @@ function Backdrop() {
   );
 }
 
-export function OwnerApp({ userId, owner, initial, fullName = "", email = "", onLogout }: { userId: string; owner: string; initial: StoreData[]; fullName?: string; email?: string; onLogout?: () => void }) {
+export function OwnerApp({ userId, owner, initial, fullName = "", email = "", avatarUrl = null, onPerfilSalvo, onLogout }: { userId: string; owner: string; initial: StoreData[]; fullName?: string; email?: string; avatarUrl?: string | null; onPerfilSalvo?: (perfil: Perfil) => void; onLogout?: () => void }) {
   const [stores, setStores] = useState<StoreData[]>(initial);
   const [tab, setTab] = useState<Tab>("inicio");
   const [adding, setAdding] = useState(false);
@@ -462,17 +464,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
           ) : tab === "alertas" ? (
             <Alertas stores={stores} visao={visao} suppliers={suppliers} onAbrir={abrirLoja} onTentar={() => { if (idsLojas) void carregarGeral(idsLojas.split(",")); }} />
           ) : tab === "conta" ? (
-            <div className="mx-auto max-w-md space-y-4 animate-in fade-in duration-300">
-              <div className="rounded-3xl border border-border bg-secondary/70 p-5">
-                <UserCircle size={40} className="text-primary" />
-                <p className="mt-3 text-lg font-bold">{fullName || owner || "Sua conta"}</p>
-                <p className="mt-1 break-all text-sm text-muted-foreground">{email}</p>
-              </div>
-              <button type="button" onClick={onLogout}
-                className="h-12 w-full rounded-2xl border border-destructive/50 text-sm font-semibold text-destructive transition hover:bg-destructive/10 focus-visible:outline-2 focus-visible:outline-ring">
-                Sair
-              </button>
-            </div>
+            <ContaPerfil userId={userId} nome={fullName || owner} foto={avatarUrl} email={email} onSalvo={(perfil) => onPerfilSalvo?.(perfil)} onLogout={onLogout} />
           ) : tab === "equipe" ? (
             <div className="mx-auto max-w-3xl space-y-8">
               <div>
