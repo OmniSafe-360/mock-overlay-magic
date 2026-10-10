@@ -6,7 +6,7 @@ import type { StoreData } from "@/components/StoreSetup";
 import type { Pedido } from "@/lib/pedido";
 import { fraseComercio, resumoComercio, somaResumos } from "@/lib/resumoGeral";
 
-const banco = vi.hoisted(() => ({ carregarFornecedores: vi.fn(), carregarProdutos: vi.fn(), carregarPedidos: vi.fn(), conferirEnvio: vi.fn() }));
+const banco = vi.hoisted(() => ({ carregarFornecedores: vi.fn(), carregarProdutos: vi.fn(), carregarPedidos: vi.fn(), conferirEnvio: vi.fn(), carregarVendas: vi.fn(), carregarPendentesVenda: vi.fn(), carregarCaixas: vi.fn() }));
 vi.mock("@/lib/banco", async (original) => ({ ...await original<object>(), ...banco }));
 vi.mock("@/components/Scanner", () => ({ Scanner: () => null }));
 
@@ -48,6 +48,7 @@ beforeEach(() => {
   localStorage.clear(); vi.clearAllMocks();
   banco.carregarFornecedores.mockResolvedValue([]);
   banco.carregarPedidos.mockResolvedValue([]);
+  banco.carregarVendas.mockResolvedValue([]); banco.carregarPendentesVenda.mockResolvedValue([]); banco.carregarCaixas.mockResolvedValue([]);
   banco.carregarProdutos.mockImplementation(async (id: string) => ({
     produtos: id === "c1" ? [tudoCerto, repor, comprar, acabou] : [prod("f1", "Dipirona", 20, 10)],
     locais: { deposito: ["Estante A"], venda: ["Gôndola 1"] },
@@ -62,7 +63,7 @@ describe("tela inicial, Comércios e Alertas do dono", () => {
     expect(resumo.getByRole("button", { name: /Para repor/ }).textContent).toMatch(/^1/);
     expect(resumo.getByRole("button", { name: /Para comprar/ }).textContent).toMatch(/^1/);
     expect(screen.queryByText(/Dados de exemplo/)).toBeNull();
-    expect(screen.queryByText(/Vendas hoje/)).toBeNull();
+    expect(screen.getByRole("button", { name: /Vendas hoje: R\$\s?0,00/ }).textContent).toMatch(/Nenhuma venda ainda/);
     expect(screen.getByRole("button", { name: /Mercado Bom Preço/ }).textContent).toMatch(/1 para resolver agora.*1 para repor · 1 para comprar/);
     expect(screen.getByRole("button", { name: /Farmácia Vida/ }).textContent).toMatch(/Tudo certo/);
     expect(screen.getByRole("button", { name: /Alertas: 1 para resolver agora/ })).toBeTruthy();
@@ -92,5 +93,23 @@ describe("tela inicial, Comércios e Alertas do dono", () => {
     banco.carregarProdutos.mockImplementation(async () => ({ produtos: [tudoCerto], locais: { deposito: [], venda: [] } }));
     fireEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
     expect(await screen.findByText(/Tudo certo! Nenhum comércio precisa de atenção agora/)).toBeTruthy();
+  });
+  it("vendas de hoje e vendido sem cadastro entram na tela inicial e nos alertas", async () => {
+    const venda = { id: "v1", caixaId: "cx", chave: "1", numero: 1, emitidaEm: new Date().toISOString(), recebidaEm: new Date().toISOString(), total: 12345, situacao: "finalizada", canceladaEm: null, pagamentos: [], itens: [] };
+    banco.carregarVendas.mockImplementation(async (id: string) => (id === "c1" ? [venda, { ...venda, id: "v2", total: 1000 }, { ...venda, id: "v3", situacao: "cancelada" }] : []));
+    banco.carregarPendentesVenda.mockImplementation(async (id: string) => (id === "c2" ? [
+      { id: "i1", codigoPdv: "999", codigoBarras: null, descricao: "SACOLA", qtdNota: 1, unidadeNota: "UN", valor: 10, situacao: "sem_cadastro", motivo: null, produtoId: null, vendidoEm: null },
+      { id: "i2", codigoPdv: "999", codigoBarras: null, descricao: "SACOLA", qtdNota: 1, unidadeNota: "UN", valor: 10, situacao: "sem_cadastro", motivo: null, produtoId: null, vendidoEm: null },
+    ] : []));
+    render(<OwnerApp userId="u1" owner="Monica" initial={[lojaA, lojaB]} />);
+    expect(await screen.findByRole("button", { name: /Vendas hoje: R\$\s?133,45/ })).toBeTruthy();
+    expect(screen.getByText("2 vendas")).toBeTruthy();
+    await waitFor(() => expect(screen.getByRole("button", { name: /Farmácia Vida/ }).textContent).toMatch(/1 para resolver agora/));
+    expect(screen.getByRole("button", { name: /Mercado Bom Preço/ }).textContent).toMatch(/R\$\s?133,45 vendidos hoje/);
+    fireEvent.click(screen.getAllByRole("button", { name: "Alertas" })[0]!);
+    const sec = within(await screen.findByRole("region", { name: "Farmácia Vida" }));
+    expect(sec.getByRole("button", { name: /Vendido sem cadastro/ }).textContent).toMatch(/^1/);
+    fireEvent.click(sec.getByRole("button", { name: /Vendido sem cadastro/ }));
+    expect(await screen.findByRole("region", { name: "Vendas do dia" })).toBeTruthy();
   });
 });

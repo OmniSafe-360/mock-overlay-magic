@@ -23,12 +23,13 @@ const maiuscula = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const linhaItem = (titulo: string, detalhe: string | undefined, assunto: string) =>
   titulo.toLowerCase() === assunto.toLowerCase() ? detalhe ?? "" : detalhe ? `${titulo} — ${detalhe}` : titulo;
 
-export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFazerPedido, contas, onVerContas, entregasDecidir = 0, onVerEntregas }: {
+export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFazerPedido, contas, onVerContas, entregasDecidir = 0, onVerEntregas, semCadastro = 0, onVerSemCadastro }: {
   products: Product[]; tipo: string; suppliers: Supplier[]; onOpen: (p: Product) => void;
   /** Produtos (id do banco) já num pedido em andamento. */ jaPedidos?: Set<string> | undefined;
   /** Abre a montagem do pedido de compra. */ onFazerPedido?: (() => void) | undefined;
   /** Contas dos pedidos (D2c); tocar abre a aba Pedidos em "Só a pagar". */ contas?: ResumoPagamentos | undefined; onVerContas?: (() => void) | undefined;
   /** Produtos recebidos que esperam o dono decidir (E2); tocar abre a aba Pedidos. */ entregasDecidir?: number | undefined; onVerEntregas?: (() => void) | undefined;
+  /** Códigos vendidos no caixa que o Omni não sabe qual produto é (Fase 3.4); tocar abre a aba Vendas. */ semCadastro?: number | undefined; onVerSemCadastro?: (() => void) | undefined;
 }) {
   const hoje = useMemo(() => hojeEm(), []);
   const grupos = useMemo(() => atencaoHoje(products, tipo, hoje, (p) => suppliers.find((f) => f.id === p.fornecedor)?.nome, jaPedidos), [products, tipo, hoje, suppliers, jaPedidos]);
@@ -40,7 +41,10 @@ export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFa
     { k: "hoje", nivel: "atencao" as const, n: contas.hoje.n, titulo: contas.hoje.n === 1 ? "Conta vence hoje" : "Contas vencem hoje", total: contas.hoje.total },
     { k: "mes", nivel: "info" as const, n: restoMes, titulo: "A pagar este mês", total: contas.esteMes.total - contas.atrasados.total - contas.hoje.total },
   ].filter((q) => q.n > 0);
-  const quadrosEntrega = entregasDecidir > 0 ? [{ k: "entrega", n: entregasDecidir, titulo: entregasDecidir === 1 ? "Entrega para decidir" : "Entregas para decidir" }] : [];
+  const quadrosEntrega = [
+    ...(semCadastro > 0 ? [{ k: "semcad", n: semCadastro, titulo: "Vendido sem cadastro", ajuda: "diga qual produto é", onClick: onVerSemCadastro }] : []),
+    ...(entregasDecidir > 0 ? [{ k: "entrega", n: entregasDecidir, titulo: entregasDecidir === 1 ? "Entrega para decidir" : "Entregas para decidir", ajuda: "contagem ou produto fora do pedido", onClick: onVerEntregas }] : []),
+  ];
   if (!products.length && !quadrosContas.length && !quadrosEntrega.length) return null;
   const sel = grupos.find((g) => g.tipo === aberto);
   const importantes = grupos.filter((g) => g.nivel !== "info").reduce((n, g) => n + g.itens.length, 0);
@@ -62,10 +66,10 @@ export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFa
       {(grupos.length > 0 || quadrosContas.length > 0 || quadrosEntrega.length > 0) && (
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
           {quadrosEntrega.map((q) => (
-            <button key={q.k} type="button" onClick={onVerEntregas}
+            <button key={q.k} type="button" onClick={q.onClick}
               className={`flex min-h-[84px] flex-col justify-between rounded-2xl border p-3 text-left transition hover:border-primary ${COR.urgente.quadro}`}>
               <span className={`text-3xl font-bold leading-none tabular-nums ${COR.urgente.numero}`}>{q.n}</span>
-              <span className="mt-2 text-sm font-semibold leading-tight">{q.titulo}<span className="block text-xs font-normal text-muted-foreground">contagem ou produto fora do pedido</span></span>
+              <span className="mt-2 text-sm font-semibold leading-tight">{q.titulo}<span className="block text-xs font-normal text-muted-foreground">{q.ajuda}</span></span>
             </button>
           ))}
           {quadrosContas.map((q) => (

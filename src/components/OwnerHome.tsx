@@ -1,18 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { conferirEnvio, carregarFornecedores, carregarProdutos, atualizarFornecedor, criarFornecedor, gerarCodigoInterno, salvarProduto, carregarPedidos, salvarPedido, marcarPedidoEnviado, cancelarPedido, novoLinkPedido, atualizarPagamento, resolverItemRecebimento, carregarRecebimentos, type LocaisCadastrados } from "@/lib/banco";
+import { conferirEnvio, carregarFornecedores, carregarProdutos, carregarVendas, carregarPendentesVenda, atualizarFornecedor, criarFornecedor, gerarCodigoInterno, salvarProduto, carregarPedidos, salvarPedido, marcarPedidoEnviado, cancelarPedido, novoLinkPedido, atualizarPagamento, resolverItemRecebimento, carregarRecebimentos, type LocaisCadastrados } from "@/lib/banco";
 import type { CanalPedido, LinhaPedido, Pedido } from "@/lib/pedido";
 import type { DadosPagamento } from "@/components/PainelPedidos";
 import type { Recebimento } from "@/lib/recebimento";
 import { ehIncerto, mensagemErro, type Sessao } from "@/lib/persistencia";
 import { ERRO_REGISTRO, registroEnvio, type TipoEnvio } from "@/lib/envios";
 import { newUid } from "@/lib/deposito";
-import { AlertTriangle, Bell, CalendarClock, ChevronRight, CircleCheck, Home, Plus, ShoppingBasket, ShoppingCart, Store, UserCircle, Users, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, Bell, CalendarClock, ChevronRight, CircleCheck, Home, Plus, ShoppingBag, ShoppingBasket, ShoppingCart, Store, UserCircle, Users, CheckCircle2 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import { StoreSetup, TIPOS, type StoreData } from "@/components/StoreSetup";
 import { StoreSpace, type InicioComercio } from "@/components/StoreSpace";
 import { AtencaoHoje } from "@/components/AtencaoHoje";
 import { resumoPagamentos } from "@/lib/pagamento";
 import { hojeEm } from "@/lib/validade";
+import { agruparPendentes, brl as brlVenda, diaDaVenda } from "@/lib/vendas";
 import { deOlho, entregasParaDecidir, fraseComercio, paraResolver, produtosJaPedidos, resumoComercio, somaResumos, type ResumoComercio } from "@/lib/resumoGeral";
 import { PainelEquipe } from "@/components/PainelEquipe";
 import { ProductWizard, type Product, type Supplier } from "@/components/ProductArea";
@@ -30,7 +31,9 @@ const iconOf = (tipo: string) => TIPOS.find((t) => t.id === tipo)?.Icon ?? Store
 const idDe = (s: StoreData) => (typeof s.id === "string" && s.id.trim() ? s.id : null);
 
 /** Dados de um comércio para o resumo geral (tela inicial, Comércios e Alertas). */
-type Geral = { estado: "ok" | "carregando" | "erro"; produtos: Product[]; pedidos: Pedido[] };
+type Geral = { estado: "ok" | "carregando" | "erro"; produtos: Product[]; pedidos: Pedido[];
+  /** Vendas de hoje e códigos sem cadastro (null = não deu para ler; não impede o resto). */
+  vendas?: { hojeN: number; hojeTotal: number; semCadastro: number } | null | undefined };
 type VisaoGeral = { geral: Record<string, Geral>; resumos: Record<string, ResumoComercio>; total: ResumoComercio; carregando: boolean; erro: boolean };
 
 function Backdrop() {
@@ -124,8 +127,14 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
     if (vigente()) setFornGeral(fs);
     await Promise.all(ids.map(async (id) => {
       try {
-        const [r, ps] = await Promise.all([carregarProdutos(id, fs), carregarPedidos(id)]);
-        if (vigente()) setGeral((m) => ({ ...m, [id]: { estado: "ok", produtos: r.produtos, pedidos: ps } }));
+        const inicioHoje = new Date(`${hojeEm()}T00:00:00-03:00`).toISOString();
+        const [r, ps, vendas] = await Promise.all([carregarProdutos(id, fs), carregarPedidos(id),
+          Promise.all([carregarVendas(id, inicioHoje), carregarPendentesVenda(id)])
+            .then(([vs, pend]) => {
+              const hoje = vs.filter((v) => v.situacao === "finalizada" && diaDaVenda(v) === hojeEm());
+              return { hojeN: hoje.length, hojeTotal: hoje.reduce((t, v) => t + v.total, 0), semCadastro: agruparPendentes(pend).length };
+            }).catch(() => null)]);
+        if (vigente()) setGeral((m) => ({ ...m, [id]: { estado: "ok", produtos: r.produtos, pedidos: ps, vendas } }));
       } catch {
         if (vigente()) setGeral((m) => ({ ...m, [id]: { produtos: m[id]?.produtos ?? [], pedidos: m[id]?.pedidos ?? [], estado: "erro" } }));
       }
@@ -144,7 +153,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
   const hojeGeral = hojeEm();
   const visao: VisaoGeral = useMemo(() => {
     const resumos: Record<string, ResumoComercio> = {};
-    for (const s of stores) { const id = idDe(s); const g = id ? geral[id] : undefined; if (id && g && (g.estado === "ok" || g.produtos.length)) resumos[id] = resumoComercio(g.produtos, s.tipo, hojeGeral, g.pedidos); }
+    for (const s of stores) { const id = idDe(s); const g = id ? geral[id] : undefined; if (id && g && (g.estado === "ok" || g.produtos.length)) resumos[id] = resumoComercio(g.produtos, s.tipo, hojeGeral, g.pedidos, g.vendas ?? {}); }
     const gs = Object.values(geral);
     return { geral, resumos, total: somaResumos(Object.values(resumos)), carregando: gs.some((g) => g.estado === "carregando"), erro: gs.some((g) => g.estado === "erro") };
   }, [stores, geral, hojeGeral]);
@@ -386,9 +395,12 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
               onResolverRecebimento={sid ? resolverRecebimento(sid) : undefined}
               onCarregarSemPedido={sid ? semPedido(sid) : undefined}
               inicio={inicioLoja}
+              vendidoSemCadastro={sid ? geral[sid]?.vendas?.semCadastro ?? 0 : 0}
+              onVendasMudou={() => { if (sid) { void recarregar(sid); if (idsLojas) void carregarGeral(idsLojas.split(",")); } }}
               onBack={() => { setOpen(null); setSaved(false); setInicioLoja(undefined); }} onNew={() => openWizard()} onEdit={(p) => openWizard(p)} onDismissSaved={() => setSaved(false)} />
           ) : tab === "inicio" ? (
             <HomeContent stores={stores} visao={visao} onAdd={() => setAdding(true)} onOpen={(s) => abrirLoja(s)} onAlertas={() => setTab("alertas")}
+              onVendas={() => { const com = stores.filter((s) => idDe(s)); if (com.length === 1) abrirLoja(com[0]!, { aba: "Vendas" }); else setTab("comercios"); }}
               onTentar={() => { if (idsLojas) void carregarGeral(idsLojas.split(",")); }} />
           ) : tab === "comercios" ? (
             <div className="mx-auto max-w-[1100px] space-y-4 animate-in fade-in duration-300">
@@ -454,8 +466,8 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
 
 const COR_FRASE = { urgente: "text-destructive", atencao: "text-warning", ok: "text-accent", vazio: "text-muted-foreground" } as const;
 
-function HomeContent({ stores, visao, onAdd, onOpen, onAlertas, onTentar }: {
-  stores: StoreData[]; visao: VisaoGeral; onAdd: () => void; onOpen: (s: StoreData) => void; onAlertas: () => void; onTentar: () => void;
+function HomeContent({ stores, visao, onAdd, onOpen, onAlertas, onVendas, onTentar }: {
+  stores: StoreData[]; visao: VisaoGeral; onAdd: () => void; onOpen: (s: StoreData) => void; onAlertas: () => void; onVendas: () => void; onTentar: () => void;
 }) {
   const t = visao.total;
   const pronto = Object.keys(visao.resumos).length > 0;
@@ -480,6 +492,18 @@ function HomeContent({ stores, visao, onAdd, onOpen, onAlertas, onTentar }: {
               <button type="button" onClick={onTentar} className="min-h-11 rounded-xl border border-border px-3 font-semibold">Tentar de novo</button>
             </div>
           )}
+          <button type="button" onClick={onVendas} aria-label={`Vendas hoje: ${brlVenda(t.vendasHojeTotal)}`}
+            className="mb-3 flex w-full items-center gap-4 rounded-3xl border border-primary/50 bg-primary/10 p-4 text-left transition hover:border-primary">
+            <ShoppingBag size={24} className="shrink-0 text-primary" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs text-muted-foreground sm:text-sm">Vendas hoje</span>
+              <span className="block text-2xl font-bold tracking-tight sm:text-3xl">{pronto ? brlVenda(t.vendasHojeTotal) : "…"}</span>
+            </span>
+            <span className="shrink-0 text-right text-xs text-muted-foreground">
+              {!pronto ? "" : t.vendasHojeN === 0 ? "Nenhuma venda ainda" : t.vendasHojeN === 1 ? "1 venda" : `${t.vendasHojeN} vendas`}
+              <span className="block font-semibold text-primary">Ver vendas</span>
+            </span>
+          </button>
           {tudoCerto ? (
             <p className="flex items-center gap-2 rounded-3xl border border-accent/50 bg-accent/10 p-4 text-sm font-semibold text-accent">
               <CircleCheck size={20} className="shrink-0" /> Tudo certo! Nenhum comércio precisa de atenção agora.
@@ -542,6 +566,7 @@ function CartoesComercios({ stores, visao, onAdd, onOpen, detalhado = false }: {
                   {f ? f.texto : g?.estado === "erro" ? "Não foi possível atualizar" : "Carregando…"}
                 </p>
                 {f?.extra && <p className="mt-0.5 text-xs font-semibold text-warning">{f.extra}</p>}
+                {r && r.vendasHojeTotal > 0 && <p className="mt-0.5 text-xs text-muted-foreground"><b className="text-foreground">{brlVenda(r.vendasHojeTotal)}</b> vendidos hoje</p>}
                 {detalhado && r && r.produtos > 0 && <p className="mt-0.5 text-xs text-muted-foreground">{r.produtos} {r.produtos === 1 ? "produto" : "produtos"}</p>}
               </div>
               <ChevronRight size={20} className="shrink-0 text-muted-foreground" />
@@ -610,7 +635,8 @@ function Alertas({ stores, visao, suppliers, onAbrir, onTentar }: {
               onOpen={(p) => onAbrir(s, { produtoId: p.id })}
               onFazerPedido={() => onAbrir(s, { pedidos: "montar" })}
               onVerContas={() => onAbrir(s, { pedidos: "contas" })}
-              onVerEntregas={() => onAbrir(s, { pedidos: "lista" })} />
+              onVerEntregas={() => onAbrir(s, { pedidos: "lista" })}
+              semCadastro={g.vendas?.semCadastro ?? 0} onVerSemCadastro={() => onAbrir(s, { aba: "Vendas" })} />
           </section>
         );
       })}

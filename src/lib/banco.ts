@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Product, Supplier } from "@/components/ProductArea";
 import { precoUnidade as precoUnidadePedido, type CanalPedido, type FormaPagamento, type LinhaPedido, type Pedido, type RespostaPedido, type SituacaoPedido } from "@/lib/pedido";
 import type { Funcao, Funcionario } from "@/lib/funcionario";
-import type { Caixa, ItemVenda, Venda } from "@/lib/vendas";
+import type { Caixa, ItemPendente, ItemVenda, Venda } from "@/lib/vendas";
 import type { ItemRecebido, ProdutoFunc, Recebimento, SituacaoItemRecebido } from "@/lib/recebimento";
 import type { itemParaEnvio } from "@/lib/recebimento";
 import { ehIncerto, enviarCadastro, linhaFornecedor, montarCadastro, montarFornecedores, montarProdutos, type Bruto, type Sessao } from "@/lib/persistencia";
@@ -327,6 +327,22 @@ export async function novoCodigoCaixa(id: string): Promise<string> {
   const { data, error } = await db.rpc("novo_codigo_caixa", { _id: id });
   if (error) throw error;
   return String(data);
+}
+/** Itens vendidos (vendas não canceladas) que o Omni ainda não sabe qual produto é, ou com quantidade a conferir. */
+export async function carregarPendentesVenda(comercioId: string): Promise<ItemPendente[]> {
+  const rs = await todos("venda_itens", "id,codigo_pdv,codigo_barras,descricao,qtd_nota,unidade_nota,valor,situacao,motivo,produto_id,vendas!inner(situacao,emitida_em,recebida_em)",
+    (q) => q.eq("comercio_id", comercioId).in("situacao", ["sem_cadastro", "conferir"]).eq("vendas.situacao", "finalizada"));
+  return rs.map((r) => ({
+    id: r.id, codigoPdv: r.codigo_pdv, codigoBarras: r.codigo_barras ?? null, descricao: r.descricao, qtdNota: Number(r.qtd_nota),
+    unidadeNota: r.unidade_nota ?? null, valor: centavos(r.valor), situacao: r.situacao, motivo: r.motivo ?? null, produtoId: r.produto_id ?? null,
+    vendidoEm: r.vendas?.emitida_em ?? r.vendas?.recebida_em ?? null,
+  }));
+}
+/** Liga o código do caixa a um produto (desconta agora as vendas pendentes desse código e passa a ser automático) ou "não controlar". */
+export async function resolverItemVenda(itemId: string, acao: "ligar" | "ignorar", produtoId: string | null, variacaoId: string | null, embalagemId: string | null): Promise<{ itens: number; conferir?: number }> {
+  const { data, error } = await db.rpc("resolver_item_venda", { _item: itemId, _acao: acao, _produto: produtoId, _variacao: variacaoId, _embalagem: embalagemId });
+  if (error) throw error;
+  return data;
 }
 export async function desligarCaixa(id: string) {
   const { error } = await db.rpc("desligar_caixa", { _id: id });

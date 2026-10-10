@@ -149,3 +149,27 @@ const FORMAS: Record<string, string> = {
 };
 /** Forma de pagamento da nota (código da Receita ou texto) em português. */
 export const formaPagamento = (f: string) => FORMAS[f.trim().toLowerCase()] ?? FORMAS[f.trim().padStart(2, "0")] ?? f;
+
+/* ---------- vendido sem cadastro (Fase 3.4) ---------- */
+export type ItemPendente = {
+  id: string; codigoPdv: string; codigoBarras: string | null; descricao: string; qtdNota: number; unidadeNota: string | null;
+  valor: number; situacao: "sem_cadastro" | "conferir"; motivo: string | null; produtoId: string | null; vendidoEm: string | null;
+};
+/** Um código do caixa ainda sem produto: resolver uma vez vale para todas as vendas dele (e para as próximas). */
+export type GrupoPendente = {
+  codigo: string; codigoBarras: string | null; descricao: string; unidadeNota: string | null; itemId: string;
+  vendas: number; qtd: number; valor: number; ultimaEm: string | null; conferir: boolean; motivo: string | null;
+};
+export function agruparPendentes(itens: ItemPendente[]): GrupoPendente[] {
+  const g = new Map<string, GrupoPendente>();
+  for (const i of itens) {
+    const x = g.get(i.codigoPdv) ?? { codigo: i.codigoPdv, codigoBarras: i.codigoBarras, descricao: i.descricao, unidadeNota: i.unidadeNota, itemId: i.id,
+      vendas: 0, qtd: 0, valor: 0, ultimaEm: null, conferir: i.situacao === "conferir", motivo: i.motivo };
+    x.vendas += 1; x.qtd = Math.round((x.qtd + i.qtdNota) * 1000) / 1000; x.valor += i.valor;
+    if (i.vendidoEm && (!x.ultimaEm || i.vendidoEm > x.ultimaEm)) x.ultimaEm = i.vendidoEm;
+    g.set(i.codigoPdv, x);
+  }
+  return [...g.values()].sort((a, b) => b.vendas - a.vendas || (b.ultimaEm ?? "").localeCompare(a.ultimaEm ?? ""));
+}
+/** Busca de produto pelo nome ou pelo código (sem acento, sem diferença de maiúscula). */
+export const normalizar = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
