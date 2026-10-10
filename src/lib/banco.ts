@@ -456,6 +456,32 @@ export async function sairFuncionario(chave: string) {
   if (error) throw error;
 }
 
+/* ---------- fechar a conta no app do funcionário (Fase 4.2) ---------- */
+export type ItemConferencia = ProdutoFunc & { local: string | null; conferenciaId: string | null };
+/** Produtos para conferir hoje no depósito (sem quantidades). */
+export async function listaConferencia(chave: string): Promise<{ tipo: string; feitosHoje: number; meta: number; produtos: ItemConferencia[] }> {
+  const { data, error } = await db.rpc("funcionario_conferencia_lista", { _chave: chave });
+  if (error) throw error;
+  return {
+    tipo: data?.tipo ?? "", feitosHoje: Number(data?.feitos_hoje ?? 0), meta: Number(data?.meta ?? 5),
+    produtos: (data?.produtos ?? []).map((x: any) => ({ ...produtoFunc(x), local: x.local ?? null, conferenciaId: x.conferencia_id ?? null })),
+  };
+}
+/** Uma contagem cega do depósito: "recontar", "concluida" ou "inconsistente" (nunca quanto o sistema tinha). */
+export async function contarConferencia(chave: string, id: string, produtoId: string, variacaoId: string | null, contado: number): Promise<{ situacao: "recontar" | "concluida" | "inconsistente"; rodada?: number }> {
+  const { data, error } = await db.rpc("funcionario_conferencia_contar", { _chave: chave, _id: id, _produto: produtoId, _variacao: variacaoId, _contado: contado });
+  if (error) throw error;
+  return { situacao: data.situacao, ...(data.rodada ? { rodada: Number(data.rodada) } : {}) };
+}
+export type MotivoPerda = "quebrou" | "venceu" | "consumo" | "devolvido" | "outro";
+export type NovaPerda = { id: string; produtoId: string; variacaoId: string | null; area: "deposito" | "venda"; quantidade: number; motivo: MotivoPerda; observacao: string };
+/** Perda registrada pelo funcionário: sai do estoque na hora; o dono confirma depois. Repetir o mesmo id não duplica. */
+export async function registrarPerdaFuncionario(chave: string, p: NovaPerda) {
+  const { error } = await db.rpc("funcionario_registrar_perda", { _chave: chave, _id: p.id, _produto: p.produtoId, _variacao: p.variacaoId, _area: p.area,
+    _quantidade: p.quantidade, _motivo: p.motivo, _observacao: p.observacao });
+  if (error) throw error;
+}
+
 /* ---------- reposição (E3) ---------- */
 export type ItemReposicao = ProdutoFunc & { local: string | null; localDeposito: string | null; depositoVazio: boolean };
 export async function listaReposicao(chave: string): Promise<{ tipo: string; produtos: ItemReposicao[] }> {

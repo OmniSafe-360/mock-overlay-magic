@@ -2,10 +2,13 @@
  * com os botões grandes Receber mercadoria / Repor gôndola (E2 e E3).
  * O celular fica lembrado, mas o app pede o PIN toda vez que é aberto e depois de alguns minutos fora da tela. */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowLeft, Check, Delete, Lock, Download, EllipsisVertical, LogOut, PackageOpen, RefreshCw, Share, ShoppingBasket, SquarePlus } from "lucide-react";
+import { ArrowLeft, Check, Delete, Lock, Download, EllipsisVertical, ClipboardCheck, LogOut, PackageOpen, PackageX, RefreshCw, Share, ShoppingBasket, SquarePlus } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import { ReceberMercadoria, type ApiReceber } from "@/components/ReceberMercadoria";
 import { ReporGondola, type ApiRepor } from "@/components/ReporGondola";
+import { ConferirDeposito, type ApiConferir } from "@/components/ConferirDeposito";
+import { RegistrarPerda, type ApiPerda } from "@/components/RegistrarPerda";
+import { textoDoTipo } from "@/lib/exemplos";
 import { Sheet } from "@/components/ProductArea";
 import { abertoComoApp, adiado, adiar, dentroDoAppDono, enderecoFuncionario, instalar, jaInstalado, linkChromeAndroid, ouvirInstalacao, podeInstalarDireto, prepararInstalacaoFuncionario, tipoAparelho } from "@/lib/instalar";
 import { TIPO_FROM_DB, btnGhost, btnPrimary } from "@/components/StoreSetup";
@@ -22,6 +25,8 @@ export type ApiFuncionario = {
   sair: typeof banco.sairFuncionario;
   receber?: ApiReceber | undefined;
   repor?: ApiRepor | undefined;
+  conferirDeposito?: ApiConferir | undefined;
+  perda?: ApiPerda | undefined;
 };
 const API_PADRAO: ApiFuncionario = { conferir: banco.conferirCodigoFuncionario, entrar: banco.entrarFuncionario, inicio: banco.inicioFuncionario, desbloquear: banco.desbloquearFuncionario, sair: banco.sairFuncionario };
 
@@ -33,6 +38,8 @@ type Tela =
   | { t: "inicio"; dados: banco.InicioFuncionario }
   | { t: "receber" }
   | { t: "repor" }
+  | { t: "conferir" }
+  | { t: "perda"; tipo: string }
   | { t: "erro" };
 
 /** Minutos com o app fora da tela (minimizado, celular apagado) antes de pedir o PIN de novo. */
@@ -108,8 +115,17 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO }: { codigoInic
           <ReporGondola chave={lerChave() ?? ""} api={api.repor}
             onVoltar={() => { const c = lerChave(); if (c) void abrirInicio(c); else setTela({ t: "codigo" }); }} />
         )}
+        {tela.t === "conferir" && (
+          <ConferirDeposito chave={lerChave() ?? ""} api={api.conferirDeposito}
+            onVoltar={() => { const c = lerChave(); if (c) void abrirInicio(c); else setTela({ t: "codigo" }); }} />
+        )}
+        {tela.t === "perda" && (
+          <RegistrarPerda chave={lerChave() ?? ""} tipo={tela.tipo} api={api.perda}
+            onVoltar={() => { const c = lerChave(); if (c) void abrirInicio(c); else setTela({ t: "codigo" }); }} />
+        )}
         {tela.t === "inicio" && (
-          <TelaInicio dados={tela.dados} onReceber={() => setTela({ t: "receber" })} onRepor={() => setTela({ t: "repor" })} onAtualizar={async () => { const c = lerChave(); if (c) await abrirInicio(c); }}
+          <TelaInicio dados={tela.dados} onReceber={() => setTela({ t: "receber" })} onRepor={() => setTela({ t: "repor" })}
+            onConferir={() => setTela({ t: "conferir" })} onPerda={(tipo) => setTela({ t: "perda", tipo })} onAtualizar={async () => { const c = lerChave(); if (c) await abrirInicio(c); }}
             onSair={sair} />
         )}
       </main>
@@ -287,7 +303,9 @@ function TelaTravado({ dados, api, onDestravou, onSair }: { dados: banco.InicioF
   );
 }
 
-function TelaInicio({ dados, onAtualizar, onSair, onReceber, onRepor }: { dados: banco.InicioFuncionario; onAtualizar: () => Promise<void>; onSair: () => Promise<void>; onReceber: () => void; onRepor: () => void }) {
+function TelaInicio({ dados, onAtualizar, onSair, onReceber, onRepor, onConferir, onPerda }: {
+  dados: banco.InicioFuncionario; onAtualizar: () => Promise<void>; onSair: () => Promise<void>; onReceber: () => void; onRepor: () => void; onConferir: () => void; onPerda: (tipo: string) => void;
+}) {
   const [sair, setSair] = useState(false);
   const [atualizando, setAtualizando] = useState(false);
   const tipo = TIPO_FROM_DB[dados.comercio.tipo] ?? dados.comercio.tipo;
@@ -323,6 +341,9 @@ function TelaInicio({ dados, onAtualizar, onSair, onReceber, onRepor }: { dados:
           <BotaoGrande icone={<ShoppingBasket size={40} />} titulo={nomeRepor} detalhe={reporTxt} destaque={a.repor > 0 ? "urgente" : null}
             numero={a.repor} onClick={onRepor} />
         )}
+        <BotaoGrande icone={<ClipboardCheck size={40} />} titulo={textoDoTipo(tipo)("Conferir depósito")} detalhe="Alguns produtos por dia, sem ver o número do sistema"
+          numero={0} destaque={null} onClick={onConferir} />
+        <button type="button" onClick={() => onPerda(tipo)} className={`flex items-center justify-center gap-2 ${btnGhost}`}><PackageX size={20} /> Registrar perda</button>
       </div>
 
       <footer className="space-y-2 pt-2">
