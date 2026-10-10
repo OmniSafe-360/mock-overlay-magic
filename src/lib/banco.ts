@@ -723,3 +723,25 @@ export async function carregarFechamentos(comercioId: string, desde: string): Pr
     sangrias: sg.filter((x) => x.turno_id === t.id).reduce((a, x) => a + centavos(x.valor), 0),
   })).sort((a, b) => b.abertoEm.localeCompare(a.abertoEm));
 }
+
+/* ---------- fiado no app do dono (C4) ---------- */
+export async function carregarFiado(comercioId: string): Promise<{ clientes: import("@/lib/fiado").ClienteFiado[]; movimentos: import("@/lib/fiado").MovimentoFiado[] }> {
+  const [cs, ms] = await Promise.all([
+    todos("clientes_fiado", "id,nome,telefone,ativo,created_at", (q) => q.eq("comercio_id", comercioId)),
+    todos("fiado_movimentos", "id,cliente_id,tipo,valor,forma,observacao,criado_em,vendas(numero)", (q) => q.eq("comercio_id", comercioId)),
+  ]);
+  return {
+    clientes: cs.map((c) => ({ id: c.id, nome: c.nome, telefone: c.telefone ?? null, ativo: !!c.ativo, criadoEm: c.created_at })),
+    movimentos: ms.map((m) => ({ id: m.id, clienteId: m.cliente_id, tipo: m.tipo, valor: centavos(m.valor), vendaNumero: m.vendas?.numero ?? null,
+      forma: m.forma ?? null, observacao: m.observacao ?? null, criadoEm: m.criado_em })),
+  };
+}
+/** O cliente pagou (tudo ou parte). Não aceita mais do que deve. Repetir o mesmo id não paga duas vezes. */
+export async function receberFiado(id: string, clienteId: string, valorCentavos: number, forma: "dinheiro" | "pix" | "cartao", observacao: string) {
+  const { error } = await rpc("receber_fiado", { _id: id, _cliente: clienteId, _valor: valorCentavos / 100, _forma: forma, _observacao: observacao });
+  if (error) throw error;
+}
+export async function salvarClienteFiado(id: string, comercioId: string, nome: string, telefone: string | null, ativo = true) {
+  const { error } = await rpc("salvar_cliente_fiado", { _id: id, _comercio: comercioId, _nome: nome, _telefone: telefone, _ativo: ativo });
+  if (error) throw error;
+}

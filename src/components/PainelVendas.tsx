@@ -7,6 +7,7 @@ import { type Product } from "@/components/ProductArea";
 import { btnGhost, btnPrimary } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";
 import { mensagemErro } from "@/lib/persistencia";
+import { PainelFiado, type ApiFiado } from "@/components/PainelFiado";
 import { nomeVenda } from "@/lib/situacao";
 import {
   agruparPendentes, brl, codigoCaixaTexto, codigoVisivel, diaDaVenda, formaPagamento, haQuanto, horaVenda, normalizar, proximoNomeCaixa, resumoVendas, situacaoCaixa,
@@ -26,11 +27,14 @@ export type ApiVendas = {
   fechamentos?: ((comercioId: string, desde: string) => Promise<banco.FechamentoCaixa[]>) | undefined;
   conferirFechamento?: ((turnoId: string) => Promise<unknown>) | undefined;
   cancelarCelular?: ((vendaId: string, motivo: string) => Promise<unknown>) | undefined;
+  /** Fiado (C4): contas dos clientes, receber e cobrar. */
+  fiado?: ApiFiado | undefined;
 };
 const API_PADRAO: ApiVendas = {
   caixas: banco.carregarCaixas, vendas: banco.carregarVendas, criar: banco.criarCaixa, renomear: banco.renomearCaixa,
   novoCodigo: banco.novoCodigoCaixa, desligar: banco.desligarCaixa, pendentes: banco.carregarPendentesVenda, resolver: banco.resolverItemVenda,
   fechamentos: banco.carregarFechamentos, conferirFechamento: banco.conferirFechamentoCaixa, cancelarCelular: banco.cancelarVendaCelular,
+  fiado: { carregar: banco.carregarFiado, receber: banco.receberFiado, salvarCliente: banco.salvarClienteFiado },
 };
 const erroTexto = (e: unknown) => mensagemErro(e).replace("Seus dados continuam no formulário. ", "");
 const COR = {
@@ -43,8 +47,8 @@ const diaSP = (ms: number) => new Date(ms).toLocaleDateString("en-CA", { timeZon
 /** Endereço do Omni Conector, que fica aberto no computador do caixa. */
 export const enderecoConector = () => `${typeof window !== "undefined" ? window.location.origin : ""}/conector`;
 
-export function PainelVendas({ comercioId, tipo, products, api = API_PADRAO, onMudou }: {
-  comercioId: string; tipo: string; products: Product[]; api?: ApiVendas | undefined;
+export function PainelVendas({ comercioId, comercioNome = "", tipo, products, api = API_PADRAO, onMudou }: {
+  comercioId: string; comercioNome?: string; tipo: string; products: Product[]; api?: ApiVendas | undefined;
   /** Avisa que algo mudou no estoque (item sem cadastro ligado a um produto), para atualizar o resto do app. */
   onMudou?: (() => void) | undefined;
 }) {
@@ -144,6 +148,8 @@ export function PainelVendas({ comercioId, tipo, products, api = API_PADRAO, onM
       </section>
 
       {pronto && <p role="status" className="flex items-center gap-2 rounded-2xl border border-accent/50 bg-accent/10 p-3 text-sm font-semibold text-accent"><Check size={18} /> {pronto}</p>}
+
+      {api.fiado && <PainelFiado comercioId={comercioId} comercioNome={comercioNome} api={api.fiado} />}
 
       <Fechamentos lista={fechamentos.filter((f) => !f.fechadoEm || diaSP(Date.parse(f.abertoEm)) === diaSel || (f.diferenca && !f.conferidoEm))}
         vendas={vendas ?? []} onVisto={async (id) => { await (api.conferirFechamento ?? banco.conferirFechamentoCaixa)(id); await recarregar(); }} />

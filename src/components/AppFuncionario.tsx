@@ -18,6 +18,11 @@ import {
   NOME_APP_FUNCIONARIO, apagarChave, codigoTexto, fazReceber, fazRepor, guardarChave, lerChave, mensagemEntrada, nomeAparelho, pinFacil,
 } from "@/lib/funcionario";
 
+/** Aberto pelo endereço /caixa (ícone "Omni Caixa"): abre direto no caixa. */
+const naPaginaCaixa = () => typeof window !== "undefined" && window.location.pathname.startsWith("/caixa");
+const nomeApp = () => (naPaginaCaixa() ? "Omni Caixa" : NOME_APP_FUNCIONARIO);
+const caminhoApp = () => (naPaginaCaixa() ? "/caixa" : "/funcionario");
+
 export type ApiFuncionario = {
   conferir: typeof banco.conferirCodigoFuncionario;
   entrar: typeof banco.entrarFuncionario;
@@ -48,8 +53,10 @@ type Tela =
 /** Minutos com o app fora da tela (minimizado, celular apagado) antes de pedir o PIN de novo. */
 export const MINUTOS_PARA_TRAVAR = 5;
 
-export function AppFuncionario({ codigoInicial, api = API_PADRAO }: { codigoInicial?: string | undefined; api?: ApiFuncionario }) {
+export function AppFuncionario({ codigoInicial, api = API_PADRAO, modoCaixa = false }: { codigoInicial?: string | undefined; api?: ApiFuncionario; modoCaixa?: boolean }) {
   const [tela, setTela] = useState<Tela>({ t: "abrindo" });
+  /** "Omni Caixa": depois do PIN, vai direto para o caixa (até a pessoa voltar ao início). */
+  const irAoCaixa = useRef(modoCaixa);
   const ultimo = useRef<banco.InicioFuncionario | null>(null);
   const telaRef = useRef(tela);
   telaRef.current = tela;
@@ -58,13 +65,20 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO }: { codigoInic
   const abrirInicio = useCallback(async (chave: string, avisoSeDesligado = true, travar = false) => {
     try {
       const d = await api.inicio(chave);
-      if (d) { ultimo.current = d; setTela({ t: travar || d.pinNecessario ? "travado" : "inicio", dados: d }); return; }
+      if (d) {
+        ultimo.current = d;
+        if (travar || d.pinNecessario) setTela({ t: "travado", dados: d });
+        else if (irAoCaixa.current && d.caixa) setTela({ t: "caixa" });
+        else setTela({ t: "inicio", dados: d });
+        return;
+      }
       apagarChave();
       setTela({ t: "codigo", ...(avisoSeDesligado ? { aviso: "Este celular saiu do app (o dono bloqueou ou gerou um acesso novo). Peça o código ao dono." } : {}) });
     } catch { setTela({ t: "erro" }); }
   }, [api]);
+  const instalarApp = useInstalar();
 
-  useEffect(() => { prepararInstalacaoFuncionario(); }, []);
+  useEffect(() => { prepararInstalacaoFuncionario(modoCaixa ? "caixa" : "operacao"); }, [modoCaixa]);
   useEffect(() => {
     const chave = lerChave();
     if (chave) { void abrirInicio(chave, true, true); return; }
@@ -128,7 +142,12 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO }: { codigoInic
         )}
         {tela.t === "caixa" && (
           <CaixaCelular chave={lerChave() ?? ""} api={api.caixa} mercado={ultimo.current?.comercio.tipo === "mercado"}
-            onSair={() => { const c = lerChave(); if (c) void abrirInicio(c); else setTela({ t: "codigo" }); }} />
+            onInstalar={abertoComoApp() && modoCaixa ? undefined : () => { if (modoCaixa) instalarApp.acionar(); else window.location.assign("/caixa"); }}
+            onSair={() => { irAoCaixa.current = false; const c = lerChave(); if (c) void abrirInicio(c); else setTela({ t: "codigo" }); }} />
+        )}
+        {instalarApp.sheet}
+        {instalarApp.ok && tela.t === "caixa" && (
+          <p role="status" className="fixed inset-x-4 bottom-24 z-50 rounded-2xl border border-accent/50 bg-background p-3 text-center text-sm font-semibold text-accent">Pronto! O Omni Caixa está na tela inicial do seu celular.</p>
         )}
         {tela.t === "inicio" && (
           <TelaInicio dados={tela.dados} onCaixa={() => setTela({ t: "caixa" })} onReceber={() => setTela({ t: "receber" })} onRepor={() => setTela({ t: "repor" })}
@@ -144,7 +163,7 @@ function Marca() {
   return (
     <div className="flex flex-col items-center gap-2 text-center">
       <LogoMark size={64} />
-      <p className="text-xl font-bold">{NOME_APP_FUNCIONARIO}</p>
+      <p className="text-xl font-bold">{nomeApp()}</p>
       <p className="text-sm text-muted-foreground">App da equipe · Omni Safe 360</p>
     </div>
   );
@@ -280,7 +299,7 @@ function TelaTravado({ dados, api, onDestravou, onSair }: { dados: banco.InicioF
     <div className="my-auto space-y-6">
       <div className="flex flex-col items-center gap-2 text-center">
         <LogoMark size={56} />
-        <p className="text-sm text-muted-foreground">{NOME_APP_FUNCIONARIO} · {dados.comercio.nome}</p>
+        <p className="text-sm text-muted-foreground">{nomeApp()} · {dados.comercio.nome}</p>
       </div>
       <div className="space-y-1 text-center">
         <p className="text-2xl font-bold">Olá, {dados.nome.split(" ")[0]}!</p>
@@ -329,7 +348,7 @@ function TelaInicio({ dados, onAtualizar, onSair, onCaixa, onReceber, onRepor, o
       <header className="flex items-center gap-3">
         <LogoMark size={40} />
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{NOME_APP_FUNCIONARIO}</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{nomeApp()}</p>
           <p className="truncate text-base font-bold">{dados.comercio.nome}</p>
         </div>
         <button type="button" onClick={atualizar} aria-label="Atualizar" className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border text-muted-foreground">
@@ -420,7 +439,7 @@ function BotaoInstalar() {
 function CartaoInstalar() {
   const { acionar, sheet, ok } = useInstalar();
   const [fechado, setFechado] = useState(() => (abertoComoApp() && !dentroDoAppDono()) || jaInstalado() || adiado());
-  if (ok) return <p role="status" className="rounded-2xl border border-accent/50 bg-accent/10 p-3 text-sm font-semibold text-accent">Pronto! O Omni Operação está na tela inicial do seu celular.</p>;
+  if (ok) return <p role="status" className="rounded-2xl border border-accent/50 bg-accent/10 p-3 text-sm font-semibold text-accent">Pronto! O {nomeApp()} está na tela inicial do seu celular.</p>;
   if (fechado) return null;
   return (
     <section aria-label="Instalar o app" className="rounded-3xl border border-primary/50 bg-primary/10 p-4">
@@ -440,16 +459,16 @@ function PassosInstalar({ onClose }: { onClose: () => void }) {
   const [copiado, setCopiado] = useState(false);
   const noAppDono = dentroDoAppDono();
   return (
-    <Sheet title="Instalar o Omni Operação" onClose={onClose}>
+    <Sheet title={`Instalar o ${nomeApp()}`} onClose={onClose}>
       <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3 text-base">
         {noAppDono ? (
           <>
             <p>Você está dentro do <b>app do dono</b> (Omni Safe 360). Para instalar o app do funcionário, abra este endereço no <b>{aparelho === "iphone" ? "Safari" : "Chrome"}</b>:</p>
-            <p className="break-all rounded-2xl border border-border bg-background-deep/60 p-3 text-sm font-semibold">{enderecoFuncionario()}</p>
+            <p className="break-all rounded-2xl border border-border bg-background-deep/60 p-3 text-sm font-semibold">{enderecoFuncionario(caminhoApp())}</p>
             <div className="grid grid-cols-1 gap-2">
-              {aparelho === "android" && <a href={linkChromeAndroid()} className={`flex items-center justify-center gap-2 ${btnPrimary(true)}`}>Abrir no Chrome</a>}
+              {aparelho === "android" && <a href={linkChromeAndroid(caminhoApp())} className={`flex items-center justify-center gap-2 ${btnPrimary(true)}`}>Abrir no Chrome</a>}
               <button type="button" className={`flex items-center justify-center gap-2 ${btnGhost}`}
-                onClick={() => { void navigator.clipboard?.writeText(enderecoFuncionario()).then(() => setCopiado(true)).catch(() => setCopiado(false)); }}>
+                onClick={() => { void navigator.clipboard?.writeText(enderecoFuncionario(caminhoApp())).then(() => setCopiado(true)).catch(() => setCopiado(false)); }}>
                 {copiado ? "Endereço copiado!" : "Copiar endereço"}
               </button>
             </div>
@@ -466,7 +485,7 @@ function PassosInstalar({ onClose }: { onClose: () => void }) {
           <ol className="space-y-3">
             <li className="flex gap-3"><b className="text-primary">1.</b><span>Toque nos <b>três pontinhos</b> <EllipsisVertical size={18} className="inline align-text-bottom" /> do navegador (em cima, à direita).</span></li>
             <li className="flex gap-3"><b className="text-primary">2.</b><span>Toque em <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.</span></li>
-            <li className="flex gap-3"><b className="text-primary">3.</b><span>Confirme. O ícone do Omni Operação aparece na tela inicial.</span></li>
+            <li className="flex gap-3"><b className="text-primary">3.</b><span>Confirme. O ícone do {nomeApp()} aparece na tela inicial.</span></li>
           </ol>
         )}
         {!noAppDono && <p className="text-sm text-muted-foreground">{aparelho === "iphone"

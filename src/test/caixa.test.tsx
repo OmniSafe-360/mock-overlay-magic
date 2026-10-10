@@ -168,6 +168,13 @@ describe("caixa no celular", () => {
       expect.objectContaining({ produto_id: "p-cerv", embalagem_id: "e-fardo", qtd: 1, preco: 58.8 }),
     ]);
     expect(venda.pagamentos).toEqual([{ forma: "dinheiro", valor: 100 }]);
+    fireEvent.click(screen.getByRole("button", { name: /Mandar comprovante no WhatsApp/ }));
+    fireEvent.change(screen.getByLabelText("WhatsApp do cliente"), { target: { value: "43999991234" } });
+    const link = screen.getByRole("link", { name: /Abrir o WhatsApp/ }).getAttribute("href")!;
+    expect(link).toMatch(/^https:\/\/wa\.me\/5543999991234\?text=/);
+    expect(decodeURIComponent(link)).toMatch(/Comprovante de venda nº 7/);
+    expect(decodeURIComponent(link)).toMatch(/Troco: R\$ 34,22/);
+    fireEvent.click(screen.getAllByRole("button", { name: "Fechar" })[0]!);
     fireEvent.click(screen.getByRole("button", { name: /Próxima venda/ }));
     expect(await screen.findByText("Bipe o primeiro produto")).toBeTruthy();
   });
@@ -309,6 +316,15 @@ describe("caixa no celular", () => {
 });
 
 describe("tela inicial com o caixa", () => {
+  it("Omni Caixa: depois do PIN abre direto no caixa", async () => {
+    localStorage.setItem("omni.funcionario.chave", CH);
+    const inicio: InicioFuncionario = { nome: "Maria Souza", funcao: "repor", caixa: true, comercio: { nome: "Mercado", tipo: "mercado" }, avisos: { entregas: 0, entregasHoje: 0, repor: 0 } };
+    const api = { conferir: vi.fn(), entrar: vi.fn(), inicio: vi.fn(async () => inicio), sair: vi.fn(async () => {}), desbloquear: vi.fn(async () => {}), caixa: apiCaixa() };
+    render(<AppFuncionario api={api as never} modoCaixa />);
+    await screen.findByText("Digite seu PIN");
+    for (const d of "2580") fireEvent.click(screen.getByRole("button", { name: d }));
+    expect(await screen.findByText("Bipe o primeiro produto")).toBeTruthy();
+  });
   beforeEach(() => localStorage.clear());
   afterEach(() => localStorage.clear());
   it("mostra o botão Caixa só para quem o dono liberou", async () => {

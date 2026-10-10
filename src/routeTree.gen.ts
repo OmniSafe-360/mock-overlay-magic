@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CaixaRouteImport } from './routes/caixa'
 import { Route as ConectorRouteImport } from './routes/conector'
 import { Route as FuncionarioRouteImport } from './routes/funcionario'
 import { Route as PedidoTokenRouteImport } from './routes/pedido/$token'
@@ -17,6 +18,11 @@ import { Route as PedidoTokenRouteImport } from './routes/pedido/$token'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CaixaRoute = CaixaRouteImport.update({
+  id: '/caixa',
+  path: '/caixa',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConectorRoute = ConectorRouteImport.update({
@@ -37,12 +43,14 @@ const PedidoTokenRoute = PedidoTokenRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/caixa': typeof CaixaRoute
   '/conector': typeof ConectorRoute
   '/funcionario': typeof FuncionarioRoute
   '/pedido/$token': typeof PedidoTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/caixa': typeof CaixaRoute
   '/conector': typeof ConectorRoute
   '/funcionario': typeof FuncionarioRoute
   '/pedido/$token': typeof PedidoTokenRoute
@@ -50,20 +58,28 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/caixa': typeof CaixaRoute
   '/conector': typeof ConectorRoute
   '/funcionario': typeof FuncionarioRoute
   '/pedido/$token': typeof PedidoTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/conector' | '/funcionario' | '/pedido/$token'
+  fullPaths: '/' | '/caixa' | '/conector' | '/funcionario' | '/pedido/$token'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/conector' | '/funcionario' | '/pedido/$token'
-  id: '__root__' | '/' | '/conector' | '/funcionario' | '/pedido/$token'
+  to: '/' | '/caixa' | '/conector' | '/funcionario' | '/pedido/$token'
+  id:
+    | '__root__'
+    | '/'
+    | '/caixa'
+    | '/conector'
+    | '/funcionario'
+    | '/pedido/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CaixaRoute: typeof CaixaRoute
   ConectorRoute: typeof ConectorRoute
   FuncionarioRoute: typeof FuncionarioRoute
   PedidoTokenRoute: typeof PedidoTokenRoute
@@ -76,6 +92,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/caixa': {
+      id: '/caixa'
+      path: '/caixa'
+      fullPath: '/caixa'
+      preLoaderRoute: typeof CaixaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/conector': {
@@ -104,6 +127,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CaixaRoute: CaixaRoute,
   ConectorRoute: ConectorRoute,
   FuncionarioRoute: FuncionarioRoute,
   PedidoTokenRoute: PedidoTokenRoute,

@@ -5,8 +5,8 @@
  * Sem internet: a venda finalizada fica guardada no celular e vai sozinha quando a internet voltar (nunca conta duas vezes). */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, Banknote, BookUser, Camera, CameraOff, Check, CheckCircle2, CloudOff, CreditCard, HandCoins, Home, Lock, Menu, Minus, PackagePlus, Plus, QrCode,
-  Receipt, Scale, Search, ShoppingCart, Trash2, TriangleAlert, UserPlus, X,
+  ArrowLeft, Banknote, BookUser, MessageCircle, Camera, CameraOff, Check, CheckCircle2, CloudOff, CreditCard, HandCoins, Home, Lock, Menu, Minus, PackagePlus, Plus, QrCode,
+  Receipt, Scale, Search, ShoppingCart, Smartphone, Trash2, TriangleAlert, UserPlus, X,
 } from "lucide-react";
 import { LeitorContinuo } from "@/components/LeitorContinuo";
 import { Sheet } from "@/components/parts/Sheet";
@@ -14,7 +14,8 @@ import { btnGhost, btnPrimary } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";
 import {
   FORMA_TXT, acharPorCodigo, adicionar, atalhosDinheiro, bip, brl, buscarProdutos, centavosDigitados, contarItens, enviarFila, erroCaixa, erroPinDono, filaCaixa,
-  itemDoProduto, lerQuantidade, mascaraDinheiro, montarVenda, qtdTexto, semInternet, situacaoPagamento, subtotal, textoDiferencaCaixa, totalCarrinho,
+  itemDoProduto, lerQuantidade, linkWhatsApp, mascaraDinheiro, montarVenda, qtdTexto, semInternet, situacaoPagamento, subtotal, textoComprovante, textoDiferencaCaixa, totalCarrinho,
+  type DadosComprovante,
   vendaGuardadaValida, type Achado, type FormaCaixa, type ItemCarrinho, type PagamentoCaixa, type ProdutoCaixa, type VendaGuardada,
 } from "@/lib/caixa";
 import { newUid, unPlural, unSingular } from "@/lib/deposito";
@@ -63,11 +64,14 @@ function trazerVendaAntiga(escopo: string, fila: ReturnType<typeof filaCaixa>) {
 
 type Fase = "carregando" | "erro" | "abrir" | "vender" | "receber" | "feito" | "fechar";
 type Aviso = { ok: boolean; texto: string } | null;
-type Feito = { id: string; total: number; troco: number; numero: number | null; formas: string; guardada: boolean };
+type Feito = { id: string; total: number; troco: number; numero: number | null; formas: string; guardada: boolean; comprovante: DadosComprovante; telefone: string | null };
 /** Tempo entre as tentativas de enviar as vendas guardadas. */
 export const SEGUNDOS_REENVIO = 20;
 
-export function CaixaCelular({ chave, mercado = false, onSair, api: apiDada }: { chave: string; mercado?: boolean; onSair: () => void; api?: ApiCaixa | undefined }) {
+export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: apiDada }: {
+  chave: string; mercado?: boolean; onSair: () => void; api?: ApiCaixa | undefined;
+  /** Pôr o ícone "Omni Caixa" na tela do celular (some quando já está aberto pelo ícone). */ onInstalar?: (() => void) | undefined;
+}) {
   const api = apiDada ?? API_PADRAO;
   const [fase, setFase] = useState<Fase>("carregando");
   const [erroCarga, setErroCarga] = useState("");
@@ -94,7 +98,8 @@ export function CaixaCelular({ chave, mercado = false, onSair, api: apiDada }: {
     if (!fila.current || sincronizando.current) return;
     sincronizando.current = true;
     try {
-      await enviarFila(fila.current, (v) => api.registrar(chave, v.venda), (v, r) => setFeito((f) => (f && f.id === v.venda.id ? { ...f, numero: r.numero, guardada: false } : f)));
+      await enviarFila(fila.current, (v) => api.registrar(chave, v.venda),
+        (v, r) => setFeito((f) => (f && f.id === v.venda.id ? { ...f, numero: r.numero, guardada: false, comprovante: { ...f.comprovante, numero: r.numero } } : f)));
       setOffline(false); setErroFila("");
       atualizarEstado();
     } catch (e) {
@@ -164,7 +169,10 @@ export function CaixaCelular({ chave, mercado = false, onSair, api: apiDada }: {
     setErroVenda("");
     setCarrinho([]); setPags([]); setCliente(null);
     setGuardadas(fila.current.ler());
-    setFeito({ id: v.venda.id, total: v.total, troco: v.troco, numero: null, formas: v.formas, guardada: true });
+    setFeito({ id: v.venda.id, total: v.total, troco: v.troco, numero: null, formas: v.formas, guardada: true, telefone: cliente?.telefone ?? null,
+      comprovante: { comercio: { nome: estado.comercio.nome, endereco: estado.comercio.endereco }, numero: null, feitaEm: v.venda.feita_em,
+        itens: carrinho.map((i) => ({ descricao: i.detalhe ? `${i.nome} (${i.detalhe})` : i.nome, qtd: i.qtd, valor: subtotal(i) })),
+        total, pagamentos: pags, troco: s.troco, cliente: cliente?.nome ?? null } });
     setFase("feito"); bip();
     void sincronizar();
   };
@@ -195,7 +203,7 @@ export function CaixaCelular({ chave, mercado = false, onSair, api: apiDada }: {
     <Vender estado={estado} produtos={produtos} mercado={mercado} carrinho={carrinho} onCarrinho={setCarrinho} onSair={onSair}
       guardadas={guardadas} offline={offline} erroFila={erroFila} onEnviarGuardadas={() => void sincronizar()}
       chave={chave} api={api} onEstado={(e) => { setEstado(e); gravarCache(escopo, { estado: e }); }} onAtualizar={atualizarEstado}
-      onFechar={() => setFase("fechar")}
+      onFechar={() => setFase("fechar")} onInstalar={onInstalar}
       onReceber={() => { setErroVenda(""); setFase("receber"); }}
       onLimpar={() => { setCarrinho([]); setPags([]); setCliente(null); }} />
   );
@@ -271,11 +279,11 @@ type Janela =
   | null;
 
 function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onReceber, onLimpar, guardadas, offline, erroFila, onEnviarGuardadas,
-  chave, api, onEstado, onAtualizar, onFechar }: {
+  chave, api, onEstado, onAtualizar, onFechar, onInstalar }: {
   estado: banco.EstadoCaixa; produtos: ProdutoCaixa[]; mercado: boolean; carrinho: ItemCarrinho[]; onCarrinho: (f: (c: ItemCarrinho[]) => ItemCarrinho[]) => void;
   onSair: () => void; onReceber: () => void; onLimpar: () => void;
   guardadas: VendaGuardada[]; offline: boolean; erroFila: string; onEnviarGuardadas: () => void;
-  chave: string; api: ApiCaixa; onEstado: (e: banco.EstadoCaixa) => void; onAtualizar: () => void; onFechar: () => void;
+  chave: string; api: ApiCaixa; onEstado: (e: banco.EstadoCaixa) => void; onAtualizar: () => void; onFechar: () => void; onInstalar?: (() => void) | undefined;
 }) {
   const [camera, setCamera] = useState(true);
   const [janela, setJanela] = useState<Janela>(null);
@@ -442,7 +450,7 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
         </Sheet>
       )}
       {janela?.j === "menu" && (
-        <MenuCaixa estado={estado} guardadas={guardadas.length} onClose={() => setJanela(null)}
+        <MenuCaixa estado={estado} guardadas={guardadas.length} onClose={() => setJanela(null)} onInstalar={onInstalar ? () => { setJanela(null); onInstalar(); } : undefined}
           onVendas={() => setJanela({ j: "vendas" })} onSangria={() => setJanela({ j: "sangria" })}
           onFechar={() => { setJanela(null); onFechar(); }} onInicio={() => { setJanela(null); onSair(); }} />
       )}
@@ -696,6 +704,7 @@ function Fiado({ chave, escopo, api, valor, onEscolher, onClose }: { chave: stri
 }
 
 function VendaFeita({ f, onProxima }: { f: Feito; onProxima: () => void }) {
+  const [comprovante, setComprovante] = useState(false);
   return (
     <Tela>
       <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
@@ -716,8 +725,10 @@ function VendaFeita({ f, onProxima }: { f: Feito; onProxima: () => void }) {
         )}
       </div>
       <div className="px-4">
+        <button type="button" onClick={() => setComprovante(true)} className={`mb-2 flex w-full items-center justify-center gap-2 ${btnGhost}`}><MessageCircle size={18} /> Mandar comprovante no WhatsApp</button>
         <button type="button" autoFocus onClick={onProxima} className={`flex items-center justify-center gap-2 ${btnPrimary(true)}`}><ShoppingCart size={20} /> Próxima venda</button>
       </div>
+      {comprovante && <Comprovante dados={f.comprovante} telefone={f.telefone} onClose={() => setComprovante(false)} />}
     </Tela>
   );
 }
@@ -748,8 +759,9 @@ function AvisoGuardadas({ guardadas, erroFila, onEnviar }: { guardadas: VendaGua
   );
 }
 
-function MenuCaixa({ estado, guardadas, onClose, onVendas, onSangria, onFechar, onInicio }: {
+function MenuCaixa({ estado, guardadas, onClose, onVendas, onSangria, onFechar, onInicio, onInstalar }: {
   estado: banco.EstadoCaixa; guardadas: number; onClose: () => void; onVendas: () => void; onSangria: () => void; onFechar: () => void; onInicio: () => void;
+  onInstalar?: (() => void) | undefined;
 }) {
   const t = estado.turno;
   const item = "flex min-h-14 w-full items-center gap-3 rounded-2xl border border-border bg-secondary/50 px-4 text-left";
@@ -765,6 +777,9 @@ function MenuCaixa({ estado, guardadas, onClose, onVendas, onSangria, onFechar, 
         <button type="button" onClick={onVendas} className={item}><Receipt size={20} className="text-primary" /><span className="flex-1"><b className="block text-base">Vendas deste caixa</b><span className="text-xs text-muted-foreground">Ver e cancelar (com o PIN do dono)</span></span></button>
         <button type="button" onClick={onSangria} className={item}><HandCoins size={20} className="text-primary" /><span className="flex-1"><b className="block text-base">Tirar dinheiro da gaveta</b><span className="text-xs text-muted-foreground">Sangria, com o PIN do dono</span></span></button>
         <button type="button" onClick={onFechar} className={item}><Lock size={20} className="text-primary" /><span className="flex-1"><b className="block text-base">Fechar o caixa</b><span className="text-xs text-muted-foreground">Contar o dinheiro e encerrar o dia</span></span></button>
+        {onInstalar && (
+          <button type="button" onClick={onInstalar} className={item}><Smartphone size={20} className="text-primary" /><span className="flex-1"><b className="block text-base">Ícone "Omni Caixa" no celular</b><span className="text-xs text-muted-foreground">Abre direto no caixa, como um app</span></span></button>
+        )}
         <button type="button" onClick={onInicio} className={item}><Home size={20} className="text-muted-foreground" /><span className="flex-1"><b className="block text-base">Voltar ao início</b><span className="text-xs text-muted-foreground">O caixa continua aberto</span></span></button>
       </div>
     </Sheet>
@@ -796,6 +811,7 @@ function VendasDoCaixa({ estado, guardadas, chave, api, offline, onClose, onMudo
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState("");
   const [pronto, setPronto] = useState("");
+  const [comprovante, setComprovante] = useState(false);
   const fazerCancelar = () => {
     if (!aberta || pin.length !== 4 || ocupado) return;
     setOcupado(true); setErro("");
@@ -815,6 +831,14 @@ function VendasDoCaixa({ estado, guardadas, chave, api, offline, onClose, onMudo
             <li key={k} className="flex justify-between gap-2 py-2 text-sm"><span className="min-w-0">{qtdTexto(i.qtd)} × {i.descricao}</span><b className="shrink-0">{brl(i.valor)}</b></li>
           ))}
         </ul>
+        {aberta.situacao === "finalizada" && !cancelar && (
+          <button type="button" onClick={() => setComprovante(true)} className={`flex w-full items-center justify-center gap-2 ${btnGhost}`}><MessageCircle size={18} /> Mandar comprovante no WhatsApp</button>
+        )}
+        {comprovante && (
+          <Comprovante telefone={null} onClose={() => setComprovante(false)}
+            dados={{ comercio: { nome: estado.comercio.nome, endereco: estado.comercio.endereco }, numero: aberta.numero, feitaEm: aberta.feitaEm,
+              itens: aberta.itens, total: aberta.total, pagamentos: aberta.pagamentos, troco: aberta.troco, cliente: aberta.cliente }} />
+        )}
         {aberta.situacao === "finalizada" && (!cancelar ? (
           <button type="button" onClick={() => { setCancelar(true); setErro(""); }} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-destructive/50 px-4 text-base font-semibold text-destructive">
             <X size={18} /> Cancelar esta venda
@@ -971,5 +995,32 @@ function FecharCaixa({ turno, guardadas, chave, api, onEnviar, onVoltar, onFecha
         </div>
       )}
     </Tela>
+  );
+}
+
+/** Comprovante simples pelo WhatsApp do cliente (não é nota fiscal). Sem número: o WhatsApp pede para escolher o contato. */
+function Comprovante({ dados, telefone, onClose }: { dados: DadosComprovante; telefone: string | null; onClose: () => void }) {
+  const [tel, setTel] = useState(telefone ? maskPhone(telefone) : "");
+  const texto = textoComprovante(dados);
+  const telOk = !tel || /^\d{10,11}$/.test(digits(tel));
+  return (
+    <Sheet title="Comprovante no WhatsApp" onClose={onClose}>
+      <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3">
+        <label className="block space-y-1">
+          <span className="text-sm font-medium">WhatsApp do cliente (opcional)</span>
+          <input inputMode="tel" value={tel} onChange={(e) => setTel(maskPhone(e.target.value))} placeholder="(43) 99999-9999" aria-label="WhatsApp do cliente"
+            className="h-13 w-full rounded-2xl border border-border bg-background-deep/60 px-4 text-base text-foreground outline-none focus-visible:border-primary" />
+          <span className="block text-xs text-muted-foreground">{telOk ? "Sem número, o WhatsApp abre para você escolher o contato." : "Use DDD + número."}</span>
+        </label>
+        <pre className="max-h-56 overflow-y-auto whitespace-pre-wrap rounded-2xl bg-secondary/50 p-3 font-sans text-xs leading-relaxed">{texto}</pre>
+      </div>
+      <div className="px-5 pt-2">
+        {telOk ? (
+          <a href={linkWhatsApp(digits(tel), texto)} target="_blank" rel="noopener noreferrer" onClick={onClose} className={`flex items-center justify-center gap-2 ${btnPrimary(true)}`}><MessageCircle size={20} /> Abrir o WhatsApp</a>
+        ) : (
+          <button type="button" disabled className={btnPrimary(false)}>Abrir o WhatsApp</button>
+        )}
+      </div>
+    </Sheet>
   );
 }
