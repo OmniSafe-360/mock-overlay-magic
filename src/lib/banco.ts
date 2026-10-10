@@ -333,6 +333,38 @@ export async function desligarCaixa(id: string) {
   if (error) throw error;
 }
 
+/* ---------- Omni Conector, no computador do caixa (sem login, com a chave do caixa) ---------- */
+export type EstadoConector = {
+  caixa: string; comercio: { nome: string; tipo: string; documento: string | null };
+  ultimaVendaEm: string | null; desde: string | null; hoje: { vendas: number; total: number };
+};
+export async function conectorLigar(codigo: string, aparelho: string): Promise<{ chave: string; caixa: string; comercio: { nome: string; tipo: string } }> {
+  const { data, error } = await db.rpc("conector_ligar", { _codigo: codigo, _aparelho: aparelho });
+  if (error) throw error;
+  return { chave: String(data.chave), caixa: data.caixa, comercio: { nome: data.comercio?.nome ?? "", tipo: data.comercio?.tipo ?? "" } };
+}
+/** null = este caixa foi desligado pelo dono (ou a chave não vale mais). */
+export async function conectorEstado(chave: string): Promise<EstadoConector | null> {
+  const { data, error } = await db.rpc("conector_estado", { _chave: chave });
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    caixa: data.caixa, comercio: { nome: data.comercio?.nome ?? "", tipo: data.comercio?.tipo ?? "", documento: data.comercio?.documento ?? null },
+    ultimaVendaEm: data.ultima_venda_em ?? null, desde: data.desde ?? null,
+    hoje: { vendas: Number(data.hoje?.vendas ?? 0), total: centavos(data.hoje?.total) },
+  };
+}
+export async function conectorEnviarVenda(chave: string, nota: object): Promise<{ situacao: string; sem_cadastro?: number; itens?: number }> {
+  const { data, error } = await db.rpc("conector_enviar_venda", { _chave: chave, _nota: nota });
+  if (error) throw error;
+  return data;
+}
+export async function conectorCancelarVenda(chave: string, chaveNota: string): Promise<{ situacao: string }> {
+  const { data, error } = await db.rpc("conector_cancelar_venda", { _chave: chave, _chave_nota: chaveNota });
+  if (error) throw error;
+  return data;
+}
+
 /* ---------- equipe (E1) ---------- */
 export async function carregarFuncionarios(comercioId: string): Promise<Funcionario[]> {
   const [fs, aps] = await Promise.all([

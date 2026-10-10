@@ -10,12 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ConectorRouteImport } from './routes/conector'
 import { Route as FuncionarioRouteImport } from './routes/funcionario'
 import { Route as PedidoTokenRouteImport } from './routes/pedido/$token'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConectorRoute = ConectorRouteImport.update({
+  id: '/conector',
+  path: '/conector',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FuncionarioRoute = FuncionarioRouteImport.update({
@@ -31,30 +37,34 @@ const PedidoTokenRoute = PedidoTokenRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/conector': typeof ConectorRoute
   '/funcionario': typeof FuncionarioRoute
   '/pedido/$token': typeof PedidoTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/conector': typeof ConectorRoute
   '/funcionario': typeof FuncionarioRoute
   '/pedido/$token': typeof PedidoTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/conector': typeof ConectorRoute
   '/funcionario': typeof FuncionarioRoute
   '/pedido/$token': typeof PedidoTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/funcionario' | '/pedido/$token'
+  fullPaths: '/' | '/conector' | '/funcionario' | '/pedido/$token'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/funcionario' | '/pedido/$token'
-  id: '__root__' | '/' | '/funcionario' | '/pedido/$token'
+  to: '/' | '/conector' | '/funcionario' | '/pedido/$token'
+  id: '__root__' | '/' | '/conector' | '/funcionario' | '/pedido/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ConectorRoute: typeof ConectorRoute
   FuncionarioRoute: typeof FuncionarioRoute
   PedidoTokenRoute: typeof PedidoTokenRoute
 }
@@ -66,6 +76,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/conector': {
+      id: '/conector'
+      path: '/conector'
+      fullPath: '/conector'
+      preLoaderRoute: typeof ConectorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/funcionario': {
@@ -87,6 +104,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ConectorRoute: ConectorRoute,
   FuncionarioRoute: FuncionarioRoute,
   PedidoTokenRoute: PedidoTokenRoute,
 }
