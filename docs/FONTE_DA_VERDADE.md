@@ -88,7 +88,7 @@ Este documento é a referência oficial do sistema. Se qualquer instrução, có
 | Lugar | O que fica ali |
 |---|---|
 | **App do dono — barra de baixo** | **Início** (vendas de hoje e resumo de todos os comércios) · **Comércios** · **Alertas** (o que precisa de atenção em todos) · **Equipe** (todas as equipes) · **Conta** |
-| **Dentro de um comércio — abas** | **Produtos** ("Atenção hoje" + lista) · **Depósito/Estoque** · **Gôndolas/Área de venda** · **Pedidos** (compras, contas a pagar, recebimentos) · **Fornecedores** · **Equipe** · **Vendas** (caixas e vendas; Fase 3) · **Diferenças** (perdas para confirmar, diferenças para explicar, com o valor em reais; Fase 4.3) |
+| **Dentro de um comércio — abas** | **Produtos** ("Atenção hoje" + lista) · **Depósito/Estoque** · **Gôndolas/Área de venda** · **Pedidos** (compras, contas a pagar, recebimentos) · **Fornecedores** · **Equipe** · **Vendas** (caixas e vendas; Fase 3) · **Diferenças** ("Para resolver": perdas e diferenças, com o valor em reais; "Relatório": antifurto do comércio; Fases 4.3 e 5.1) |
 | **Ficha do produto** | Tudo de um produto: situação, quanto tem, onde fica, validade, preço, fornecedor, etiqueta |
 | **App do funcionário — Omni Operação** (`/funcionario`) | Código + PIN; botões grandes **Receber mercadoria**, **Repor gôndola** e **Conferir depósito** (para todos), e o botão **Registrar perda** (Fase 4.2) |
 | **Página do fornecedor** (`/pedido/<link>`) | O fornecedor vê e responde um pedido, sem login |
@@ -223,7 +223,10 @@ FORNECEDOR ──(receber, cego)──▶ DEPÓSITO ──(repor, cego)──▶
   - Quando as 3 contagens da conferência não bateram, o dono escolhe o número certo (uma das contagens ou "manter o número do sistema"); o estoque é acertado na hora (`resolver_conferencia`).
   - Resumo do mês: "Faltou este mês" (sem o que foi explicado como erro de contagem) e "Perdas este mês".
   - O quadro vermelho **"Perdas e diferenças"** aparece no "Atenção hoje", no menu Alertas e conta em "Para resolver agora" na tela inicial.
-- **Antifurto (Fase 5):** o que "sumiu" alimenta os relatórios por produto, lugar, dia e horário, com o valor em reais.
+- **Antifurto (Fase 5, desenho aprovado em 10/10/2026: "Pode fazer", com as 4 recomendações):**
+  - **5.1 Relatório do comércio** (aba Diferenças → "Relatório"): este mês / mês passado / últimos 3 meses; total que faltou (falta = diferença negativa, sem as explicadas como erro de contagem e sem contagem para escolher), por motivo, perdas registradas e erros de contagem à parte; **produtos que mais somem** (tocar mostra cada falta com o intervalo "entre a contagem de … e a de …"); **lugares com mais faltas**; **dia da semana** em que a falta foi descoberta; **equipe** ("contou X faltas", "registrou Y perdas" — quem conta não é culpado). O sistema sabe quando a falta foi descoberta, não a hora exata: o intervalo vai da contagem anterior do mesmo produto no mesmo lugar até a que achou a falta.
+  - 5.2 alertas (produto visado: 3 faltas em 30 dias; lugar com 3+ produtos faltando em 30 dias; limite do mês, padrão R$ 200 por comércio, editável) e produto visado conferido todo dia até 7 dias sem faltar;
+  - 5.3 quadro "Sumiu este mês" na tela inicial com todos os comércios.
 
 ### 7.8 Cadastro de produto
 - **Até 8 passos,** com uma pergunta por tela:
@@ -323,6 +326,7 @@ Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Pos
 - Fornecedores (aba), pedido de compra, link do fornecedor e contas a pagar.
 - Equipe (QR, bloquear, novo acesso) e app Omni Operação: instalar, PIN ao abrir, receber mercadoria, repor gôndola, conferir depósito e registrar perda (10/10/2026).
 - Aba **Diferenças** do comércio: confirmar perdas, explicar diferenças, escolher a contagem certa e registrar perda pelo dono (10/10/2026).
+- **Relatório antifurto** do comércio (aba Diferenças → Relatório) (10/10/2026).
 - Tela inicial com números reais ("Resumo de hoje" e situação de cada comércio), menus **Comércios** e **Alertas** (10/10/2026).
 - Aba **Vendas** do comércio: ligar caixas com código, situação de cada caixa e vendas do dia (10/10/2026; as vendas só chegam com o Omni Conector, Fase 3.3).
 
@@ -342,7 +346,7 @@ Cada fase termina com o roteiro de teste para o dono.
 | **2. Arrumação** | 2.1 este documento ✅ · 2.2 tela inicial com números reais e os menus Comércios e Alertas ✅ · 2.3 velocidade do banco ✅ | ✅ feita |
 | **3. Vendas pelo caixa** | 3.1 banco das vendas ✅ · 3.2 aba Vendas e caixas ✅ · 3.3 Omni Conector ✅ · 3.4 "Vendas hoje" e "Vendido sem cadastro" ✅ · piloto num mercado real junto com o teste geral | ✅ feita (falta o piloto) |
 | **4. Fechar a conta** | 4.1 banco (perdas, conferência do depósito, diferenças; reposição acusando diferença) ✅ · 4.2 app da equipe: Registrar perda e Conferir depósito ✅ · 4.3 aba Diferenças do dono ✅ | ✅ concluída em 10/10/2026 (falta o teste do dono) |
-| **5. Antifurto** | Relatórios do que sumiu (produto, lugar, horário, valor), alertas, painel de todos os comércios | **▶ PRÓXIMA ETAPA** (desenho a apresentar ao dono) |
+| **5. Antifurto** | 5.1 relatório do comércio ✅ · 5.2 **alertas e produto visado na conferência diária** · 5.3 painel de todos os comércios na tela inicial | **▶ ETAPA ATUAL** (desenho aprovado em 10/10/2026) |
 | **6. Lançamento** | E-mail próprio ("Esqueci minha senha"), Termos e Privacidade, proteção de senhas, Google verificado, teste em computador, tablet, Android e iPhone | antes de abrir ao público |
 | **7. Depois** | Caixa próprio do Omni · chave para o fornecedor do caixa · gerente · balança do mercado · WhatsApp/e-mail automáticos | a combinar |
 
