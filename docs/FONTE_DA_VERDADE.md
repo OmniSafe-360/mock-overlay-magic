@@ -90,7 +90,7 @@ Este documento é a referência oficial do sistema. Se qualquer instrução, có
 | **App do dono — barra de baixo** | **Início** (vendas de hoje e resumo de todos os comércios) · **Comércios** · **Alertas** (o que precisa de atenção em todos) · **Equipe** (todas as equipes) · **Conta** |
 | **Dentro de um comércio — abas** | **Produtos** ("Atenção hoje" + lista) · **Depósito/Estoque** · **Gôndolas/Área de venda** · **Pedidos** (compras, contas a pagar, recebimentos) · **Fornecedores** · **Equipe** · **Vendas** (caixas e vendas; Fase 3) |
 | **Ficha do produto** | Tudo de um produto: situação, quanto tem, onde fica, validade, preço, fornecedor, etiqueta |
-| **App do funcionário — Omni Operação** (`/funcionario`) | Código + PIN; botões grandes **Receber mercadoria** e **Repor gôndola**; depois **Conferir depósito** e **Registrar perda** (Fase 4) |
+| **App do funcionário — Omni Operação** (`/funcionario`) | Código + PIN; botões grandes **Receber mercadoria**, **Repor gôndola** e **Conferir depósito** (para todos), e o botão **Registrar perda** (Fase 4.2) |
 | **Página do fornecedor** (`/pedido/<link>`) | O fornecedor vê e responde um pedido, sem login |
 | **Omni Conector** (`/conector`) | Página no computador do caixa que lê a pasta das notas e envia as vendas finalizadas ao Omni |
 
@@ -165,7 +165,7 @@ FORNECEDOR ──(receber, cego)──▶ DEPÓSITO ──(repor, cego)──▶
 - **Repor:**
   - **primeiro** o funcionário conta a prateleira (cega), **depois** o app diz quanto buscar, até o máximo;
   - o produto que vence primeiro sai antes, mantendo o lote.
-- **Conferir o depósito (Fase 4):** alguns produtos por dia, revezando.
+- **Conferir o depósito (Fase 4.2):** até 5 produtos por dia, revezando; o funcionário conta fardos/caixas fechados e o que está sem embalagem, e o app soma. Cada nova contagem começa do zero.
 - **Enquanto as vendas não chegam do caixa,** a contagem da gôndola só acerta o número, sem acusar diferença. Com as vendas chegando (Fase 3), passa a acusar.
 
 ### 7.3 Depósito e gôndola
@@ -317,7 +317,7 @@ Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Pos
 ### 12.2 Pronto, falta o teste do dono
 - Ver o estoque: ficha, lista, Depósito, Gôndolas e "Atenção hoje".
 - Fornecedores (aba), pedido de compra, link do fornecedor e contas a pagar.
-- Equipe (QR, bloquear, novo acesso) e app Omni Operação: instalar, PIN ao abrir, receber mercadoria e repor gôndola.
+- Equipe (QR, bloquear, novo acesso) e app Omni Operação: instalar, PIN ao abrir, receber mercadoria, repor gôndola, conferir depósito e registrar perda (10/10/2026).
 - Tela inicial com números reais ("Resumo de hoje" e situação de cada comércio), menus **Comércios** e **Alertas** (10/10/2026).
 - Aba **Vendas** do comércio: ligar caixas com código, situação de cada caixa e vendas do dia (10/10/2026; as vendas só chegam com o Omni Conector, Fase 3.3).
 
@@ -336,7 +336,7 @@ Cada fase termina com o roteiro de teste para o dono.
 | **1. Base** | Contas, comércios, cadastro, estoque, pedidos, equipe, receber, repor | ✅ feita (parte falta testar, 12.2) |
 | **2. Arrumação** | 2.1 este documento ✅ · 2.2 tela inicial com números reais e os menus Comércios e Alertas ✅ · 2.3 velocidade do banco ✅ | ✅ feita |
 | **3. Vendas pelo caixa** | 3.1 banco das vendas ✅ · 3.2 aba Vendas e caixas ✅ · 3.3 Omni Conector ✅ · 3.4 "Vendas hoje" e "Vendido sem cadastro" ✅ · piloto num mercado real junto com o teste geral | ✅ feita (falta o piloto) |
-| **4. Fechar a conta** | 4.1 banco (perdas, conferência do depósito, diferenças; reposição acusando diferença) ✅ · 4.2 **app da equipe: Registrar perda e Conferir depósito** · 4.3 aba Diferenças do dono | **▶ ETAPA ATUAL** (desenho aprovado em 10/10/2026) |
+| **4. Fechar a conta** | 4.1 banco (perdas, conferência do depósito, diferenças; reposição acusando diferença) ✅ · 4.2 app da equipe: Registrar perda e Conferir depósito ✅ · 4.3 **aba Diferenças do dono** | **▶ ETAPA ATUAL** (desenho aprovado em 10/10/2026) |
 | **5. Antifurto** | Relatórios do que sumiu (produto, lugar, horário, valor), alertas, painel de todos os comércios | depois da Fase 4 |
 | **6. Lançamento** | E-mail próprio ("Esqueci minha senha"), Termos e Privacidade, proteção de senhas, Google verificado, teste em computador, tablet, Android e iPhone | antes de abrir ao público |
 | **7. Depois** | Caixa próprio do Omni · chave para o fornecedor do caixa · gerente · balança do mercado · WhatsApp/e-mail automáticos | a combinar |
