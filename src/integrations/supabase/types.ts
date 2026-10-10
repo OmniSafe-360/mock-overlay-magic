@@ -996,6 +996,52 @@ export const Constants = {
 // Contratos complementares das migrações operacionais do repositório.
 // Conferidos em PostgreSQL descartável; não substituem uma futura geração do banco real.
 type LinhasOperacionais = {
+  caixa_turnos: {
+    id: string
+    comercio_id: string
+    caixa_id: string
+    funcionario_id: string
+    aberto_em: string
+    troco_inicial: number
+    situacao: string
+    fechado_em: string | null
+    dinheiro_esperado: number | null
+    dinheiro_contado: number | null
+    diferenca: number | null
+    observacao: string | null
+    conferido_em: string | null
+  }
+  caixa_sangrias: {
+    id: string
+    comercio_id: string
+    turno_id: string
+    funcionario_id: string
+    valor: number
+    motivo: string | null
+    criado_em: string
+  }
+  clientes_fiado: {
+    id: string
+    comercio_id: string
+    nome: string
+    telefone: string | null
+    ativo: boolean
+    criado_por_funcionario: string | null
+    created_at: string
+  }
+  fiado_movimentos: {
+    id: string
+    comercio_id: string
+    cliente_id: string
+    tipo: string
+    valor: number
+    venda_id: string | null
+    forma: string | null
+    observacao: string | null
+    funcionario_id: string | null
+    registrado_por: string | null
+    criado_em: string
+  }
   caixas: {
     id: string
     comercio_id: string

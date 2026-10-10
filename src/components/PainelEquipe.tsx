@@ -1,13 +1,13 @@
 /* Aba Equipe (E1): o dono cadastra os funcionários do comércio e dá o acesso ao app "Omni Operação"
  * (QR Code ou código de 6 números + PIN que o funcionário cria). Bloquear e "Novo acesso" desligam o celular na hora. */
 import { useCallback, useEffect, useState } from "react";
-import { Ban, Check, Copy, KeyRound, MessageCircle, Pencil, ShieldCheck, ShoppingCart, Smartphone, UserPlus, Users } from "lucide-react";
+import { Ban, Check, Copy, KeyRound, LockKeyhole, MessageCircle, Pencil, ShieldCheck, ShoppingCart, Smartphone, UserPlus, Users } from "lucide-react";
 import { Sheet } from "@/components/parts/Sheet";
 import { QrCode } from "@/components/QrCode";
 import { btnGhost, btnPrimary } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";
 import {
-  FUNCAO_TXT, FUNCOES, HORAS_CODIGO, NOME_APP_FUNCIONARIO, codigoTexto, linkAcesso, quandoTexto, situacaoFuncionario, validadeCodigoTexto,
+  FUNCAO_TXT, FUNCOES, HORAS_CODIGO, NOME_APP_FUNCIONARIO, codigoTexto, linkAcesso, pinFacil, quandoTexto, situacaoFuncionario, validadeCodigoTexto,
   type Funcao, type Funcionario, type SituacaoFuncionario,
 } from "@/lib/funcionario";
 import { mensagemErro } from "@/lib/persistencia";
@@ -20,10 +20,14 @@ export type ApiEquipe = {
   novoAcesso: (id: string) => Promise<string>;
   /** Liga ou desliga a função Caixa (vender pelo celular). */
   caixa?: ((id: string, ligado: boolean) => Promise<unknown>) | undefined;
+  /** PIN do dono (autoriza cancelar venda e tirar dinheiro do caixa no celular do funcionário). */
+  temPin?: (() => Promise<boolean>) | undefined;
+  definirPin?: ((pin: string) => Promise<unknown>) | undefined;
 };
 const API_PADRAO: ApiEquipe = {
   carregar: banco.carregarFuncionarios, criar: banco.criarFuncionario, atualizar: banco.atualizarFuncionario,
   bloquear: banco.bloquearFuncionario, novoAcesso: banco.novoAcessoFuncionario, caixa: banco.definirCaixaFuncionario,
+  temPin: banco.temPinDono, definirPin: banco.definirPinDono,
 };
 const erroTexto = (e: unknown) => mensagemErro(e).replace("Seus dados continuam no formulário. ", "");
 
@@ -59,6 +63,7 @@ export function PainelEquipe({ comercioId, comercioNome, api = API_PADRAO, titul
         </div>
       )}
       <button type="button" onClick={() => setNovo(true)} className={`flex w-full items-center justify-center gap-2 ${btnPrimary(true)}`}><UserPlus size={20} /> Adicionar funcionário</button>
+      {lista?.some((f) => f.caixa) && api.temPin && api.definirPin && <PinDono temPin={api.temPin} definirPin={api.definirPin} />}
 
       {lista === null && !erroCarga && <p className="py-6 text-center text-sm text-muted-foreground">Carregando a equipe…</p>}
       {erroCarga && (
@@ -283,3 +288,55 @@ function DetalheFuncionario({ f, comercioNome, api, onMudou, onClose }: {
   );
 }
 
+
+/** O PIN do dono: o funcionário pede para o dono digitar no celular dele para cancelar uma venda ou tirar dinheiro do caixa. */
+function PinDono({ temPin, definirPin }: { temPin: () => Promise<boolean>; definirPin: (pin: string) => Promise<unknown> }) {
+  const [tem, setTem] = useState<boolean | null>(null);
+  const [editar, setEditar] = useState(false);
+  const [pin, setPin] = useState("");
+  const [rep, setRep] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState("");
+  const [pronto, setPronto] = useState(false);
+  useEffect(() => { temPin().then(setTem, () => setTem(null)); }, [temPin]);
+  const erroPin = pin.length === 4 && pinFacil(pin) ? "Esse PIN é fácil de adivinhar. Escolha outro (sem repetir números e sem sequência)." : rep.length === 4 && rep !== pin ? "Os dois PINs não são iguais." : "";
+  const ok = pin.length === 4 && rep === pin && !erroPin && !salvando;
+  const campo = (rotulo: string, v: string, set: (x: string) => void) => (
+    <label className="block space-y-1">
+      <span className="text-sm font-medium">{rotulo}</span>
+      <input type="password" inputMode="numeric" autoComplete="new-password" maxLength={4} value={v} aria-label={rotulo} placeholder="••••"
+        onChange={(e) => set(e.target.value.replace(/\D/g, "").slice(0, 4))}
+        className="h-13 w-full rounded-2xl border border-border bg-background-deep/60 text-center text-2xl font-bold tracking-[0.6em] text-foreground outline-none focus-visible:border-primary" />
+    </label>
+  );
+  return (
+    <section aria-label="PIN do dono" className={`space-y-3 rounded-3xl border p-4 ${tem === false ? "border-warning/60 bg-warning/10" : "border-border bg-secondary/40"}`}>
+      <div className="flex items-start gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary"><LockKeyhole size={20} /></span>
+        <div className="min-w-0 flex-1">
+          <p className="text-base font-bold">Seu PIN do caixa {tem && <span className="ml-1 text-sm font-semibold text-accent">· criado</span>}</p>
+          <p className="text-sm text-muted-foreground">
+            {tem === false ? "Crie agora: sem ele, a equipe não consegue cancelar venda nem tirar dinheiro do caixa no celular."
+              : "O funcionário pede para você digitar no celular dele quando precisa cancelar uma venda ou tirar dinheiro da gaveta."}
+            {" "}Vale para todos os seus comércios.
+          </p>
+        </div>
+      </div>
+      {pronto && !editar && <p role="status" className="text-sm font-semibold text-accent">PIN salvo. Não conte para ninguém da equipe.</p>}
+      {!editar ? (
+        tem !== null && <button type="button" onClick={() => { setEditar(true); setPronto(false); }} className={`w-full ${tem ? btnGhost : btnPrimary(true)}`}>{tem ? "Trocar o PIN" : "Criar o PIN"}</button>
+      ) : (
+        <div className="space-y-3">
+          {campo("Novo PIN (4 números)", pin, setPin)}
+          {campo("Digite de novo", rep, setRep)}
+          {(erroPin || erro) && <p role="alert" className="text-sm font-semibold text-destructive">{erroPin || erro}</p>}
+          <button type="button" disabled={!ok} className={btnPrimary(ok)}
+            onClick={() => { setSalvando(true); setErro(""); definirPin(pin).then(() => { setTem(true); setEditar(false); setPin(""); setRep(""); setPronto(true); }, (e) => setErro(erroTexto(e))).finally(() => setSalvando(false)); }}>
+            {salvando ? "Salvando…" : "Salvar o PIN"}
+          </button>
+          <button type="button" onClick={() => { setEditar(false); setPin(""); setRep(""); setErro(""); }} className="min-h-11 w-full text-sm font-semibold text-muted-foreground">Voltar</button>
+        </div>
+      )}
+    </section>
+  );
+}
