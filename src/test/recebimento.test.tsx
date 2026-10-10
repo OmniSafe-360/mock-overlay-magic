@@ -6,8 +6,9 @@ import { PainelPedidos } from "@/components/PainelPedidos";
 import { AtencaoHoje } from "@/components/AtencaoHoje";
 import type { RecebimentoAberto, RespostaRecebimento } from "@/lib/banco";
 import type { Pedido } from "@/lib/pedido";
+import { escopoAcesso } from "@/lib/operacaoLocal";
 import {
-  erroContagem, itemParaEnvio, novaContagem, resultadoItem, resumoContagem, resumoRecebimento, totalDaContagem, type ItemRecebido, type ProdutoFunc, type Recebimento,
+  chaveRascunho, erroContagem, itemParaEnvio, novaContagem, resultadoItem, resumoContagem, resumoRecebimento, totalDaContagem, type ItemRecebido, type ProdutoFunc, type Recebimento,
 } from "@/lib/recebimento";
 
 vi.mock("@/components/Scanner", () => ({
@@ -21,6 +22,14 @@ const cerveja: ProdutoFunc = { ...arroz, produtoId: "p-cerv", nome: "Cerveja", c
 const dipirona: ProdutoFunc = { ...arroz, produtoId: "p-dip", nome: "Dipirona", unidade: "Frasco", embalagens: [], controlaValidade: true, pedeLote: true };
 
 describe("regras da contagem", () => {
+  it("recusa vencidos como bons e datas inexistentes; aceita vencimento hoje e avaria", () => {
+    const c = { ...novaContagem(dipirona), soltas: "2", partes: [{ quantidade: "", vencimento: "2026-10-09", lote: "A" }] };
+    expect(erroContagem(c, "2026-10-10")).toMatch(/vencida deve ser informada/);
+    expect(erroContagem({ ...c, partes: [{ ...c.partes[0]!, vencimento: "2026-10-10" }] }, "2026-10-10")).toBe("");
+    expect(erroContagem({ ...c, partes: [{ ...c.partes[0]!, vencimento: "2027-02-29" }] }, "2026-10-10")).toMatch(/data de validade válida/);
+    expect(erroContagem({ ...c, temAvaria: true, avaria: "2" }, "2026-10-10")).toBe("");
+    expect(itemParaEnvio({ ...c, temAvaria: true, avaria: "2" })).toMatchObject({ total: 2, avaria: 2, partes: [] });
+  });
   it("total: caixas fechadas + soltas", () => {
     const c = { ...novaContagem(arroz), fechadas: { "e-cx": "2" }, soltas: "3" };
     expect(totalDaContagem(c).total).toBe(23);
@@ -89,6 +98,30 @@ const contar = (valores: Record<string, string>) => {
 describe("Receber mercadoria (funcionário)", () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => localStorage.clear());
+  it("recupera o envio exato após fechar e não reaproveita a contagem na rodada seguinte", async () => {
+    const api = apiReceber({
+      abrir: vi.fn().mockResolvedValueOnce(aberto).mockResolvedValue({ ...aberto, rodada: 1, itens: [{ produtoId: "p-arroz", variacaoId: null, situacao: "recontar" }] }),
+      enviar: vi.fn().mockRejectedValueOnce(new TypeError("Failed to fetch")).mockResolvedValue({ situacao: "recontar", rodada: 1, recontar: [{ produtoId: "p-arroz", variacaoId: null }], faltam: [{ produtoId: "p-tiss", variacaoId: null }] }),
+    });
+    const tela = render(<ReceberMercadoria chave={"c".repeat(64)} api={api} onVoltar={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Distribuidora Sol/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Arroz 5 kg: falta contar/ }));
+    contar({ "Sem embalagem (unidades)": "18" });
+    fireEvent.click(screen.getByRole("button", { name: /Terminei/ }));
+    await screen.findByRole("alert");
+    fireEvent.click(linha(/Arroz 5 kg: contado/));
+    contar({ "Sem embalagem (unidades)": "20" });
+    tela.unmount();
+    render(<ReceberMercadoria chave={"c".repeat(64)} api={api} onVoltar={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Distribuidora Sol/ }));
+    await screen.findByText(/Contagem enviada sem confirmação/);
+    fireEvent.click(screen.getByRole("button", { name: /Terminei/ }));
+    await screen.findByText(/Conte de novo 1 produto/);
+    expect(vi.mocked(api.enviar).mock.calls[1]).toEqual(vi.mocked(api.enviar).mock.calls[0]);
+    expect(vi.mocked(api.enviar).mock.calls[1]![3][0]).toMatchObject({ total: 18 });
+    fireEvent.click(linha(/Arroz 5 kg: conte de novo/));
+    expect(within(screen.getByRole("dialog")).getByLabelText("Sem embalagem (unidades)")).toHaveValue("");
+  });
   it("conta às cegas, reconta o que não bateu, marca o que não veio e conclui", async () => {
     const api = apiReceber();
     const voltar = vi.fn();
@@ -124,7 +157,7 @@ describe("Receber mercadoria (funcionário)", () => {
     ]);
     expect(await screen.findByText("Pronto!")).toBeTruthy();
     expect(screen.getByText(/diferenças foram avisadas ao dono/)).toBeTruthy();
-    expect(localStorage.getItem("omni.recebimento.ped-1")).toBeNull();
+    expect(localStorage.getItem(chaveRascunho("ped-1", await escopoAcesso("c".repeat(64))))).toBeNull();
   });
   it("bipar produto fora do pedido avisa para separar; quebrados não passam do total", async () => {
     render(<ReceberMercadoria chave={"c".repeat(64)} api={apiReceber()} onVoltar={() => {}} />);

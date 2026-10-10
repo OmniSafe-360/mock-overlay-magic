@@ -1,3 +1,5 @@
+import { useHoje } from "@/hooks/useHoje";
+import { formatarCentavos as brl } from "@/lib/formatacao";
 /* Página que o fornecedor abre pelo link do pedido (D2b): vê o pedido, confirma o que tem, a entrega e o pagamento.
  * Não precisa de cadastro nem de senha. Mostra só este pedido, sem preços de compra nem estoque. */
 import { useEffect, useState, type ReactNode } from "react";
@@ -9,7 +11,6 @@ import { aceitaFracao, fmtQ } from "@/lib/deposito";
 import { mensagemErro } from "@/lib/persistencia";
 import { FORMA_TXT, dataEntregaTexto, formaTexto, hojeISO, qtdItemTexto, respostaItem, type FormaPagamento } from "@/lib/pedido";
 
-const brl = (c: number) => (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const dataHora = (ts: string) => new Date(ts).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const PRAZOS = [7, 14, 21, 28, 30];
 const FORMAS: FormaPagamento[] = ["pix", "boleto", "a_vista", "a_prazo"];
@@ -182,7 +183,7 @@ function Formulario({ p, onEnviar, onCancelar }: { p: PedidoPublico; onEnviar: (
   const [recusar, setRecusar] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
-  const hoje = hojeISO();
+  const hoje = useHoje();
   const atalhos: [string, string][] = [0, 1, 2].map((n) => { const d = new Date(); d.setDate(d.getDate() + n); return [["Hoje", "Amanhã", "Depois de amanhã"][n]!, hojeISO(d)]; });
   const qtdDe = (i: ItemPublico) => { const x = itens[i.id]!; return x.modo === "tenho" ? i.qtdEmbalagens : x.modo === "nao" ? 0 : x.qtd; };
   const algum = p.itens.some((i) => qtdDe(i) > 0);

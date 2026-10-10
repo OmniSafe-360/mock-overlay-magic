@@ -2,7 +2,7 @@ import type { EntityId } from "@/lib/identidade";
 /* "Lembrar a última escolha" (decisão do dono, 09/10/2026): um produto NOVO começa com as escolhas
  * do último produto cadastrado no mesmo comércio. Só o que costuma se repetir; nunca código, nome,
  * preços, detalhes, quantidades, mínimos e máximos. Tudo pode ser trocado na tela. */
-import type { Product } from "@/components/ProductArea";
+import type { Product } from "@/lib/produto";
 
 export type EscolhasIniciais = {
   unidade?: string;

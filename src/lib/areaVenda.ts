@@ -1,4 +1,4 @@
-/* Regras do passo Área de venda (somente em memória nesta versão). Reaproveita as regras numéricas do Depósito. */
+/* Área de venda persistida. Locais e saldos permanecem separados dos do depósito. */
 import { fmtQ, locaisDoComercio, qtdUn, type Deposito } from "@/lib/deposito";
 
 /** Mesma forma do Depósito, mas é um conjunto separado de locais e quantidades. */
@@ -7,8 +7,8 @@ export type AreaVenda = Deposito;
 export const VEN_SEM_CONFIG = "Área de venda não configurada";
 export const VEN_LOCAL_PENDENTE = "Área de venda não configurada completamente · Local não definido · Sem reposição automática";
 export const VEN_LOCAL_DUP = "Já existe um local de venda com este nome neste comércio. Escolha-o na lista.";
-export const VEN_ACIMA_MAX = "A contagem passou do quanto cabe neste local. Tudo bem: a contagem real será registrada. Uma reposição futura nunca sugerirá passar do máximo.";
-export const SEM_REPOSICAO = "Nenhuma reposição automática funciona nesta versão.";
+export const VEN_ACIMA_MAX = "A contagem passou do quanto cabe neste local. Tudo bem: a contagem real será registrada. A sugestão de reposição respeita o máximo.";
+export const SEM_REPOSICAO = "A reposição é sugerida pelo app e confirmada pela equipe ao colocar os produtos no local.";
 export const TOTAL_INDISPONIVEL = "Total ainda não disponível";
 export const venLocalTravadoMsg = (l: string) =>
   `Há quantidade na área de venda em “${l}”. Mudar de local exigirá uma transferência, que virá numa etapa futura.`;

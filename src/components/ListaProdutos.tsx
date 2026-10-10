@@ -1,13 +1,14 @@
+import { formatarCentavos as brl } from "@/lib/formatacao";
+import { useHoje } from "@/hooks/useHoje";
 /* Lista de produtos do comércio: cada produto com quanto tem e a situação em cor; filtro "Precisam de atenção". */
 import { useMemo, useState } from "react";
 import { Package, Plus, Search } from "lucide-react";
-import type { Product, Supplier } from "@/components/ProductArea";
+import type { Product, Supplier } from "@/lib/produto";
 import { btnPrimary } from "@/components/StoreSetup";
 import { fmtQ, unPlural, unSingular } from "@/lib/deposito";
 import { situacaoProduto, type Nivel, type Situacao } from "@/lib/situacao";
 import { hojeEm } from "@/lib/validade";
 
-const brl = (c: number) => (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const ORDEM: Record<Nivel, number> = { urgente: 0, atencao: 1, info: 2, ok: 3 };
 const BARRA: Record<Nivel, string> = { urgente: "bg-destructive", atencao: "bg-warning", info: "bg-primary/60", ok: "bg-accent" };
 const TEXTO: Record<Nivel, string> = { urgente: "text-destructive", atencao: "text-warning", info: "text-muted-foreground", ok: "text-accent" };
@@ -27,7 +28,7 @@ export function ListaProdutos({ products, tipo, suppliers, onNew, onOpen }: {
 }) {
   const [q, setQ] = useState("");
   const [filtro, setFiltro] = useState<Filtro>("todos");
-  const hoje = useMemo(() => hojeEm(), []);
+  const hoje = useHoje();
   const itens = useMemo(() => products.map((p) => ({
     p, s: situacaoProduto(p, tipo, hoje, { fornecedor: suppliers.find((f) => f.id === p.fornecedor)?.nome }),
   })), [products, tipo, hoje, suppliers]);

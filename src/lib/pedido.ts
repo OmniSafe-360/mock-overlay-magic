@@ -1,7 +1,7 @@
 import type { EntityId } from "@/lib/identidade";
 /* Pedido de compra (etapa D2a): sugestão do que comprar, quantidade em embalagem fechada, texto da mensagem e totais.
  * O pedido não mexe no estoque. Preços em centavos. */
-import type { Product, Supplier, Variation } from "@/components/ProductArea";
+import type { Product, Supplier, Variation } from "@/lib/produto";
 import type { StoreData } from "@/components/StoreSetup";
 import { aceitaFracao, fmtQ, qtdUn } from "@/lib/deposito";
 import type { Embalagem } from "@/lib/embalagem";

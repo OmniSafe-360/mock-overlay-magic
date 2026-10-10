@@ -2,9 +2,10 @@
  * contado e o que o sistema tinha, com o valor em reais. Também registra perdas ele mesmo. */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, CheckCircle2, ChevronRight, PackageX, RefreshCw, Search } from "lucide-react";
-import { Sheet, type Product } from "@/components/ProductArea";
+import { Sheet } from "@/components/parts/Sheet";
+import { type Product } from "@/components/ProductArea";
 import { RelatorioAntifurto, type ApiRelatorio } from "@/components/RelatorioAntifurto";
-import { Contador } from "@/components/ReceberMercadoria";
+import { Contador } from "@/components/parts/Contador";
 import { MOTIVOS_PERDA } from "@/components/RegistrarPerda";
 import { btnGhost, btnPrimary } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";
@@ -18,6 +19,8 @@ import { mensagemErro } from "@/lib/persistencia";
 import { nomeVenda } from "@/lib/situacao";
 import { hojeEm } from "@/lib/validade";
 import { brl, haQuanto, normalizar } from "@/lib/vendas";
+import { operacaoLocal } from "@/lib/operacaoLocal";
+import { ERRO_REGISTRO } from "@/lib/envios";
 
 export type ApiDiferencas = {
   carregar: typeof banco.carregarDiferencas;
@@ -218,7 +221,7 @@ export function PainelDiferencas({ comercioId, tipo, products, api = API_PADRAO,
           }} />
       )}
       {registrar && (
-        <PerdaDono products={products} tipo={tipo} onClose={() => setRegistrar(false)}
+        <PerdaDono comercioId={comercioId} products={products} tipo={tipo} onClose={() => setRegistrar(false)}
           onRegistrar={async (p) => {
             await api.registrarPerda({ ...p, comercioId });
             setRegistrar(false);
@@ -371,35 +374,47 @@ function ExplicarDiferenca({ d, nome, unidade, tipo, precoCompra, onSalvar, onCl
 }
 
 /** O dono registra uma perda: sai do estoque na hora, já confirmada. */
-function PerdaDono({ products, tipo, onRegistrar, onClose }: {
-  products: Product[]; tipo: string; onClose: () => void;
+function PerdaDono({ comercioId, products, tipo, onRegistrar, onClose }: {
+  comercioId: string; products: Product[]; tipo: string; onClose: () => void;
   onRegistrar: (p: { id: string; produtoId: string; variacaoId: string | null; area: AreaEstoque; quantidade: number; motivo: MotivoPerda; observacao: string }) => Promise<void>;
 }) {
-  const [id] = useState(newUid);
+  type PedidoPerda = Parameters<typeof onRegistrar>[0];
+  const [registro] = useState(() => {
+    try {
+      // Um comércio tem um único dono; outros donos usam IDs de comércio diferentes.
+      return operacaoLocal(comercioId, "perda-dono", (p: unknown): p is PedidoPerda => {
+        const x = p as PedidoPerda | null;
+        return !!x && typeof x.id === "string" && typeof x.produtoId === "string" && Number.isFinite(x.quantidade)
+          && x.quantidade > 0 && ["deposito", "venda"].includes(x.area) && MOTIVOS_PERDA.some((m) => m.id === x.motivo);
+      });
+    } catch { return null; }
+  });
+  const original = registro?.pendente();
   const [busca, setBusca] = useState("");
-  const [sel, setSel] = useState<Product | null>(null);
-  const [variacao, setVariacao] = useState<string | null>(null);
-  const [area, setArea] = useState<AreaEstoque | null>(null);
-  const [motivo, setMotivo] = useState<MotivoPerda | null>(null);
-  const [valor, setValor] = useState("");
-  const [obs, setObs] = useState("");
+  const [sel, setSel] = useState<Product | null>(() => products.find((p) => p.db?.id === original?.produtoId) ?? null);
+  const [variacao, setVariacao] = useState<string | null>(original?.variacaoId ?? null);
+  const [area, setArea] = useState<AreaEstoque | null>(original?.area ?? null);
+  const [motivo, setMotivo] = useState<MotivoPerda | null>(original?.motivo ?? null);
+  const [valor, setValor] = useState(original ? fmtQ(original.quantidade) : "");
+  const [obs, setObs] = useState(original?.observacao ?? "");
   const [salvando, setSalvando] = useState(false);
-  const [erro, setErro] = useState("");
+  const [erro, setErro] = useState(registro ? "" : ERRO_REGISTRO);
   const q = normalizar(busca);
   const achados = (q ? products.filter((p) => normalizar(p.nome ?? "").includes(q) || (p.codigo ?? "").includes(q)) : products).filter((p) => p.db?.id).slice(0, 30);
   const vars = (sel?.variacoes ?? []).filter((v) => v.uid);
   const n = sel ? parseNum(valor, sel.unidade, false) : { v: null, err: "" };
-  const ok = !!sel && (!vars.length || !!variacao) && !!area && !!motivo && n.v != null && !n.err && (motivo !== "outro" || obs.trim().length >= 3) && !salvando;
+  const ok = !!registro && !salvando && (!!original || (!!sel && (!vars.length || !!variacao) && !!area && !!motivo && n.v != null && !n.err && (motivo !== "outro" || obs.trim().length >= 3)));
   const enviar = () => {
-    if (!ok || !sel || !area || !motivo || n.v == null) return;
+    if (!ok || !registro) return;
     setSalvando(true); setErro("");
-    onRegistrar({ id, produtoId: sel.db!.id, variacaoId: variacao, area, quantidade: n.v, motivo, observacao: obs.trim() })
+    registro.enviar(() => ({ id: newUid(), produtoId: sel!.db!.id, variacaoId: variacao, area: area!, quantidade: n.v!, motivo: motivo!, observacao: obs.trim() }), onRegistrar)
       .catch((e) => { setErro(erroTexto(e)); setSalvando(false); });
   };
   return (
     <Sheet title="Registrar perda" onClose={onClose}>
       <div className="min-h-0 space-y-4 overflow-y-auto px-5 py-3">
         <p className="text-sm text-muted-foreground">Sai do estoque agora, já confirmada.</p>
+        {original && <p role="status" className="rounded-2xl border border-warning/50 p-3 text-sm">O próximo envio confirma a perda anterior com os mesmos dados, sem duplicar.</p>}
         {!sel ? (
           <>
             <label className="relative block">

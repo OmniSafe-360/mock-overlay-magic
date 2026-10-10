@@ -1,3 +1,4 @@
+import { formatarReais as moeda } from "@/lib/formatacao";
 /* Omni Conector (Fase 3.3): página aberta no computador do caixa que lê as notas da pasta e manda ao Omni.
  * Guarda no computador só a chave do caixa, a pasta escolhida e a lista dos arquivos já enviados. Nunca grava estoque aqui. */
 import { lerNota, notaParaEnvio, type NotaVenda } from "@/lib/nfce";
@@ -106,7 +107,6 @@ const ERROS_DA_NOTA: [string, string][] = [
   ["nota_sem_itens", "Nota sem produtos"],
   ["item_sem_quantidade", "Nota com produto sem quantidade"],
 ];
-const moeda = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 /** Lê um arquivo e manda ao Omni. Erro de internet: tenta de novo depois. Erro da nota: não tenta de novo. */
 export async function processarArquivo(texto: string, chaveCaixa: string, api: ApiConector, opts: { cnpj?: string | null | undefined; area?: string | undefined } = {}): Promise<Resultado> {

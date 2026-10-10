@@ -56,6 +56,30 @@ beforeEach(() => {
 });
 
 describe("tela inicial, Comércios e Alertas do dono", () => {
+  it("abre Adicionar comércio sem mudar a ordem dos hooks", () => {
+    render(<OwnerApp userId="u1" owner="Monica" initial={[]} />);
+    fireEvent.click(screen.getByRole("button", { name: /Adicionar comércio/ }));
+    expect(screen.getByText("Qual é o seu tipo de comércio?")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Cancelar/ }));
+    expect(screen.getByRole("button", { name: /Adicionar comércio/ })).toBeTruthy();
+  });
+  it("falha de vendas é consulta incompleta, nunca zero nem tudo certo", async () => {
+    banco.carregarProdutos.mockResolvedValue({ produtos: [tudoCerto], locais: { deposito: [], venda: [] } });
+    banco.carregarVendas.mockRejectedValue(new TypeError("Failed to fetch"));
+    render(<OwnerApp userId="u1" owner="Monica" initial={[lojaA]} />);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/números podem estar incompletos/);
+    expect(screen.getByRole("button", { name: /Vendas hoje: consulta incompleta/ })).toHaveTextContent("—");
+    expect(screen.queryByText("Nenhuma venda ainda")).toBeNull();
+    expect(screen.queryByText(/Tudo certo! Nenhum comércio/)).toBeNull();
+    fireEvent.click(screen.getAllByRole("button", { name: "Alertas" })[0]!);
+    expect(screen.getByText(/Consulta incompleta: Mercado Bom Preço/)).toBeTruthy();
+    expect(screen.queryByText(/Tudo certo! Nenhum comércio/)).toBeNull();
+    fireEvent.click(screen.getAllByRole("button", { name: "Início" })[0]!);
+    banco.carregarVendas.mockResolvedValue([]);
+    fireEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
+    expect(await screen.findByText("Nenhuma venda ainda")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
   it("tela inicial mostra números de verdade, sem dados de exemplo", async () => {
     render(<OwnerApp userId="u1" owner="Monica" initial={[lojaA, lojaB]} />);
     const resumo = within(await screen.findByRole("region", { name: "Resumo geral" }));

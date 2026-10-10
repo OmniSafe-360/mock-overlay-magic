@@ -1,3 +1,4 @@
+import { normLocal } from "@/lib/formatacao";
 /* Regras do passo Depósito (somente em memória nesta versão). */
 import { FRACAO } from "@/lib/listas";
 export type DepVar = { qtd: number | null; min: number | null; max: number | null };
@@ -69,7 +70,7 @@ export function limitesStatus(min: number | null, max: number | null): string {
   return `Mínimo ${fmtQ(min)} · Máximo ${fmtQ(max)}`;
 }
 
-export const normLocal = (s: string) => s.trim().toLowerCase();
+export { normLocal } from "@/lib/formatacao";
 
 /** Locais já usados pelos produtos do comércio aberto (a lista recebida já é só desse comércio). */
 export function locaisDoComercio(products: { deposito?: Deposito | undefined }[]): string[] {

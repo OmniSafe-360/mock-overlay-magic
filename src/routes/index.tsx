@@ -1,3 +1,5 @@
+import { maskPhone } from "@/lib/formatacao";
+import { useKeyboard } from "@/hooks/useKeyboard";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
 import { Eye, EyeOff, Check, CheckCircle2, ArrowLeft, MailCheck } from "lucide-react";
@@ -32,13 +34,6 @@ export const Route = createFileRoute("/")({
 });
 
 const emailOk = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
-const maskPhone = (v: string) => {
-  const d = v.replace(/\D/g, "").slice(0, 11);
-  if (d.length <= 2) return d.length ? `(${d}` : "";
-  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
-  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
-  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
-};
 
 function GoogleIcon({ small }: { small?: boolean }) {
   return (
@@ -454,37 +449,6 @@ function RecoverForm({ onBack }: { onBack: () => void }) {
   );
 }
 
-/** Detecta teclado aberto pela altura visível real (visualViewport) e expõe --app-h. */
-function useKeyboard() {
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    const vv = window.visualViewport;
-    const root = document.documentElement;
-    const update = () => {
-      const h = vv ? vv.height : window.innerHeight;
-      root.style.setProperty("--app-h", `${h}px`);
-      const el = document.activeElement as HTMLElement | null;
-      const typing = !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA");
-      const kb = typing && window.innerHeight - h > 120;
-      setOpen(kb);
-      if (kb) window.scrollTo(0, 0);
-    };
-    update();
-    vv?.addEventListener("resize", update);
-    vv?.addEventListener("scroll", update);
-    window.addEventListener("resize", update);
-    document.addEventListener("focusin", update);
-    document.addEventListener("focusout", () => setTimeout(update, 50));
-    return () => {
-      vv?.removeEventListener("resize", update);
-      vv?.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
-      document.removeEventListener("focusin", update);
-      root.style.removeProperty("--app-h");
-    };
-  }, []);
-  return open;
-}
 
 function MiniLogo() {
   return (

@@ -1,7 +1,9 @@
+import { formatarCentavos as brl } from "@/lib/formatacao";
+import { useHoje } from "@/hooks/useHoje";
 /* "Atenção hoje": o resumo do dia no topo do comércio. Cada quadro conta produtos de um assunto; tocar abre a lista. */
 import { useMemo, useState } from "react";
 import { ChevronRight, CircleCheck } from "lucide-react";
-import type { Product, Supplier } from "@/components/ProductArea";
+import type { Product, Supplier } from "@/lib/produto";
 import type { ResumoPagamentos } from "@/lib/pagamento";
 import { atencaoHoje, type GrupoAtencao } from "@/lib/situacao";
 import { hojeEm } from "@/lib/validade";
@@ -34,10 +36,9 @@ export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFa
   /** Perdas para confirmar + diferenças para explicar (Fase 4.3); tocar abre a aba Diferenças. */ diferencas?: number | undefined; onVerDiferencas?: (() => void) | undefined;
   /** Alertas de antifurto (Fase 5.2); tocar abre o Relatório da aba Diferenças. */ antifurto?: AlertasAntifurto | undefined; onVerAntifurto?: (() => void) | undefined;
 }) {
-  const hoje = useMemo(() => hojeEm(), []);
+  const hoje = useHoje();
   const grupos = useMemo(() => atencaoHoje(products, tipo, hoje, (p) => suppliers.find((f) => f.id === p.fornecedor)?.nome, jaPedidos), [products, tipo, hoje, suppliers, jaPedidos]);
   const [aberto, setAberto] = useState<string | null>(null);
-  const brl = (c: number) => (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const restoMes = contas ? contas.esteMes.n - contas.atrasados.n - contas.hoje.n : 0;
   const quadrosContas: { k: string; nivel: GrupoAtencao["nivel"]; n: number; titulo: string; total: number }[] = !contas ? [] : [
     { k: "atrasadas", nivel: "urgente" as const, n: contas.atrasados.n, titulo: contas.atrasados.n === 1 ? "Conta atrasada" : "Contas atrasadas", total: contas.atrasados.total },

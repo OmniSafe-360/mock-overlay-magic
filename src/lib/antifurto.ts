@@ -1,7 +1,7 @@
 /* Fase 5.1 — relatório antifurto do comércio: o que falta, onde, quando e quem contou.
  * Usa as diferenças e perdas da Fase 4. Falta = diferença negativa que NÃO foi explicada como erro de contagem
  * (e não é uma contagem que ainda espera o dono escolher o número). */
-import type { Product } from "@/components/ProductArea";
+import type { Product } from "@/lib/produto";
 import { textoDoTipo } from "@/lib/exemplos";
 import { nomeVenda } from "@/lib/situacao";
 import { precisaEscolher, type AreaEstoque, type Diferenca, type MotivoDiferenca, type MotivoPerda, type Perda } from "@/lib/diferencas";

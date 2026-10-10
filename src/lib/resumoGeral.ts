@@ -1,6 +1,6 @@
 /* Resumo de todos os comércios para a tela inicial e o menu Alertas do dono.
  * Usa as mesmas regras do "Atenção hoje" de cada comércio (situacao.ts, pagamento.ts, recebimento.ts): nunca inventa número. */
-import type { Product } from "@/components/ProductArea";
+import type { Product } from "@/lib/produto";
 import { atencaoHoje, type GrupoAtencao } from "@/lib/situacao";
 import { pedidoAberto, type Pedido } from "@/lib/pedido";
 import { resumoPagamentos } from "@/lib/pagamento";

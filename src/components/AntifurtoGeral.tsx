@@ -37,8 +37,8 @@ export function AntifurtoGeral({ linhas, carregando, onAbrir, onVoltar }: {
       </div>
       <section aria-label="Total de todos os comércios" className="rounded-3xl border border-border bg-secondary/40 p-4">
         <p className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><ShieldAlert size={18} className="text-destructive" /> Faltou este mês</p>
-        <p className={`mt-1 text-3xl font-bold tabular-nums ${tot.faltou > 0 ? "text-destructive" : ""}`}>{carregando && !linhas.some((l) => l.alertas) ? "…" : brl(tot.faltou)}</p>
-        <p className="text-sm text-muted-foreground">{tot.alertas === 0 ? "Nenhum alerta" : tot.alertas === 1 ? "1 alerta" : `${tot.alertas} alertas`} · {linhas.length === 1 ? "1 comércio" : `${linhas.length} comércios`}</p>
+        <p className={`mt-1 text-3xl font-bold tabular-nums ${tot.faltou > 0 ? "text-destructive" : ""}`}>{!linhas.some((l) => l.alertas) ? carregando ? "…" : "—" : brl(tot.faltou)}</p>
+        <p className="text-sm text-muted-foreground">{semDados.length ? `Subtotal de ${linhas.length - semDados.length} de ${linhas.length} comércios · consulta incompleta` : `${tot.alertas === 0 ? "Nenhum alerta" : tot.alertas === 1 ? "1 alerta" : `${tot.alertas} alertas`} · ${linhas.length === 1 ? "1 comércio" : `${linhas.length} comércios`}`}</p>
       </section>
 
       {comFalta.length > 0 && (

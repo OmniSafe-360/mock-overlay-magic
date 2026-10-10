@@ -1,3 +1,4 @@
+import { formatarCentavos as brl } from "@/lib/formatacao";
 /* Vendas pelo caixa do mercado (Fase 3): situação de cada caixa, resumo do dia e textos dos itens vendidos.
  * Regra do dono: só desconta da gôndola quando a venda é FINALIZADA no caixa (a nota do cupom só existe depois). Não grava nada. */
 import { qtdUn } from "@/lib/deposito";
@@ -139,7 +140,7 @@ export function textoItemVenda(i: ItemVenda, unidadeProduto?: string, area = "g�
   }
 }
 
-export const brl = (centavos: number) => (centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+export { brl };
 
 const FORMAS: Record<string, string> = {
   "01": "Dinheiro", "02": "Cheque", "03": "Cartão de crédito", "04": "Cartão de débito", "05": "Crédito loja", "10": "Vale-alimentação",

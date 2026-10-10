@@ -1,3 +1,4 @@
+import { formatarCentavos } from "@/lib/formatacao";
 /* Etiquetas: modelos de papel e cálculo das páginas. Medidas em milímetros. */
 
 export type Modelo = {
@@ -41,7 +42,7 @@ export const regraPagina = (m: Modelo) => (m.tipo === "a4" ? "@page { size: A4 p
 
 /** Preço como vai na etiqueta: "R$ 3,49", "R$ 6,50 / Kg". */
 export function precoEtiqueta(centavos: number, unidade: string) {
-  const v = (centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const v = formatarCentavos(centavos);
   return unidade && !["Unidade", "Peça"].includes(unidade) ? `${v} / ${unidade}` : v;
 }
 

@@ -1,3 +1,5 @@
+import { digits, maskPhone } from "@/lib/formatacao";
+import { useKeyboard } from "@/hooks/useKeyboard";
 import { useEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
 import { ArrowLeft, Check, CheckCircle2, Hammer, PawPrint, Wrench, MapPin, Pencil, Pill, Shirt, ShoppingCart, X, Loader2 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
@@ -6,14 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
 /* ---------- utilidades ---------- */
-export const digits = (v: string) => v.replace(/\D/g, "");
-export const maskPhone = (v: string) => {
-  const d = digits(v).slice(0, 11);
-  if (d.length <= 2) return d.length ? `(${d}` : "";
-  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
-  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
-  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
-};
+export { digits, maskPhone } from "@/lib/formatacao";
 const maskCPF = (v: string) =>
   digits(v).slice(0, 11).replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2");
 const maskCNPJ = (v: string) =>
@@ -62,50 +57,7 @@ export const nextOnEnter = (id: string) => (ev: KeyboardEvent<HTMLInputElement>)
   document.getElementById(id)?.focus();
 };
 
-/* ---------- teclado ---------- */
-export function useKeyboard() {
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    const vv = window.visualViewport;
-    const root = document.documentElement;
-    const update = () => {
-      const h = vv ? vv.height : window.innerHeight;
-      root.style.setProperty("--app-h", `${h}px`);
-      const el = document.activeElement as HTMLElement | null;
-      const typing = !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT");
-      const kb = typing && window.innerHeight - h > 120;
-      setOpen(kb);
-      if (kb) {
-        window.scrollTo(0, 0);
-        setTimeout(() => {
-          if (!el) return;
-          const box = el.closest("[data-kb-scroll]");
-          if (box) {
-            const next = Array.from(box.querySelectorAll('label:has(input[type="checkbox"])')).find(
-              (c) => !!(el.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING),
-            );
-            next?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-          }
-          el.scrollIntoView({ block: "nearest", behavior: "smooth" });
-        }, 80);
-      }
-    };
-    const out = () => setTimeout(update, 50);
-    update();
-    vv?.addEventListener("resize", update);
-    window.addEventListener("resize", update);
-    document.addEventListener("focusin", update);
-    document.addEventListener("focusout", out);
-    return () => {
-      vv?.removeEventListener("resize", update);
-      window.removeEventListener("resize", update);
-      document.removeEventListener("focusin", update);
-      document.removeEventListener("focusout", out);
-      root.style.removeProperty("--app-h");
-    };
-  }, []);
-  return open;
-}
+export { useKeyboard } from "@/hooks/useKeyboard";
 
 /* ---------- peças visuais ---------- */
 export const inputCls = (err?: boolean) =>

@@ -2,6 +2,7 @@
  * pede recontagem. Aqui ficam as contas da tela do funcionário e os textos do resultado para o dono. */
 import { fmtQ, parseNum, qtdUn } from "@/lib/deposito";
 import { totalContado } from "@/lib/embalagem";
+import { fmtData, hojeEm, parseData } from "@/lib/validade";
 
 /* ---------- funcionário ---------- */
 export type ProdutoFunc = {
@@ -33,7 +34,7 @@ export function totalDaContagem(c: Contagem): { total: number | null; err: strin
 }
 
 /** Erros que impedem salvar a contagem de um produto. "" = pode salvar. */
-export function erroContagem(c: Contagem): string {
+export function erroContagem(c: Contagem, hoje = hojeEm()): string {
   if (c.naoVeio) return "";
   const { total, err } = totalDaContagem(c);
   if (err) return err;
@@ -49,6 +50,8 @@ export function erroContagem(c: Contagem): string {
   if (c.p.controlaValidade && bons > 0) {
     const partes = partesFinais(c, bons);
     if (partes.some((x) => !x.vencimento)) return "Informe a data de validade.";
+    if (partes.some((x) => !/^\d{4}-\d{2}-\d{2}$/.test(x.vencimento) || parseData(fmtData(x.vencimento)).err)) return "Informe uma data de validade válida.";
+    if (partes.some((x) => x.vencimento < hoje)) return "Mercadoria vencida deve ser informada em “Veio quebrado ou vencido”. Separe dos produtos bons.";
     if (c.p.pedeLote && partes.some((x) => !x.lote.trim())) return "Informe o lote (está impresso na caixa, perto da validade).";
     if (partes.some((x) => !(x.quantidade > 0))) return "Informe quantos de cada validade.";
     const soma = Math.round(partes.reduce((s, x) => s + x.quantidade, 0) * 1000) / 1000;
@@ -95,8 +98,8 @@ export function lerRascunho(chaveRascunho: string): Rascunho | null {
 }
 export function guardarRascunho(chaveRascunho: string, r: Rascunho) { try { localStorage.setItem(RASCUNHO + chaveRascunho, JSON.stringify(r)); } catch { /* sem armazenamento: segue sem rascunho */ } }
 export function apagarRascunho(chaveRascunho: string) { try { localStorage.removeItem(RASCUNHO + chaveRascunho); } catch { /* nada */ } }
-/** Rascunho por entrega: o pedido, ou "sem-pedido". */
-export const chaveRascunho = (pedidoId: string | null) => pedidoId ?? "sem-pedido";
+/** Rascunho por acesso e entrega. Nunca reutiliza a contagem de outro funcionário/comércio. */
+export const chaveRascunho = (pedidoId: string | null, escopo: string) => `${escopo}:${pedidoId ?? "sem-pedido"}`;
 
 /* ---------- dono ---------- */
 export type SituacaoItemRecebido = "recontar" | "aceito" | "inconsistente" | "fora_do_pedido" | "recusado";

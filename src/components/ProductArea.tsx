@@ -1,3 +1,7 @@
+import { Sheet } from "@/components/parts/Sheet";
+import { formatarCentavos as brl2, normLocal } from "@/lib/formatacao";
+import type { Product, Supplier, Variation } from "@/lib/produto";
+import { useHoje } from "@/hooks/useHoje";
 import type { EntityId } from "@/lib/identidade";
 import { useMemo, useState, type ReactNode } from "react";
 import { lotesAConfirmar } from "@/lib/persistencia";
@@ -37,30 +41,13 @@ import {
 /** Junta listas de locais sem repetir (maiúsculas e espaços ignorados), mantendo a primeira grafia. */
 function juntarLocais(...listas: string[][]): string[] {
   const m = new Map<string, string>();
-  for (const l of listas.flat()) { const k = l.trim().toLowerCase().replace(/\s+/g, " "); if (k && !m.has(k)) m.set(k, l); }
+  for (const l of listas.flat()) { const k = normLocal(l); if (k && !m.has(k)) m.set(k, l); }
   return [...m.values()];
 }
-export type Supplier = { id: EntityId; nome: string; tel: string; email: string; dbId?: string | undefined };
-/** `uid` liga a variação à sua configuração de depósito, sem depender da posição na lista. */
-export type Variation = { tam: string; cor: string; qtd: number; codigo?: string | undefined; uid?: string | undefined };
-export type Product = {
-  id: EntityId; codigo: string; nome: string; compra: number; venda: number; unidade: string; categoria: string;
-  detalhes: Record<string, string>; variacoes: Variation[]; fornecedor: EntityId | null;
-  deposito?: Deposito | undefined;
-  /** Área de venda (gôndola, prateleira, arara...). Não confundir com `venda`, que é o preço. */
-  areaVenda?: AreaVenda | undefined;
-  /** Controle de validade e divisão das contagens confirmadas por vencimento/lote. */
-  validade?: Validade | undefined;
-  /** Como chega do fornecedor (caixa, fardo...). Vazio = por unidade. Não vale para loja de roupas. */
-  embalagens?: Embalagem[] | undefined;
-  /** Vínculo com o banco: id real e áreas cuja contagem inicial já foi registrada ("deposito:_", "venda:<uid>"). */
-  db?: { id: string; contadas: string[] } | undefined;
-  /** Só true depois que o usuário marcou a confirmação do vencimento do lote. */
-  confirmarVencimento?: boolean | undefined;
-};
+export type { Product, Supplier, Variation } from "@/lib/produto";
 
 
-export const brl2 = (cents: number) => (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+export { brl2 };
 const moneyIn = (v: string) => Number(digits(v).slice(0, 10) || 0);
 const labelOf = (tipo: string, k: string) => DETALHES[tipo]?.find((f) => f.k === k)?.label ?? k;
 
@@ -220,7 +207,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   /* ----- validade (em memória) ----- */
   const isFarm = tipo === "farmacia";
   const initVal = initial?.validade;
-  const hoje = useMemo(() => hojeEm(TZ_PADRAO), []);
+  const hoje = useHoje();
   /* Validade de acordo com o tipo: roupas pula o passo; construção e autopeças já vêm respondidas pela categoria. */
   const pulaVal = tipoSemValidade(tipo) && !initVal?.controla;
   const [vControla, setVControla] = useState<boolean | undefined>(isFarm ? true
@@ -1119,8 +1106,13 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                   <Sum t="Preços" onEdit={() => edit(1)}>{brl2(compra)} → {brl2(venda)} / {unidade}<br />{categoria}{ganho != null && ganhoTexto ? (ganho < 0 ? ` · prejuízo de ${mostrarPct(-ganho)}% sobre a compra` : ` · ganho de ${ganhoTexto}% sobre a compra`) : ""}
                     {avisoPmc && <span role="alert" className="block font-semibold text-destructive">{avisoPmc}</span>}</Sum>
                   <Sum t="Detalhes" onEdit={() => edit(2)}>
-                    {Object.entries(det).filter(([, v]) => v).map(([k, v]) => `${labelOf(tipo, k)}: ${v}`).join(" · ") || (vars.length ? "" : "Nenhum")}
-                    {vars.length > 0 && <><br />{vars.map((v) => `${v.tam}/${v.cor}/Cód. ${v.codigo || "—"}/${v.qtd}`).join(", ")}</>}
+                    {Object.entries(det).filter(([, v]) => v).map(([k, v]) => <span key={k} className="block">{labelOf(tipo, k)}: {v}</span>)}
+                    {!Object.values(det).some(Boolean) && !vars.length && "Nenhum"}
+                    {vars.map((v, i) => <span key={v.uid ?? i} className="mt-2 block rounded-xl border border-border/60 bg-secondary/40 p-2">
+                      <span className="block font-semibold">{v.tam} · {v.cor}</span>
+                      <span className="block break-all text-xs text-muted-foreground">Cód. {v.codigo || "—"}</span>
+                      <span className="block text-xs">Quantidade informada no cadastro: {qtdUn(v.qtd, unidade)}</span>
+                    </span>)}
                   </Sum>
                   <Sum t="Fornecedor" onEdit={() => edit(3)}>{fornNome}</Sum>
                   {!isRoupas && <Sum t="Como chega" onEdit={() => edit(3)}>{embModo === "unidade" || !embs.length ? "Por unidade" : embs.map((e) => descricaoEmbalagem(e, unidade)).join(" · ")}</Sum>}
@@ -1175,6 +1167,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
             )}
             {step === STEP_REV && triedSave && prejuizo && !prejuizoConfirmado && <p role="alert" className="shrink-0 pt-2 text-sm font-semibold text-destructive">Confirme o prejuízo para salvar, ou volte e ajuste o preço de venda.</p>}
             {erro && step === STEP_REV && <p role="alert" className="shrink-0 pt-3 text-sm font-semibold text-destructive">{erro}</p>}
+            {step === 1 && !valid && <p role="status" className="shrink-0 pt-2 text-xs text-muted-foreground">{compra <= 0 || venda <= 0 ? "Preencha o preço de compra e o preço de venda para continuar." : !unidade ? "Escolha a unidade de medida para continuar." : !categoria ? "Escolha a categoria para continuar." : "Confira as opções destacadas antes de continuar."}</p>}
             <div className={`flex shrink-0 gap-2 ${kb ? "pt-2" : "pt-4 short:pt-3"}`}>
               {step > 0 && (
                 <button type="button" onClick={back} className={btnGhost}><span className="flex items-center gap-1.5"><ArrowLeft size={18} />Voltar</span></button>
@@ -1224,7 +1217,7 @@ function LimitesVendaAjuda() {
     <div className="space-y-1 text-xs text-muted-foreground">
       <p><b>Mínimo:</b> quando chegar a esta quantidade, será necessário repor.</p>
       <p><b>Máximo:</b> quanto deste produto cabe neste local.</p>
-      <p>Valem para este produto neste local, não para o local inteiro. A reposição automática depende de local, quantidade e mínimo definidos — e não funciona nesta versão.</p>
+      <p>Valem para este produto neste local, não para o local inteiro. Com quantidade e mínimo definidos, o app indica quando repor. A equipe confirma a reposição.</p>
     </div>
   );
 }
@@ -1248,7 +1241,7 @@ function LocaisSugeridos({ opts, campo, onPick }: { opts: string[]; campo: strin
 function LimitesAjuda({ dep }: { dep: string }) {
   return (
     <div className="space-y-1 text-xs text-muted-foreground">
-      <p><b>Mínimo:</b> avise quando a quantidade chegar a este valor. Será a referência para aviso de compra — nenhum alerta funciona nesta versão.</p>
+      <p><b>Mínimo:</b> quando chegar a este valor, o painel mostra que é hora de comprar.</p>
       <p><b>Máximo desejado:</b> quanto você deseja manter no {dep}. Não bloqueia recebimentos.</p>
     </div>
   );
@@ -1345,25 +1338,12 @@ function Sum({ t, onEdit, children }: { t: string; onEdit: () => void; children:
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t}</p>
         <p className="mt-0.5 break-words text-sm">{children}</p>
       </div>
-      <button type="button" onClick={onEdit} className="flex min-h-9 shrink-0 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-primary hover:underline"><Pencil size={13} /> Editar</button>
+      <button type="button" onClick={onEdit} className="flex min-h-12 shrink-0 items-center gap-1 rounded-xl px-2 text-xs font-semibold text-primary hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-ring"><Pencil size={13} /> Editar</button>
     </div>
   );
 }
 
-export function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
-      <button type="button" aria-label="Fechar" onClick={onClose} className="absolute inset-0 bg-background-deep/70 animate-in fade-in duration-200" />
-      <div role="dialog" aria-modal="true" aria-label={title} className="relative flex max-h-[90%] w-full max-w-[480px] flex-col rounded-t-3xl border border-b-0 border-border bg-background animate-in slide-in-from-bottom duration-300" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
-        <div className="flex shrink-0 items-center justify-between px-5 pt-4">
-          <h2 className="text-base font-semibold">{title}</h2>
-          <button type="button" onClick={onClose} aria-label="Fechar" className="flex h-12 w-12 items-center justify-center rounded-xl text-muted-foreground hover:text-foreground"><X size={20} /></button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
+export { Sheet } from "@/components/parts/Sheet";
 function VariationSheet({ index, vars, categoria, mainCode, used, onGerarCodigo, onClose, onSave }: {
   index: number; vars: Variation[]; categoria: string; mainCode: string; used: Set<string>; onClose: () => void; onSave: (v: Variation) => void;
   onGerarCodigo?: (() => Promise<string>) | undefined;

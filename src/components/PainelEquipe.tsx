@@ -2,7 +2,7 @@
  * (QR Code ou código de 6 números + PIN que o funcionário cria). Bloquear e "Novo acesso" desligam o celular na hora. */
 import { useCallback, useEffect, useState } from "react";
 import { Ban, Check, Copy, KeyRound, MessageCircle, Pencil, ShieldCheck, Smartphone, UserPlus, Users } from "lucide-react";
-import { Sheet } from "@/components/ProductArea";
+import { Sheet } from "@/components/parts/Sheet";
 import { QrCode } from "@/components/QrCode";
 import { btnGhost, btnPrimary } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";

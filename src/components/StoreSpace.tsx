@@ -1,3 +1,4 @@
+import { useHoje } from "@/hooks/useHoje";
 import { useMemo, useState } from "react";
 import { ArrowLeft, Store } from "lucide-react";
 import { nomeAreaVenda, textoDoTipo } from "@/lib/exemplos";
@@ -48,7 +49,8 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
   const [montar, setMontar] = useState(inicio && "pedidos" in inicio && inicio.pedidos === "montar" ? 1 : 0);
   /** Muda a cada toque nas contas do "Atenção hoje" para abrir a aba Pedidos em "Só a pagar". */
   const [verPagar, setVerPagar] = useState(inicio && "pedidos" in inicio && inicio.pedidos === "contas" ? 1 : 0);
-  const contas = useMemo(() => resumoPagamentos(pedidos, hojeEm()), [pedidos]);
+  const hoje = useHoje();
+  const contas = useMemo(() => resumoPagamentos(pedidos, hoje), [pedidos, hoje]);
   const jaPedidos = useMemo(() => produtosJaPedidos(pedidos), [pedidos]);
   const Icon = TIPOS.find((t) => t.id === store.tipo)?.Icon ?? Store;
   const current = view ? products.find((p) => p.id === view.id) ?? null : null;

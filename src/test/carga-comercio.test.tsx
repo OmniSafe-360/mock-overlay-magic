@@ -83,8 +83,11 @@ it("um carregamento antigo de A não esconde a falha do comércio B", async () =
   await waitFor(() => expect(banco.carregarProdutos).toHaveBeenCalledTimes(antes + 3));
   banco.carregarProdutos.mockRejectedValueOnce(new Error("Failed to fetch"));
   fireEvent.click(screen.getByRole("button", { name: /Mercado B/ }));
-  await screen.findByText("Não foi possível carregar os produtos. Verifique sua internet.");
+  // B já foi lido no resumo: a consulta confirmada fica visível com o aviso de falha.
+  await screen.findByText(/Os dados exibidos são da última consulta/);
   await act(async () => antiga.resolve(carga("Arroz de A")));
-  expect(screen.getByText("Não foi possível carregar os produtos. Verifique sua internet.")).toBeInTheDocument();
+  expect(screen.getByText(/Os dados exibidos são da última consulta/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /Novo produto/ }));
+  expect(screen.queryByText("Qual é o código do produto?")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /Arroz de A/ })).not.toBeInTheDocument();
 });
