@@ -39,9 +39,10 @@ it("falha de atualização com dados antigos fica visível e não apaga a lista"
 });
 it("resposta atrasada da mesma loja não sobrescreve a consulta mais recente", async () => {
   await abrir(); const antiga = promessa<ReturnType<typeof carga>>();
+  const antes = banco.carregarProdutos.mock.calls.length;
   banco.carregarProdutos.mockReturnValueOnce(antiga.promise);
   fireEvent.click(screen.getByRole("button", { name: "Atualizar" }));
-  await waitFor(() => expect(banco.carregarProdutos).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(banco.carregarProdutos).toHaveBeenCalledTimes(antes + 1));
   banco.carregarProdutos.mockResolvedValueOnce(carga("Arroz recente"));
   act(() => { window.dispatchEvent(new Event("online")); });
   await screen.findByRole("button", { name: /Arroz recente/ });
@@ -72,10 +73,13 @@ it("envio pendente reaparece após remontar a tela e exige conferência antes de
 it("um carregamento antigo de A não esconde a falha do comércio B", async () => {
   await abrir([store, { ...store, id: "c2", nome: "Mercado B" }]);
   const antiga = promessa<ReturnType<typeof carga>>();
+  const antes = banco.carregarProdutos.mock.calls.length;
   banco.carregarProdutos.mockReturnValueOnce(antiga.promise);
   fireEvent.click(screen.getByRole("button", { name: "Atualizar" }));
-  await waitFor(() => expect(banco.carregarProdutos).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(banco.carregarProdutos).toHaveBeenCalledTimes(antes + 1));
   fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
+  // A tela inicial atualiza o resumo dos dois comércios antes de abrir B.
+  await waitFor(() => expect(banco.carregarProdutos).toHaveBeenCalledTimes(antes + 3));
   banco.carregarProdutos.mockRejectedValueOnce(new Error("Failed to fetch"));
   fireEvent.click(screen.getByRole("button", { name: /Mercado B/ }));
   await screen.findByText("Não foi possível carregar os produtos. Verifique sua internet.");
