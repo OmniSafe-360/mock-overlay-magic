@@ -1,9 +1,8 @@
 import { useHoje } from "@/hooks/useHoje";
-import { useMemo, useState } from "react";
-import { ArrowLeft, Check, ChevronDown, ClipboardList, LayoutGrid, MoreHorizontal, Package, Receipt, RefreshCw, Scale, Store, Truck, Users, Warehouse, type LucideIcon } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, ClipboardList, LayoutGrid, Package, Receipt, RefreshCw, Scale, Store, Truck, Users, Warehouse, type LucideIcon } from "lucide-react";
 import { nomeAreaVenda, textoDoTipo } from "@/lib/exemplos";
 import { TIPOS, type StoreData } from "@/components/StoreSetup";
-import { Sheet } from "@/components/ProductArea";
 import { atencaoHoje } from "@/lib/situacao";
 import { nAlertas } from "@/lib/antifurto";
 import { ProductDetail, SavedBanner, type Product, type Supplier } from "@/components/ProductArea";
@@ -25,9 +24,6 @@ import type { AlertasAntifurto } from "@/lib/antifurto";
 
 const TABS = ["Produtos", "Depósito", "Gôndolas", "Pedidos", "Fornecedores", "Equipe", "Vendas", "Diferenças"] as const;
 type Aba = (typeof TABS)[number];
-/** As 4 partes do dia a dia ficam na barra; as outras ficam em "Mais". */
-const PRINCIPAIS: Aba[] = ["Produtos", "Depósito", "Gôndolas", "Pedidos"];
-const OUTRAS: Aba[] = ["Fornecedores", "Equipe", "Vendas", "Diferenças"];
 /** Ícone e frase de cada parte do comércio. */
 const SECOES: Record<Aba, { Icon: LucideIcon; ajuda: string }> = {
   Produtos: { Icon: Package, ajuda: "Lista, cadastro e o que precisa de atenção" },
@@ -71,11 +67,10 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
   const contas = useMemo(() => resumoPagamentos(pedidos, hoje), [pedidos, hoje]);
   const jaPedidos = useMemo(() => produtosJaPedidos(pedidos), [pedidos]);
   const Icon = TIPOS.find((t) => t.id === store.tipo)?.Icon ?? Store;
-  const [menu, setMenu] = useState(false);
   const nomeAba = (t: Aba) => (t === "Gôndolas" ? nomeAreaVenda(store.tipo) : textoDoTipo(store.tipo)(t));
   /** Nome curto na barra ("Área de venda" não cabe: vira "À venda"). */
   const curtoAba = (t: Aba) => (t === "Gôndolas" && nomeAreaVenda(store.tipo) !== "Gôndolas" ? "À venda" : nomeAba(t));
-  const irPara = (t: Aba) => { setTab(t); setMontar(0); setVerPagar(0); setVerRelatorio(0); setMenu(false); };
+  const irPara = (t: Aba) => { setTab(t); setMontar(0); setVerPagar(0); setVerRelatorio(0); };
   /** Números de cada parte no menu: quantos assuntos esperam o dono (vermelho = urgente). */
   const avisos = useMemo(() => {
     const grupos = atencaoHoje(products, store.tipo, hojeEm(), () => undefined, jaPedidos);
@@ -89,9 +84,21 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
     };
     return m;
   }, [products, store.tipo, jaPedidos, contas, entregasDecidir, vendidoSemCadastro, diferencasDecidir, antifurto]);
-  const avisosMais = OUTRAS.reduce((n, t) => n + (avisos[t]?.n ?? 0), 0);
-  const maisUrgente = OUTRAS.some((t) => avisos[t]?.urgente);
-  const naMais = OUTRAS.includes(tab);
+  /* Faixa que corre para os lados: ao escolher uma parte, ela vai para o meio e as seguintes aparecem. */
+  const faixa = useRef<HTMLDivElement>(null);
+  const [bordas, setBordas] = useState({ esq: false, dir: false });
+  const medir = useCallback(() => {
+    const el = faixa.current;
+    if (!el) return;
+    setBordas({ esq: el.scrollLeft > 4, dir: el.scrollLeft + el.clientWidth < el.scrollWidth - 4 });
+  }, []);
+  useEffect(() => {
+    const el = faixa.current;
+    const b = el?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (el && b && typeof el.scrollTo === "function") el.scrollTo({ left: b.offsetLeft - (el.clientWidth - b.offsetWidth) / 2, behavior: "smooth" });
+    medir();
+  }, [tab, medir]);
+  useEffect(() => { window.addEventListener("resize", medir); return () => window.removeEventListener("resize", medir); }, [medir]);
   const current = view ? products.find((p) => p.id === view.id) ?? null : null;
 
   if (current)
@@ -113,39 +120,15 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
         )}
       </header>
 
-      <nav aria-label="Partes do comércio" className="grid grid-cols-5 gap-0.5 rounded-2xl border border-border bg-secondary/40 p-1">
-        {PRINCIPAIS.map((t) => (
-          <BotaoBarra key={t} on={tab === t} Icon={SECOES[t].Icon} rotulo={curtoAba(t)} aviso={avisos[t]} onClick={() => irPara(t)} />
-        ))}
-        <BotaoBarra on={naMais} Icon={naMais ? SECOES[tab].Icon : MoreHorizontal} rotulo={naMais ? curtoAba(tab) : "Mais"} mais
-          aviso={avisosMais ? { n: avisosMais, urgente: maisUrgente } : undefined} onClick={() => setMenu(true)} />
+      <nav aria-label="Partes do comércio" className="relative -mx-5">
+        <div ref={faixa} onScroll={medir} className="flex snap-x snap-proximity gap-2 overflow-x-auto scroll-smooth px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {TABS.map((t) => (
+            <BotaoBarra key={t} on={tab === t} Icon={SECOES[t].Icon} rotulo={curtoAba(t)} aviso={avisos[t]} onClick={() => irPara(t)} />
+          ))}
+        </div>
+        {bordas.esq && <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-background to-transparent" />}
+        {bordas.dir && <span aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent" />}
       </nav>
-
-      {menu && (
-        <Sheet title="Mais opções" onClose={() => setMenu(false)}>
-          <ul className="min-h-0 space-y-1 overflow-y-auto px-3 pb-2" aria-label="Mais partes do comércio">
-            {OUTRAS.map((t) => {
-              const { Icon: I, ajuda } = SECOES[t];
-              const on = tab === t;
-              const a = avisos[t];
-              return (
-                <li key={t}>
-                  <button type="button" onClick={() => irPara(t)} aria-current={on ? "page" : undefined}
-                    className={`flex min-h-16 w-full items-center gap-3 rounded-2xl px-3 py-2 text-left transition ${on ? "bg-primary/15" : "hover:bg-secondary/60"}`}>
-                    <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${on ? "bg-primary text-primary-foreground" : "bg-secondary text-primary"}`}><I size={22} /></span>
-                    <span className="min-w-0 flex-1">
-                      <span className={`block text-base font-semibold ${on ? "text-primary" : ""}`}>{nomeAba(t)}</span>
-                      <span className="block text-xs text-muted-foreground">{textoDoTipo(store.tipo)(ajuda)}</span>
-                    </span>
-                    {a && a.n > 0 && <span className={`flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full px-2 text-sm font-bold ${a.urgente ? "bg-destructive text-white" : "bg-warning text-background"}`}>{a.n}</span>}
-                    {on && <Check size={18} className="shrink-0 text-primary" />}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </Sheet>
-      )}
 
       {tab === "Produtos" ? (
         <>
@@ -189,20 +172,18 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
   );
 }
 
-/** Um botão da barra de navegação do comércio: ícone, nome curto e número de aviso. */
-function BotaoBarra({ on, Icon, rotulo, aviso, mais = false, onClick }: {
-  on: boolean; Icon: LucideIcon; rotulo: string; aviso?: { n: number; urgente: boolean } | undefined; mais?: boolean; onClick: () => void;
+/** Um botão da faixa de navegação do comércio: ícone, nome curto e número de aviso. */
+function BotaoBarra({ on, Icon, rotulo, aviso, onClick }: {
+  on: boolean; Icon: LucideIcon; rotulo: string; aviso?: { n: number; urgente: boolean } | undefined; onClick: () => void;
 }) {
   return (
-    <button type="button" onClick={onClick} aria-current={on ? "page" : undefined} aria-haspopup={mais ? "dialog" : undefined}
-      aria-label={`${mais && !on ? "Mais" : rotulo}${aviso && aviso.n > 0 ? ` (${aviso.n} ${aviso.n === 1 ? "aviso" : "avisos"})` : ""}`}
-      className={`relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0 py-1.5 transition ${on ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"}`}>
-      <Icon size={20} />
-      <span className="flex max-w-full items-center gap-0.5 truncate text-[11px] font-semibold leading-none tracking-tight">
-        <span className="truncate">{rotulo}</span>{mais && <ChevronDown size={12} className="shrink-0" />}
-      </span>
+    <button type="button" onClick={onClick} aria-current={on ? "page" : undefined}
+      aria-label={`${rotulo}${aviso && aviso.n > 0 ? ` (${aviso.n} ${aviso.n === 1 ? "aviso" : "avisos"})` : ""}`}
+      className={`relative flex min-h-16 w-[92px] shrink-0 snap-start flex-col items-center justify-center gap-1.5 rounded-2xl border px-1 py-2 transition ${on ? "border-primary bg-primary text-primary-foreground shadow-md shadow-primary/30" : "border-border bg-secondary/40 text-muted-foreground hover:border-primary/60 hover:text-foreground"}`}>
+      <Icon size={22} />
+      <span className="max-w-full truncate text-xs font-semibold leading-none">{rotulo}</span>
       {aviso && aviso.n > 0 && (
-        <span aria-hidden className={`absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none ${aviso.urgente ? "bg-destructive text-white" : "bg-warning text-background"}`}>{aviso.n > 99 ? "99+" : aviso.n}</span>
+        <span aria-hidden className={`absolute right-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold leading-none ${aviso.urgente ? "bg-destructive text-white" : "bg-warning text-background"}`}>{aviso.n > 99 ? "99+" : aviso.n}</span>
       )}
     </button>
   );
