@@ -125,9 +125,13 @@ describe("aba Pedidos", () => {
     const t = abrir({ pedidos: [pedidoEnviado] });
     const card = screen.getByRole("button", { name: /Pedido nº 3/ });
     expect(card.textContent).toMatch(/Aguardando resposta/);
-    expect(card.textContent).toMatch(/Enviado em 09\/10 pelo WhatsApp · 1 produto · R\$\s60,00/);
+    expect(card.textContent).toMatch(/Enviado em 09\/10 pelo WhatsApp · 1 produto/);
+    expect(card.textContent).toMatch(/Total estimadoR\$\s60,00/);
     fireEvent.click(card);
-    expect(screen.getByText("2 caixas (24 pacotes)")).toBeTruthy();
+    expect(screen.getByText("2 caixas")).toBeTruthy();
+    expect(screen.getByText("Cada caixa contém")).toBeTruthy();
+    expect(screen.getByText("12 pacotes")).toBeTruthy();
+    expect(screen.getByText("24 pacotes")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Cancelar pedido/ }));
     fireEvent.click(screen.getByRole("button", { name: "Confirmar cancelamento" }));
     await waitFor(() => expect(t.onCancelar).toHaveBeenCalledWith("ped-1"));

@@ -76,7 +76,7 @@ describe("pagamento na aba Pedidos", () => {
     expect(r.getByText(/Pago este mês: R\$\s90,00/)).toBeTruthy();
     expect(screen.getByRole("button", { name: /Pedido nº 7/ }).textContent).toMatch(/A pagar R\$\s120,00 · Atrasado há 2 dias/);
     expect(screen.getByRole("button", { name: /Pedido nº 9/ }).textContent).toMatch(/Pago em/);
-    fireEvent.click(r.getByRole("button", { name: "Só a pagar (2)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Contas a pagar (2)" }));
     const nomes = screen.getAllByRole("button", { name: /Pedido nº/ }).map((b) => b.textContent!.match(/Pedido nº (\d+)/)![1]);
     expect(nomes).toEqual(["7", "8"]);
   });
