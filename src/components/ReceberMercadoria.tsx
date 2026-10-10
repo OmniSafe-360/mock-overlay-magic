@@ -2,8 +2,8 @@ import { Contador } from "@/components/parts/Contador";
 import { useHoje } from "@/hooks/useHoje";
 /* Receber mercadoria no app do funcionário (E2). Conferência cega: o funcionário bipa e conta o que chegou, sem nunca ver
  * quanto foi pedido. Ao tocar em "Terminei", o servidor compara e pede para contar de novo o que não bateu. */
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, Camera, Check, CheckCircle2, Keyboard, Minus, PackageCheck, PackageX, Plus, Search, Truck } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, ArrowLeft, Camera, Check, CheckCircle2, Keyboard, Minus, PackageCheck, PackageX, Plus, RefreshCw, Search, Truck } from "lucide-react";
 import { Scanner } from "@/components/Scanner";
 import { Sheet } from "@/components/parts/Sheet";
 import { btnGhost, btnPrimary, digits } from "@/components/StoreSetup";
@@ -91,20 +91,59 @@ function ListaEntregas({ chave, api, erroAbrir, onVoltar, onAbrir }: {
   const [erro, setErro] = useState("");
   const [semPedido, setSemPedido] = useState(false);
   const [abrindo, setAbrindo] = useState<string | null>(null);
-  const carregar = useCallback(() => { setErro(""); api.entregas(chave).then(setDados).catch((e) => setErro(erroTexto(e))); }, [api, chave]);
-  useEffect(carregar, [carregar]);
+  const [atualizando, setAtualizando] = useState(false);
+  const carregar = useRef<() => void>(() => {});
+  useEffect(() => {
+    let ativo = true;
+    let emCurso = false;
+    const buscar = async () => {
+      if (!ativo || emCurso) return;
+      emCurso = true;
+      setAtualizando(true); setErro("");
+      try {
+        const d = await api.entregas(chave);
+        if (ativo) setDados(d);
+      } catch (e) { if (ativo) setErro(erroTexto(e)); }
+      finally { emCurso = false; if (ativo) setAtualizando(false); }
+    };
+    carregar.current = () => { void buscar(); };
+    const atualizar = () => {
+      if (document.visibilityState !== "hidden" && navigator.onLine !== false) void buscar();
+    };
+    void buscar();
+    const timer = window.setInterval(atualizar, 30_000);
+    document.addEventListener("visibilitychange", atualizar);
+    window.addEventListener("focus", atualizar);
+    window.addEventListener("online", atualizar);
+    return () => {
+      ativo = false; carregar.current = () => {};
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", atualizar);
+      window.removeEventListener("focus", atualizar);
+      window.removeEventListener("online", atualizar);
+    };
+  }, [api, chave]);
   const hoje = useHoje();
   const ir = (pedidoId: string | null, fornecedorId: string | null) => { setAbrindo(pedidoId ?? "sem"); void onAbrir(pedidoId, fornecedorId).finally(() => setAbrindo(null)); };
   return (
     <div className="space-y-4">
-      <button type="button" onClick={onVoltar} className="flex min-h-12 items-center gap-2 pr-3 text-base font-semibold text-primary"><ArrowLeft size={18} /> Início</button>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <button type="button" onClick={onVoltar} className="flex min-h-12 items-center gap-2 pr-3 text-base font-semibold text-primary"><ArrowLeft size={18} /> Início</button>
+        <button type="button" disabled={atualizando || !!abrindo} onClick={() => carregar.current()} aria-label="Atualizar entregas"
+          className="flex min-h-12 items-center gap-2 rounded-2xl border border-border px-3 text-sm font-semibold text-primary disabled:opacity-60">
+          <RefreshCw size={18} className={atualizando ? "animate-spin" : ""} /> {atualizando ? "Atualizando…" : "Atualizar"}
+        </button>
+      </div>
       <div>
         <h1 className="text-2xl font-bold">Receber mercadoria</h1>
         <p className="text-sm text-muted-foreground">Escolha a entrega que chegou. Você vai bipar e contar cada produto.</p>
       </div>
       {(erro || erroAbrir) && <p role="alert" className="rounded-2xl border border-destructive/50 bg-destructive/10 p-3 text-sm font-semibold text-destructive">{erro || erroAbrir}</p>}
       {!dados && !erro && <p className="py-8 text-center text-muted-foreground">Carregando entregas…</p>}
-      {dados && !dados.pedidos.length && <p className="rounded-2xl border border-dashed border-border p-4 text-center text-sm text-muted-foreground">Nenhuma entrega esperada agora.</p>}
+      {dados && !dados.pedidos.length && !erro && <div className="space-y-2 rounded-2xl border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
+        <p>Nenhuma entrega esperada agora.</p>
+        <p>Os pedidos aparecem aqui depois de enviados ao fornecedor pelo dono, neste comércio.</p>
+      </div>}
       <ul className="space-y-3">
         {dados?.pedidos.map((p) => (
           <li key={p.id}>
