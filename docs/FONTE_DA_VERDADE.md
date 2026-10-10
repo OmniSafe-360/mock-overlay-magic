@@ -339,6 +339,8 @@ Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Pos
 
 ## 13. ROTEIRO — O PLANO
 
+10/10/2026: o dono pediu **nome e foto editáveis na Conta**. Implementação usa o perfil existente e atualiza a saudação, com confirmação do banco; nenhuma tabela ou regra de estoque nova. Registro e roteiro em [perfil-2026-10-10.md](perfil-2026-10-10.md). Falta o teste com a conta do dono no app publicado.
+
 10/10/2026: o dono autorizou a primeira melhoria dos **códigos do Mercado**: ITF-14 e equivalência UPC-A/EAN-13, preservando os códigos salvos. O código e os testes estão no [registro da entrega](codigos-mercado-2026-10-10.md). A migração (versão `20261010150302`) foi **aplicada em produção em 10/10/2026**, junto com a consolidação da reposição (`20261010150241`, reposição só com estoque dentro da validade). Balança e catálogo permanecem para outra entrega; a Fase 6 continua pendente.
 
 Cada fase termina com o roteiro de teste para o dono.
