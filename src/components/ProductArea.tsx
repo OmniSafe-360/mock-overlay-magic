@@ -4,7 +4,7 @@ import type { Product, Supplier, Variation } from "@/lib/produto";
 import { useHoje } from "@/hooks/useHoje";
 import type { EntityId } from "@/lib/identidade";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { codigoConsultavel, nomeSugerido, tipoUsaCatalogo, type ItemCatalogo } from "@/lib/catalogo";
+import { codigoConsultavel, detalhesDoCatalogo, nomeSugerido, tipoUsaCatalogo, type ItemCatalogo } from "@/lib/catalogo";
 import { lotesAConfirmar } from "@/lib/persistencia";
 import { ArrowLeft, Check, CheckCircle2, Keyboard, Package, Pencil, Plus, ScanLine, Tag, Truck, X } from "lucide-react";
 import { Field, btnGhost, btnPrimary, digits, maskPhone, nextOnEnter, useKeyboard, type StoreData } from "@/components/StoreSetup";
@@ -697,7 +697,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                           <p className="break-words text-base font-bold leading-snug">{nomeSugerido(sugestao)}</p>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          <button type="button" onClick={() => { setNome(nomeSugerido(sugestao)); setTimeout(() => document.getElementById("pnome")?.focus(), 50); }}
+                          <button type="button" onClick={() => { setNome(nomeSugerido(sugestao)); setDet((d) => detalhesDoCatalogo(sugestao, d)); setTimeout(() => document.getElementById("pnome")?.focus(), 50); }}
                             className="flex min-h-11 items-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground"><Check size={16} /> Usar este nome</button>
                           <button type="button" onClick={() => { descartados.current.add(codigo.trim()); setSugestao(null); }}
                             className="min-h-11 rounded-xl border border-border px-3 text-sm font-semibold text-muted-foreground">Não é este</button>

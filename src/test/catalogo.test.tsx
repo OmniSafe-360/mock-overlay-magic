@@ -1,13 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ProductWizard } from "@/components/ProductArea";
-import { codigoConsultavel, gtinValido, nomeSugerido, type ItemCatalogo } from "@/lib/catalogo";
+import { codigoConsultavel, detalhesDoCatalogo, gtinValido, nomeSugerido, type ItemCatalogo } from "@/lib/catalogo";
 
 vi.mock("@/components/Scanner", () => ({ Scanner: () => null }));
 
 const moca: ItemCatalogo = { codigo: "7891000100103", nome: "Leite Condensado Integral moça", marca: "Nestlé", quantidade: "395 g", imagemUrl: "https://images.openfoodfacts.org/x.jpg", fonte: "openfoodfacts" };
 
 describe("regras do catálogo", () => {
+  it("marca e peso vão para os detalhes, sem apagar o que foi digitado", () => {
+    expect(detalhesDoCatalogo(moca, {})).toEqual({ marca: "Nestlé", peso: "395 g" });
+    expect(detalhesDoCatalogo({ marca: "NESTLÉ", quantidade: "350g" }, {})).toEqual({ marca: "Nestlé", peso: "350 g" });
+    expect(detalhesDoCatalogo(moca, { marca: "Moça", peso: "" })).toEqual({ marca: "Moça", peso: "395 g" });
+    expect(detalhesDoCatalogo({ marca: null, quantidade: "unidade" }, { sabor: "x" })).toEqual({ sabor: "x" });
+  });
   it("dígito final e códigos de uso interno", () => {
     expect(gtinValido("7891000100103")).toBe(true);
     expect(gtinValido("7891000100104")).toBe(false);
@@ -49,6 +55,19 @@ describe("cadastro: sugestão ao digitar ou bipar o código", () => {
     fireEvent.click(screen.getByRole("button", { name: /Usar este nome/ }));
     expect((screen.getByLabelText("Nome do produto") as HTMLInputElement).value).toBe("Leite Condensado Integral moça Nestlé 395 g");
     expect(screen.queryByText(/Encontramos este produto/)).toBeNull();
+  });
+  it("Usar este nome também preenche a marca e o peso nos detalhes", async () => {
+    abrir("mercado");
+    digitarCodigo("7891000100103");
+    fireEvent.click(await screen.findByRole("button", { name: /Usar este nome/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    fireEvent.change(screen.getByLabelText("Preço de compra"), { target: { value: "500" } });
+    fireEvent.change(screen.getByLabelText("Preço de venda"), { target: { value: "800" } });
+    fireEvent.click(screen.getByRole("button", { name: "Unidade" }));
+    fireEvent.change(screen.getByLabelText("Categoria"), { target: { value: "Mercearia" } });
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    expect((await screen.findByLabelText("Marca") as HTMLInputElement).value).toBe("Nestlé");
+    expect((screen.getByLabelText("Peso ou volume da embalagem") as HTMLInputElement).value).toBe("395 g");
   });
   it("Não é este esconde a sugestão daquele código", async () => {
     abrir("mercado");
