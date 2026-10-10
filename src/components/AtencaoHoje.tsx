@@ -23,13 +23,14 @@ const maiuscula = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const linhaItem = (titulo: string, detalhe: string | undefined, assunto: string) =>
   titulo.toLowerCase() === assunto.toLowerCase() ? detalhe ?? "" : detalhe ? `${titulo} — ${detalhe}` : titulo;
 
-export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFazerPedido, contas, onVerContas, entregasDecidir = 0, onVerEntregas, semCadastro = 0, onVerSemCadastro }: {
+export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFazerPedido, contas, onVerContas, entregasDecidir = 0, onVerEntregas, semCadastro = 0, onVerSemCadastro, diferencas = 0, onVerDiferencas }: {
   products: Product[]; tipo: string; suppliers: Supplier[]; onOpen: (p: Product) => void;
   /** Produtos (id do banco) já num pedido em andamento. */ jaPedidos?: Set<string> | undefined;
   /** Abre a montagem do pedido de compra. */ onFazerPedido?: (() => void) | undefined;
   /** Contas dos pedidos (D2c); tocar abre a aba Pedidos em "Só a pagar". */ contas?: ResumoPagamentos | undefined; onVerContas?: (() => void) | undefined;
   /** Produtos recebidos que esperam o dono decidir (E2); tocar abre a aba Pedidos. */ entregasDecidir?: number | undefined; onVerEntregas?: (() => void) | undefined;
   /** Códigos vendidos no caixa que o Omni não sabe qual produto é (Fase 3.4); tocar abre a aba Vendas. */ semCadastro?: number | undefined; onVerSemCadastro?: (() => void) | undefined;
+  /** Perdas para confirmar + diferenças para explicar (Fase 4.3); tocar abre a aba Diferenças. */ diferencas?: number | undefined; onVerDiferencas?: (() => void) | undefined;
 }) {
   const hoje = useMemo(() => hojeEm(), []);
   const grupos = useMemo(() => atencaoHoje(products, tipo, hoje, (p) => suppliers.find((f) => f.id === p.fornecedor)?.nome, jaPedidos), [products, tipo, hoje, suppliers, jaPedidos]);
@@ -43,6 +44,7 @@ export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFa
   ].filter((q) => q.n > 0);
   const quadrosEntrega = [
     ...(semCadastro > 0 ? [{ k: "semcad", n: semCadastro, titulo: "Vendido sem cadastro", ajuda: "diga qual produto é", onClick: onVerSemCadastro }] : []),
+    ...(diferencas > 0 ? [{ k: "difs", n: diferencas, titulo: diferencas === 1 ? "Perda ou diferença" : "Perdas e diferenças", ajuda: "confirme ou explique", onClick: onVerDiferencas }] : []),
     ...(entregasDecidir > 0 ? [{ k: "entrega", n: entregasDecidir, titulo: entregasDecidir === 1 ? "Entrega para decidir" : "Entregas para decidir", ajuda: "contagem ou produto fora do pedido", onClick: onVerEntregas }] : []),
   ];
   if (!products.length && !quadrosContas.length && !quadrosEntrega.length) return null;

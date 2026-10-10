@@ -12,6 +12,8 @@ import type { TipoEnvio } from "@/lib/envios";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const db = supabase as any;
 
+import type { AreaEstoque, Diferenca, MotivoDiferenca, MotivoPerda, Perda } from "@/lib/diferencas";
+
 async function todos(tabela: string, colunas: string, filtro: (q: any) => any): Promise<any[]> {
   const out: any[] = [];
   for (let de = 0; ; de += 1000) {
@@ -473,7 +475,7 @@ export async function contarConferencia(chave: string, id: string, produtoId: st
   if (error) throw error;
   return { situacao: data.situacao, ...(data.rodada ? { rodada: Number(data.rodada) } : {}) };
 }
-export type MotivoPerda = "quebrou" | "venceu" | "consumo" | "devolvido" | "outro";
+export type { MotivoPerda };
 export type NovaPerda = { id: string; produtoId: string; variacaoId: string | null; area: "deposito" | "venda"; quantidade: number; motivo: MotivoPerda; observacao: string };
 /** Perda registrada pelo funcionário: sai do estoque na hora; o dono confirma depois. Repetir o mesmo id não duplica. */
 export async function registrarPerdaFuncionario(chave: string, p: NovaPerda) {
@@ -501,5 +503,61 @@ export async function contarPrateleira(chave: string, id: string, produtoId: str
 }
 export async function concluirReposicao(chave: string, id: string, levado: number) {
   const { error } = await db.rpc("funcionario_reposicao_concluir", { _chave: chave, _id: id, _levado: levado });
+  if (error) throw error;
+}
+
+/* ---------- Diferenças (Fase 4.3): perdas para confirmar e diferenças para explicar ---------- */
+const nomeFunc = (r: { funcionarios?: { nome?: string } | null }) => r.funcionarios?.nome ?? null;
+/** Abertas/aguardando sempre; o resto desde `desde` (ISO). */
+export async function carregarDiferencas(comercioId: string, desde: string): Promise<{ diferencas: Diferenca[]; perdas: Perda[] }> {
+  const [ds, ps] = await Promise.all([
+    todos("diferencas", "id,produto_id,variacao_id,area,origem,esperado,contado,diferenca,valor,situacao,motivo,observacao,detalhes,created_at,funcionarios(nome)",
+      (q) => q.eq("comercio_id", comercioId).or(`situacao.eq.aberta,created_at.gte.${desde}`)),
+    todos("perdas", "id,produto_id,variacao_id,area,quantidade,baixado,motivo,observacao,registrado_por,situacao,created_at,funcionarios(nome)",
+      (q) => q.eq("comercio_id", comercioId).or(`situacao.eq.aguardando,created_at.gte.${desde}`)),
+  ]);
+  return {
+    diferencas: ds.map((r) => ({
+      id: r.id, produtoId: r.produto_id, variacaoId: r.variacao_id ?? null, area: r.area, origem: r.origem,
+      esperado: Number(r.esperado), contado: Number(r.contado), diferenca: Number(r.diferenca), valor: centavos(r.valor),
+      funcionario: nomeFunc(r), situacao: r.situacao, motivo: r.motivo ?? null, observacao: r.observacao ?? null,
+      tentativas: Array.isArray(r.detalhes?.tentativas) ? r.detalhes.tentativas.map(Number) : [], resolvida: !!r.detalhes?.resolvida,
+      motivoInformado: r.detalhes?.motivo_informado ?? null, criadaEm: r.created_at,
+    })),
+    perdas: ps.map((r) => ({
+      id: r.id, produtoId: r.produto_id, variacaoId: r.variacao_id ?? null, area: r.area, quantidade: Number(r.quantidade), baixado: Number(r.baixado),
+      motivo: r.motivo, observacao: r.observacao ?? null, funcionario: nomeFunc(r), peloDono: !!r.registrado_por, situacao: r.situacao, criadaEm: r.created_at,
+    })),
+  };
+}
+/** Para a tela inicial: perdas aguardando + diferenças abertas. */
+export async function contarDiferencasParaDecidir(comercioId: string): Promise<{ perdas: number; diferencas: number }> {
+  const [a, b] = await Promise.all([
+    db.from("perdas").select("id", { count: "exact", head: true }).eq("comercio_id", comercioId).eq("situacao", "aguardando"),
+    db.from("diferencas").select("id", { count: "exact", head: true }).eq("comercio_id", comercioId).eq("situacao", "aberta"),
+  ]);
+  if (a.error) throw a.error;
+  if (b.error) throw b.error;
+  return { perdas: a.count ?? 0, diferencas: b.count ?? 0 };
+}
+export async function decidirPerda(id: string, aceitar: boolean) {
+  const { error } = await db.rpc("decidir_perda", { _id: id, _aceitar: aceitar });
+  if (error) throw error;
+}
+export async function explicarDiferenca(id: string, motivo: MotivoDiferenca, observacao: string) {
+  const { error } = await db.rpc("explicar_diferenca", { _id: id, _motivo: motivo, _observacao: observacao });
+  if (error) throw error;
+}
+/** Contagem inconsistente: o dono escolhe o número certo (uma das contagens ou o do sistema). */
+export async function resolverConferencia(id: string, contado: number): Promise<{ diferenca: number }> {
+  const { data, error } = await db.rpc("resolver_conferencia", { _diferenca: id, _contado: contado });
+  if (error) throw error;
+  return { diferenca: Number(data?.diferenca ?? 0) };
+}
+export type PerdaDono = { id: string; comercioId: string; produtoId: string; variacaoId: string | null; area: AreaEstoque; quantidade: number; motivo: MotivoPerda; observacao: string };
+/** O dono registra uma perda (já confirmada). */
+export async function registrarPerdaDono(p: PerdaDono) {
+  const { error } = await db.rpc("registrar_perda", { p: { id: p.id, comercio_id: p.comercioId, produto_id: p.produtoId, variacao_id: p.variacaoId,
+    area: p.area, quantidade: p.quantidade, motivo: p.motivo, observacao: p.observacao } });
   if (error) throw error;
 }

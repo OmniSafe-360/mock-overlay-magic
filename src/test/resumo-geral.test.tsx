@@ -6,7 +6,7 @@ import type { StoreData } from "@/components/StoreSetup";
 import type { Pedido } from "@/lib/pedido";
 import { fraseComercio, resumoComercio, somaResumos } from "@/lib/resumoGeral";
 
-const banco = vi.hoisted(() => ({ carregarFornecedores: vi.fn(), carregarProdutos: vi.fn(), carregarPedidos: vi.fn(), conferirEnvio: vi.fn(), carregarVendas: vi.fn(), carregarPendentesVenda: vi.fn(), carregarCaixas: vi.fn() }));
+const banco = vi.hoisted(() => ({ carregarFornecedores: vi.fn(), carregarProdutos: vi.fn(), carregarPedidos: vi.fn(), conferirEnvio: vi.fn(), carregarVendas: vi.fn(), carregarPendentesVenda: vi.fn(), contarDiferencasParaDecidir: vi.fn(), carregarCaixas: vi.fn() }));
 vi.mock("@/lib/banco", async (original) => ({ ...await original<object>(), ...banco }));
 vi.mock("@/components/Scanner", () => ({ Scanner: () => null }));
 
@@ -48,7 +48,7 @@ beforeEach(() => {
   localStorage.clear(); vi.clearAllMocks();
   banco.carregarFornecedores.mockResolvedValue([]);
   banco.carregarPedidos.mockResolvedValue([]);
-  banco.carregarVendas.mockResolvedValue([]); banco.carregarPendentesVenda.mockResolvedValue([]); banco.carregarCaixas.mockResolvedValue([]);
+  banco.carregarVendas.mockResolvedValue([]); banco.carregarPendentesVenda.mockResolvedValue([]); banco.contarDiferencasParaDecidir.mockResolvedValue({ perdas: 0, diferencas: 0 }); banco.carregarCaixas.mockResolvedValue([]);
   banco.carregarProdutos.mockImplementation(async (id: string) => ({
     produtos: id === "c1" ? [tudoCerto, repor, comprar, acabou] : [prod("f1", "Dipirona", 20, 10)],
     locais: { deposito: ["Estante A"], venda: ["Gôndola 1"] },
@@ -111,5 +111,13 @@ describe("tela inicial, Comércios e Alertas do dono", () => {
     expect(sec.getByRole("button", { name: /Vendido sem cadastro/ }).textContent).toMatch(/^1/);
     fireEvent.click(sec.getByRole("button", { name: /Vendido sem cadastro/ }));
     expect(await screen.findByRole("region", { name: "Vendas do dia" })).toBeTruthy();
+  });
+  it("perdas e diferenças entram em Para resolver agora e abrem a aba Diferenças", async () => {
+    banco.contarDiferencasParaDecidir.mockImplementation(async (id: string) => (id === "c2" ? { perdas: 1, diferencas: 2 } : { perdas: 0, diferencas: 0 }));
+    render(<OwnerApp userId="u1" owner="Monica" initial={[lojaA, lojaB]} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: /Farmácia Vida/ }).textContent).toMatch(/3 para resolver agora/));
+    fireEvent.click(screen.getAllByRole("button", { name: "Alertas" })[0]!);
+    const sec = within(await screen.findByRole("region", { name: "Farmácia Vida" }));
+    expect(sec.getByRole("button", { name: /Perdas e diferenças/ }).textContent).toMatch(/^3/);
   });
 });
