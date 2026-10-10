@@ -76,7 +76,7 @@ export const totalLinha = (l: Pick<LinhaPedido, "p" | "embalagem" | "qtd">) =>
 export const totalLinhas = (ls: LinhaPedido[]) => ls.reduce((s, l) => s + totalLinha(l), 0);
 
 /** "2 caixas (24 frascos)" ou "10 pacotes". */
-const PLURAL_EMB: Record<string, string> = { Caixa: "caixas", Fardo: "fardos", Pacote: "pacotes", Display: "displays", Saco: "sacos", Pallet: "pallets", Milheiro: "milheiros" };
+const PLURAL_EMB: Record<string, string> = { Caixa: "caixas", Fardo: "fardos", Pacote: "pacotes", Display: "displays", Saco: "sacos", Pallet: "pallets", Milheiro: "milheiros", Embalagem: "embalagens" };
 /** "1 caixa", "3 caixas". */
 export const embalagensTexto = (n: number, tipo: string) => `${fmtQ(n)} ${n === 1 ? tipo.toLowerCase() : PLURAL_EMB[tipo] ?? tipo.toLowerCase()}`;
 export function quantidadeTexto(l: Pick<LinhaPedido, "p" | "embalagem" | "qtd">): string {
@@ -151,15 +151,22 @@ export function textoPedido(a: { numero: number; comercio: StoreData; fornecedor
   return linhas.join("\n");
 }
 
-/** Linhas de um pedido salvo, para mostrar e reenviar (produto removido depois aparece com aviso). */
+/** Linhas de um pedido salvo, para mostrar e reenviar. A conversão é a registrada
+ * no pedido; mudar a embalagem no cadastro não muda uma compra anterior.
+ * `p` continua sendo o produto atual, para abrir sua ficha sem alterar o cadastro. */
 export function linhasDoPedido(pedido: Pedido, products: Product[]): LinhaPedido[] {
   return pedido.itens.map((i, k) => {
     const p = products.find((x) => x.db?.id === i.produtoId);
     const prod: Product = p ?? { id: -1 - k, codigo: "", nome: "Produto removido", compra: 0, venda: 0, unidade: "Unidade", categoria: "", detalhes: {}, variacoes: [], fornecedor: null };
     const v = i.variacaoId ? prod.variacoes.find((x) => x.uid === i.variacaoId) ?? null : null;
     const e = i.embalagemId ? prod.embalagens?.find((x) => x.uid === i.embalagemId) ?? null : null;
-    const embalagem = e ?? (i.embalagemId ? { uid: i.embalagemId, tipo: "Caixa", qtd: i.qtdUnidades / i.qtdEmbalagens, codigo: "", preco: 0 } : null);
+    const embalagem = i.embalagemId ? {
+      uid: i.embalagemId, tipo: e?.tipo ?? "Embalagem", qtd: i.qtdUnidades / i.qtdEmbalagens,
+      codigo: e?.codigo ?? "", preco: e?.preco ?? 0,
+    } : null;
     return { chave: `${i.produtoId}:${i.variacaoId ?? "_"}:${k}`, p: prod, variacao: v, embalagem, qtd: i.qtdEmbalagens };
   });
 }
+/** Valor estimado guardado no item, em centavos. Ausente não é preço zero. */
+export const valorItemPedido = (i: ItemPedido): number | null => i.precoEstimado == null ? null : i.precoEstimado * i.qtdUnidades;
 export const totalPedido = (pedido: Pedido) => pedido.itens.reduce((s, i) => s + (i.precoEstimado ?? 0) * i.qtdUnidades, 0);

@@ -8,14 +8,14 @@ import { Sheet } from "@/components/parts/Sheet";
 import { type Product, type Supplier, type Variation } from "@/components/ProductArea";
 import { linkWhatsApp } from "@/components/PainelFornecedores";
 import { btnGhost, btnPrimary, type StoreData } from "@/components/StoreSetup";
-import { aceitaFracao, fmtQ, qtdUn, unPlural } from "@/lib/deposito";
+import { aceitaFracao, fmtQ, qtdUn, unPlural, unSingular } from "@/lib/deposito";
 import { descricaoEmbalagem } from "@/lib/embalagem";
 import { estadoPagamento, ordemPagamento, resumoPagamentos, somaDias, textoPagamento, valorConta, type EstadoPagamento } from "@/lib/pagamento";
 import { hojeEm } from "@/lib/validade";
 import { precisaDecidir, resultadoItem, resumoRecebimento, type ItemRecebido, type Recebimento, type TipoResultado } from "@/lib/recebimento";
 import {
   CANAL_TXT, SITUACAO_TXT, chaveLinha, dataEntregaTexto, formaTexto, linkPedido, respostaItem, resumoResposta, linhaManual, linhasDoPedido, nomeLinha, pedidoAberto, pedidoFechado, quantidadeTexto,
-  sugerirPedido, textoPedido, totalLinha, totalLinhas, totalPedido, unidadesDaLinha, type CanalPedido, type LinhaPedido, type Pedido, type SituacaoPedido,
+  sugerirPedido, textoPedido, totalLinha, totalLinhas, totalPedido, unidadesDaLinha, embalagensTexto, valorItemPedido, type CanalPedido, type LinhaPedido, type Pedido, type SituacaoPedido,
 } from "@/lib/pedido";
 
 const dataCurta = (ts: string) => new Date(ts).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
@@ -29,6 +29,10 @@ export type DadosPagamento = { situacao: "a_pagar" | "pago"; vencimento?: string
 const COR_PAGAMENTO: Record<EstadoPagamento, string> = {
   atrasado: "text-destructive", hoje: "text-warning", em_breve: "text-warning", a_pagar: "text-foreground", pago: "text-accent",
 };
+type FiltroPedidos = "todos" | "andamento" | "historico" | "pagar";
+const normalizarBusca = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").trim();
+const rotuloEstimativa = (p: Pedido) => p.itens.some((i) => i.precoEstimado == null) && p.itens.some((i) => i.precoEstimado != null) ? "Estimativa parcial" : "Total estimado";
+const valorEstimativa = (p: Pedido) => p.itens.some((i) => i.precoEstimado != null) ? brl(totalPedido(p)) : "Não informado";
 export type SalvarPedido = (a: { fornecedor: Supplier; linhas: LinhaPedido[]; observacao: string }) => Promise<{ id: string; numero: number; token?: string | undefined; recuperado?: boolean }>;
 
 export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora = false, soAPagar = false, onSalvar, onEnviado, onCancelar, onNovoLink, onPagamento, onOpenProduto, onResolverRecebimento, onCarregarSemPedido }: {
@@ -39,7 +43,8 @@ export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora
   /** Entregas que chegaram sem pedido (E2). */ onCarregarSemPedido?: (() => Promise<Recebimento[]>) | undefined;
 }) {
   const hoje = useHoje();
-  const [filtro, setFiltro] = useState<"todos" | "pagar">(soAPagar ? "pagar" : "todos");
+  const [filtro, setFiltro] = useState<FiltroPedidos>(soAPagar ? "pagar" : "todos");
+  const [busca, setBusca] = useState("");
   const [view, setView] = useState<{ t: "lista" } | { t: "montar" } | { t: "detalhe"; id: string }>(montarAgora ? { t: "montar" } : { t: "lista" });
   const fornecedorDe = (dbId: string) => suppliers.find((s) => s.dbId === dbId);
 
@@ -52,7 +57,9 @@ export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora
 
   const abertos = pedidos.filter(pedidoAberto);
   const contas = resumoPagamentos(pedidos, hoje);
-  const lista = filtro === "pagar" ? pedidos.filter((p) => p.pagamento?.situacao === "a_pagar").sort(ordemPagamento) : pedidos;
+  const termo = normalizarBusca(busca);
+  const filtrados = pedidos.filter((p) => filtro === "andamento" ? pedidoAberto(p) : filtro === "historico" ? !pedidoAberto(p) : filtro === "pagar" ? p.pagamento?.situacao === "a_pagar" : true);
+  const lista = (filtro === "pagar" ? filtrados.sort(ordemPagamento) : filtrados).filter((p) => !termo || normalizarBusca(`Pedido nº ${p.numero} ${fornecedorDe(p.fornecedorId)?.nome ?? ""}`).includes(termo));
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
       <button type="button" onClick={() => setView({ t: "montar" })} className={`flex w-full items-center justify-center gap-2 ${btnPrimary(true)}`}><Plus size={20} /> Novo pedido</button>
@@ -70,13 +77,26 @@ export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora
             {contas.semana.n > 0 && <li className="text-warning">{contas.semana.n === 1 ? "1 vence nos próximos 7 dias" : `${contas.semana.n} vencem nos próximos 7 dias`} · {brl(contas.semana.total)}</li>}
           </ul>
           {contas.pagoEsteMes.n > 0 && <p className="mt-2 text-xs text-muted-foreground">Pago este mês: {brl(contas.pagoEsteMes.total)}</p>}
-          <div role="group" aria-label="Mostrar" className="mt-3 grid grid-cols-2 gap-2">
-            {([["todos", "Todos os pedidos"], ["pagar", `Só a pagar (${contas.aPagar.n})`]] as const).map(([f, t]) => (
+        </section>
+      )}
+      {pedidos.length > 0 && (
+        <div className="space-y-3">
+          <div role="group" aria-label="Mostrar pedidos" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {([["todos", "Todos"], ["andamento", `Em andamento (${abertos.length})`], ["historico", "Histórico"], ["pagar", `Contas a pagar (${contas.aPagar.n})`]] as const).map(([f, t]) => (
               <button key={f} type="button" aria-pressed={filtro === f} onClick={() => setFiltro(f)}
-                className={`min-h-11 rounded-xl border px-2 text-sm font-semibold ${filtro === f ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground"}`}>{t}</button>
+                className={`min-h-12 rounded-2xl border px-3 py-2 text-sm font-semibold ${filtro === f ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground"}`}>{t}</button>
             ))}
           </div>
-        </section>
+          <label className="relative block">
+            <span className="sr-only">Buscar pedido</span>
+            <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input type="search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Número do pedido ou fornecedor"
+              className="h-12 w-full rounded-2xl border border-border bg-background-deep/60 pl-11 pr-4 text-base text-foreground outline-none focus-visible:border-primary" />
+          </label>
+          {!lista.length && <p role="status" className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+            {termo ? "Nenhum pedido encontrado. Confira a busca ou escolha outro filtro." : "Nenhum pedido neste filtro."}
+          </p>}
+        </div>
       )}
       {!pedidos.length && (
         <div className="flex flex-col items-center gap-2 rounded-3xl border border-dashed border-border px-4 py-10 text-center">
@@ -93,7 +113,7 @@ export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora
             <li key={p.id}>
               <button type="button" onClick={() => setView({ t: "detalhe", id: p.id })}
                 className="flex w-full flex-col gap-2 rounded-3xl border border-border bg-secondary/60 p-4 text-left transition hover:border-primary">
-                <span className="flex items-start justify-between gap-3">
+                <span className="flex flex-wrap items-start justify-between gap-2">
                   <span className="min-w-0">
                     <span className="block text-base font-bold">Pedido nº {p.numero}</span>
                     <span className="block break-words text-sm text-muted-foreground">{f?.nome ?? "Fornecedor"}</span>
@@ -102,10 +122,14 @@ export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora
                 </span>
                 <span className="text-sm text-muted-foreground">
                   {p.enviadoEm ? `Enviado em ${dataCurta(p.enviadoEm)}${p.canal ? ` ${CANAL_TXT[p.canal]}` : ""}` : `Criado em ${dataCurta(p.criadoEm)}`}
-                  {` · ${p.itens.length === 1 ? "1 produto" : `${p.itens.length} produtos`} · ${brl(totalPedido(p))}`}
+                  {` · ${p.itens.length === 1 ? "1 produto" : `${p.itens.length} produtos`}`}
                 </span>
-                {p.resposta && (p.situacao === "aceito" || p.situacao === "aceito_ajustes") && resumoResposta(p.resposta, brl) && (
-                  <span className="flex items-start gap-1.5 text-sm font-semibold text-accent"><CheckCircle2 size={16} className="mt-0.5 shrink-0" /> {resumoResposta(p.resposta, brl)}</span>
+                <span className="flex flex-wrap items-baseline justify-between gap-2 rounded-2xl bg-background-deep/40 px-3 py-2">
+                  <span className="text-xs text-muted-foreground">{rotuloEstimativa(p)}</span>
+                  <span className="text-lg font-bold tabular-nums">{valorEstimativa(p)}</span>
+                </span>
+                {p.resposta && ["aceito", "aceito_ajustes", "recebido_parcial", "recebido"].includes(p.situacao) && resumoResposta(p.resposta, brl) && (
+                  <span className="flex items-start gap-1.5 text-sm font-semibold text-accent"><CheckCircle2 size={16} className="mt-0.5 shrink-0" /> Resposta do fornecedor: {resumoResposta(p.resposta, brl)}</span>
                 )}
                 {p.situacao === "recusado" && <span className="flex items-start gap-1.5 text-sm font-semibold text-destructive"><XCircle size={16} className="mt-0.5 shrink-0" /> O fornecedor não pode atender</span>}
                 {p.recebimento && (() => { const rr = resumoRecebimento(p.recebimento); return (
@@ -387,12 +411,12 @@ function DetalhePedido({ pedido, products, store, fornecedor, hoje, onEnviado, o
   const link = linkPedido(pedido.token);
   const texto = textoPedido({ numero: pedido.numero, comercio: store, fornecedor: fornecedor?.nome ?? "fornecedor", linhas, observacao: pedido.observacao, link });
   const r = pedido.resposta;
-  const aceito = pedido.situacao === "aceito" || pedido.situacao === "aceito_ajustes";
+  const aceito = ["aceito", "aceito_ajustes", "recebido_parcial", "recebido"].includes(pedido.situacao);
   const recusado = pedido.situacao === "recusado";
   return (
     <div className="mx-auto max-w-[560px] space-y-4 animate-in fade-in slide-in-from-right-8 duration-300">
       <button type="button" onClick={onVoltar} className="flex min-h-12 items-center gap-2 pr-3 text-base font-semibold text-primary"><ArrowLeft size={18} /> Pedidos</button>
-      <header className="flex items-start justify-between gap-3">
+      <header className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between">
         <div className="min-w-0">
           <h2 className="text-2xl font-bold">Pedido nº {pedido.numero}</h2>
           <p className="break-words text-sm text-muted-foreground">{fornecedor?.nome ?? "Fornecedor"}</p>
@@ -400,6 +424,45 @@ function DetalhePedido({ pedido, products, store, fornecedor, hoje, onEnviado, o
         </div>
         <Etiqueta s={pedido.situacao} />
       </header>
+
+      <section aria-label="Produtos do pedido" className="rounded-3xl border border-border bg-secondary/60 p-4">
+        <h3 className="mb-3 flex items-center gap-2 text-base font-bold"><ClipboardList size={20} className="text-primary" /> O que foi pedido</h3>
+        <ul className="space-y-3">
+          {linhas.map((l, k) => {
+            const item = pedido.itens[k]!;
+            const s = respostaItem(item.qtdEmbalagens, item.qtdConfirmada);
+            const valor = valorItemPedido(item);
+            const por = l.embalagem?.qtd ?? 1;
+            const unidadeCompra = l.embalagem?.tipo.toLowerCase() ?? unSingular(l.p.unidade);
+            return (
+              <li key={l.chave} className="rounded-2xl border border-border bg-background-deep/40 p-3">
+                <p className="break-words text-base font-bold leading-snug">{nomeLinha(l)}</p>
+                <dl className="mt-3 space-y-2 text-sm">
+                  <Dado t="Quantidade pedida" v={l.embalagem ? embalagensTexto(l.qtd, l.embalagem.tipo) : qtdUn(item.qtdUnidades, l.p.unidade)} />
+                  {l.embalagem && <Dado t={`Cada ${unidadeCompra} contém`} v={qtdUn(por, l.p.unidade)} />}
+                  {l.embalagem && <Dado t="Total pedido" v={qtdUn(item.qtdUnidades, l.p.unidade)} />}
+                  <Dado t={`Preço por ${unidadeCompra} (estimado)`} v={item.precoEstimado == null ? "Não informado" : brl(item.precoEstimado * por)} />
+                </dl>
+                <p className="mt-3 flex flex-wrap items-baseline justify-between gap-2 border-t border-border pt-3">
+                  <span className="text-sm text-muted-foreground">Subtotal estimado</span>
+                  <span className="text-lg font-bold tabular-nums">{valor == null ? "Não informado" : brl(valor)}</span>
+                </p>
+                {s === "tudo" && <p className="mt-3 text-sm font-semibold text-accent">Confirmado: {quantidadeTexto(l)}</p>}
+                {s === "parte" && <p className="mt-3 text-sm font-semibold text-warning">{pedido.recebimento || item.qtdRecebida != null ? "Fornecedor confirmou" : "Vai mandar"} {quantidadeTexto({ ...l, qtd: item.qtdConfirmada! })}</p>}
+                {s === "nada" && <p className="mt-3 text-sm font-semibold text-destructive">O fornecedor não tem</p>}
+                {item.qtdRecebida != null && <p className="mt-2 text-sm"><span className="text-muted-foreground">Recebido: </span><strong>{qtdUn(item.qtdRecebida, l.p.unidade)}</strong></p>}
+                <button type="button" disabled={!l.p.db?.id} onClick={() => onOpenProduto(l.p)} className="mt-2 min-h-12 text-sm font-semibold text-primary disabled:text-muted-foreground">
+                  {l.p.db?.id ? "Ver produto" : "Produto indisponível no cadastro"}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="mt-4 flex flex-wrap items-baseline justify-between gap-2 border-t border-border pt-3 font-bold"><span>{rotuloEstimativa(pedido)}</span><span className="text-2xl tabular-nums">{valorEstimativa(pedido)}</span></p>
+        {pedido.itens.some((i) => i.precoEstimado == null) && <p className="mt-2 text-sm text-warning">Há item sem preço informado. A estimativa soma apenas os valores conhecidos.</p>}
+        <p className="mt-2 text-xs text-muted-foreground">Estimativa registrada ao fazer o pedido. O fornecedor confirma o valor da compra.</p>
+        {pedido.observacao && <p className="mt-3 break-words text-sm text-muted-foreground">Seu recado: {pedido.observacao}</p>}
+      </section>
 
       {r && (aceito || recusado) && (
         <section aria-label="Resposta do fornecedor" className={`rounded-3xl border p-4 ${recusado ? "border-destructive/50 bg-destructive/10" : "border-accent/50 bg-accent/10"}`}>
@@ -411,7 +474,7 @@ function DetalhePedido({ pedido, products, store, fornecedor, hoje, onEnviado, o
           {aceito && (
             <dl className="mt-3 space-y-1.5 text-sm">
               {r.previsaoEntrega && <Dado t="Entrega prevista" v={dataEntregaTexto(r.previsaoEntrega)} />}
-              <Dado t="Valor total" v={r.valorTotal != null ? brl(r.valorTotal) : "Não informado"} />
+              <Dado t="Valor informado pelo fornecedor" v={r.valorTotal != null ? brl(r.valorTotal) : "Não informado"} />
               <Dado t="Pagamento" v={formaTexto(r.forma, r.prazoDias) || "Não informado"} />
             </dl>
           )}
@@ -423,31 +486,6 @@ function DetalhePedido({ pedido, products, store, fornecedor, hoje, onEnviado, o
       {pedido.recebimento && <RecebimentoPedido rec={pedido.recebimento} products={products} onResolver={onResolver} />}
 
       <PagamentoPedido pedido={pedido} hoje={hoje} onPagamento={(d) => onPagamento(pedido.id, d)} />
-
-      <section aria-label="Produtos do pedido" className="rounded-3xl border border-border bg-secondary/60 p-4">
-        <ul className="divide-y divide-border">
-          {linhas.map((l, k) => {
-            const item = pedido.itens[k];
-            const s = aceito && item ? respostaItem(item.qtdEmbalagens, item.qtdConfirmada) : null;
-            return (
-              <li key={l.chave}>
-                <button type="button" disabled={!l.p.db?.id} onClick={() => onOpenProduto(l.p)} className="flex w-full items-start justify-between gap-3 py-2.5 text-left">
-                  <span className="min-w-0">
-                    <span className="block break-words text-sm font-semibold">{nomeLinha(l)}</span>
-                    <span className="block text-xs text-muted-foreground">{s && s !== "tudo" ? "Pedido: " : ""}{quantidadeTexto(l)}</span>
-                    {s === "tudo" && <span className="block text-xs font-semibold text-accent">Confirmado</span>}
-                    {s === "parte" && <span className="block text-xs font-semibold text-warning">Vai mandar {quantidadeTexto({ ...l, qtd: item!.qtdConfirmada! })}</span>}
-                    {s === "nada" && <span className="block text-xs font-semibold text-destructive">O fornecedor não tem</span>}
-                  </span>
-                  <span className="shrink-0 text-sm tabular-nums">{brl(totalLinha(l))}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-        <p className="mt-2 flex justify-between border-t border-border pt-2 text-sm font-bold"><span>Total estimado</span><span>{brl(totalPedido(pedido))}</span></p>
-        {pedido.observacao && <p className="mt-2 text-sm text-muted-foreground">Seu recado: {pedido.observacao}</p>}
-      </section>
 
       {pedido.situacao === "enviado" && <p className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">Aguardando a resposta do fornecedor. Ele responde pelo link que foi junto na mensagem, e a resposta aparece aqui.</p>}
 
@@ -493,7 +531,7 @@ function DetalhePedido({ pedido, products, store, fornecedor, hoje, onEnviado, o
 }
 
 function Dado({ t, v }: { t: string; v: string }) {
-  return <div className="flex justify-between gap-3"><dt className="text-muted-foreground">{t}</dt><dd className="text-right font-semibold">{v}</dd></div>;
+  return <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1"><dt className="min-w-0 text-muted-foreground">{t}</dt><dd className="max-w-full break-words font-semibold">{v}</dd></div>;
 }
 
 /* ---------- pagamento (D2c) ---------- */
