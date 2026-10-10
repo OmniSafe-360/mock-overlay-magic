@@ -297,16 +297,17 @@ export async function responderPedido(token: string, r: RespostaFornecedor): Pro
 /* ---------- vendas pelo caixa (Fase 3) ---------- */
 const centavos = (v: unknown) => Math.round(Number(v ?? 0) * 100);
 export async function carregarCaixas(comercioId: string): Promise<Caixa[]> {
-  const cs = await todos("caixas", "id,nome,codigo,codigo_gerado_em,ligado_em,desligado_em,ultimo_contato_em,ultima_venda_em,aparelho,created_at",
+  const cs = await todos("caixas", "id,nome,tipo,codigo,codigo_gerado_em,ligado_em,desligado_em,ultimo_contato_em,ultima_venda_em,aparelho,created_at",
     (q) => q.eq("comercio_id", comercioId).order("created_at"));
   return cs.map((c) => ({
     id: c.id, nome: c.nome, codigo: c.codigo ?? null, codigoGeradoEm: c.codigo_gerado_em ?? null, ligadoEm: c.ligado_em ?? null,
     desligadoEm: c.desligado_em ?? null, ultimoContatoEm: c.ultimo_contato_em ?? null, ultimaVendaEm: c.ultima_venda_em ?? null, aparelho: c.aparelho ?? null,
+    ...(c.tipo === "celular" ? { tipo: "celular" as const } : {}),
   }));
 }
 /** Vendas a partir de uma data (ISO), com os itens. */
 export async function carregarVendas(comercioId: string, desde: string): Promise<Venda[]> {
-  const vs = await todos("vendas", "id,caixa_id,chave_nota,numero,emitida_em,recebida_em,total,situacao,cancelada_em,pagamentos",
+  const vs = await todos("vendas", "id,caixa_id,chave_nota,numero,emitida_em,recebida_em,total,situacao,cancelada_em,pagamentos,origem,troco",
     (q) => q.eq("comercio_id", comercioId).gte("recebida_em", desde));
   const ids = vs.map((v) => v.id);
   const its: any[] = [];
@@ -320,7 +321,8 @@ export async function carregarVendas(comercioId: string, desde: string): Promise
     qtdBaixada: Number(x.qtd_baixada ?? 0), qtdFaltou: Number(x.qtd_faltou ?? 0), situacao: x.situacao, motivo: x.motivo ?? null,
   });
   return vs.map((v) => ({
-    id: v.id, caixaId: v.caixa_id, chave: v.chave_nota, numero: v.numero ?? null, emitidaEm: v.emitida_em ?? null, recebidaEm: v.recebida_em,
+    id: v.id, caixaId: v.caixa_id, chave: v.chave_nota ?? null, numero: v.numero ?? null, emitidaEm: v.emitida_em ?? null, recebidaEm: v.recebida_em,
+    ...(v.origem === "celular" ? { celular: true, troco: centavos(v.troco) } : {}),
     total: centavos(v.total), situacao: v.situacao, canceladaEm: v.cancelada_em ?? null,
     pagamentos: (Array.isArray(v.pagamentos) ? v.pagamentos : []).map((p: any) => ({ forma: String(p?.forma ?? ""), valor: centavos(p?.valor) })),
     itens: its.filter((i) => i.venda_id === v.id).map(item).sort((a, b) => a.n - b.n),
@@ -396,11 +398,11 @@ export async function conectorCancelarVenda(chave: string, chaveNota: string): P
 /* ---------- equipe (E1) ---------- */
 export async function carregarFuncionarios(comercioId: string): Promise<Funcionario[]> {
   const [fs, aps] = await Promise.all([
-    todos("funcionarios", "id,nome,funcao,codigo,codigo_gerado_em,pin_criado_em,bloqueado_em,ultimo_acesso,travado_ate,created_at", (q) => q.eq("comercio_id", comercioId).order("created_at")),
+    todos("funcionarios", "id,nome,funcao,caixa,codigo,codigo_gerado_em,pin_criado_em,bloqueado_em,ultimo_acesso,travado_ate,created_at", (q) => q.eq("comercio_id", comercioId).order("created_at")),
     todos("funcionario_aparelhos", "funcionario_id", (q) => q.eq("comercio_id", comercioId).is("encerrado_em", null)),
   ]);
   return fs.map((f) => ({
-    id: f.id, nome: f.nome, funcao: f.funcao, codigo: f.codigo, codigoGeradoEm: f.codigo_gerado_em, primeiroAcessoEm: f.pin_criado_em ?? null,
+    id: f.id, nome: f.nome, funcao: f.funcao, caixa: !!f.caixa, codigo: f.codigo, codigoGeradoEm: f.codigo_gerado_em, primeiroAcessoEm: f.pin_criado_em ?? null,
     bloqueadoEm: f.bloqueado_em ?? null, ultimoAcesso: f.ultimo_acesso ?? null, travadoAte: f.travado_ate ?? null,
     celulares: aps.filter((a) => a.funcionario_id === f.id).length,
   }));
@@ -420,6 +422,11 @@ export async function bloquearFuncionario(id: string, bloquear: boolean): Promis
   if (error) throw error;
   return data?.codigo ?? null;
 }
+/** Liga ou desliga a função Caixa (vender pelo celular, no app da equipe). */
+export async function definirCaixaFuncionario(id: string, caixa: boolean) {
+  const { error } = await rpc("definir_caixa_funcionario", { _id: id, _caixa: caixa });
+  if (error) throw error;
+}
 export async function novoAcessoFuncionario(id: string): Promise<string> {
   const { data, error } = await rpc("novo_acesso_funcionario", { _id: id });
   if (error) throw error;
@@ -429,7 +436,8 @@ export async function novoAcessoFuncionario(id: string): Promise<string> {
 /* ---------- app do funcionário (sem login) ---------- */
 export type InicioFuncionario = {
   nome: string; funcao: Funcao; comercio: { nome: string; tipo: string };
-  avisos: { entregas: number; entregasHoje: number; repor: number };
+  /** Opera o caixa no celular (o dono liga na Equipe). */ caixa?: boolean | undefined;
+  avisos: { entregas: number; entregasHoje: number; repor: number; caixaAberto?: boolean | undefined };
   /** O app travou: precisa digitar o PIN neste celular (os avisos vêm zerados). */
   pinNecessario?: boolean | undefined;
 };
@@ -454,7 +462,9 @@ export async function inicioFuncionario(chave: string): Promise<InicioFuncionari
   return {
     ...(data.pin_necessario ? { pinNecessario: true } : {}),
     nome: data.nome, funcao: data.funcao, comercio: { nome: data.comercio?.nome ?? "", tipo: data.comercio?.tipo ?? "" },
-    avisos: { entregas: Number(data.avisos?.entregas ?? 0), entregasHoje: Number(data.avisos?.entregas_hoje ?? 0), repor: Number(data.avisos?.repor ?? 0) },
+    ...(data.caixa ? { caixa: true } : {}),
+    avisos: { entregas: Number(data.avisos?.entregas ?? 0), entregasHoje: Number(data.avisos?.entregas_hoje ?? 0), repor: Number(data.avisos?.repor ?? 0),
+      ...(data.avisos?.caixa_aberto ? { caixaAberto: true } : {}) },
   };
 }
 /** Destrava o app com o PIN. PIN errado vem como erro (pin_errado:N / muitas_tentativas:N). */
@@ -592,4 +602,63 @@ export async function buscarCatalogo(codigo: string): Promise<ItemCatalogo | nul
   if (error) throw error;
   if (!data) return null;
   return { codigo: data.codigo, nome: data.nome, marca: data.marca ?? null, quantidade: data.quantidade ?? null, imagemUrl: data.imagem_url ?? null, fonte: data.fonte };
+}
+
+/* ---------- caixa no celular (C2), no app da equipe, com a chave do celular ---------- */
+const numero = (v: unknown) => Number(v ?? 0);
+export type TurnoCaixa = {
+  id: string; abertoEm: string; trocoInicial: number; vendas: number; canceladas: number; total: number;
+  porForma: Record<"dinheiro" | "pix" | "cartao" | "fiado", number>; trocoDado: number; sangrias: number; dinheiroEsperado: number;
+};
+export type VendaDoCaixa = { id: string; numero: number | null; feitaEm: string; total: number; situacao: "finalizada" | "cancelada";
+  pagamentos: { forma: string; valor: number }[]; troco: number; cliente: string | null; itens: { descricao: string; qtd: number; valor: number }[] };
+export type EstadoCaixa = {
+  nome: string; comercio: { nome: string; tipo: string; telefone: string | null; endereco: string | null };
+  donoTemPin: boolean; turno: TurnoCaixa | null; vendas: VendaDoCaixa[];
+};
+const turno = (t: any): TurnoCaixa => ({
+  id: t.id, abertoEm: t.aberto_em, trocoInicial: centavos(t.troco_inicial), vendas: numero(t.vendas), canceladas: numero(t.canceladas), total: centavos(t.total),
+  porForma: { dinheiro: centavos(t.por_forma?.dinheiro), pix: centavos(t.por_forma?.pix), cartao: centavos(t.por_forma?.cartao), fiado: centavos(t.por_forma?.fiado) },
+  trocoDado: centavos(t.troco_dado), sangrias: centavos(t.sangrias), dinheiroEsperado: centavos(t.dinheiro_esperado),
+});
+export async function caixaEstado(chave: string): Promise<EstadoCaixa> {
+  const { data, error } = await rpc("caixa_estado", { _chave: chave });
+  if (error) throw error;
+  return {
+    nome: data.nome, comercio: { nome: data.comercio?.nome ?? "", tipo: data.comercio?.tipo ?? "", telefone: data.comercio?.telefone ?? null, endereco: data.comercio?.endereco ?? null },
+    donoTemPin: !!data.dono_tem_pin, turno: data.turno ? turno(data.turno) : null,
+    vendas: (data.vendas ?? []).map((v: any) => ({
+      id: v.id, numero: v.numero ?? null, feitaEm: v.feita_em, total: centavos(v.total), situacao: v.situacao, troco: centavos(v.troco), cliente: v.cliente ?? null,
+      pagamentos: (v.pagamentos ?? []).map((p: any) => ({ forma: String(p.forma), valor: centavos(p.valor) })),
+      itens: (v.itens ?? []).map((i: any) => ({ descricao: i.descricao, qtd: Number(i.qtd), valor: centavos(i.valor) })),
+    })),
+  };
+}
+export async function caixaProdutos(chave: string): Promise<import("@/lib/caixa").ProdutoCaixa[]> {
+  const { data, error } = await rpc("caixa_produtos", { _chave: chave });
+  if (error) throw error;
+  return (data ?? []).map((p: any) => ({
+    id: p.id, nome: p.nome, unidade: p.unidade, fracionado: !!p.fracionado, preco: centavos(p.preco),
+    codigos: (p.codigos ?? []).map((c: any) => ({ codigo: String(c.codigo), variacaoId: c.variacao_id ?? null, embalagemId: c.embalagem_id ?? null })),
+    variacoes: (p.variacoes ?? []).map((v: any) => ({ id: v.id, nome: v.nome || "Sem nome" })),
+    embalagens: (p.embalagens ?? []).map((e: any) => ({ id: e.id, tipo: e.tipo, quantidade: Number(e.quantidade) })),
+  }));
+}
+export type ClienteFiado = { id: string; nome: string; telefone: string | null };
+export async function caixaClientesFiado(chave: string): Promise<ClienteFiado[]> {
+  const { data, error } = await rpc("caixa_clientes_fiado", { _chave: chave });
+  if (error) throw error;
+  return (data ?? []).map((c: any) => ({ id: c.id, nome: c.nome, telefone: c.telefone ?? null }));
+}
+/** Abre o caixa com o troco da gaveta (em centavos). Se já estava aberto, devolve o mesmo. */
+export async function caixaAbrir(chave: string, id: string, trocoCentavos: number): Promise<TurnoCaixa> {
+  const { data, error } = await rpc("caixa_abrir", { _chave: chave, _id: id, _troco: trocoCentavos / 100 });
+  if (error) throw error;
+  return turno(data.turno);
+}
+/** Venda finalizada. Repetir o mesmo id não conta de novo (devolve "repetida"). */
+export async function caixaRegistrarVenda(chave: string, venda: ReturnType<typeof import("@/lib/caixa").montarVenda>): Promise<{ situacao: "registrada" | "repetida"; numero: number | null; troco: number; semCadastro: number }> {
+  const { data, error } = await rpc("caixa_registrar_venda", { _chave: chave, _venda: venda as unknown as Json });
+  if (error) throw error;
+  return { situacao: data.situacao, numero: data.numero ?? null, troco: centavos(data.troco), semCadastro: numero(data.sem_cadastro) };
 }

@@ -10,6 +10,7 @@ export type Caixa = {
   ligadoEm: string | null; desligadoEm: string | null;
   ultimoContatoEm: string | null; ultimaVendaEm: string | null;
   aparelho: string | null;
+  /** Caixa no celular de um funcionário (app Omni Operação). */ tipo?: "celular" | undefined;
 };
 export type SituacaoItemVenda = "baixado" | "sem_cadastro" | "conferir" | "ignorado" | "cancelado";
 export type ItemVenda = {
@@ -19,7 +20,8 @@ export type ItemVenda = {
   situacao: SituacaoItemVenda; motivo: string | null;
 };
 export type Venda = {
-  id: string; caixaId: string; chave: string; numero: number | null;
+  id: string; caixaId: string; /** Chave da nota (vazia na venda pelo celular). */ chave: string | null; numero: number | null;
+  /** Venda feita no caixa do celular (sem nota fiscal). */ celular?: boolean | undefined; troco?: number | undefined;
   emitidaEm: string | null; recebidaEm: string; total: number; // centavos
   situacao: "finalizada" | "cancelada"; canceladaEm: string | null;
   pagamentos: { forma: string; valor: number }[];
@@ -34,9 +36,10 @@ export const MINUTOS_SEM_CONTATO = 15;
 /** "1234 5678". */
 export const codigoCaixaTexto = (c: string | null | undefined) => (c ? `${c.slice(0, 4)} ${c.slice(4)}`.trim() : "");
 
-export type SituacaoCaixa = "aguardando" | "codigo_vencido" | "ligado" | "parado" | "desligado";
+export type SituacaoCaixa = "aguardando" | "codigo_vencido" | "ligado" | "parado" | "desligado" | "celular";
 export function situacaoCaixa(c: Caixa, agora = Date.now()): SituacaoCaixa {
   if (c.desligadoEm) return "desligado";
+  if (c.tipo === "celular") return "celular";
   if (!c.ligadoEm) {
     const venceu = c.codigoGeradoEm ? agora - Date.parse(c.codigoGeradoEm) > HORAS_CODIGO_CAIXA * 3600_000 : true;
     return venceu ? "codigo_vencido" : "aguardando";
@@ -72,6 +75,7 @@ export function textoCaixa(c: Caixa, agora = Date.now()): { nivel: "ok" | "atenc
   const ultima = c.ultimaVendaEm ? `Última venda ${haQuanto(c.ultimaVendaEm, agora)}` : "Nenhuma venda ainda";
   switch (s) {
     case "ligado": return { nivel: "ok", titulo: "Ligado", detalhe: ultima };
+    case "celular": return { nivel: "ok", titulo: "Caixa no celular", detalhe: ultima };
     case "parado": return { nivel: "atencao", titulo: "Sem contato", detalhe: `O computador do caixa não fala com o Omni ${haQuanto(c.ultimoContatoEm, agora)}. ${ultima}.` };
     case "aguardando": return { nivel: "info", titulo: "Aguardando ligar", detalhe: `Código ${codigoCaixaTexto(c.codigo)}` };
     case "codigo_vencido": return { nivel: "urgente", titulo: "Código venceu", detalhe: "Gere um código novo para ligar este caixa." };
@@ -146,7 +150,7 @@ const FORMAS: Record<string, string> = {
   "01": "Dinheiro", "02": "Cheque", "03": "Cartão de crédito", "04": "Cartão de débito", "05": "Crédito loja", "10": "Vale-alimentação",
   "11": "Vale-refeição", "12": "Vale-presente", "13": "Vale-combustível", "15": "Boleto", "16": "Depósito", "17": "Pix", "18": "Transferência",
   "19": "Fidelidade", "90": "Sem pagamento", "99": "Outros",
-  dinheiro: "Dinheiro", pix: "Pix", credito: "Cartão de crédito", debito: "Cartão de débito",
+  dinheiro: "Dinheiro", pix: "Pix", credito: "Cartão de crédito", debito: "Cartão de débito", cartao: "Cartão", fiado: "Fiado",
 };
 /** Forma de pagamento da nota (código da Receita ou texto) em português. */
 export const formaPagamento = (f: string) => FORMAS[f.trim().toLowerCase()] ?? FORMAS[f.trim().padStart(2, "0")] ?? f;
@@ -161,6 +165,8 @@ export type GrupoPendente = {
   codigo: string; codigoBarras: string | null; descricao: string; unidadeNota: string | null; itemId: string;
   vendas: number; qtd: number; valor: number; ultimaEm: string | null; conferir: boolean; motivo: string | null;
 };
+/** Código do caixa para mostrar ("Sem código" no produto vendido pelo celular sem código). */
+export const codigoVisivel = (c: string) => (c.startsWith("avulso:") ? "Sem código" : c);
 export function agruparPendentes(itens: ItemPendente[]): GrupoPendente[] {
   const g = new Map<string, GrupoPendente>();
   for (const i of itens) {

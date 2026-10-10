@@ -1009,6 +1009,8 @@ type LinhasOperacionais = {
     ultimo_contato_em: string | null
     ultima_venda_em: string | null
     created_at: string
+    tipo: string
+    funcionario_id: string | null
   }
   codigos_barras: {
     comercio_id: string
@@ -1138,6 +1140,7 @@ type LinhasOperacionais = {
     criado_por: string
     created_at: string
     updated_at: string
+    caixa: boolean
   }
   locais: {
     id: string
@@ -1389,7 +1392,7 @@ type LinhasOperacionais = {
     id: string
     comercio_id: string
     caixa_id: string
-    chave_nota: string
+    chave_nota: string | null
     numero: number | null
     serie: number | null
     emitida_em: string | null
@@ -1400,6 +1403,12 @@ type LinhasOperacionais = {
     recebida_em: string
     origem: string
     nota: Json | null
+    turno_id: string | null
+    funcionario_id: string | null
+    troco: number
+    cliente_fiado_id: string | null
+    cancelada_por: string | null
+    motivo_cancelamento: string | null
   }
 }
 type FuncoesOperacionais = {
@@ -1447,6 +1456,21 @@ type FuncoesOperacionais = {
   decidir_perda: { Args: { _id: string | null; _aceitar: boolean | null }; Returns: undefined }
   resolver_conferencia: { Args: { _diferenca: string | null; _contado: number | null }; Returns: Json }
   buscar_catalogo: { Args: { _codigo: string | null }; Returns: Json }
+  caixa_estado: { Args: { _chave: string | null }; Returns: Json }
+  caixa_produtos: { Args: { _chave: string | null }; Returns: Json }
+  caixa_clientes_fiado: { Args: { _chave: string | null }; Returns: Json }
+  caixa_abrir: { Args: { _chave: string | null; _id: string | null; _troco: number | null }; Returns: Json }
+  caixa_registrar_venda: { Args: { _chave: string | null; _venda: Json | null }; Returns: Json }
+  caixa_cancelar_venda: { Args: { _chave: string | null; _venda: string | null; _pin_dono: string | null; _motivo: string | null }; Returns: Json }
+  caixa_sangria: { Args: { _chave: string | null; _id: string | null; _turno: string | null; _valor: number | null; _motivo: string | null; _pin_dono: string | null }; Returns: Json }
+  caixa_fechar: { Args: { _chave: string | null; _turno: string | null; _contado: number | null; _observacao: string | null }; Returns: Json }
+  definir_pin_dono: { Args: { _pin: string | null }; Returns: undefined }
+  tem_pin_dono: { Args: Record<string, never>; Returns: boolean }
+  definir_caixa_funcionario: { Args: { _id: string | null; _caixa: boolean | null }; Returns: undefined }
+  cancelar_venda_celular: { Args: { _venda: string | null; _motivo: string | null }; Returns: Json }
+  conferir_fechamento_caixa: { Args: { _turno: string | null }; Returns: undefined }
+  salvar_cliente_fiado: { Args: { _id: string | null; _comercio: string | null; _nome: string | null; _telefone: string | null; _ativo: boolean | null }; Returns: undefined }
+  receber_fiado: { Args: { _id: string | null; _cliente: string | null; _valor: number | null; _forma: string | null; _observacao: string | null }; Returns: Json }
 }
 type EnumsOperacionais = {
   app_role: "dono" | "gerente" | "repositor"
