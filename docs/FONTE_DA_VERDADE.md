@@ -285,6 +285,7 @@ Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Pos
 | Equipe | `funcionarios` (PIN embaralhado, ilegível até para o dono), `funcionario_aparelhos` (só o resumo da chave do celular) | só funções |
 | Operação | `recebimentos`, `recebimento_itens`, `reposicoes` | só funções do app do funcionário (com a chave do celular e o PIN em dia) |
 
+- **Velocidade (10/10/2026):** toda ligação entre tabelas tem atalho de busca (índice) e as regras de RLS usam `(select auth.uid())`, calculado uma vez por consulta. Tabela ou regra nova segue o mesmo padrão. O aviso "índice não usado" do Supabase é esperado enquanto há poucos dados.
 - **Funções sem login, de propósito** (o aviso do Supabase sobre elas é esperado): a página do fornecedor (`pedido_publico`, `responder_pedido`, que exigem o link secreto) e o app do funcionário (exigem o código e o PIN, ou a chave do celular).
 - **Autenticação:**
   - Google e e-mail/senha;
@@ -321,7 +322,6 @@ Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Pos
 - **Aba Vendas** — "Em breve" (Fase 3).
 - "Esqueci minha senha", que falha por falta de e-mail próprio.
 - Código de barras do Arroz, que parece digitado errado (aguarda o número certo do dono).
-- Ajustes de velocidade do banco sugeridos pelo Supabase (índices e regras de RLS).
 
 ---
 
@@ -332,8 +332,8 @@ Cada fase termina com o roteiro de teste para o dono.
 | Fase | O que é | Situação |
 |---|---|---|
 | **1. Base** | Contas, comércios, cadastro, estoque, pedidos, equipe, receber, repor | ✅ feita (parte falta testar, 12.2) |
-| **2. Arrumação** | 2.1 este documento ✅ · 2.2 tela inicial com números reais e os menus Comércios e Alertas ✅ · 2.3 **velocidade do banco** | **▶ ETAPA ATUAL** |
-| **3. Vendas pelo caixa** | 3.0 piloto com um arquivo de nota real · 3.1 banco das vendas (desenho aprovado antes) · 3.2 Omni Conector e aba Vendas/Caixas · 3.3 vendas em tempo real e "Vendido sem cadastro" | aguarda as respostas do dono (seção 14) |
+| **2. Arrumação** | 2.1 este documento ✅ · 2.2 tela inicial com números reais e os menus Comércios e Alertas ✅ · 2.3 velocidade do banco ✅ | ✅ feita |
+| **3. Vendas pelo caixa** | 3.0 piloto com um arquivo de nota real · 3.1 banco das vendas (desenho aprovado antes) · 3.2 Omni Conector e aba Vendas/Caixas · 3.3 vendas em tempo real e "Vendido sem cadastro" | **▶ PRÓXIMA** — aguarda as respostas do dono (seção 14) |
 | **4. Fechar a conta** | Registrar perda · conferir o depósito todo dia (E4) · reposição acusando diferença · quadro Diferenças | depois da Fase 3 |
 | **5. Antifurto** | Relatórios do que sumiu (produto, lugar, horário, valor), alertas, painel de todos os comércios | depois da Fase 4 |
 | **6. Lançamento** | E-mail próprio ("Esqueci minha senha"), Termos e Privacidade, proteção de senhas, Google verificado, teste em computador, tablet, Android e iPhone | antes de abrir ao público |
