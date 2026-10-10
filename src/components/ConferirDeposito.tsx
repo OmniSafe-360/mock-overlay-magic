@@ -53,7 +53,7 @@ export function ConferirDeposito({ chave, onVoltar, api: apiDada }: { chave: str
   const titulo = t("Conferir depósito");
 
   if (tela.t === "contar")
-    return <Contar key={tela.rodada} item={tela.item} id={tela.id} rodada={tela.rodada} chave={chave} api={api} t={t} onVoltar={() => setTela({ t: "lista" })}
+    return <Contar mercado={tipo === "mercado"} key={tela.rodada} item={tela.item} id={tela.id} rodada={tela.rodada} chave={chave} api={api} t={t} onVoltar={() => setTela({ t: "lista" })}
       onFim={(r) => {
         if (r.situacao === "recontar") { setTela({ ...tela, rodada: r.rodada ?? tela.rodada + 1 }); return; }
         setAviso(r.situacao === "concluida"
@@ -111,8 +111,8 @@ export function ConferirDeposito({ chave, onVoltar, api: apiDada }: { chave: str
 }
 
 /** Cada rodada abre do zero (key = rodada): a contagem anterior some, para não influenciar. */
-function Contar({ item, id, rodada, chave, api, t, onVoltar, onFim }: {
-  item: banco.ItemConferencia; id: string; rodada: number; chave: string; api: ApiConferir; t: (s: string) => string;
+function Contar({ item, id, rodada, chave, api, t, onVoltar, onFim, mercado }: {
+  item: banco.ItemConferencia; id: string; rodada: number; chave: string; api: ApiConferir; t: (s: string) => string; mercado: boolean;
   onVoltar: () => void; onFim: (r: Awaited<ReturnType<typeof banco.contarConferencia>>) => void;
 }) {
   const [fechadas, setFechadas] = useState<Record<string, string>>({});
@@ -172,7 +172,7 @@ function Contar({ item, id, rodada, chave, api, t, onVoltar, onFim }: {
         </button>
         <button type="button" disabled={enviando} onClick={() => void enviar(0)} className={`w-full ${btnGhost}`}>{t("Não tem nenhum no depósito")}</button>
       </div>
-      {scan && <Scanner onClose={() => setScan(false)} onType={() => setScan(false)} onDenied={() => setScan(false)} onCode={(c) => { setScan(false); void conferir(c); }} />}
+      {scan && <Scanner mercado={mercado} onClose={() => setScan(false)} onType={() => setScan(false)} onDenied={() => setScan(false)} onCode={(c) => { setScan(false); void conferir(c); }} />}
     </div>
   );
 }

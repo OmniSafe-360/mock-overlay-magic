@@ -66,7 +66,7 @@ export function ReporGondola({ chave, onVoltar, api: apiDada }: { chave: string;
   };
 
   if (tela.t === "ir")
-    return <Ir item={tela.item} prateleira={prateleira} chave={chave} api={api} onVoltar={() => setTela({ t: "lista" })} onCheguei={() => setTela({ t: "contar", item: tela.item, id: tela.id })} />;
+    return <Ir mercado={tipo === "mercado"} item={tela.item} prateleira={prateleira} chave={chave} api={api} onVoltar={() => setTela({ t: "lista" })} onCheguei={() => setTela({ t: "contar", item: tela.item, id: tela.id })} />;
   if (tela.t === "contar")
     return <ContarPrateleira item={tela.item} id={tela.id} prateleira={prateleira} chave={chave} api={api} onVoltar={() => setTela({ t: "ir", item: tela.item, id: tela.id })}
       onContou={(r) => setTela({ t: "buscar", item: tela.item, id: tela.id, r })} />;
@@ -105,7 +105,7 @@ export function ReporGondola({ chave, onVoltar, api: apiDada }: { chave: string;
         ))}
       </ul>
       <button type="button" onClick={() => setOutro(true)} className={`flex w-full items-center justify-center gap-2 ${btnGhost}`}><PackageSearch size={18} /> Repor outro produto</button>
-      {outro && <EscolherProduto chave={chave} api={api} onClose={() => setOutro(false)} onEscolher={(p) => { setOutro(false); comecar({ ...p, local: null, localDeposito: null }); }} />}
+      {outro && <EscolherProduto mercado={dados?.tipo === "mercado"} chave={chave} api={api} onClose={() => setOutro(false)} onEscolher={(p) => { setOutro(false); comecar({ ...p, local: null, localDeposito: null }); }} />}
     </div>
   );
 }
@@ -122,8 +122,8 @@ function Cabecalho({ item, onVoltar, voltar }: { item: Item; onVoltar: () => voi
   );
 }
 
-function Ir({ item, prateleira, chave, api, onVoltar, onCheguei }: {
-  item: Item; prateleira: string; chave: string; api: ApiRepor; onVoltar: () => void; onCheguei: () => void;
+function Ir({ item, prateleira, chave, api, onVoltar, onCheguei, mercado }: {
+  item: Item; prateleira: string; chave: string; api: ApiRepor; onVoltar: () => void; onCheguei: () => void; mercado: boolean;
 }) {
   const [scan, setScan] = useState(false);
   const [aviso, setAviso] = useState("");
@@ -148,7 +148,7 @@ function Ir({ item, prateleira, chave, api, onVoltar, onCheguei }: {
         <button type="button" onClick={() => setScan(true)} className={`flex items-center justify-center gap-2 ${btnPrimary(true)}`}><Camera size={20} /> Bipar o produto na prateleira</button>
         <button type="button" onClick={onCheguei} className={`flex w-full items-center justify-center gap-2 ${btnGhost}`}>Estou na prateleira, vou contar</button>
       </div>
-      {scan && <Scanner onClose={() => setScan(false)} onType={() => { setScan(false); onCheguei(); }} onDenied={() => { setScan(false); onCheguei(); }}
+      {scan && <Scanner mercado={mercado} onClose={() => setScan(false)} onType={() => { setScan(false); onCheguei(); }} onDenied={() => { setScan(false); onCheguei(); }}
         onCode={(c) => { setScan(false); void conferir(c); }} />}
     </div>
   );
@@ -237,7 +237,7 @@ function Buscar({ item, id, r, prateleira, t, chave, api, onPronto }: {
   );
 }
 
-function EscolherProduto({ chave, api, onClose, onEscolher }: { chave: string; api: ApiRepor; onClose: () => void; onEscolher: (p: ProdutoFunc) => void }) {
+function EscolherProduto({ chave, api, onClose, onEscolher, mercado }: { chave: string; api: ApiRepor; onClose: () => void; onEscolher: (p: ProdutoFunc) => void; mercado: boolean }) {
   const [q, setQ] = useState("");
   const [res, setRes] = useState<ProdutoFunc[] | null>(null);
   const [scan, setScan] = useState(false);
@@ -269,7 +269,7 @@ function EscolherProduto({ chave, api, onClose, onEscolher }: { chave: string; a
           ))}
         </ul>
       </form>
-      {scan && <Scanner onClose={() => setScan(false)} onType={() => setScan(false)} onDenied={() => setScan(false)} onCode={(c) => { setScan(false); setQ(c); void procurar(c); }} />}
+      {scan && <Scanner mercado={mercado} onClose={() => setScan(false)} onType={() => setScan(false)} onDenied={() => setScan(false)} onCode={(c) => { setScan(false); setQ(c); void procurar(c); }} />}
     </Sheet>
   );
 }

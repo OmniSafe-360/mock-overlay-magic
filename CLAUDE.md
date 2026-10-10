@@ -15,6 +15,8 @@
 
 ## Decisões registradas depois da versão 1.0 do documento
 
+- 10/10/2026: **códigos do Mercado, primeira entrega**, autorizada pelo dono: ITF-14 no scanner do dono/equipe e correspondência UPC-A/EAN-13 com verificador válido, preservando o código original. Outros tipos mantêm o comportamento anterior. Migração `20261010123000_codigos_mercado_ean_upc.sql` preparada e testada no PostgreSQL descartável, incluindo duplicados antigos, isolamento e duas conexões concorrentes; **ainda não aplicada em produção por falta de acesso nesta sessão**. Balança e catálogo ficam para outra entrega. Ver [registro e roteiro](docs/codigos-mercado-2026-10-10.md).
+
 - 10/10/2026: **melhorias da base em três etapas**, autorizadas pelo dono e executadas pelo Codex. Corrigidos hooks ao adicionar comércio, resumos com consulta incompleta, disputa entre leituras antigas/novas e recuperação durável de perdas/recebimento. Centralizados modelos, janelas, contador, formatação, data do comércio e observação do teclado, preservando exports e fluxos. Resumo das variações mais legível, Editar com 48 px e mensagens atuais em português. Ver [registro e roteiro](docs/melhorias-base-2026-10-10.md). Migração `20261010100000_consolidar_reposicao_e_reenvios.sql` testada no PostgreSQL descartável (reposição sem vencidos/pendentes, limites e reenvio exato), **ainda não aplicada em produção por falta de acesso nesta sessão**. Fixtures ficam somente em `docs/persistencia/teste`.
 
 - 08/10/2026: o dono decidiu **manter o repositório GitHub público** (contraria a seção 10, por decisão escrita do dono).

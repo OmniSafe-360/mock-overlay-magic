@@ -2,12 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { Scanner, classifyCameraError, SCAN_ERROR_MSG, CAMERA_PREFERIDA, INTERVALO_LEITURA_MS, cropParaVideo } from "@/components/Scanner";
 import { ProductWizard } from "@/components/ProductArea";
+import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 
 // Simula a câmera do navegador e a biblioteca de leitura (o componente Scanner real é usado).
-const z = vi.hoisted(() => ({ next: null as null | string, decodes: 0, gum: null as unknown as ReturnType<typeof vi.fn>, stop: null as unknown as ReturnType<typeof vi.fn>, apply: null as unknown as ReturnType<typeof vi.fn>, caps: {} as Record<string, unknown>, draws: [] as number[][] }));
+const z = vi.hoisted(() => ({ next: null as null | string, formato: null as number | null, decodes: 0, hints: null as Map<unknown, unknown> | null, gum: null as unknown as ReturnType<typeof vi.fn>, stop: null as unknown as ReturnType<typeof vi.fn>, apply: null as unknown as ReturnType<typeof vi.fn>, caps: {} as Record<string, unknown>, draws: [] as number[][] }));
 vi.mock("@zxing/browser", () => ({
   BrowserMultiFormatReader: class {
-    decodeFromCanvas() { z.decodes++; if (z.next == null) throw new Error("NotFound"); return { getText: () => z.next }; }
+    constructor(hints: Map<unknown, unknown>) { z.hints = hints; }
+    decodeFromCanvas() { z.decodes++; if (z.next == null) throw new Error("NotFound"); return { getText: () => z.next, getBarcodeFormat: () => z.formato }; }
   },
 }));
 
@@ -19,7 +21,7 @@ const fakeStream = () => ({
 });
 
 beforeEach(() => {
-  z.next = null; z.decodes = 0; z.caps = {}; z.draws = [];
+  z.next = null; z.formato = null; z.decodes = 0; z.hints = null; z.caps = {}; z.draws = [];
   z.stop = vi.fn(); z.apply = vi.fn(async () => {});
   z.gum = vi.fn(async () => fakeStream());
   Object.defineProperty(navigator, "mediaDevices", { value: { getUserMedia: z.gum }, configurable: true });
@@ -33,12 +35,25 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("Scanner", () => {
+  it("habilita ITF só para Mercado, limitado a 14 dígitos, e entrega à chamada certa", async () => {
+    const onCode = vi.fn();
+    render(<Scanner mercado onCode={onCode} onType={() => {}} onClose={() => {}} />);
+    await flush();
+    expect(z.hints?.get(DecodeHintType.POSSIBLE_FORMATS)).toContain(BarcodeFormat.ITF);
+    expect(z.hints?.get(DecodeHintType.ALLOWED_LENGTHS)).toEqual([14]);
+    z.formato = BarcodeFormat.ITF;
+    await ler("1234567890123456");
+    expect(onCode).not.toHaveBeenCalled();
+    await ler("17896263503200");
+    expect(onCode).toHaveBeenCalledExactlyOnceWith("17896263503200");
+  });
   it("mostra carregamento, prefere câmera traseira e entrega o código uma vez com zeros à esquerda", async () => {
     const onCode = vi.fn();
     render(<Scanner onCode={onCode} onType={() => {}} onClose={() => {}} />);
     expect(screen.getByText("Abrindo a câmera...")).toBeTruthy();
     await flush();
     expect(z.gum.mock.calls[0]![0]).toEqual(CAMERA_PREFERIDA);
+    expect(z.hints?.get(DecodeHintType.POSSIBLE_FORMATS)).not.toContain(BarcodeFormat.ITF);
     expect(screen.getByText("Centralize o código e mantenha o celular parado")).toBeTruthy();
     await ler("0012345678905");
     await ler("999");

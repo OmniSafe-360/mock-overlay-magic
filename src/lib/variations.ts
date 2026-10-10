@@ -1,4 +1,5 @@
 import type { EntityId } from "@/lib/identidade";
+import { codigoComparavel } from "@/lib/codigoBarras";
 /* Regras das variações (Loja de roupas): códigos e combinações tamanho + cor. */
 export type VarLike = { tam: string; cor: string; codigo?: string | undefined };
 export type ProdLike = { id: EntityId; codigo: string; variacoes: VarLike[]; embalagens?: { codigo: string }[] | undefined };
@@ -6,20 +7,20 @@ export type ProdLike = { id: EntityId; codigo: string; variacoes: VarLike[]; emb
 const norm = (s: string | undefined) => (s ?? "").trim().toLowerCase();
 
 /** Códigos já usados por OUTROS produtos do mesmo comércio (principal + variações + embalagens). */
-export function usedCodes(products: ProdLike[], selfId?: EntityId): Set<string> {
+export function usedCodes(products: ProdLike[], selfId?: EntityId, mercado = false): Set<string> {
   const set = new Set<string>();
   for (const p of products) {
     if (p.id === selfId) continue;
-    if (p.codigo.trim()) set.add(p.codigo.trim());
-    for (const v of p.variacoes) if (v.codigo?.trim()) set.add(v.codigo.trim());
-    for (const e of p.embalagens ?? []) if (e.codigo.trim()) set.add(e.codigo.trim());
+    if (p.codigo.trim()) set.add(codigoComparavel(p.codigo, mercado));
+    for (const v of p.variacoes) if (v.codigo?.trim()) set.add(codigoComparavel(v.codigo, mercado));
+    for (const e of p.embalagens ?? []) if (e.codigo.trim()) set.add(codigoComparavel(e.codigo, mercado));
   }
   return set;
 }
 
 /** Erro do código principal: repetido em outro produto ou em variação de outro produto. */
-export function mainCodeError(code: string, used: Set<string>, ownVars: VarLike[] = []): string {
-  const c = code.trim();
+export function mainCodeError(code: string, used: Set<string>, ownVars: VarLike[] = [], mercado = false): string {
+  const c = codigoComparavel(code, mercado);
   if (!c) return "";
   if (ownVars.some((v) => (v.codigo ?? "").trim() === c)) return "Este código já pertence a uma variação deste produto.";
   return used.has(c) ? "Este código já está cadastrado" : "";
@@ -51,6 +52,7 @@ export type ProductDraft = {
 /** Valida todas as etapas antes de salvar. Retorna a primeira etapa inválida e a orientação, ou null. */
 export type TypeRules = {
   unidades: string[]; categorias: string[]; semVariacoes?: boolean; varsMsg?: string;
+  equivalenciaEanUpc?: boolean;
   /** Detalhes com valores fixos: se preenchidos, precisam estar em `opts`. */
   detalhesFixos?: { k: string; opts: string[]; msg: string }[];
 };
@@ -80,7 +82,7 @@ export function typeRuleError(d: Pick<ProductDraft, "unidade" | "categoria" | "v
 
 export function firstInvalidStep(d: ProductDraft, isRoupas: boolean, used: Set<string>, rules?: TypeRules): { step: number; msg: string } | null {
   if (!d.codigo.trim()) return { step: 0, msg: "Informe o código do produto." };
-  const ce = mainCodeError(d.codigo, used, isRoupas ? d.variacoes : []);
+  const ce = mainCodeError(d.codigo, used, isRoupas ? d.variacoes : [], !!rules?.equivalenciaEanUpc);
   if (ce) return { step: 0, msg: ce };
   if (!d.nome.trim()) return { step: 0, msg: "Informe o nome do produto." };
   if (!(d.compra > 0) || !(d.venda > 0)) return { step: 1, msg: "Informe os preços de compra e de venda." };

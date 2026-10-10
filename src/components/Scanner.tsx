@@ -60,7 +60,7 @@ const MAX_LADO = 960;
 type Caps = { torch?: boolean; focusMode?: string[] };
 
 /** Câmera em tela cheia que lê EAN-13, EAN-8, UPC, Code 128 e QR Code. Entrega o código uma única vez. */
-export function Scanner({ onCode, onType, onClose }: { onCode: (c: string) => void; onType: () => void; onDenied?: () => void; onClose: () => void }) {
+export function Scanner({ onCode, onType, onClose, mercado = false }: { onCode: (c: string) => void; onType: () => void; onDenied?: () => void; onClose: () => void; mercado?: boolean }) {
   const video = useRef<HTMLVideoElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const ctrl = useRef<Controls | null>(null);
@@ -93,7 +93,7 @@ export function Scanner({ onCode, onType, onClose }: { onCode: (c: string) => vo
       if (!navigator.mediaDevices?.getUserMedia) { setStatus("unsupported"); return; }
       try {
         // Câmera e biblioteca carregam em paralelo para abrir mais rápido.
-        const libs = Promise.all([import("@zxing/browser"), import("@zxing/library")]);
+        const libs = Promise.all([import("@zxing/browser"), import("@/lib/leituraCodigo")]);
         try {
           stream = await navigator.mediaDevices.getUserMedia(CAMERA_PREFERIDA);
         } catch (e) {
@@ -111,12 +111,9 @@ export function Scanner({ onCode, onType, onClose }: { onCode: (c: string) => vo
         const v = video.current;
         v.srcObject = stream;
         try { await v.play(); } catch { /* autoPlay cuida */ }
-        const [{ BrowserMultiFormatReader }, { BarcodeFormat, DecodeHintType }] = await libs;
+        const [{ BrowserMultiFormatReader }, { hintsLeitura, textoLeitura }] = await libs;
         if (!alive || !video.current) { pararStream(); return; }
-        const hints = new Map();
-        hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.UPC_E, BarcodeFormat.CODE_128, BarcodeFormat.QR_CODE]);
-        hints.set(DecodeHintType.TRY_HARDER, true);
-        const reader = new BrowserMultiFormatReader(hints);
+        const reader = new BrowserMultiFormatReader(hintsLeitura(mercado));
         const canvas = document.createElement("canvas");
         const g = canvas.getContext("2d", { willReadFrequently: true });
         const tPronto = performance.now();
@@ -150,7 +147,10 @@ export function Scanner({ onCode, onType, onClose }: { onCode: (c: string) => vo
             try {
               g.drawImage(el, r.x, r.y, r.w, r.h, 0, 0, canvas.width, canvas.height);
               const res = reader.decodeFromCanvas(canvas);
-              if (res) { entregar(res.getText()); return; }
+              if (res) {
+                const codigo = textoLeitura(res.getText(), res.getBarcodeFormat(), mercado);
+                if (codigo) { entregar(codigo); return; }
+              }
             } catch { /* nenhum código neste quadro */ }
           }
           // Próxima tentativa só depois que esta terminou: não acumula trabalho nem trava.
@@ -171,7 +171,7 @@ export function Scanner({ onCode, onType, onClose }: { onCode: (c: string) => vo
     })();
     return () => { alive = false; pararStream(); stopAll(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted, attempt]);
+  }, [mounted, attempt, mercado]);
 
   const close = (fn: () => void) => { done.current = true; stopAll(); fn(); };
   const toggle = async () => { const v = !torch; try { await ctrl.current?.switchTorch?.(v); setTorch(v); } catch { setHasTorch(false); } };
