@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Product, Supplier } from "@/components/ProductArea";
 import { precoUnidade as precoUnidadePedido, type CanalPedido, type FormaPagamento, type LinhaPedido, type Pedido, type RespostaPedido, type SituacaoPedido } from "@/lib/pedido";
 import type { Funcao, Funcionario } from "@/lib/funcionario";
+import type { Caixa, ItemVenda, Venda } from "@/lib/vendas";
 import type { ItemRecebido, ProdutoFunc, Recebimento, SituacaoItemRecebido } from "@/lib/recebimento";
 import type { itemParaEnvio } from "@/lib/recebimento";
 import { ehIncerto, enviarCadastro, linhaFornecedor, montarCadastro, montarFornecedores, montarProdutos, type Bruto, type Sessao } from "@/lib/persistencia";
@@ -279,6 +280,57 @@ export async function responderPedido(token: string, r: RespostaFornecedor): Pro
   } });
   if (error) throw error;
   return data?.situacao;
+}
+
+/* ---------- vendas pelo caixa (Fase 3) ---------- */
+const centavos = (v: unknown) => Math.round(Number(v ?? 0) * 100);
+export async function carregarCaixas(comercioId: string): Promise<Caixa[]> {
+  const cs = await todos("caixas", "id,nome,codigo,codigo_gerado_em,ligado_em,desligado_em,ultimo_contato_em,ultima_venda_em,aparelho,created_at",
+    (q) => q.eq("comercio_id", comercioId).order("created_at"));
+  return cs.map((c) => ({
+    id: c.id, nome: c.nome, codigo: c.codigo ?? null, codigoGeradoEm: c.codigo_gerado_em ?? null, ligadoEm: c.ligado_em ?? null,
+    desligadoEm: c.desligado_em ?? null, ultimoContatoEm: c.ultimo_contato_em ?? null, ultimaVendaEm: c.ultima_venda_em ?? null, aparelho: c.aparelho ?? null,
+  }));
+}
+/** Vendas a partir de uma data (ISO), com os itens. */
+export async function carregarVendas(comercioId: string, desde: string): Promise<Venda[]> {
+  const vs = await todos("vendas", "id,caixa_id,chave_nota,numero,emitida_em,recebida_em,total,situacao,cancelada_em,pagamentos",
+    (q) => q.eq("comercio_id", comercioId).gte("recebida_em", desde));
+  const ids = vs.map((v) => v.id);
+  const its: any[] = [];
+  for (let i = 0; i < ids.length; i += 200) {
+    its.push(...await todos("venda_itens", "id,venda_id,n_item,codigo_pdv,codigo_barras,descricao,qtd_nota,unidade_nota,valor,produto_id,qtd_unidades,qtd_baixada,qtd_faltou,situacao,motivo",
+      (q) => q.in("venda_id", ids.slice(i, i + 200))));
+  }
+  const item = (x: any): ItemVenda => ({
+    id: x.id, n: x.n_item, codigoPdv: x.codigo_pdv, codigoBarras: x.codigo_barras ?? null, descricao: x.descricao, qtdNota: Number(x.qtd_nota),
+    unidadeNota: x.unidade_nota ?? null, valor: centavos(x.valor), produtoId: x.produto_id ?? null, qtdUnidades: x.qtd_unidades == null ? null : Number(x.qtd_unidades),
+    qtdBaixada: Number(x.qtd_baixada ?? 0), qtdFaltou: Number(x.qtd_faltou ?? 0), situacao: x.situacao, motivo: x.motivo ?? null,
+  });
+  return vs.map((v) => ({
+    id: v.id, caixaId: v.caixa_id, chave: v.chave_nota, numero: v.numero ?? null, emitidaEm: v.emitida_em ?? null, recebidaEm: v.recebida_em,
+    total: centavos(v.total), situacao: v.situacao, canceladaEm: v.cancelada_em ?? null,
+    pagamentos: (Array.isArray(v.pagamentos) ? v.pagamentos : []).map((p: any) => ({ forma: String(p?.forma ?? ""), valor: centavos(p?.valor) })),
+    itens: its.filter((i) => i.venda_id === v.id).map(item).sort((a, b) => a.n - b.n),
+  })).sort((a, b) => (b.emitidaEm ?? b.recebidaEm).localeCompare(a.emitidaEm ?? a.recebidaEm));
+}
+export async function criarCaixa(comercioId: string, nome: string): Promise<{ id: string; codigo: string }> {
+  const { data, error } = await db.rpc("criar_caixa", { _comercio: comercioId, _nome: nome });
+  if (error) throw error;
+  return { id: data.id, codigo: data.codigo };
+}
+export async function renomearCaixa(id: string, nome: string) {
+  const { error } = await db.rpc("renomear_caixa", { _id: id, _nome: nome });
+  if (error) throw error;
+}
+export async function novoCodigoCaixa(id: string): Promise<string> {
+  const { data, error } = await db.rpc("novo_codigo_caixa", { _id: id });
+  if (error) throw error;
+  return String(data);
+}
+export async function desligarCaixa(id: string) {
+  const { error } = await db.rpc("desligar_caixa", { _id: id });
+  if (error) throw error;
 }
 
 /* ---------- equipe (E1) ---------- */

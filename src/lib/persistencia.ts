@@ -159,6 +159,7 @@ const MSG: [string, string][] = [
   ["nome_funcionario_longo", "O nome pode ter no máximo 60 letras."],
   ["funcao_invalida", "Escolha o que o funcionário faz."],
   ["funcionarios_demais", "Este comércio já tem 50 funcionários cadastrados."],
+  ["caixas_demais", "Este comércio já tem 50 caixas ligados. Desligue um caixa que não usa mais."],
   ["funcionario_bloqueado", "Este funcionário está bloqueado. Desbloqueie primeiro."],
   ["pedido_sem_pagamento", "Este pedido não tem conta a pagar (ainda não foi enviado, foi recusado ou cancelado)."],
   ["vencimento_obrigatorio", "Informe a data de vencimento."],
