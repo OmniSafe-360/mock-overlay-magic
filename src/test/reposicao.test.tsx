@@ -23,15 +23,45 @@ function api(over: Partial<ApiRepor> = {}, tipo = "mercado") {
 const CH = "c".repeat(64);
 
 describe("Repor gôndola (funcionário)", () => {
+  it.each([
+    ["recebimento_em_conferencia", /Há uma entrega em conferência/],
+    ["estoque_nao_liberado", /aguardando liberação/],
+    ["deposito_sem_estoque", /depósito está sem estoque/],
+    ["deposito_nao_contado", /depósito ainda não foi contado/],
+    [undefined, /Sem estoque disponível/],
+  ] as const)("explica %s e registra zero sem anunciar reposição concluída", async (motivoSemReposicao, texto) => {
+    const a = api({ contar: vi.fn(async () => resp({ sugerido: 0, depositoVazio: true, motivoSemReposicao: motivoSemReposicao ?? null })) });
+    render(<ReporGondola chave={CH} api={a} onVoltar={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Arroz 5 kg/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Estou na prateleira/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Está vazia/ }));
+    expect(await screen.findByText(texto)).toBeTruthy();
+    expect(screen.getByText(/sem transferir produtos/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Entendi" }));
+    const resultado = await screen.findByRole("status");
+    expect(resultado.textContent).toMatch(/contagem registrada. Reposição não realizada/);
+    expect(resultado.textContent).not.toMatch(/Pronto!|Reposição concluída/);
+    expect(resultado.className).toContain("text-warning");
+    expect(a.concluir).toHaveBeenCalledWith(CH, expect.any(String), 0);
+  });
+  it("não afirma que a prateleira é pequena quando o limite vem do estoque disponível", async () => {
+    render(<ReporGondola chave={CH} api={api()} onVoltar={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Arroz 5 kg/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Estou na prateleira/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Está vazia/ }));
+    fireEvent.change(await screen.findByLabelText("Coloquei (unidades)"), { target: { value: "50" } });
+    expect(screen.getByRole("alert").textContent).toMatch(/quantidade indicada/);
+    expect(screen.queryByText(/não cabe/)).toBeNull();
+  });
   it("lista em ordem de caminho, avisa quando acabou no depósito", async () => {
     render(<ReporGondola chave={CH} api={api()} onVoltar={() => {}} />);
     const botoes = await screen.findAllByRole("button", { name: /Gôndola \d+/ });
-    expect(botoes.map((b) => b.textContent)).toEqual([expect.stringMatching(/^Tiss.*Gôndola 3.*Sem quantidade disponível para repor no depósito/), expect.stringMatching(/^Arroz 5 kg.*Gôndola 10/)]);
+    expect(botoes.map((b) => b.textContent)).toEqual([expect.stringMatching(/^Tiss.*Gôndola 3.*Sem estoque disponível para reposição/), expect.stringMatching(/^Arroz 5 kg.*Gôndola 10/)]);
   });
   it("farmácia fala área de venda e estoque", async () => {
     render(<ReporGondola chave={CH} api={api({}, "farmacia")} onVoltar={() => {}} />);
     expect(await screen.findByText("Repor área de venda")).toBeTruthy();
-    expect(screen.getByText("Sem quantidade disponível para repor no estoque")).toBeTruthy();
+    expect(screen.getByText("Sem estoque disponível para reposição. Avise o dono para conferir o estoque.")).toBeTruthy();
   });
   it("vai até o lugar, conta às cegas, busca no depósito e coloca", async () => {
     const a = api();
@@ -53,7 +83,7 @@ describe("Repor gôndola (funcionário)", () => {
     fireEvent.change(campo, { target: { value: "40" } });
     fireEvent.click(screen.getByRole("button", { name: /Coloquei na gôndola/ }));
     await waitFor(() => expect(a.concluir).toHaveBeenCalledWith(CH, vi.mocked(a.contar).mock.calls[0]![1], 40));
-    expect(await screen.findByText(/Pronto! Arroz 5 kg: 40 unidades na gôndola/)).toBeTruthy();
+    expect(await screen.findByText(/Reposição concluída: Arroz 5 kg · colocado na gôndola: 40 unidades/)).toBeTruthy();
     expect(a.lista).toHaveBeenCalledTimes(2);
   });
   it("prateleira cheia: não precisa repor; prateleira vazia manda zero", async () => {

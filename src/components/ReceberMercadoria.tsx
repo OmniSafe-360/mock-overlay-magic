@@ -1,7 +1,7 @@
 import { Contador } from "@/components/parts/Contador";
 import { useHoje } from "@/hooks/useHoje";
 /* Receber mercadoria no app do funcionário (E2). Conferência cega: o funcionário bipa e conta o que chegou, sem nunca ver
- * quanto foi pedido. Ao tocar em "Terminei", o servidor compara e pede para contar de novo o que não bateu. */
+ * quanto foi pedido. Ao enviar as contagens, o servidor compara e pede para contar de novo o que não bateu. */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ArrowLeft, Camera, Check, CheckCircle2, Keyboard, Minus, PackageCheck, PackageX, Plus, RefreshCw, Search, Truck } from "lucide-react";
 import { Scanner } from "@/components/Scanner";
@@ -15,7 +15,7 @@ import { escopoAcesso, operacaoLocal } from "@/lib/operacaoLocal";
 import { ERRO_REGISTRO } from "@/lib/envios";
 import {
   apagarRascunho, chaveProduto, chaveRascunho, erroContagem, guardarRascunho, itemParaEnvio, lerRascunho, nomeProdutoFunc, novaContagem, resumoContagem,
-  totalDaContagem, type Contagem, type EstadoItem, type ProdutoFunc,
+  totalDaContagem, estadoRecebido, textoEstado, type Contagem, type EstadoItem, type ProdutoFunc,
 } from "@/lib/recebimento";
 
 export type ApiReceber = {
@@ -75,8 +75,8 @@ function ReceberPorAcesso({ chave, onVoltar, apiDada, mercado }: { chave: string
       <div className="m-auto flex w-full flex-col items-center gap-4 py-10 text-center">
         <span className="flex h-20 w-20 items-center justify-center rounded-full bg-accent/15 text-accent"><CheckCircle2 size={44} /></span>
         <p className="text-2xl font-bold">Pronto!</p>
-        <p className="text-base">Mercadoria recebida. {tela.produtos === 1 ? "1 produto conferido" : `${tela.produtos} produtos conferidos`} e já no estoque.</p>
-        {tela.avisos && <p className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">Algumas diferenças foram avisadas ao dono. Deixe separado o que veio fora do pedido.</p>}
+        <p className="text-base">Recebimento concluído. Somente as quantidades boas e aceitas foram registradas no depósito.</p>
+        {tela.avisos && <p className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">Há diferenças para o dono conferir. Produtos aguardando decisão, fora do pedido, quebrados ou vencidos devem ficar separados.</p>}
         <button type="button" onClick={onVoltar} className={btnPrimary(true)}>Voltar ao início</button>
       </div>
     );
@@ -193,7 +193,7 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
     for (const [k, c] of Object.entries(contagens)) if (!(k in estados) || estados[k] === "falta") estados[k] = erroContagem(c) ? "falta" : "contado";
     for (const i of aberto.itens) {
       const k = chaveProduto(i);
-      estados[k] = i.situacao === "recontar" ? "recontar" : "conferido";
+      estados[k] = estadoRecebido(i.situacao);
       if (i.situacao === "recontar" && contagens[k] && mesmo?.estados[k] !== "contado") delete contagens[k];
       if (i.situacao === "recontar" && mesmo?.estados[k] === "contado" && contagens[k]) estados[k] = "contado";
     }
@@ -208,6 +208,7 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
     return m;
   });
   const [rodada, setRodada] = useState(inicial.rodada);
+  const [recontagens, setRecontagens] = useState(() => new Set(aberto.itens.filter((i) => i.situacao === "recontar").map(chaveProduto)));
   const [aberta, setAberta] = useState<string | null>(null);
   const [scan, setScan] = useState(false);
   const [busca, setBusca] = useState(false);
@@ -230,17 +231,28 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
   }, [kr, aberto.id, aberto.pedidoId, fornecedorId, contagens, estados, rodada]);
 
   const chaves = Object.keys(produtos);
-  const ordem = (k: string) => ({ recontar: 0, falta: 1, contado: 2, conferido: 3 })[estados[k] ?? "falta"];
+  const ordem = (k: string) => ({ recontar: 0, falta: 1, contado: 2, aguardando_dono: 3, enviado: 4, recusado: 5, conferido: 6 })[estados[k] ?? "falta"];
   const lista = [...chaves].sort((a, b) => ordem(a) - ordem(b));
   const contados = chaves.filter((k) => estados[k] === "contado");
   const pendentes = chaves.filter((k) => estados[k] === "recontar" || (estados[k] === "falta" && noPedido.has(k)));
   const podeTerminar = !!registro && (envioPendente || (contados.length > 0 && !chaves.some((k) => estados[k] === "recontar"))) && !enviando;
+  const paraRecontar = chaves.filter((k) => estados[k] === "recontar");
+  const faltam = chaves.filter((k) => estados[k] === "falta" && noPedido.has(k));
+  const orientacao = [
+    paraRecontar.length ? `Conte de novo ${paraRecontar.length === 1 ? "1 produto" : `${paraRecontar.length} produtos`} em amarelo, com calma.` : "",
+    faltam.length ? `Ainda falta contar: ${faltam.map((k) => nomeProdutoFunc(produtos[k]!)).join(", ")}. Se não veio, abra e toque em "Não veio".` : "",
+  ].filter(Boolean).join(" ");
+  const envioTexto = envioPendente ? "Confirmar envio anterior" : pendentes.length ? "Enviar contagens" : "Conferir e concluir entrega";
+  const encerrado = (e: EstadoItem | undefined) => !!e && !["falta", "contado", "recontar"].includes(e);
+  const explicar = (p: ProdutoFunc, e: EstadoItem) => setAviso(e === "conferido"
+    ? `${nomeProdutoFunc(p)} já foi conferido. A entrega ainda não terminou e esta quantidade ainda não entrou no depósito.`
+    : `${nomeProdutoFunc(p)}: ${textoEstado[e]}.`);
 
   const escolher = (p: ProdutoFunc) => {
     const k = chaveProduto(p);
     setProdutos((m) => ({ ...m, [k]: m[k] ?? p }));
     setEstados((m) => ({ ...m, [k]: m[k] ?? "falta" }));
-    if (estados[k] === "conferido") { setAviso(`${nomeProdutoFunc(p)} já foi conferido nesta entrega.`); return; }
+    if (encerrado(estados[k])) { explicar(p, estados[k]!); return; }
     setAviso("");
     setContagens((m) => {
       if (m[k]) {
@@ -272,19 +284,24 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
       const r = confirmado.resultado;
       if (r.situacao === "concluido") { apagarRascunho(kr); onPronto(r.avisos, r.produtos); return; }
       const recontar = new Set(r.recontar.map(chaveProduto));
+      // Respostas antigas não incluem os estados. Consulte a entrega, sem inferir aceite.
+      let itens = r.itens;
+      if (!itens && confirmado.pedido.chaves.some((k) => !recontar.has(k))) {
+        try { itens = (await api.abrir(chave, aberto.id, aberto.pedidoId, fornecedorId)).itens; }
+        catch { /* envio já confirmado: não repetir nem declarar aceite sem resposta */ }
+      }
+      const recebidos = new Map(itens?.map((i) => [chaveProduto(i), estadoRecebido(i.situacao)]));
       setEstados((m) => {
         const n = { ...m };
-        for (const k of confirmado.pedido.chaves) n[k] = recontar.has(k) ? "recontar" : "conferido";
+        for (const k of confirmado.pedido.chaves) n[k] = recebidos.get(k) ?? (recontar.has(k) ? "recontar" : "enviado");
+        for (const k of recontar) n[k] = "recontar";
         return n;
       });
+      setRecontagens(recontar);
       // Recontagem cega: a contagem anterior some da tela.
       setContagens((m) => { const n = { ...m }; for (const k of recontar) delete n[k]; return n; });
       setRodada(r.rodada);
-      const faltam = r.faltam.map((x) => produtos[chaveProduto(x)]).filter(Boolean).map((p) => nomeProdutoFunc(p!));
-      setAviso([
-        recontar.size ? `Conte de novo ${recontar.size === 1 ? "1 produto (marcado em amarelo)" : `${recontar.size} produtos (marcados em amarelo)`}. Conte com calma.` : "",
-        faltam.length ? `Ainda falta contar: ${faltam.join(", ")}. Se não veio, abra e toque em "Não veio".` : "",
-      ].filter(Boolean).join(" "));
+      setAviso("");
     } catch (e) { setErro(erroTexto(e)); }
     finally { setEnviando(false); }
   };
@@ -293,7 +310,7 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
   return (
     <div className="space-y-4 pb-28">
       {!registro && <p role="alert" className="text-sm text-destructive">{ERRO_REGISTRO}</p>}
-      {envioPendente && <p role="status" className="rounded-2xl border border-warning/50 p-3 text-sm">Contagem enviada sem confirmação. Toque em Terminei para repetir os dados originais, sem duplicar.</p>}
+      {envioPendente && <p role="status" className="rounded-2xl border border-warning/50 p-3 text-sm">Contagem enviada sem confirmação. Toque em Confirmar envio anterior para repetir os dados originais, sem duplicar.</p>}
       <button type="button" onClick={onSair} className="flex min-h-12 items-center gap-2 pr-3 text-base font-semibold text-primary"><ArrowLeft size={18} /> Entregas</button>
       <div>
         <h1 className="break-words text-2xl font-bold leading-tight">{aberto.fornecedor ?? "Entrega sem pedido"}</h1>
@@ -304,6 +321,8 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
         <button type="button" onClick={() => setBusca(true)} className={`flex items-center justify-center gap-2 ${btnGhost}`}><Keyboard size={18} /> Digitar código ou nome</button>
       </div>
       {aviso && <p role="status" className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">{aviso}</p>}
+      {orientacao && <p role="status" className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">{orientacao}</p>}
+      {chaves.some((k) => estados[k] === "conferido") && <p className="text-sm text-muted-foreground">Produto conferido ainda aguarda a conclusão da entrega. Sua quantidade só entra no depósito ao concluir o recebimento.</p>}
 
       <ul className="space-y-2">
         {lista.map((k) => {
@@ -313,17 +332,17 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
           const fora = !!aberto.pedidoId && !noPedido.has(k);
           return (
             <li key={k}>
-              <button type="button" onClick={() => (e === "conferido" ? setAviso(`${nomeProdutoFunc(p)} já foi conferido.`) : (setContagens((m) => ({ ...m, [k]: m[k] ?? novaContagem(p) })), setAberta(k)))}
-                aria-label={`${nomeProdutoFunc(p)}: ${e === "falta" ? "falta contar" : e === "recontar" ? "conte de novo" : e === "conferido" ? "conferido" : "contado"}`}
-                className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left ${e === "recontar" ? "border-warning bg-warning/10" : e === "conferido" ? "border-accent/50 bg-accent/5" : e === "contado" ? "border-primary/50 bg-primary/5" : "border-border bg-secondary/50"}`}>
+              <button type="button" onClick={() => (encerrado(e) ? explicar(p, e) : (setContagens((m) => ({ ...m, [k]: m[k] ?? novaContagem(p) })), setAberta(k)))}
+                aria-label={`${nomeProdutoFunc(p)}: ${e === "contado" ? "contado" : textoEstado[e].toLowerCase()}`}
+                className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left ${e === "recontar" || e === "aguardando_dono" ? "border-warning bg-warning/10" : e === "conferido" ? "border-accent/50 bg-accent/5" : e === "contado" ? "border-primary/50 bg-primary/5" : "border-border bg-secondary/50"}`}>
                 <span className="min-w-0 flex-1">
                   <span className="block break-words text-base font-semibold leading-snug">{nomeProdutoFunc(p)}</span>
-                  <span className={`block text-sm ${e === "recontar" ? "font-semibold text-warning" : e === "conferido" ? "text-accent" : "text-muted-foreground"}`}>
-                    {e === "falta" ? "Falta contar" : e === "recontar" ? "Conte de novo" : e === "conferido" ? "Conferido" : c ? resumoContagem(c) : ""}
+                  <span className={`block text-sm ${e === "recontar" || e === "aguardando_dono" ? "font-semibold text-warning" : e === "conferido" ? "text-accent" : "text-muted-foreground"}`}>
+                    {e === "contado" ? `${recontagens.has(k) ? "Nova contagem pronta para enviar" : textoEstado[e]}${c ? ` · ${resumoContagem(c)}` : ""}` : textoEstado[e]}
                   </span>
                   {fora && e !== "conferido" && <span className="block text-xs font-semibold text-warning">Não está no pedido — deixe separado</span>}
                 </span>
-                {e === "conferido" ? <Check size={22} className="shrink-0 text-accent" /> : e === "recontar" ? <AlertTriangle size={22} className="shrink-0 text-warning" /> : null}
+                {e === "conferido" ? <Check size={22} className="shrink-0 text-accent" /> : e === "recontar" || e === "aguardando_dono" ? <AlertTriangle size={22} className="shrink-0 text-warning" /> : null}
               </button>
             </li>
           );
@@ -335,10 +354,10 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
         <div className="mx-auto max-w-[480px] space-y-1">
           {erro && <p role="alert" className="text-sm font-semibold text-destructive">{erro}</p>}
           <button type="button" disabled={!podeTerminar} onClick={() => void terminar()} className={`flex items-center justify-center gap-2 ${btnPrimary(podeTerminar)}`}>
-            <PackageCheck size={20} /> {enviando ? "Conferindo…" : "Terminei"}
+            <PackageCheck size={20} /> {enviando ? "Conferindo…" : envioTexto}
           </button>
           <p className="text-center text-xs text-muted-foreground">
-            {chaves.some((k) => estados[k] === "recontar") ? "Conte de novo os produtos em amarelo." : pendentes.length ? `${pendentes.length === 1 ? "Falta 1 produto" : `Faltam ${pendentes.length} produtos`} do pedido.` : contados.length ? "Tudo contado? Toque em Terminei." : "Bipe e conte os produtos."}
+            {paraRecontar.length ? "Conte de novo os produtos em amarelo." : pendentes.length ? `${pendentes.length === 1 ? "Falta 1 produto" : `Faltam ${pendentes.length} produtos`} do pedido. Enviar contagens ainda não conclui a entrega.` : contados.length ? "Tudo contado? Envie para conferir e concluir a entrega." : "Bipe e conte os produtos."}
           </p>
         </div>
       </div>
@@ -349,7 +368,7 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
       {sel && aberta && contagens[aberta] && (
         <ContarProduto c={contagens[aberta]!} recontagem={estados[aberta] === "recontar"} noPedido={!aberto.pedidoId || noPedido.has(aberta)} temPedido={!!aberto.pedidoId}
           onClose={() => setAberta(null)}
-          onSalvar={(c) => { setContagens((m) => ({ ...m, [aberta]: c })); setEstados((m) => ({ ...m, [aberta]: "contado" })); setAberta(null); }}
+          onSalvar={(c) => { setContagens((m) => ({ ...m, [aberta]: c })); setEstados((m) => ({ ...m, [aberta]: "contado" })); setAviso(""); setAberta(null); }}
           onTirar={estados[aberta] === "recontar" || noPedido.has(aberta) ? undefined : () => {
             setContagens((m) => { const n = { ...m }; delete n[aberta]; return n; });
             setProdutos((m) => { const n = { ...m }; delete n[aberta]; return n; });

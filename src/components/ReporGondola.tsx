@@ -1,7 +1,7 @@
 /* Repor gôndola no app do funcionário (E3). Primeiro ele conta a prateleira (sem ver quanto o sistema tem);
  * só depois o app diz quanto buscar no depósito, até encher (o máximo). Até o PDV existir, a contagem só acerta o estoque. */
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Camera, Check, CheckCircle2, MapPin, PackageSearch, Search, ShoppingBasket, Warehouse } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Camera, Check, CheckCircle2, MapPin, PackageSearch, Search, ShoppingBasket, Warehouse } from "lucide-react";
 import { Scanner } from "@/components/Scanner";
 import { Sheet } from "@/components/parts/Sheet";
 import { Contador } from "@/components/parts/Contador";
@@ -38,6 +38,12 @@ const erroTexto = (e: unknown) => {
 /** Ordem de caminho: Gôndola 3 antes de Gôndola 10; sem local por último. */
 const porLocal = (a: banco.ItemReposicao, b: banco.ItemReposicao) =>
   (a.local ?? "￿").localeCompare(b.local ?? "￿", "pt-BR", { numeric: true, sensitivity: "base" }) || a.nome.localeCompare(b.nome, "pt-BR");
+const motivoSemEstoque = (motivo?: banco.MotivoSemReposicao | null) =>
+  motivo === "recebimento_em_conferencia" ? "Há uma entrega em conferência. O estoque desta entrega só fica disponível após sua conclusão."
+    : motivo === "estoque_nao_liberado" ? "Há produto aguardando liberação ou sem validade disponível para reposição. Deixe separado e avise o dono."
+    : motivo === "deposito_sem_estoque" ? "O depósito está sem estoque deste produto. Avise o dono."
+    : motivo === "deposito_nao_contado" ? "O estoque do depósito ainda não foi contado. Avise o dono para conferir."
+    : "Sem estoque disponível para reposição. Avise o dono para conferir o depósito.";
 
 type Item = ProdutoFunc & { local: string | null; localDeposito: string | null };
 type Tela =
@@ -51,7 +57,7 @@ export function ReporGondola({ chave, onVoltar, api: apiDada }: { chave: string;
   const [tela, setTela] = useState<Tela>({ t: "lista" });
   const [dados, setDados] = useState<{ tipo: string; produtos: banco.ItemReposicao[] } | null>(null);
   const [erro, setErro] = useState("");
-  const [feito, setFeito] = useState("");
+  const [feito, setFeito] = useState<{ texto: string; reposto: boolean } | null>(null);
   const [outro, setOutro] = useState(false);
   const carregar = useCallback(() => { setErro(""); api.lista(chave).then((d) => setDados({ ...d, produtos: [...d.produtos].sort(porLocal) })).catch((e) => setErro(erroTexto(e))); }, [api, chave]);
   useEffect(carregar, [carregar]);
@@ -59,9 +65,11 @@ export function ReporGondola({ chave, onVoltar, api: apiDada }: { chave: string;
   const t = textoDoTipo(tipo);
   const prateleira = tipo === "mercado" || tipo === "pet" ? "gôndola" : "área de venda";
   const titulo = tipo === "mercado" || tipo === "pet" ? "Repor gôndola" : "Repor área de venda";
-  const comecar = (item: Item) => { setFeito(""); setTela({ t: "ir", item, id: newUid() }); };
-  const terminou = (item: Item, levado: number) => {
-    setFeito(levado > 0 ? `${nomeProdutoFunc(item)}: ${qtdUn(levado, item.unidade)} na ${prateleira}.` : `${nomeProdutoFunc(item)}: contagem registrada.`);
+  const comecar = (item: Item) => { setFeito(null); setTela({ t: "ir", item, id: newUid() }); };
+  const terminou = (item: Item, levado: number, r: banco.RespostaContagemPrateleira) => {
+    setFeito({ reposto: levado > 0, texto: levado > 0
+      ? `Reposição concluída: ${nomeProdutoFunc(item)} · colocado na ${prateleira}: ${qtdUn(levado, item.unidade)}.`
+      : `${nomeProdutoFunc(item)}: contagem registrada. Reposição não realizada. ${r.cheio ? "A quantidade contada já atende ao limite da área de venda." : r.sugerido > 0 ? "Nenhuma quantidade foi colocada." : t(motivoSemEstoque(r.motivoSemReposicao))}` });
     setTela({ t: "lista" }); carregar();
   };
 
@@ -71,7 +79,7 @@ export function ReporGondola({ chave, onVoltar, api: apiDada }: { chave: string;
     return <ContarPrateleira item={tela.item} id={tela.id} prateleira={prateleira} chave={chave} api={api} onVoltar={() => setTela({ t: "ir", item: tela.item, id: tela.id })}
       onContou={(r) => setTela({ t: "buscar", item: tela.item, id: tela.id, r })} />;
   if (tela.t === "buscar")
-    return <Buscar item={tela.item} id={tela.id} r={tela.r} prateleira={prateleira} t={t} chave={chave} api={api} onPronto={(lev) => terminou(tela.item, lev)} />;
+    return <Buscar item={tela.item} id={tela.id} r={tela.r} prateleira={prateleira} t={t} chave={chave} api={api} onPronto={(lev) => terminou(tela.item, lev, tela.r)} />;
 
   return (
     <div className="space-y-4">
@@ -80,7 +88,9 @@ export function ReporGondola({ chave, onVoltar, api: apiDada }: { chave: string;
         <h1 className="text-2xl font-bold">{titulo}</h1>
         <p className="text-sm text-muted-foreground">Estes produtos estão acabando na {prateleira}. Vá em cada um, conte o que tem e o app diz quanto buscar.</p>
       </div>
-      {feito && <p role="status" className="flex items-start gap-2 rounded-2xl border border-accent/50 bg-accent/10 p-3 text-sm font-semibold text-accent"><CheckCircle2 size={18} className="mt-0.5 shrink-0" /> Pronto! {feito}</p>}
+      {feito && <p role="status" className={`flex items-start gap-2 rounded-2xl border p-3 text-sm font-semibold ${feito.reposto ? "border-accent/50 bg-accent/10 text-accent" : "border-warning/50 bg-warning/10 text-warning"}`}>
+        {feito.reposto ? <CheckCircle2 size={18} className="mt-0.5 shrink-0" /> : <AlertTriangle size={18} className="mt-0.5 shrink-0" />} {feito.texto}
+      </p>}
       {erro && <p role="alert" className="rounded-2xl border border-destructive/50 bg-destructive/10 p-3 text-sm font-semibold text-destructive">{erro}</p>}
       {!dados && !erro && <p className="py-8 text-center text-muted-foreground">Carregando…</p>}
       {dados && !dados.produtos.length && (
@@ -98,7 +108,7 @@ export function ReporGondola({ chave, onVoltar, api: apiDada }: { chave: string;
               <span className="min-w-0 flex-1">
                 <span className="block break-words text-lg font-bold leading-snug">{nomeProdutoFunc(p)}</span>
                 <span className="flex items-center gap-1 text-sm text-muted-foreground"><MapPin size={14} /> {p.local ?? `Sem lugar na ${prateleira}`}</span>
-                {p.depositoVazio && <span className="block text-sm font-semibold text-warning">{t("Sem quantidade disponível para repor no depósito")}</span>}
+                {p.depositoVazio && <span className="block text-sm font-semibold text-warning">{t(motivoSemEstoque(p.motivoSemReposicao))}</span>}
               </span>
             </button>
           </li>
@@ -207,7 +217,8 @@ function Buscar({ item, id, r, prateleira, t, chave, api, onPronto }: {
         <div className="rounded-3xl border border-border bg-secondary/60 p-4"><p className="break-words text-xl font-bold">{nomeProdutoFunc(item)}</p></div>
         <div className={`rounded-3xl border p-5 text-center ${r.cheio ? "border-accent/50 bg-accent/10" : "border-warning/50 bg-warning/10"}`}>
           <p className="text-xl font-bold">{r.cheio ? `A ${prateleira} está cheia` : "Sem quantidade disponível para repor"}</p>
-          <p className="mt-1 text-sm">{r.cheio ? "Não precisa repor agora." : t("Avise o dono para conferir o depósito. Sua contagem já ajuda.")}</p>
+          <p className="mt-1 text-sm">{r.cheio ? "Não precisa repor agora." : t(motivoSemEstoque(r.motivoSemReposicao))}</p>
+          <p className="mt-2 text-sm text-muted-foreground">Ao tocar em Entendi, sua contagem será registrada, sem transferir produtos.</p>
         </div>
         {erro && <p role="alert" className="text-sm font-semibold text-destructive">{erro}</p>}
         <button type="button" disabled={enviando} onClick={() => void concluir(0)} className={`mt-auto ${btnPrimary(!enviando)}`}>{enviando ? "Enviando…" : "Entendi"}</button>
@@ -226,7 +237,7 @@ function Buscar({ item, id, r, prateleira, t, chave, api, onPronto }: {
         <p className="text-base font-bold">Quanto você colocou na {prateleira}?</p>
         <Contador rotulo={`Coloquei (${unPlural(item.unidade).toLowerCase()})`} valor={valor} fracao={aceitaFracao(item.unidade)} onMudar={setValor} />
         <p className="text-xs text-muted-foreground">{t("Se o depósito tinha menos, diga quanto pegou.")}</p>
-        {acima && <p role="alert" className="text-sm font-semibold text-destructive">No máximo {qtdUn(r.sugerido, item.unidade)}: mais que isso não cabe.</p>}
+        {acima && <p role="alert" className="text-sm font-semibold text-destructive">No máximo {qtdUn(r.sugerido, item.unidade)}: confira a quantidade indicada para esta reposição.</p>}
         {n.err && <p role="alert" className="text-sm font-semibold text-destructive">{n.err}</p>}
       </div>
       {erro && <p role="alert" className="rounded-2xl border border-destructive/50 bg-destructive/10 p-3 text-sm font-semibold text-destructive">{erro}</p>}

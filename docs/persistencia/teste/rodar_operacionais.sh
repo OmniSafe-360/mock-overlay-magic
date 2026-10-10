@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # Testa a cadeia completa em uma instância própria, sem URL nem credenciais de produção.
 set -euo pipefail
+sem_catalogo=0
+if [ "${1:-}" = '--sem-catalogo' ]; then
+  sem_catalogo=1
+elif [ "$#" != 0 ]; then
+  echo 'Uso: rodar_operacionais.sh [--sem-catalogo]' >&2; exit 1
+fi
 if [ "$(id -u)" = 0 ]; then
   echo 'Execute como usuário comum: o PostgreSQL não inicia como root.' >&2
   exit 1
@@ -27,6 +33,12 @@ psql_teste=(psql -h "$dir_teste" -p "$porta_teste" -U postgres -v ON_ERROR_STOP=
 "${psql_teste[@]}" -d teste -1 -f "$base_teste/000_base_simulada.sql"
 "${psql_teste[@]}" -d teste -1 -f "$base_teste/000_base_operacional.sql"
 for migracao in "$raiz_repo"/supabase/migrations/*.sql; do
+  if [ "$sem_catalogo" = 1 ]; then
+    # Importação externa não participa do estoque; só esta opção explícita dispensa http.
+    case "$(basename "$migracao")" in
+      20261010111223_*|20261010111310_*|20261010125732_*) continue ;;
+    esac
+  fi
   if [ "$(basename "$migracao")" = '20261010150302_codigos_mercado_ean_upc.sql' ]; then
     # Cópia local anterior à migração: demonstra que duplicados antigos interrompem tudo.
     "${psql_teste[@]}" -d postgres -c 'create database codigos_antigos template teste'
@@ -48,6 +60,7 @@ done
 "${psql_teste[@]}" -d teste -f "$base_teste/005_melhorias_operacionais.sql"
 "${psql_teste[@]}" -d teste -f "$base_teste/006_codigos_mercado.sql"
 "${psql_teste[@]}" -d teste -f "$base_teste/008_codigos_concorrencia.sql"
+"${psql_teste[@]}" -d teste -f "$base_teste/011_coerencia_recebimento.sql"
 
 # Duas conexões reais, com pedidos distintos e códigos equivalentes.
 cat >"$dir_teste/tx1.sql" <<'SQL'
