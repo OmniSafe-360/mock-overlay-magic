@@ -1,14 +1,18 @@
+import { Contador } from "@/components/parts/Contador";
+import { useHoje } from "@/hooks/useHoje";
 /* Receber mercadoria no app do funcionário (E2). Conferência cega: o funcionário bipa e conta o que chegou, sem nunca ver
  * quanto foi pedido. Ao tocar em "Terminei", o servidor compara e pede para contar de novo o que não bateu. */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArrowLeft, Camera, Check, CheckCircle2, Keyboard, Minus, PackageCheck, PackageX, Plus, Search, Truck } from "lucide-react";
 import { Scanner } from "@/components/Scanner";
-import { Sheet } from "@/components/ProductArea";
+import { Sheet } from "@/components/parts/Sheet";
 import { btnGhost, btnPrimary, digits } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";
 import { aceitaFracao, fmtQ, newUid, parseNum, qtdUn, unPlural } from "@/lib/deposito";
 import { mensagemErro } from "@/lib/persistencia";
-import { dataEntregaTexto, hojeISO } from "@/lib/pedido";
+import { dataEntregaTexto } from "@/lib/pedido";
+import { escopoAcesso, operacaoLocal } from "@/lib/operacaoLocal";
+import { ERRO_REGISTRO } from "@/lib/envios";
 import {
   apagarRascunho, chaveProduto, chaveRascunho, erroContagem, guardarRascunho, itemParaEnvio, lerRascunho, nomeProdutoFunc, novaContagem, resumoContagem,
   totalDaContagem, type Contagem, type EstadoItem, type ProdutoFunc,
@@ -25,6 +29,8 @@ const API_PADRAO: ApiReceber = { entregas: banco.entregasFuncionario, abrir: ban
 const MSG_RECEBER: [string, string][] = [
   ["validades_nao_somam", "As quantidades das validades não somam o que chegou. Confira."],
   ["validade_obrigatoria", "Informe a data de validade dos produtos."],
+  ["recebimento_vencido_como_bom", "Separe os vencidos e informe em “Veio quebrado ou vencido”. Eles não entram como produtos bons."],
+  ["operacao_repetida_com_outros_dados", "Esta rodada já foi enviada com outros dados. Abra a entrega novamente para conferir o resultado."],
   ["lote_obrigatorio", "Informe o lote dos remédios."],
   ["lote_com_datas_diferentes", "Esse lote já está registrado com outra validade. Confira a data na caixa."],
   ["avaria_maior_que_total", "Os quebrados ou vencidos não podem ser mais que o total."],
@@ -42,23 +48,28 @@ const erroTexto = (e: unknown) => {
 
 type Tela =
   | { t: "lista" }
-  | { t: "contando"; aberto: banco.RecebimentoAberto }
+  | { t: "contando"; aberto: banco.RecebimentoAberto; kr: string; fornecedorId: string | null }
   | { t: "pronto"; avisos: boolean; produtos: number };
 
 export function ReceberMercadoria({ chave, onVoltar, api: apiDada }: { chave: string; onVoltar: () => void; api?: ApiReceber | undefined }) {
+  return <ReceberPorAcesso key={chave} chave={chave} onVoltar={onVoltar} apiDada={apiDada} />;
+}
+
+function ReceberPorAcesso({ chave, onVoltar, apiDada }: { chave: string; onVoltar: () => void; apiDada?: ApiReceber | undefined }) {
   const api = apiDada ?? API_PADRAO;
   const [tela, setTela] = useState<Tela>({ t: "lista" });
   const [erro, setErro] = useState("");
   const abrir = async (pedidoId: string | null, fornecedorId: string | null) => {
     setErro("");
-    const rasc = lerRascunho(chaveRascunho(pedidoId));
     try {
+      const kr = chaveRascunho(pedidoId, await escopoAcesso(chave));
+      const rasc = lerRascunho(kr);
       const aberto = await api.abrir(chave, rasc?.id ?? newUid(), pedidoId, fornecedorId ?? rasc?.fornecedorId ?? null);
-      setTela({ t: "contando", aberto });
+      setTela({ t: "contando", aberto, kr, fornecedorId: fornecedorId ?? rasc?.fornecedorId ?? null });
     } catch (e) { setErro(erroTexto(e)); }
   };
   if (tela.t === "contando")
-    return <Contando chave={chave} api={api} aberto={tela.aberto} onSair={() => setTela({ t: "lista" })} onPronto={(avisos, produtos) => setTela({ t: "pronto", avisos, produtos })} />;
+    return <Contando chave={chave} api={api} aberto={tela.aberto} kr={tela.kr} fornecedorId={tela.fornecedorId} onSair={() => setTela({ t: "lista" })} onPronto={(avisos, produtos) => setTela({ t: "pronto", avisos, produtos })} />;
   if (tela.t === "pronto")
     return (
       <div className="m-auto flex w-full flex-col items-center gap-4 py-10 text-center">
@@ -82,7 +93,7 @@ function ListaEntregas({ chave, api, erroAbrir, onVoltar, onAbrir }: {
   const [abrindo, setAbrindo] = useState<string | null>(null);
   const carregar = useCallback(() => { setErro(""); api.entregas(chave).then(setDados).catch((e) => setErro(erroTexto(e))); }, [api, chave]);
   useEffect(carregar, [carregar]);
-  const hoje = hojeISO();
+  const hoje = useHoje();
   const ir = (pedidoId: string | null, fornecedorId: string | null) => { setAbrindo(pedidoId ?? "sem"); void onAbrir(pedidoId, fornecedorId).finally(() => setAbrindo(null)); };
   return (
     <div className="space-y-4">
@@ -130,13 +141,13 @@ function ListaEntregas({ chave, api, erroAbrir, onVoltar, onAbrir }: {
 }
 
 /* ---------- contagem ---------- */
-function Contando({ chave, api, aberto, onSair, onPronto }: {
+function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto }: {
   chave: string; api: ApiReceber; aberto: banco.RecebimentoAberto; onSair: () => void; onPronto: (avisos: boolean, produtos: number) => void;
+  kr: string; fornecedorId: string | null;
 }) {
-  const kr = chaveRascunho(aberto.pedidoId);
   const inicial = useMemo(() => {
     const r = lerRascunho(kr);
-    const mesmo = r && r.id === aberto.id ? r : null;
+    const mesmo = r && r.id === aberto.id && r.rodada === aberto.rodada ? r : null;
     const estados: Record<string, EstadoItem> = {};
     const contagens: Record<string, Contagem> = { ...(mesmo?.contagens ?? {}) };
     for (const p of aberto.produtos) estados[chaveProduto(p)] = "falta";
@@ -164,18 +175,27 @@ function Contando({ chave, api, aberto, onSair, onPronto }: {
   const [aviso, setAviso] = useState("");
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
+  type PedidoEnvio = { rodada: number; itens: ReturnType<typeof itemParaEnvio>[]; chaves: string[] };
+  const [registro] = useState(() => {
+    try { return operacaoLocal(kr, `receber:${aberto.id}`, (p: unknown): p is PedidoEnvio => {
+      const x = p as PedidoEnvio | null;
+      return !!x && Number.isInteger(x.rodada) && x.rodada >= 0 && Array.isArray(x.itens) && Array.isArray(x.chaves)
+        && x.itens.length === x.chaves.length && x.itens.every((i) => typeof i.produto_id === "string" && Number.isFinite(i.total));
+    }); } catch { return null; }
+  });
+  const envioPendente = !!registro?.pendente();
   const noPedido = useMemo(() => new Set(aberto.produtos.map(chaveProduto)), [aberto.produtos]);
 
   useEffect(() => {
-    guardarRascunho(kr, { id: aberto.id, pedidoId: aberto.pedidoId, fornecedorId: null, contagens, estados, rodada });
-  }, [kr, aberto.id, aberto.pedidoId, contagens, estados, rodada]);
+    guardarRascunho(kr, { id: aberto.id, pedidoId: aberto.pedidoId, fornecedorId, contagens, estados, rodada });
+  }, [kr, aberto.id, aberto.pedidoId, fornecedorId, contagens, estados, rodada]);
 
   const chaves = Object.keys(produtos);
   const ordem = (k: string) => ({ recontar: 0, falta: 1, contado: 2, conferido: 3 })[estados[k] ?? "falta"];
   const lista = [...chaves].sort((a, b) => ordem(a) - ordem(b));
   const contados = chaves.filter((k) => estados[k] === "contado");
   const pendentes = chaves.filter((k) => estados[k] === "recontar" || (estados[k] === "falta" && noPedido.has(k)));
-  const podeTerminar = contados.length > 0 && !chaves.some((k) => estados[k] === "recontar") && !enviando;
+  const podeTerminar = !!registro && (envioPendente || (contados.length > 0 && !chaves.some((k) => estados[k] === "recontar"))) && !enviando;
 
   const escolher = (p: ProdutoFunc) => {
     const k = chaveProduto(p);
@@ -205,16 +225,17 @@ function Contando({ chave, api, aberto, onSair, onPronto }: {
   };
 
   const terminar = async () => {
-    if (!podeTerminar) return;
+    if (!podeTerminar || !registro) return;
     setEnviando(true); setErro("");
     try {
-      const itens = contados.map((k) => itemParaEnvio(contagens[k]!));
-      const r = await api.enviar(chave, aberto.id, rodada, itens);
+      const confirmado = await registro.enviar(() => ({ rodada, itens: contados.map((k) => itemParaEnvio(contagens[k]!)), chaves: contados }),
+        (p) => api.enviar(chave, aberto.id, p.rodada, p.itens));
+      const r = confirmado.resultado;
       if (r.situacao === "concluido") { apagarRascunho(kr); onPronto(r.avisos, r.produtos); return; }
       const recontar = new Set(r.recontar.map(chaveProduto));
       setEstados((m) => {
         const n = { ...m };
-        for (const k of contados) n[k] = recontar.has(k) ? "recontar" : "conferido";
+        for (const k of confirmado.pedido.chaves) n[k] = recontar.has(k) ? "recontar" : "conferido";
         return n;
       });
       // Recontagem cega: a contagem anterior some da tela.
@@ -232,6 +253,8 @@ function Contando({ chave, api, aberto, onSair, onPronto }: {
   const sel = aberta ? produtos[aberta] : undefined;
   return (
     <div className="space-y-4 pb-28">
+      {!registro && <p role="alert" className="text-sm text-destructive">{ERRO_REGISTRO}</p>}
+      {envioPendente && <p role="status" className="rounded-2xl border border-warning/50 p-3 text-sm">Contagem enviada sem confirmação. Toque em Terminei para repetir os dados originais, sem duplicar.</p>}
       <button type="button" onClick={onSair} className="flex min-h-12 items-center gap-2 pr-3 text-base font-semibold text-primary"><ArrowLeft size={18} /> Entregas</button>
       <div>
         <h1 className="break-words text-2xl font-bold leading-tight">{aberto.fornecedor ?? "Entrega sem pedido"}</h1>
@@ -338,23 +361,7 @@ function BuscarProduto({ chave, api, onClose, onEscolher }: { chave: string; api
   );
 }
 
-export function Contador({ rotulo, valor, onMudar, fracao = false }: { rotulo: string; valor: string; onMudar: (v: string) => void; fracao?: boolean }) {
-  const n = parseNum(valor, fracao ? "Kg" : "Unidade", true).v ?? 0;
-  const passo = 1;
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-      <span className="min-w-[7.5rem] flex-1 text-base font-medium">{rotulo}</span>
-      <div className="ml-auto flex shrink-0 items-center rounded-2xl border border-border">
-        <button type="button" aria-label={`Menos — ${rotulo}`} onClick={() => onMudar(n - passo > 0 ? fmtQ(Math.round((n - passo) * 1000) / 1000).replace(/\./g, "") : "")} className="flex h-12 w-12 items-center justify-center text-primary"><Minus size={20} /></button>
-        <input aria-label={rotulo} inputMode={fracao ? "decimal" : "numeric"} value={valor} placeholder="0"
-          onChange={(e) => onMudar(fracao ? e.target.value.replace(/[^\d,]/g, "") : digits(e.target.value).slice(0, 6))}
-          className="h-12 w-16 bg-transparent text-center text-xl font-bold tabular-nums outline-none placeholder:text-muted-foreground/40" />
-        <button type="button" aria-label={`Mais — ${rotulo}`} onClick={() => onMudar(fmtQ(Math.round((n + passo) * 1000) / 1000).replace(/\./g, ""))} className="flex h-12 w-12 items-center justify-center text-primary"><Plus size={20} /></button>
-      </div>
-    </div>
-  );
-}
-
+export { Contador } from "@/components/parts/Contador";
 function ContarProduto({ c: inicial, recontagem, noPedido, temPedido, onClose, onSalvar, onTirar }: {
   c: Contagem; recontagem: boolean; noPedido: boolean; temPedido: boolean; onClose: () => void; onSalvar: (c: Contagem) => void; onTirar?: (() => void) | undefined;
 }) {

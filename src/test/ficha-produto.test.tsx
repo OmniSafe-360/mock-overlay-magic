@@ -24,7 +24,7 @@ describe("situação do produto", () => {
   it("gôndola no mínimo pede reposição e diz quanto há no depósito", () => {
     const s = situacaoProduto(prod({ areaVenda: { local: "Gôndola 3", qtd: 5, min: 5, max: 20 } }), "mercado", HOJE);
     expect(s.nivel).toBe("atencao");
-    expect(s.alertas[0]).toMatchObject({ titulo: "Repor a gôndola", detalhe: "Tem 5 pacotes; o mínimo é 5 pacotes. Há 40 pacotes no depósito para repor." });
+    expect(s.alertas[0]).toMatchObject({ titulo: "Repor a gôndola", detalhe: "Tem 5 pacotes; o mínimo é 5 pacotes. Há 40 pacotes no depósito. Confira as condições e a validade antes de repor." });
   });
   it("depósito no mínimo: hora de comprar, com o fornecedor", () => {
     expect(situacaoProduto(prod({ deposito: { local: "A", qtd: 8, min: 10, max: null } }), "mercado", HOJE, { fornecedor: "Distribuidora Sol" }).alertas[0])
@@ -103,7 +103,7 @@ describe("ficha do produto na tela", () => {
     const lotes = within(screen.getByRole("region", { name: "Validade" })).getAllByRole("listitem");
     expect(lotes[0]!.textContent).toContain("05/10/2020");
     expect(lotes[0]!.textContent).toContain("Lote L2");
-    expect(screen.getByText(/Avisar 30, 60, 90 dias antes/)).toBeTruthy();
+    expect(screen.getByText(/Avisos no painel: 30, 60, 90 dias antes/)).toBeTruthy();
   });
   it("não contado mostra traço e explica", () => {
     abrir(prod({ deposito: undefined, areaVenda: undefined }));

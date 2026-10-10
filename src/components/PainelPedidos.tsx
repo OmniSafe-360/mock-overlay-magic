@@ -1,8 +1,11 @@
+import { formatarCentavos as brl } from "@/lib/formatacao";
+import { useHoje } from "@/hooks/useHoje";
 import type { EntityId } from "@/lib/identidade";
 /* Aba Pedidos (D2a): montar o pedido sozinho por fornecedor, enviar pelo WhatsApp ou e-mail com um toque e acompanhar. */
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Banknote, PackageCheck, CalendarClock, Check, CheckCircle2, ClipboardList, Copy, Link2, Mail, MessageCircle, Minus, Plus, RefreshCw, Search, Send, Trash2, Truck, X, XCircle } from "lucide-react";
-import { Sheet, type Product, type Supplier, type Variation } from "@/components/ProductArea";
+import { Sheet } from "@/components/parts/Sheet";
+import { type Product, type Supplier, type Variation } from "@/components/ProductArea";
 import { linkWhatsApp } from "@/components/PainelFornecedores";
 import { btnGhost, btnPrimary, type StoreData } from "@/components/StoreSetup";
 import { aceitaFracao, fmtQ, qtdUn, unPlural } from "@/lib/deposito";
@@ -15,7 +18,6 @@ import {
   sugerirPedido, textoPedido, totalLinha, totalLinhas, totalPedido, unidadesDaLinha, type CanalPedido, type LinhaPedido, type Pedido, type SituacaoPedido,
 } from "@/lib/pedido";
 
-const brl = (c: number) => (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const dataCurta = (ts: string) => new Date(ts).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 const COR_SITUACAO: Record<SituacaoPedido, string> = {
   rascunho: "border-border text-muted-foreground", enviado: "border-warning/60 text-warning", aceito: "border-accent/60 text-accent",
@@ -36,7 +38,7 @@ export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora
   /** Dono decide um item recebido (E2). */ onResolverRecebimento?: ((itemId: string, acao: "aceitar" | "recusar", tentativa: number | null) => Promise<unknown>) | undefined;
   /** Entregas que chegaram sem pedido (E2). */ onCarregarSemPedido?: (() => Promise<Recebimento[]>) | undefined;
 }) {
-  const hoje = useMemo(() => hojeEm(), []);
+  const hoje = useHoje();
   const [filtro, setFiltro] = useState<"todos" | "pagar">(soAPagar ? "pagar" : "todos");
   const [view, setView] = useState<{ t: "lista" } | { t: "montar" } | { t: "detalhe"; id: string }>(montarAgora ? { t: "montar" } : { t: "lista" });
   const fornecedorDe = (dbId: string) => suppliers.find((s) => s.dbId === dbId);

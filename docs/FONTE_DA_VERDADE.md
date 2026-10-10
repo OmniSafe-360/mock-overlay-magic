@@ -352,6 +352,8 @@ Cada fase termina com o roteiro de teste para o dono.
 
 ## 14. DECISÕES ABERTAS (PERGUNTAR AO DONO)
 
+**Entrega de manutenção autorizada em 10/10/2026:** melhorias de confiabilidade, organização do código e clareza das telas, sem novos módulos nem alteração dos passos. Registro em [melhorias-base-2026-10-10.md](melhorias-base-2026-10-10.md). Correção SQL de reposição e reenvios preparada e testada localmente; aplicação no Supabase oficial ainda pendente. A Fase 6 não foi iniciada nesta entrega.
+
 1. ~~Vendas: caminho da seção 7.6~~ — aprovado em 10/10/2026. Para o piloto no fim: um mercado real, o arquivo `.xml` de uma nota e se o computador do caixa tem Chrome.
 5. ~~Perdas~~ — decidido em 10/10/2026: sai do estoque na hora e o dono confirma (recusar vira diferença).
 6. **Gerente:** quais funções pode usar?

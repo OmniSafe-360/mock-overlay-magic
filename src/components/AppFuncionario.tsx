@@ -9,7 +9,7 @@ import { ReporGondola, type ApiRepor } from "@/components/ReporGondola";
 import { ConferirDeposito, type ApiConferir } from "@/components/ConferirDeposito";
 import { RegistrarPerda, type ApiPerda } from "@/components/RegistrarPerda";
 import { textoDoTipo } from "@/lib/exemplos";
-import { Sheet } from "@/components/ProductArea";
+import { Sheet } from "@/components/parts/Sheet";
 import { abertoComoApp, adiado, adiar, dentroDoAppDono, enderecoFuncionario, instalar, jaInstalado, linkChromeAndroid, ouvirInstalacao, podeInstalarDireto, prepararInstalacaoFuncionario, tipoAparelho } from "@/lib/instalar";
 import { TIPO_FROM_DB, btnGhost, btnPrimary } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";

@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Camera, Check, CheckCircle2, MapPin, PackageSearch, Search, ShoppingBasket, Warehouse } from "lucide-react";
 import { Scanner } from "@/components/Scanner";
-import { Sheet } from "@/components/ProductArea";
-import { Contador } from "@/components/ReceberMercadoria";
+import { Sheet } from "@/components/parts/Sheet";
+import { Contador } from "@/components/parts/Contador";
 import { TIPO_FROM_DB, btnGhost, btnPrimary } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";
 import { aceitaFracao, newUid, parseNum, qtdUn, unPlural } from "@/lib/deposito";
@@ -23,6 +23,10 @@ const API_PADRAO: ApiRepor = { lista: banco.listaReposicao, contar: banco.contar
 const MSG_REPOR: [string, string][] = [
   ["produto_sem_area_venda", "Este produto não tem lugar na área de venda cadastrado. Avise o dono."],
   ["deposito_insuficiente", "O depósito não tem essa quantidade. Confira quanto você pegou."],
+  ["deposito_reponivel_insuficiente", "Não há essa quantidade conferida e dentro da validade no depósito. Atualize e confira o que você pegou."],
+  ["reposicao_acima_sugerido", "A quantidade passa do que foi indicado. Confira quanto você pegou."],
+  ["reposicao_acima_maximo", "A quantidade passa da capacidade deste local. Atualize e confira."],
+  ["operacao_repetida_com_outros_dados", "Este envio já foi registrado com outros dados. Volte ao início e atualize antes de continuar."],
   ["funcao_nao_permite_repor", "Sua função não inclui repor. Fale com o dono."],
   ["acesso_encerrado", "Este celular saiu do app. Entre de novo com o código do dono."],
   ["pin_necessario", "Por segurança, o app travou. Volte ao início e digite seu PIN."],
@@ -94,7 +98,7 @@ export function ReporGondola({ chave, onVoltar, api: apiDada }: { chave: string;
               <span className="min-w-0 flex-1">
                 <span className="block break-words text-lg font-bold leading-snug">{nomeProdutoFunc(p)}</span>
                 <span className="flex items-center gap-1 text-sm text-muted-foreground"><MapPin size={14} /> {p.local ?? `Sem lugar na ${prateleira}`}</span>
-                {p.depositoVazio && <span className="block text-sm font-semibold text-warning">{t("Acabou no depósito")}</span>}
+                {p.depositoVazio && <span className="block text-sm font-semibold text-warning">{t("Sem quantidade disponível para repor no depósito")}</span>}
               </span>
             </button>
           </li>
@@ -202,8 +206,8 @@ function Buscar({ item, id, r, prateleira, t, chave, api, onPronto }: {
       <div className="flex flex-1 flex-col gap-4">
         <div className="rounded-3xl border border-border bg-secondary/60 p-4"><p className="break-words text-xl font-bold">{nomeProdutoFunc(item)}</p></div>
         <div className={`rounded-3xl border p-5 text-center ${r.cheio ? "border-accent/50 bg-accent/10" : "border-warning/50 bg-warning/10"}`}>
-          <p className="text-xl font-bold">{r.cheio ? `A ${prateleira} está cheia` : t("Não tem no depósito")}</p>
-          <p className="mt-1 text-sm">{r.cheio ? "Não precisa repor agora." : "O dono vai ver que precisa comprar. Sua contagem já ajuda."}</p>
+          <p className="text-xl font-bold">{r.cheio ? `A ${prateleira} está cheia` : "Sem quantidade disponível para repor"}</p>
+          <p className="mt-1 text-sm">{r.cheio ? "Não precisa repor agora." : t("Avise o dono para conferir o depósito. Sua contagem já ajuda.")}</p>
         </div>
         {erro && <p role="alert" className="text-sm font-semibold text-destructive">{erro}</p>}
         <button type="button" disabled={enviando} onClick={() => void concluir(0)} className={`mt-auto ${btnPrimary(!enviando)}`}>{enviando ? "Enviando…" : "Entendi"}</button>

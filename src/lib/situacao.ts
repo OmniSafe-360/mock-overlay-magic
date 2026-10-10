@@ -1,6 +1,7 @@
+import { normLocal } from "@/lib/formatacao";
 /* Situação do produto para o dono: quanto tem, onde, o que vence e o que precisa de atenção.
  * Uma regra só, usada na ficha do produto (e depois na lista e no painel). Não grava nada. */
-import type { Product } from "@/components/ProductArea";
+import type { Product } from "@/lib/produto";
 import { qtdUn } from "@/lib/deposito";
 import { textoDoTipo } from "@/lib/exemplos";
 import { acimaPmcMsg, localNaoCombina, pmcCentavos } from "@/lib/farmacia";
@@ -104,7 +105,7 @@ export function situacaoProduto(p: Product, tipo: string, hoje: string, opts: { 
     if (zerado) continue;
     if (x.ven != null && x.venMin != null && mil(x.ven) <= mil(x.venMin))
       add("atencao", "repor", `${x.prefixo}repor a ${nomes.ven.toLowerCase()}`.replace(/^r/, "R"),
-        `Tem ${qtdUn(x.ven, un)}; o mínimo é ${qtdUn(x.venMin, un)}.${x.dep != null && mil(x.dep) > 0 ? ` Há ${qtdUn(x.dep, un)} no ${nomes.dep.toLowerCase()} para repor.` : ""}`);
+        `Tem ${qtdUn(x.ven, un)}; o mínimo é ${qtdUn(x.venMin, un)}.${x.dep != null && mil(x.dep) > 0 ? ` Há ${qtdUn(x.dep, un)} no ${nomes.dep.toLowerCase()}. Confira as condições e a validade antes de repor.` : ""}`);
     if (x.dep != null && x.depMin != null && mil(x.dep) <= mil(x.depMin))
       add("atencao", "comprar", `${x.prefixo}hora de comprar`.replace(/^h/, "H"),
         `O ${nomes.dep.toLowerCase()} tem ${qtdUn(x.dep, un)}; o mínimo é ${qtdUn(x.depMin, un)}.${opts.fornecedor ? ` Fornecedor: ${opts.fornecedor}.` : ""}`);
@@ -166,7 +167,6 @@ export type PorLocal = {
   naoConfigurados: Product[];
   resumo: { locais: number; produtos: number; abaixo: number; acabou: number; vencido: number };
 };
-const normLocal = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 export const precisaAtencaoItem = (i: ItemLocal) => i.estado !== "ok";
 
 /** Agrupa os produtos pelo local de uma área. Locais cadastrados sem produto aparecem vazios. */

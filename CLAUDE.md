@@ -15,6 +15,8 @@
 
 ## Decisões registradas depois da versão 1.0 do documento
 
+- 10/10/2026: **melhorias da base em três etapas**, autorizadas pelo dono e executadas pelo Codex. Corrigidos hooks ao adicionar comércio, resumos com consulta incompleta, disputa entre leituras antigas/novas e recuperação durável de perdas/recebimento. Centralizados modelos, janelas, contador, formatação, data do comércio e observação do teclado, preservando exports e fluxos. Resumo das variações mais legível, Editar com 48 px e mensagens atuais em português. Ver [registro e roteiro](docs/melhorias-base-2026-10-10.md). Migração `20261010100000_consolidar_reposicao_e_reenvios.sql` testada no PostgreSQL descartável (reposição sem vencidos/pendentes, limites e reenvio exato), **ainda não aplicada em produção por falta de acesso nesta sessão**. Fixtures ficam somente em `docs/persistencia/teste`.
+
 - 08/10/2026: o dono decidiu **manter o repositório GitHub público** (contraria a seção 10, por decisão escrita do dono).
 - 08/10/2026: o Claude agora tem acesso ao GitHub, ao Lovable e ao Supabase, mas a regra 3 continua: o dono é quem cola os prompts no Lovable.
 - Busca de CEP usa ViaCEP e, como reserva, BrasilAPI (seção 8 cita só ViaCEP).

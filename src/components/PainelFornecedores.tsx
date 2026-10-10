@@ -1,3 +1,4 @@
+import { useHoje } from "@/hooks/useHoje";
 import type { EntityId } from "@/lib/identidade";
 /* Aba Fornecedores: quem fornece o quê, contato com um toque (WhatsApp, ligar, e-mail) e o que está para comprar. */
 import { useMemo, useState } from "react";
@@ -23,7 +24,7 @@ export function PainelFornecedores({ products, tipo, suppliers, onOpen, onAdd, o
   products: Product[]; tipo: string; suppliers: Supplier[]; onOpen: (p: Product) => void;
   onAdd: (f: DadosFornecedor) => Promise<unknown>; onUpdate: (s: Supplier, f: DadosFornecedor) => Promise<unknown>;
 }) {
-  const hoje = useMemo(() => hojeEm(), []);
+  const hoje = useHoje();
   const [sheet, setSheet] = useState<Supplier | "novo" | null>(null);
   const porFornecedor = useMemo(() => {
     const m = new Map<EntityId | null, ItemProd[]>();

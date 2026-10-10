@@ -1,4 +1,4 @@
-/* Regras do passo Validade (somente em memória nesta versão). Distribui a contagem já confirmada; nunca cria estoque. */
+/* Regras de validade do cadastro persistido. Distribuir a contagem confirmada nunca cria estoque. */
 import { fmtQ, qtdUn } from "@/lib/deposito";
 
 /** Fuso padrão explícito desta versão para definir "hoje". Não existe configuração no banco. */
@@ -24,7 +24,7 @@ export type Validade = { controla: boolean; avisos: number[]; dep: LinhasArea; v
 export const VAL_SEM_CONFIG = "Validade não configurada";
 export const VAL_FARM_INCOMPLETA = "Validade não configurada · Configuração incompleta: na farmácia o controle de validade é obrigatório";
 export const AVISOS_NAO = "Avisos não configurados";
-export const SEM_AVISOS = "Nenhum aviso é enviado nesta versão.";
+export const SEM_AVISOS = "Os avisos aparecem no painel do app. Não há envio por mensagem ou notificação.";
 export const AGUARDANDO = "Aguardando contagem";
 export const SEM_ESTOQUE = "Sem estoque nesta área. Nada a distribuir.";
 export const ACIMA = "Você distribuiu mais do que foi contado.";
@@ -132,7 +132,7 @@ export function analisarLotes(linhas: { id: string; lote: string | null; data: s
   return { conflitos, sugestoes };
 }
 
-export const avisosTexto = (a: number[]) => (a.length ? `Avisar ${[...a].sort((x, y) => x - y).join(", ")} dias antes do vencimento (ainda não ativo)` : AVISOS_NAO);
+export const avisosTexto = (a: number[]) => (a.length ? `Avisos no painel: ${[...a].sort((x, y) => x - y).join(", ")} dias antes do vencimento` : AVISOS_NAO);
 
 export function linhaTexto(l: LinhaVal, unidade: string, hoje: string, farmacia: boolean): string {
   const partes = [`${qtdUn(l.qtd, unidade)}`, l.data ? `vence ${fmtData(l.data)}` : "validade desconhecida"];

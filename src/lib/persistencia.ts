@@ -1,5 +1,5 @@
 /* Ponte entre o cadastro (telas) e o banco. Monta pedidos para salvar_produto/resolver_pendencia e reconstrói os produtos ao carregar. */
-import type { Product, Supplier, Variation } from "@/components/ProductArea";
+import type { Product, Supplier, Variation } from "@/lib/produto";
 import type { Deposito, DepVar } from "@/lib/deposito";
 import { CHAVE_PRODUTO, mil, deMil, type LinhaVal, type Validade } from "@/lib/validade";
 

@@ -2,7 +2,8 @@
  * Regra do dono: cada venda FINALIZADA no caixa desconta da gôndola na hora (bipar não desconta). */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Ban, Check, Copy, MonitorSmartphone, PackageSearch, Pencil, Plus, Receipt, RefreshCw, Search } from "lucide-react";
-import { Sheet, type Product } from "@/components/ProductArea";
+import { Sheet } from "@/components/parts/Sheet";
+import { type Product } from "@/components/ProductArea";
 import { btnGhost, btnPrimary } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";
 import { mensagemErro } from "@/lib/persistencia";

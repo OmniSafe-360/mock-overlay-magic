@@ -26,12 +26,12 @@ describe("Repor gôndola (funcionário)", () => {
   it("lista em ordem de caminho, avisa quando acabou no depósito", async () => {
     render(<ReporGondola chave={CH} api={api()} onVoltar={() => {}} />);
     const botoes = await screen.findAllByRole("button", { name: /Gôndola \d+/ });
-    expect(botoes.map((b) => b.textContent)).toEqual([expect.stringMatching(/^Tiss.*Gôndola 3.*Acabou no depósito/), expect.stringMatching(/^Arroz 5 kg.*Gôndola 10/)]);
+    expect(botoes.map((b) => b.textContent)).toEqual([expect.stringMatching(/^Tiss.*Gôndola 3.*Sem quantidade disponível para repor no depósito/), expect.stringMatching(/^Arroz 5 kg.*Gôndola 10/)]);
   });
   it("farmácia fala área de venda e estoque", async () => {
     render(<ReporGondola chave={CH} api={api({}, "farmacia")} onVoltar={() => {}} />);
     expect(await screen.findByText("Repor área de venda")).toBeTruthy();
-    expect(screen.getByText("Acabou no estoque")).toBeTruthy();
+    expect(screen.getByText("Sem quantidade disponível para repor no estoque")).toBeTruthy();
   });
   it("vai até o lugar, conta às cegas, busca no depósito e coloca", async () => {
     const a = api();

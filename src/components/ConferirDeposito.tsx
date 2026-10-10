@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Camera, Check, CheckCircle2, ClipboardCheck, MapPin, RotateCcw } from "lucide-react";
 import { Scanner } from "@/components/Scanner";
-import { Contador } from "@/components/ReceberMercadoria";
+import { Contador } from "@/components/parts/Contador";
 import { TIPO_FROM_DB, btnGhost, btnPrimary } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";
 import { aceitaFracao, newUid, parseNum, qtdUn, unPlural } from "@/lib/deposito";

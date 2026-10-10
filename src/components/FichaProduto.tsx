@@ -1,7 +1,9 @@
+import { formatarCentavos as brl } from "@/lib/formatacao";
+import { useHoje } from "@/hooks/useHoje";
 /* Ficha do produto: o que o dono precisa ver de uma vez — situação, quanto tem, onde fica, validade, preço e dados. */
 import { useMemo, useState, type ReactNode } from "react";
 import { ArrowLeft, CalendarClock, CircleAlert, CircleCheck, Info, MapPin, Package, Pencil, Phone, Tag, TriangleAlert, Truck } from "lucide-react";
-import type { Product, Supplier } from "@/components/ProductArea";
+import type { Product, Supplier } from "@/lib/produto";
 import { ImprimirEtiquetaSheet } from "@/components/Etiqueta";
 import { btnGhost, btnPrimary } from "@/components/StoreSetup";
 import { descricaoEmbalagem } from "@/lib/embalagem";
@@ -12,7 +14,6 @@ import { pmcCentavos } from "@/lib/farmacia";
 import { situacaoProduto, quandoVence, type Alerta, type Nivel, type Qtds } from "@/lib/situacao";
 import { avisosTexto, faixa, fmtData, hojeEm } from "@/lib/validade";
 
-const brl = (c: number) => (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const labelDe = (tipo: string, k: string) => DETALHES[tipo]?.find((f) => f.k === k)?.label ?? k;
 /** Ordem dos detalhes como no cadastro; chaves desconhecidas no fim. */
 const ordemDet = (tipo: string, det: Record<string, string>) => {
@@ -30,7 +31,7 @@ const COR: Record<Nivel, { caixa: string; texto: string; titulo: string; Icone: 
 export function FichaProduto({ p, tipo, fornecedor, onBack, onEdit }: {
   p: Product; tipo: string; fornecedor?: Supplier | undefined; onBack: () => void; onEdit: () => void;
 }) {
-  const hoje = useMemo(() => hojeEm(), []);
+  const hoje = useHoje();
   const s = useMemo(() => situacaoProduto(p, tipo, hoje, { fornecedor: fornecedor?.nome }), [p, tipo, hoje, fornecedor?.nome]);
   const [etiqueta, setEtiqueta] = useState(false);
   const un1 = unSingular(p.unidade);

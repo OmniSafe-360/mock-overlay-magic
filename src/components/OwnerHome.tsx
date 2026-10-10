@@ -1,3 +1,4 @@
+import { useHoje } from "@/hooks/useHoje";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { conferirEnvio, carregarFornecedores, carregarProdutos, carregarVendas, carregarPendentesVenda, carregarDiferencas, carregarLimiteFaltas, atualizarFornecedor, criarFornecedor, gerarCodigoInterno, salvarProduto, carregarPedidos, salvarPedido, marcarPedidoEnviado, cancelarPedido, novoLinkPedido, atualizarPagamento, resolverItemRecebimento, carregarRecebimentos, type LocaisCadastrados } from "@/lib/banco";
 import type { CanalPedido, LinhaPedido, Pedido } from "@/lib/pedido";
@@ -72,6 +73,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
   const [conferindo, setConferindo] = useState(false);
   const [recuperacoes, setRecuperacoes] = useState<Record<string, number>>({});
   const conferindoRef = useRef(false);
+  const semPedidoCache = useRef<Record<string, () => Promise<Recebimento[]>>>({});
   useEffect(() => { ativo.current = true; return () => { ativo.current = false; }; }, []);
   /** Identificadores estáveis do envio aberto: repetir o envio usa os mesmos e não duplica nada. */
   const sessao = useRef<Sessao | null>(null);
@@ -89,6 +91,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
       const ps = await carregarPedidos(comercioId);
       if (!vigente()) return null;
       setPedidos((m) => ({ ...m, [comercioId]: ps }));
+      setGeral((m) => m[comercioId] ? { ...m, [comercioId]: { ...m[comercioId]!, pedidos: ps } } : m);
       setCargasPedidos((m) => ({ ...m, [comercioId]: "ok" }));
       return ps;
     } catch {
@@ -110,6 +113,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
       // Publica o conjunto pronto; nunca uma lista de fornecedores parcial.
       if (fornVersao.current === versaoForn) { setSuppliers(fs); suppRef.current = fs; }
       setProducts((m) => ({ ...m, [comercioId]: r.produtos }));
+      setGeral((m) => m[comercioId] ? { ...m, [comercioId]: { ...m[comercioId]!, produtos: r.produtos } } : m);
       setLocais((m) => ({ ...m, [comercioId]: r.locais }));
       setCargas((m) => ({ ...m, [comercioId]: "ok" }));
       return true;
@@ -120,17 +124,27 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
   }, [recarregarPedidos]);
   /* ---------- resumo de todos os comércios (tela inicial, Comércios e Alertas) ---------- */
   const [geral, setGeral] = useState<Record<string, Geral>>({});
-  const [fornGeral, setFornGeral] = useState<Supplier[]>([]);
   const [inicioLoja, setInicioLoja] = useState<InicioComercio | undefined>(undefined);
   const geralVersao = useRef(0);
   const carregarGeral = useCallback(async (ids: string[]) => {
     const v = ++geralVersao.current;
+    const versaoForn = ++fornVersao.current;
     const vigente = () => ativo.current && geralVersao.current === v;
-    setGeral((m) => Object.fromEntries(ids.map((id) => [id, { produtos: m[id]?.produtos ?? [], pedidos: m[id]?.pedidos ?? [], estado: "carregando" as const }])));
-    let fs: Supplier[] = [];
-    try { fs = await carregarFornecedores(); } catch { /* sem os nomes dos fornecedores; as contas continuam certas */ }
-    if (vigente()) setFornGeral(fs);
+    // A geração nasce antes de qualquer espera. Abrir um comércio inicia uma leitura
+    // mais recente que esta visão geral, mesmo se os fornecedores demorarem.
+    const versoesProdutos = Object.fromEntries(ids.map((id) => {
+      const chave = `produtos:${id}`;
+      return [id, requisicoes.current[chave] = (requisicoes.current[chave] ?? 0) + 1];
+    }));
+    setGeral((m) => Object.fromEntries(ids.map((id) => [id, { ...m[id], produtos: m[id]?.produtos ?? [], pedidos: m[id]?.pedidos ?? [], estado: "carregando" as const }])));
+    let fs: Supplier[] = suppRef.current;
+    let fornecedoresErro = false;
+    try { fs = await carregarFornecedores(); } catch { fornecedoresErro = true; }
+    if (vigente() && fornVersao.current === versaoForn) { setSuppliers(fs); suppRef.current = fs; }
     await Promise.all(ids.map(async (id) => {
+      const chave = `produtos:${id}`;
+      const versaoProdutos = versoesProdutos[id];
+      const produtoVigente = () => vigente() && requisicoes.current[chave] === versaoProdutos;
       try {
         const inicioHoje = new Date(`${hojeEm()}T00:00:00-03:00`).toISOString();
         const [r, ps, vendas, dif] = await Promise.all([carregarProdutos(id, fs), carregarPedidos(id),
@@ -140,23 +154,29 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
               return { hojeN: hoje.length, hojeTotal: hoje.reduce((t, v) => t + v.total, 0), semCadastro: agruparPendentes(pend).length };
             }).catch(() => null),
           Promise.all([carregarDiferencas(id, desdeAlertas(hojeEm(), Date.now())), carregarLimiteFaltas(id)]).then(([d, limite]) => ({ ...d, limite })).catch(() => null)]);
-        if (vigente()) setGeral((m) => ({ ...m, [id]: { estado: "ok", produtos: r.produtos, pedidos: ps, vendas, dif } }));
+        if (produtoVigente()) {
+          // A visão geral e as abas recebem o mesmo conjunto confirmado, protegido da resposta de uma leitura antiga.
+          setProducts((m) => ({ ...m, [id]: r.produtos }));
+          setLocais((m) => ({ ...m, [id]: r.locais }));
+          setCargas((m) => ({ ...m, [id]: fornecedoresErro ? "erro" : "ok" }));
+          setGeral((m) => ({ ...m, [id]: { estado: fornecedoresErro ? "erro" : "ok", produtos: r.produtos, pedidos: ps, vendas, dif } }));
+        }
       } catch {
-        if (vigente()) setGeral((m) => ({ ...m, [id]: { produtos: m[id]?.produtos ?? [], pedidos: m[id]?.pedidos ?? [], estado: "erro" } }));
+        if (produtoVigente()) setGeral((m) => ({ ...m, [id]: { ...m[id], produtos: m[id]?.produtos ?? [], pedidos: m[id]?.pedidos ?? [], estado: "erro", vendas: null, dif: null } }));
       }
     }));
   }, []);
+  const hojeGeral = useHoje();
   const idsLojas = stores.map(idDe).filter((x): x is string => !!x).join(",");
   const telaGeral = !open && (tab === "inicio" || tab === "comercios" || tab === "alertas");
-  useEffect(() => { if (telaGeral && idsLojas) void carregarGeral(idsLojas.split(",")); }, [telaGeral, idsLojas, carregarGeral]);
+  useEffect(() => { if (telaGeral && idsLojas) void carregarGeral(idsLojas.split(",")); }, [telaGeral, idsLojas, carregarGeral, hojeGeral]);
   useEffect(() => {
     if (!telaGeral || !idsLojas) return;
     const atualizar = () => { if (document.visibilityState === "visible") void carregarGeral(idsLojas.split(",")); };
     window.addEventListener("online", atualizar);
     document.addEventListener("visibilitychange", atualizar);
     return () => { window.removeEventListener("online", atualizar); document.removeEventListener("visibilitychange", atualizar); };
-  }, [telaGeral, idsLojas, carregarGeral]);
-  const hojeGeral = hojeEm();
+  }, [telaGeral, idsLojas, carregarGeral, hojeGeral]);
   const visao: VisaoGeral = useMemo(() => {
     const resumos: Record<string, ResumoComercio> = {};
     const alertas: Record<string, AlertasAntifurto> = {};
@@ -178,7 +198,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
       resumos[id] = resumoComercio(g.produtos, s.tipo, hojeGeral, g.pedidos, g.vendas ?? {}, decidir[id] ?? 0, nAlertas(alertas[id]));
     }
     const gs = Object.values(geral);
-    return { geral, resumos, alertas, decidir, antifurto, total: somaResumos(Object.values(resumos)), carregando: gs.some((g) => g.estado === "carregando"), erro: gs.some((g) => g.estado === "erro") };
+    return { geral, resumos, alertas, decidir, antifurto, total: somaResumos(Object.values(resumos)), carregando: gs.some((g) => g.estado === "carregando"), erro: gs.some((g) => g.estado === "erro" || (g.estado === "ok" && (!g.vendas || !g.dif))) };
   }, [stores, geral, hojeGeral]);
   const [verAntifurto, setVerAntifurto] = useState(false);
   useEffect(() => { if (tab !== "inicio") setVerAntifurto(false); }, [tab]);
@@ -283,7 +303,6 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
     await comMensagem(() => resolverItemRecebimento(itemId, acao, tentativa), "Não foi possível salvar a decisão.");
     await recarregar(comercioId);
   };
-  const semPedidoCache = useRef<Record<string, () => Promise<Recebimento[]>>>({});
   const semPedido = (comercioId: string) => (semPedidoCache.current[comercioId] ??= () => carregarRecebimentos(comercioId, false));
   const pedidoPagamento = (comercioId: string) => async (id: string, d: DadosPagamento) => {
     await comMensagem(() => atualizarPagamento(id, d), "Não foi possível salvar o pagamento.");
@@ -440,7 +459,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
               <CartoesComercios stores={stores} visao={visao} onAdd={() => setAdding(true)} onOpen={(s) => abrirLoja(s)} detalhado />
             </div>
           ) : tab === "alertas" ? (
-            <Alertas stores={stores} visao={visao} suppliers={fornGeral} onAbrir={abrirLoja} onTentar={() => { if (idsLojas) void carregarGeral(idsLojas.split(",")); }} />
+            <Alertas stores={stores} visao={visao} suppliers={suppliers} onAbrir={abrirLoja} onTentar={() => { if (idsLojas) void carregarGeral(idsLojas.split(",")); }} />
           ) : tab === "conta" ? (
             <div className="mx-auto max-w-md space-y-4 animate-in fade-in duration-300">
               <div className="rounded-3xl border border-border bg-secondary/70 p-5">
@@ -501,6 +520,8 @@ function HomeContent({ stores, visao, onAdd, onOpen, onAlertas, onVendas, onTent
   const t = visao.total;
   const af = totalAntifurto(visao.antifurto);
   const afPronto = visao.antifurto.some((l) => l.alertas);
+  const vendasCompletas = stores.every((s) => !!visao.geral[idDe(s) ?? ""]?.vendas);
+  const afCompleto = visao.antifurto.length === stores.length && visao.antifurto.every((l) => !!l.alertas);
   const pronto = Object.keys(visao.resumos).length > 0;
   const kpis = [
     { label: "Para resolver agora", n: paraResolver(t), Icon: AlertTriangle, cor: "urgente" as const },
@@ -508,7 +529,7 @@ function HomeContent({ stores, visao, onAdd, onOpen, onAlertas, onVendas, onTent
     { label: "Para comprar", n: t.comprar, Icon: ShoppingCart, cor: "atencao" as const },
     { label: t.vencendo === 1 ? "Vence em breve" : "Vencem em breve", n: t.vencendo, Icon: CalendarClock, cor: "atencao" as const },
   ];
-  const tudoCerto = pronto && !visao.carregando && kpis.every((k) => k.n === 0);
+  const tudoCerto = pronto && !visao.carregando && !visao.erro && kpis.every((k) => k.n === 0);
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       {stores.length > 0 && (
@@ -523,27 +544,28 @@ function HomeContent({ stores, visao, onAdd, onOpen, onAlertas, onVendas, onTent
               <button type="button" onClick={onTentar} className="min-h-11 rounded-xl border border-border px-3 font-semibold">Tentar de novo</button>
             </div>
           )}
-          <button type="button" onClick={onVendas} aria-label={`Vendas hoje: ${brlVenda(t.vendasHojeTotal)}`}
+          <button type="button" onClick={onVendas} aria-label={`Vendas hoje: ${vendasCompletas ? brlVenda(t.vendasHojeTotal) : "consulta incompleta"}`}
             className="mb-3 flex w-full items-center gap-4 rounded-3xl border border-primary/50 bg-primary/10 p-4 text-left transition hover:border-primary">
             <ShoppingBag size={24} className="shrink-0 text-primary" />
             <span className="min-w-0 flex-1">
               <span className="block text-xs text-muted-foreground sm:text-sm">Vendas hoje</span>
-              <span className="block text-2xl font-bold tracking-tight sm:text-3xl">{pronto ? brlVenda(t.vendasHojeTotal) : "…"}</span>
+              <span className="block text-2xl font-bold tracking-tight sm:text-3xl">{vendasCompletas ? brlVenda(t.vendasHojeTotal) : visao.carregando ? "…" : "—"}</span>
             </span>
             <span className="shrink-0 text-right text-xs text-muted-foreground">
-              {!pronto ? "" : t.vendasHojeN === 0 ? "Nenhuma venda ainda" : t.vendasHojeN === 1 ? "1 venda" : `${t.vendasHojeN} vendas`}
+              {!vendasCompletas ? visao.carregando ? "Consultando…" : "Consulta incompleta" : t.vendasHojeN === 0 ? "Nenhuma venda ainda" : t.vendasHojeN === 1 ? "1 venda" : `${t.vendasHojeN} vendas`}
               <span className="block font-semibold text-primary">Ver vendas</span>
             </span>
           </button>
-          <button type="button" onClick={onAntifurto} aria-label={`Faltou este mês: ${brlVenda(af.faltou)}`}
+          <button type="button" onClick={onAntifurto} aria-label={`Faltou este mês: ${afCompleto ? brlVenda(af.faltou) : "consulta incompleta"}`}
             className={`mb-3 flex w-full items-center gap-4 rounded-3xl border p-4 text-left transition hover:border-primary ${af.faltou > 0 || af.alertas > 0 ? "border-destructive/50 bg-destructive/10" : "border-border bg-secondary/70"}`}>
             <ShieldAlert size={24} className={`shrink-0 ${af.faltou > 0 || af.alertas > 0 ? "text-destructive" : "text-muted-foreground"}`} />
             <span className="min-w-0 flex-1">
               <span className="block text-xs text-muted-foreground sm:text-sm">Faltou este mês</span>
-              <span className="block text-2xl font-bold tracking-tight sm:text-3xl">{afPronto ? brlVenda(af.faltou) : "…"}</span>
+              <span className="block text-2xl font-bold tracking-tight sm:text-3xl">{afPronto ? brlVenda(af.faltou) : visao.carregando ? "…" : "—"}</span>
             </span>
             <span className="shrink-0 text-right text-xs text-muted-foreground">
-              {!afPronto ? "" : af.alertas === 0 ? "Nenhum alerta" : af.alertas === 1 ? "1 alerta" : `${af.alertas} alertas`}
+              {!afCompleto ? "Consulta incompleta" : af.alertas === 0 ? "Nenhum alerta" : af.alertas === 1 ? "1 alerta" : `${af.alertas} alertas`}
+              {afPronto && !afCompleto && <span className="block">Subtotal disponível</span>}
               <span className="block font-semibold text-primary">Ver antifurto</span>
             </span>
           </button>
@@ -606,8 +628,9 @@ function CartoesComercios({ stores, visao, onAdd, onOpen, detalhado = false }: {
                 <p className="truncate font-semibold">{s.nome}</p>
                 <p className="truncate text-sm text-muted-foreground">{detalhado && nome(s.tipo) ? `${nome(s.tipo)} · ` : ""}{s.cidade} - {s.uf}</p>
                 <p className={`mt-1.5 text-xs font-semibold ${f ? COR_FRASE[f.nivel] : "text-muted-foreground"}`}>
-                  {f ? f.texto : g?.estado === "erro" ? "Não foi possível atualizar" : "Carregando…"}
+                  {g?.estado === "erro" ? "Não foi possível atualizar" : g?.estado === "carregando" ? "Atualizando…" : g && (!g.vendas || !g.dif) && f?.nivel === "ok" ? "Conferência pendente" : f ? f.texto : "Carregando…"}
                 </p>
+                {g?.estado === "ok" && (!g.vendas || !g.dif) && <p className="mt-1 text-xs font-semibold text-warning">Resumo incompleto · tente atualizar</p>}
                 {f?.extra && <p className="mt-0.5 text-xs font-semibold text-warning">{f.extra}</p>}
                 {r && r.vendasHojeTotal > 0 && <p className="mt-0.5 text-xs text-muted-foreground"><b className="text-foreground">{brlVenda(r.vendasHojeTotal)}</b> vendidos hoje</p>}
                 {detalhado && r && r.produtos > 0 && <p className="mt-0.5 text-xs text-muted-foreground">{r.produtos} {r.produtos === 1 ? "produto" : "produtos"}</p>}
@@ -633,13 +656,15 @@ function CartoesComercios({ stores, visao, onAdd, onOpen, detalhado = false }: {
 function Alertas({ stores, visao, suppliers, onAbrir, onTentar }: {
   stores: StoreData[]; visao: VisaoGeral; suppliers: Supplier[]; onAbrir: (s: StoreData, inicio?: InicioComercio) => void; onTentar: () => void;
 }) {
-  const hoje = hojeEm();
+  const hoje = useHoje();
   const comId = stores.map((s) => ({ s, id: idDe(s) })).filter((x): x is { s: StoreData; id: string } => !!x.id);
   const prontos = comId.filter((x) => visao.resumos[x.id]);
   const comAviso = prontos.filter((x) => paraResolver(visao.resumos[x.id]!) + deOlho(visao.resumos[x.id]!) > 0)
     .sort((a, b) => paraResolver(visao.resumos[b.id]!) - paraResolver(visao.resumos[a.id]!) || deOlho(visao.resumos[b.id]!) - deOlho(visao.resumos[a.id]!));
-  const semAviso = prontos.filter((x) => !comAviso.includes(x));
-  const faltando = comId.filter((x) => !visao.resumos[x.id]);
+  const completo = (id: string) => { const g = visao.geral[id]; return g?.estado === "ok" && !!g.vendas && !!g.dif; };
+  const semAviso = prontos.filter((x) => !comAviso.includes(x) && completo(x.id));
+  const faltando = comId.filter((x) => !completo(x.id));
+  const comFalha = faltando.some((x) => visao.geral[x.id]?.estado === "erro" || visao.geral[x.id]?.estado === "ok");
   return (
     <div className="mx-auto max-w-3xl space-y-5 animate-in fade-in duration-300">
       <div>
@@ -649,11 +674,11 @@ function Alertas({ stores, visao, suppliers, onAbrir, onTentar }: {
       {!stores.length && <p className="rounded-3xl border border-border bg-secondary/40 p-6 text-center text-sm text-muted-foreground">Cadastre um comércio para ver os alertas aqui.</p>}
       {faltando.length > 0 && (
         <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border p-3 text-sm">
-          <span>{faltando.some((x) => visao.geral[x.id]?.estado === "erro") ? `Não foi possível atualizar: ${faltando.map((x) => x.s.nome).join(", ")}.` : "Carregando os comércios…"}</span>
-          {faltando.some((x) => visao.geral[x.id]?.estado === "erro") && <button type="button" onClick={onTentar} className="min-h-11 rounded-xl border border-border px-3 font-semibold">Tentar de novo</button>}
+          <span>{comFalha ? `Consulta incompleta: ${faltando.map((x) => x.s.nome).join(", ")}.` : "Carregando os comércios…"}</span>
+          {comFalha && <button type="button" onClick={onTentar} className="min-h-12 rounded-xl border border-border px-3 font-semibold">Tentar de novo</button>}
         </div>
       )}
-      {prontos.length > 0 && !comAviso.length && (
+      {prontos.length > 0 && !comAviso.length && !faltando.length && !visao.carregando && !visao.erro && (
         <p className="flex items-center gap-2 rounded-3xl border border-accent/50 bg-accent/10 p-4 text-sm font-semibold text-accent">
           <CircleCheck size={20} className="shrink-0" /> Tudo certo! Nenhum comércio precisa de atenção agora.
         </p>

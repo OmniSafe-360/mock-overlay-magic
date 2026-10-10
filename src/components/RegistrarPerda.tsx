@@ -1,9 +1,9 @@
 /* Registrar perda no app do funcionário (Fase 4.2): quebrou, venceu, usado na loja ou devolvido ao fornecedor.
  * Sai do estoque na hora; o dono confirma depois (se recusar, vira uma diferença para investigar). */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Camera, Check, CheckCircle2, PackageX, Search } from "lucide-react";
 import { Scanner } from "@/components/Scanner";
-import { Contador } from "@/components/ReceberMercadoria";
+import { Contador } from "@/components/parts/Contador";
 import { btnGhost, btnPrimary } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";
 import { aceitaFracao, newUid, parseNum, qtdUn, unPlural } from "@/lib/deposito";
@@ -11,6 +11,17 @@ import { textoDoTipo } from "@/lib/exemplos";
 import { mensagemErro } from "@/lib/persistencia";
 import { nomeProdutoFunc, type ProdutoFunc } from "@/lib/recebimento";
 import { nomeVenda } from "@/lib/situacao";
+import { escopoAcesso, operacaoLocal } from "@/lib/operacaoLocal";
+import { ERRO_REGISTRO } from "@/lib/envios";
+
+type EnvioPerda = { dados: banco.NovaPerda; resumo: string };
+const envioValido = (p: unknown): p is EnvioPerda => {
+  const x = p as EnvioPerda | null;
+  return !!x && typeof x.resumo === "string" && !!x.dados && typeof x.dados.id === "string"
+    && typeof x.dados.produtoId === "string" && ["deposito", "venda"].includes(x.dados.area)
+    && Number.isFinite(x.dados.quantidade) && x.dados.quantidade > 0
+    && MOTIVOS_PERDA.some((m) => m.id === x.dados.motivo) && typeof x.dados.observacao === "string";
+};
 
 export type ApiPerda = {
   buscar: typeof banco.buscarProdutoFuncionario;
@@ -37,6 +48,10 @@ const erroTexto = (e: unknown) => {
 };
 
 export function RegistrarPerda({ chave, tipo, onVoltar, api: apiDada }: { chave: string; tipo: string; onVoltar: () => void; api?: ApiPerda | undefined }) {
+  return <FormularioPerda key={chave} chave={chave} tipo={tipo} onVoltar={onVoltar} api={apiDada} />;
+}
+
+function FormularioPerda({ chave, tipo, onVoltar, api: apiDada }: { chave: string; tipo: string; onVoltar: () => void; api?: ApiPerda | undefined }) {
   const api = apiDada ?? API_PADRAO;
   const t = textoDoTipo(tipo);
   const venda = nomeVenda(tipo).toLowerCase();
@@ -45,21 +60,38 @@ export function RegistrarPerda({ chave, tipo, onVoltar, api: apiDada }: { chave:
   const [motivo, setMotivo] = useState<banco.MotivoPerda | null>(null);
   const [valor, setValor] = useState("");
   const [obs, setObs] = useState("");
-  const [id, setId] = useState(newUid);
+  const registro = useRef<ReturnType<typeof operacaoLocal<EnvioPerda>> | null>(null);
+  const ocupado = useRef(false);
+  const [pendente, setPendente] = useState(false);
+  const [pronto, setPronto] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
   const [feito, setFeito] = useState("");
+  useEffect(() => {
+    let ativo = true;
+    void escopoAcesso(chave).then((escopo) => {
+      if (!ativo) return;
+      registro.current = operacaoLocal(escopo, "perda", envioValido);
+      setPendente(!!registro.current.pendente()); setPronto(true);
+    }).catch(() => { if (ativo) setErro(ERRO_REGISTRO); });
+    return () => { ativo = false; };
+  }, [chave]);
   const n = produto ? parseNum(valor, produto.unidade, false) : { v: null, err: "" };
-  const ok = !!produto && !!area && !!motivo && n.v != null && !n.err && (motivo !== "outro" || obs.trim().length >= 3) && !enviando;
+  const ok = pronto && !enviando && (pendente || (!!produto && !!area && !!motivo && n.v != null && !n.err && (motivo !== "outro" || obs.trim().length >= 3)));
 
   const enviar = async () => {
-    if (!ok || !produto || !area || !motivo || n.v == null) return;
+    if (!ok || ocupado.current || !registro.current) return;
+    ocupado.current = true;
     setEnviando(true); setErro("");
     try {
-      await api.registrar(chave, { id, produtoId: produto.produtoId, variacaoId: produto.variacaoId, area, quantidade: n.v, motivo, observacao: obs.trim() });
-      setFeito(`${nomeProdutoFunc(produto)}: ${qtdUn(n.v, produto.unidade)} (${MOTIVOS_PERDA.find((m) => m.id === motivo)!.txt.toLowerCase()}).`);
-      setProduto(null); setArea(null); setMotivo(null); setValor(""); setObs(""); setId(newUid()); setEnviando(false);
-    } catch (e) { setErro(erroTexto(e)); setEnviando(false); }
+      const r = await registro.current.enviar(() => ({
+        dados: { id: newUid(), produtoId: produto!.produtoId, variacaoId: produto!.variacaoId, area: area!, quantidade: n.v!, motivo: motivo!, observacao: obs.trim() },
+        resumo: `${nomeProdutoFunc(produto!)}: ${qtdUn(n.v!, produto!.unidade)} (${MOTIVOS_PERDA.find((m) => m.id === motivo)!.txt.toLowerCase()}).`,
+      }), (pedido) => api.registrar(chave, pedido.dados));
+      setFeito(`${r.pedido.resumo}${r.recuperado ? " O envio original foi confirmado; mudanças feitas depois não foram enviadas." : ""}`);
+      setProduto(null); setArea(null); setMotivo(null); setValor(""); setObs("");
+    } catch (e) { setErro(erroTexto(e)); }
+    finally { setPendente(!!registro.current.pendente()); setEnviando(false); ocupado.current = false; }
   };
 
   return (
@@ -130,9 +162,10 @@ export function RegistrarPerda({ chave, tipo, onVoltar, api: apiDada }: { chave:
       )}
 
       {erro && <p role="alert" className="rounded-2xl border border-destructive/50 bg-destructive/10 p-3 text-sm font-semibold text-destructive">{erro}</p>}
-      {produto && (
+      {pendente && <p role="status" className="rounded-2xl border border-warning/50 p-3 text-sm">Há uma perda sem confirmação. O próximo envio repete os dados originais, sem duplicar. Confira antes de registrar outra perda.</p>}
+      {(produto || pendente) && (
         <button type="button" disabled={!ok} onClick={() => void enviar()} className={`mt-auto flex items-center justify-center gap-2 ${btnPrimary(ok)}`}>
-          <PackageX size={20} /> {enviando ? "Registrando…" : "Registrar perda"}
+          <PackageX size={20} /> {enviando ? "Registrando…" : pendente ? "Confirmar envio pendente" : "Registrar perda"}
         </button>
       )}
     </div>

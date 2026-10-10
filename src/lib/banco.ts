@@ -1,6 +1,7 @@
+import type { Database, Json } from "@/integrations/supabase/types";
 /* Acesso ao Supabase do cadastro de produtos. As regras de acesso do banco garantem que só o dono vê o próprio comércio. */
 import { supabase } from "@/integrations/supabase/client";
-import type { Product, Supplier } from "@/components/ProductArea";
+import type { Product, Supplier } from "@/lib/produto";
 import { precoUnidade as precoUnidadePedido, type CanalPedido, type FormaPagamento, type LinhaPedido, type Pedido, type RespostaPedido, type SituacaoPedido } from "@/lib/pedido";
 import type { Funcao, Funcionario } from "@/lib/funcionario";
 import type { Caixa, ItemPendente, ItemVenda, Venda } from "@/lib/vendas";
@@ -10,12 +11,19 @@ import { ehIncerto, enviarCadastro, linhaFornecedor, montarCadastro, montarForne
 import type { TipoEnvio } from "@/lib/envios";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-const db = supabase as any;
+const db = supabase;
+
+/** Os nomes e parâmetros seguem as migrações tipadas. Cada endpoint abaixo decodifica seu JSON. */
+async function rpc<N extends keyof Database["public"]["Functions"]>(nome: N, args: Database["public"]["Functions"][N]["Args"]) {
+  const r = await supabase.rpc(nome, args);
+  return { ...r, data: r.data as any };
+}
+
 
 import type { AreaEstoque, Diferenca, MotivoDiferenca, MotivoPerda, Perda } from "@/lib/diferencas";
 import type { Contagem } from "@/lib/antifurto";
 
-async function todos(tabela: string, colunas: string, filtro: (q: any) => any): Promise<any[]> {
+async function todos(tabela: keyof Database["public"]["Tables"], colunas: string, filtro: (q: any) => any): Promise<any[]> {
   const out: any[] = [];
   for (let de = 0; ; de += 1000) {
     const { data, error } = await filtro(db.from(tabela).select(colunas)).order("id").range(de, de + 999);
@@ -46,7 +54,7 @@ export async function atualizarFornecedor(id: string, f: { nome: string; tel: st
 
 /** Código interno (EAN-13 começando com 29) para produto sem código de barras. Só o dono do comércio. */
 export async function gerarCodigoInterno(comercioId: string): Promise<string> {
-  const { data, error } = await db.rpc("gerar_codigo_interno", { _comercio: comercioId });
+  const { data, error } = await rpc("gerar_codigo_interno", { _comercio: comercioId });
   if (error) throw error;
   if (typeof data !== "string" || !/^29\d{11}$/.test(data)) throw new Error("codigo_interno_invalido");
   return data;
@@ -93,7 +101,7 @@ async function lerProdutos(comercioId: string, suppliers: Supplier[]): Promise<{
 /** Produto + pendências numa única transação (salvar_cadastro). Envio sem resposta é repetido idêntico. */
 export function salvarProduto(s: Sessao, p: Product, antes: Product | undefined, comercioId: string, farm: boolean, suppliers: Supplier[], novoId: () => string) {
   return enviarCadastro(s, () => montarCadastro(p, antes, comercioId, farm, suppliers, novoId),
-    async (pedido) => { const { error } = await db.rpc("salvar_cadastro", { p: pedido }); return { error }; });
+    async (pedido) => { const { error } = await rpc("salvar_cadastro", { p: pedido as Json }); return { error }; });
 }
 
 /** Só confere o envio guardado. Nunca monta uma operação nova nem reaproveita o formulário atual. */
@@ -103,7 +111,7 @@ export async function conferirEnvio(s: Sessao, tipo: TipoEnvio) {
 }
 async function conferirSemTrava(s: Sessao, tipo: TipoEnvio) {
   if (!s.incerto) return;
-  const { error } = await db.rpc(tipo === "produto" ? "salvar_cadastro" : "salvar_pedido", { p: s.incerto.pedido });
+  const { error } = await rpc(tipo === "produto" ? "salvar_cadastro" : "salvar_pedido", { p: s.incerto.pedido as Json });
   if (error) {
     if (!ehIncerto(error)) { s.guardar?.(null); s.incerto = null; }
     throw error;
@@ -159,7 +167,7 @@ export async function carregarRecebimentos(comercioId: string, comPedido: boolea
 }
 /** Dono decide um item: aceitar (escolhendo a contagem, se não fechou) ou recusar (fora do pedido). */
 export async function resolverItemRecebimento(itemId: string, acao: "aceitar" | "recusar", tentativa: number | null) {
-  const { error } = await db.rpc("resolver_item_recebimento", { _item: itemId, _acao: acao, _tentativa: tentativa });
+  const { error } = await rpc("resolver_item_recebimento", { _item: itemId, _acao: acao, _tentativa: tentativa });
   if (error) throw error;
 }
 
@@ -171,7 +179,7 @@ const produtoFunc = (x: any): ProdutoFunc => ({
 });
 export type EntregaEsperada = { id: string; numero: number; fornecedor: string; previsaoEntrega: string | null; produtos: number; emContagem: boolean };
 export async function entregasFuncionario(chave: string): Promise<{ pedidos: EntregaEsperada[]; fornecedores: { id: string; nome: string }[] }> {
-  const { data, error } = await db.rpc("funcionario_entregas", { _chave: chave });
+  const { data, error } = await rpc("funcionario_entregas", { _chave: chave });
   if (error) throw error;
   return {
     pedidos: (data?.pedidos ?? []).map((p: any) => ({ id: p.id, numero: Number(p.numero), fornecedor: p.fornecedor ?? "", previsaoEntrega: p.previsao_entrega ?? null,
@@ -184,7 +192,7 @@ export type RecebimentoAberto = {
   produtos: ProdutoFunc[]; itens: { produtoId: string; variacaoId: string | null; situacao: SituacaoItemRecebido }[];
 };
 export async function abrirRecebimento(chave: string, id: string, pedidoId: string | null, fornecedorId: string | null): Promise<RecebimentoAberto> {
-  const { data, error } = await db.rpc("funcionario_abrir_recebimento", { _chave: chave, _id: id, _pedido: pedidoId, _fornecedor: fornecedorId });
+  const { data, error } = await rpc("funcionario_abrir_recebimento", { _chave: chave, _id: id, _pedido: pedidoId, _fornecedor: fornecedorId });
   if (error) throw error;
   return {
     id: data.id, rodada: Number(data.rodada), situacao: data.situacao, pedidoId: data.pedido_id ?? null, numero: numOuNull(data.numero), fornecedor: data.fornecedor ?? null,
@@ -193,7 +201,7 @@ export async function abrirRecebimento(chave: string, id: string, pedidoId: stri
   };
 }
 export async function buscarProdutoFuncionario(chave: string, texto: string): Promise<ProdutoFunc[]> {
-  const { data, error } = await db.rpc("funcionario_buscar_produto", { _chave: chave, _texto: texto });
+  const { data, error } = await rpc("funcionario_buscar_produto", { _chave: chave, _texto: texto });
   if (error) throw error;
   return (data ?? []).map(produtoFunc);
 }
@@ -201,7 +209,7 @@ export type RespostaRecebimento =
   | { situacao: "recontar"; rodada: number; recontar: { produtoId: string; variacaoId: string | null }[]; faltam: { produtoId: string; variacaoId: string | null }[] }
   | { situacao: "concluido"; rodada: number; produtos: number; avisos: boolean };
 export async function enviarRecebimento(chave: string, id: string, rodada: number, itens: ReturnType<typeof itemParaEnvio>[]): Promise<RespostaRecebimento> {
-  const { data, error } = await db.rpc("funcionario_enviar_recebimento", { _chave: chave, _id: id, _rodada: rodada, _itens: itens });
+  const { data, error } = await rpc("funcionario_enviar_recebimento", { _chave: chave, _id: id, _rodada: rodada, _itens: itens });
   if (error) throw error;
   const par = (x: any) => ({ produtoId: x.produto_id, variacaoId: x.variacao_id ?? null });
   if (data.situacao === "recontar") return { situacao: "recontar", rodada: Number(data.rodada), recontar: (data.recontar ?? []).map(par), faltam: (data.faltam ?? []).map(par) };
@@ -215,31 +223,31 @@ export async function salvarPedido(a: { id: string; comercioId: string; forneced
   }) });
   let resultado: { id: string; numero: number } | undefined;
   const r = await enviarCadastro(sessao ?? { dbId: a.id, incerto: null }, montar, async (p) => {
-    const { data, error } = await db.rpc("salvar_pedido", { p });
+    const { data, error } = await rpc("salvar_pedido", { p: p as Json });
     if (!error) resultado = { id: data.id, numero: Number(data.numero) };
     return { error };
   });
   return { ...resultado!, recuperado: r === "anterior_gravado" };
 }
 export async function marcarPedidoEnviado(id: string, canal: CanalPedido) {
-  const { error } = await db.rpc("marcar_pedido_enviado", { _pedido: id, _canal: canal });
+  const { error } = await rpc("marcar_pedido_enviado", { _pedido: id, _canal: canal });
   if (error) throw error;
 }
 /** Dono: marca como pago (com a data), desfaz (volta para a pagar) ou corrige vencimento e valor. Valor em centavos; undefined = não muda. */
 export async function atualizarPagamento(id: string, a: { situacao: "a_pagar" | "pago"; vencimento?: string | null; pagoEm?: string | null; valor?: number | null }) {
   const p: Record<string, unknown> = { situacao: a.situacao, vencimento: a.vencimento ?? null, pago_em: a.pagoEm ?? null };
   if (a.valor !== undefined) p["valor_total"] = a.valor == null ? null : a.valor / 100;
-  const { error } = await db.rpc("atualizar_pagamento", { _pedido: id, p });
+  const { error } = await rpc("atualizar_pagamento", { _pedido: id, p: p as Json });
   if (error) throw error;
 }
 export async function cancelarPedido(id: string) {
-  const { error } = await db.rpc("cancelar_pedido", { _pedido: id });
+  const { error } = await rpc("cancelar_pedido", { _pedido: id });
   if (error) throw error;
 }
 
 /** Dono: troca o link do pedido; o antigo para de funcionar. */
 export async function novoLinkPedido(id: string): Promise<string> {
-  const { data, error } = await db.rpc("novo_link_pedido", { _pedido: id });
+  const { data, error } = await rpc("novo_link_pedido", { _pedido: id });
   if (error) throw error;
   return String(data);
 }
@@ -255,7 +263,7 @@ export type PedidoPublico = {
   resposta: RespostaPedido | null; itens: ItemPublico[];
 };
 export async function carregarPedidoPublico(token: string): Promise<PedidoPublico | null> {
-  const { data, error } = await db.rpc("pedido_publico", { _token: token });
+  const { data, error } = await rpc("pedido_publico", { _token: token });
   if (error) throw error;
   if (!data) return null;
   const r = data.resposta;
@@ -277,7 +285,7 @@ export type RespostaFornecedor = {
   forma: FormaPagamento | null; prazoDias: number | null; recado: string;
 };
 export async function responderPedido(token: string, r: RespostaFornecedor): Promise<SituacaoPedido> {
-  const { data, error } = await db.rpc("responder_pedido", { _token: token, r: {
+  const { data, error } = await rpc("responder_pedido", { _token: token, r: {
     aceito: r.aceito, itens: r.itens.map((i) => ({ id: i.id, qtd_confirmada: i.qtdConfirmada })), previsao_entrega: r.previsaoEntrega,
     valor_total: r.valorTotal == null ? null : r.valorTotal / 100, forma_pagamento: r.forma, prazo_dias: r.prazoDias, recado: r.recado,
   } });
@@ -318,16 +326,16 @@ export async function carregarVendas(comercioId: string, desde: string): Promise
   })).sort((a, b) => (b.emitidaEm ?? b.recebidaEm).localeCompare(a.emitidaEm ?? a.recebidaEm));
 }
 export async function criarCaixa(comercioId: string, nome: string): Promise<{ id: string; codigo: string }> {
-  const { data, error } = await db.rpc("criar_caixa", { _comercio: comercioId, _nome: nome });
+  const { data, error } = await rpc("criar_caixa", { _comercio: comercioId, _nome: nome });
   if (error) throw error;
   return { id: data.id, codigo: data.codigo };
 }
 export async function renomearCaixa(id: string, nome: string) {
-  const { error } = await db.rpc("renomear_caixa", { _id: id, _nome: nome });
+  const { error } = await rpc("renomear_caixa", { _id: id, _nome: nome });
   if (error) throw error;
 }
 export async function novoCodigoCaixa(id: string): Promise<string> {
-  const { data, error } = await db.rpc("novo_codigo_caixa", { _id: id });
+  const { data, error } = await rpc("novo_codigo_caixa", { _id: id });
   if (error) throw error;
   return String(data);
 }
@@ -343,12 +351,12 @@ export async function carregarPendentesVenda(comercioId: string): Promise<ItemPe
 }
 /** Liga o código do caixa a um produto (desconta agora as vendas pendentes desse código e passa a ser automático) ou "não controlar". */
 export async function resolverItemVenda(itemId: string, acao: "ligar" | "ignorar", produtoId: string | null, variacaoId: string | null, embalagemId: string | null): Promise<{ itens: number; conferir?: number }> {
-  const { data, error } = await db.rpc("resolver_item_venda", { _item: itemId, _acao: acao, _produto: produtoId, _variacao: variacaoId, _embalagem: embalagemId });
+  const { data, error } = await rpc("resolver_item_venda", { _item: itemId, _acao: acao, _produto: produtoId, _variacao: variacaoId, _embalagem: embalagemId });
   if (error) throw error;
   return data;
 }
 export async function desligarCaixa(id: string) {
-  const { error } = await db.rpc("desligar_caixa", { _id: id });
+  const { error } = await rpc("desligar_caixa", { _id: id });
   if (error) throw error;
 }
 
@@ -358,13 +366,13 @@ export type EstadoConector = {
   ultimaVendaEm: string | null; desde: string | null; hoje: { vendas: number; total: number };
 };
 export async function conectorLigar(codigo: string, aparelho: string): Promise<{ chave: string; caixa: string; comercio: { nome: string; tipo: string } }> {
-  const { data, error } = await db.rpc("conector_ligar", { _codigo: codigo, _aparelho: aparelho });
+  const { data, error } = await rpc("conector_ligar", { _codigo: codigo, _aparelho: aparelho });
   if (error) throw error;
   return { chave: String(data.chave), caixa: data.caixa, comercio: { nome: data.comercio?.nome ?? "", tipo: data.comercio?.tipo ?? "" } };
 }
 /** null = este caixa foi desligado pelo dono (ou a chave não vale mais). */
 export async function conectorEstado(chave: string): Promise<EstadoConector | null> {
-  const { data, error } = await db.rpc("conector_estado", { _chave: chave });
+  const { data, error } = await rpc("conector_estado", { _chave: chave });
   if (error) throw error;
   if (!data) return null;
   return {
@@ -374,12 +382,12 @@ export async function conectorEstado(chave: string): Promise<EstadoConector | nu
   };
 }
 export async function conectorEnviarVenda(chave: string, nota: object): Promise<{ situacao: string; sem_cadastro?: number; itens?: number }> {
-  const { data, error } = await db.rpc("conector_enviar_venda", { _chave: chave, _nota: nota });
+  const { data, error } = await rpc("conector_enviar_venda", { _chave: chave, _nota: nota as Json });
   if (error) throw error;
   return data;
 }
 export async function conectorCancelarVenda(chave: string, chaveNota: string): Promise<{ situacao: string }> {
-  const { data, error } = await db.rpc("conector_cancelar_venda", { _chave: chave, _chave_nota: chaveNota });
+  const { data, error } = await rpc("conector_cancelar_venda", { _chave: chave, _chave_nota: chaveNota });
   if (error) throw error;
   return data;
 }
@@ -397,22 +405,22 @@ export async function carregarFuncionarios(comercioId: string): Promise<Funciona
   }));
 }
 export async function criarFuncionario(comercioId: string, nome: string, funcao: Funcao): Promise<{ id: string; codigo: string }> {
-  const { data, error } = await db.rpc("criar_funcionario", { _comercio: comercioId, _nome: nome, _funcao: funcao });
+  const { data, error } = await rpc("criar_funcionario", { _comercio: comercioId, _nome: nome, _funcao: funcao });
   if (error) throw error;
   return { id: data.id, codigo: data.codigo };
 }
 export async function atualizarFuncionario(id: string, nome: string, funcao: Funcao) {
-  const { error } = await db.rpc("atualizar_funcionario", { _id: id, _nome: nome, _funcao: funcao });
+  const { error } = await rpc("atualizar_funcionario", { _id: id, _nome: nome, _funcao: funcao });
   if (error) throw error;
 }
 /** Bloquear desliga os celulares; desbloquear devolve um código novo (o funcionário cria outro PIN). */
 export async function bloquearFuncionario(id: string, bloquear: boolean): Promise<string | null> {
-  const { data, error } = await db.rpc("bloquear_funcionario", { _id: id, _bloquear: bloquear });
+  const { data, error } = await rpc("bloquear_funcionario", { _id: id, _bloquear: bloquear });
   if (error) throw error;
   return data?.codigo ?? null;
 }
 export async function novoAcessoFuncionario(id: string): Promise<string> {
-  const { data, error } = await db.rpc("novo_acesso_funcionario", { _id: id });
+  const { data, error } = await rpc("novo_acesso_funcionario", { _id: id });
   if (error) throw error;
   return String(data.codigo);
 }
@@ -426,20 +434,20 @@ export type InicioFuncionario = {
 };
 /** 'novo' (criar PIN), 'pin', 'expirado' ou null (código não vale). */
 export async function conferirCodigoFuncionario(codigo: string): Promise<"novo" | "pin" | "expirado" | null> {
-  const { data, error } = await db.rpc("conferir_codigo_funcionario", { _codigo: codigo });
+  const { data, error } = await rpc("conferir_codigo_funcionario", { _codigo: codigo });
   if (error) throw error;
   return data ?? null;
 }
 /** Devolve a chave do celular. PIN errado vem como erro com a mensagem do banco (pin_errado:N / muitas_tentativas:N). */
 export async function entrarFuncionario(codigo: string, pin: string, aparelho: string): Promise<string> {
-  const { data, error } = await db.rpc("entrar_funcionario", { _codigo: codigo, _pin: pin, _aparelho: aparelho });
+  const { data, error } = await rpc("entrar_funcionario", { _codigo: codigo, _pin: pin, _aparelho: aparelho });
   if (error) throw error;
   if (data?.erro) throw new Error(String(data.erro));
   return String(data.chave);
 }
 /** null = este celular foi desligado (bloqueio ou novo acesso). */
 export async function inicioFuncionario(chave: string): Promise<InicioFuncionario | null> {
-  const { data, error } = await db.rpc("funcionario_inicio", { _chave: chave });
+  const { data, error } = await rpc("funcionario_inicio", { _chave: chave });
   if (error) throw error;
   if (!data) return null;
   return {
@@ -450,12 +458,12 @@ export async function inicioFuncionario(chave: string): Promise<InicioFuncionari
 }
 /** Destrava o app com o PIN. PIN errado vem como erro (pin_errado:N / muitas_tentativas:N). */
 export async function desbloquearFuncionario(chave: string, pin: string) {
-  const { data, error } = await db.rpc("funcionario_desbloquear", { _chave: chave, _pin: pin });
+  const { data, error } = await rpc("funcionario_desbloquear", { _chave: chave, _pin: pin });
   if (error) throw error;
   if (data?.erro) throw new Error(String(data.erro));
 }
 export async function sairFuncionario(chave: string) {
-  const { error } = await db.rpc("sair_funcionario", { _chave: chave });
+  const { error } = await rpc("sair_funcionario", { _chave: chave });
   if (error) throw error;
 }
 
@@ -463,7 +471,7 @@ export async function sairFuncionario(chave: string) {
 export type ItemConferencia = ProdutoFunc & { local: string | null; conferenciaId: string | null };
 /** Produtos para conferir hoje no depósito (sem quantidades). */
 export async function listaConferencia(chave: string): Promise<{ tipo: string; feitosHoje: number; meta: number; produtos: ItemConferencia[] }> {
-  const { data, error } = await db.rpc("funcionario_conferencia_lista", { _chave: chave });
+  const { data, error } = await rpc("funcionario_conferencia_lista", { _chave: chave });
   if (error) throw error;
   return {
     tipo: data?.tipo ?? "", feitosHoje: Number(data?.feitos_hoje ?? 0), meta: Number(data?.meta ?? 5),
@@ -472,7 +480,7 @@ export async function listaConferencia(chave: string): Promise<{ tipo: string; f
 }
 /** Uma contagem cega do depósito: "recontar", "concluida" ou "inconsistente" (nunca quanto o sistema tinha). */
 export async function contarConferencia(chave: string, id: string, produtoId: string, variacaoId: string | null, contado: number): Promise<{ situacao: "recontar" | "concluida" | "inconsistente"; rodada?: number }> {
-  const { data, error } = await db.rpc("funcionario_conferencia_contar", { _chave: chave, _id: id, _produto: produtoId, _variacao: variacaoId, _contado: contado });
+  const { data, error } = await rpc("funcionario_conferencia_contar", { _chave: chave, _id: id, _produto: produtoId, _variacao: variacaoId, _contado: contado });
   if (error) throw error;
   return { situacao: data.situacao, ...(data.rodada ? { rodada: Number(data.rodada) } : {}) };
 }
@@ -480,7 +488,7 @@ export type { MotivoPerda };
 export type NovaPerda = { id: string; produtoId: string; variacaoId: string | null; area: "deposito" | "venda"; quantidade: number; motivo: MotivoPerda; observacao: string };
 /** Perda registrada pelo funcionário: sai do estoque na hora; o dono confirma depois. Repetir o mesmo id não duplica. */
 export async function registrarPerdaFuncionario(chave: string, p: NovaPerda) {
-  const { error } = await db.rpc("funcionario_registrar_perda", { _chave: chave, _id: p.id, _produto: p.produtoId, _variacao: p.variacaoId, _area: p.area,
+  const { error } = await rpc("funcionario_registrar_perda", { _chave: chave, _id: p.id, _produto: p.produtoId, _variacao: p.variacaoId, _area: p.area,
     _quantidade: p.quantidade, _motivo: p.motivo, _observacao: p.observacao });
   if (error) throw error;
 }
@@ -488,7 +496,7 @@ export async function registrarPerdaFuncionario(chave: string, p: NovaPerda) {
 /* ---------- reposição (E3) ---------- */
 export type ItemReposicao = ProdutoFunc & { local: string | null; localDeposito: string | null; depositoVazio: boolean };
 export async function listaReposicao(chave: string): Promise<{ tipo: string; produtos: ItemReposicao[] }> {
-  const { data, error } = await db.rpc("funcionario_reposicao_lista", { _chave: chave });
+  const { data, error } = await rpc("funcionario_reposicao_lista", { _chave: chave });
   if (error) throw error;
   return {
     tipo: data?.tipo ?? "",
@@ -498,12 +506,12 @@ export async function listaReposicao(chave: string): Promise<{ tipo: string; pro
 export type RespostaContagemPrateleira = { sugerido: number; cheio: boolean; depositoVazio: boolean; localDeposito: string | null; situacao: "contado" | "concluido" };
 /** O funcionário contou a prateleira; o servidor devolve só quanto buscar no depósito. */
 export async function contarPrateleira(chave: string, id: string, produtoId: string, variacaoId: string | null, contado: number): Promise<RespostaContagemPrateleira> {
-  const { data, error } = await db.rpc("funcionario_reposicao_contar", { _chave: chave, _id: id, _produto: produtoId, _variacao: variacaoId, _contado: contado });
+  const { data, error } = await rpc("funcionario_reposicao_contar", { _chave: chave, _id: id, _produto: produtoId, _variacao: variacaoId, _contado: contado });
   if (error) throw error;
   return { sugerido: Number(data.sugerido), cheio: !!data.cheio, depositoVazio: !!data.deposito_vazio, localDeposito: data.local_deposito ?? null, situacao: data.situacao };
 }
 export async function concluirReposicao(chave: string, id: string, levado: number) {
-  const { error } = await db.rpc("funcionario_reposicao_concluir", { _chave: chave, _id: id, _levado: levado });
+  const { error } = await rpc("funcionario_reposicao_concluir", { _chave: chave, _id: id, _levado: levado });
   if (error) throw error;
 }
 
@@ -532,23 +540,23 @@ export async function carregarDiferencas(comercioId: string, desde: string): Pro
   };
 }
 export async function decidirPerda(id: string, aceitar: boolean) {
-  const { error } = await db.rpc("decidir_perda", { _id: id, _aceitar: aceitar });
+  const { error } = await rpc("decidir_perda", { _id: id, _aceitar: aceitar });
   if (error) throw error;
 }
 export async function explicarDiferenca(id: string, motivo: MotivoDiferenca, observacao: string) {
-  const { error } = await db.rpc("explicar_diferenca", { _id: id, _motivo: motivo, _observacao: observacao });
+  const { error } = await rpc("explicar_diferenca", { _id: id, _motivo: motivo, _observacao: observacao });
   if (error) throw error;
 }
 /** Contagem inconsistente: o dono escolhe o número certo (uma das contagens ou o do sistema). */
 export async function resolverConferencia(id: string, contado: number): Promise<{ diferenca: number }> {
-  const { data, error } = await db.rpc("resolver_conferencia", { _diferenca: id, _contado: contado });
+  const { data, error } = await rpc("resolver_conferencia", { _diferenca: id, _contado: contado });
   if (error) throw error;
   return { diferenca: Number(data?.diferenca ?? 0) };
 }
 export type PerdaDono = { id: string; comercioId: string; produtoId: string; variacaoId: string | null; area: AreaEstoque; quantidade: number; motivo: MotivoPerda; observacao: string };
 /** O dono registra uma perda (já confirmada). */
 export async function registrarPerdaDono(p: PerdaDono) {
-  const { error } = await db.rpc("registrar_perda", { p: { id: p.id, comercio_id: p.comercioId, produto_id: p.produtoId, variacao_id: p.variacaoId,
+  const { error } = await rpc("registrar_perda", { p: { id: p.id, comercio_id: p.comercioId, produto_id: p.produtoId, variacao_id: p.variacaoId,
     area: p.area, quantidade: p.quantidade, motivo: p.motivo, observacao: p.observacao } });
   if (error) throw error;
 }
@@ -573,6 +581,6 @@ export async function carregarLimiteFaltas(comercioId: string): Promise<number> 
   return data?.limite_faltas_mes == null ? 20000 : centavos(data.limite_faltas_mes);
 }
 export async function definirLimiteFaltas(comercioId: string, centavosValor: number) {
-  const { error } = await db.rpc("definir_limite_faltas", { _comercio: comercioId, _valor: centavosValor / 100 });
+  const { error } = await rpc("definir_limite_faltas", { _comercio: comercioId, _valor: centavosValor / 100 });
   if (error) throw error;
 }

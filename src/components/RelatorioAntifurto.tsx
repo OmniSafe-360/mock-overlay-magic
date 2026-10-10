@@ -1,7 +1,8 @@
+import { useHoje } from "@/hooks/useHoje";
 /* Relatório antifurto do comércio (Fase 5.1), dentro da aba Diferenças: o que falta, onde, quando e quem contou. */
 import { useEffect, useMemo, useState } from "react";
 import { BellRing, CalendarDays, ChevronDown, MapPin, Package, ShieldAlert, Users } from "lucide-react";
-import type { Product } from "@/components/ProductArea";
+import type { Product } from "@/lib/produto";
 import * as banco from "@/lib/banco";
 import { DIAS_SEMANA, PERIODOS, PRODUTOS_LUGAR, VEZES_VISADO, alertasAntifurto, infoDosProdutos, intervaloFalta, limitesPeriodo, nomeAreaDoTipo, relatorioAntifurto, type Contagem, type Periodo } from "@/lib/antifurto";
 import { qtdUn } from "@/lib/deposito";
@@ -24,7 +25,7 @@ const API_PADRAO: ApiRelatorio = {
 export function RelatorioAntifurto({ comercioId, tipo, products, api = API_PADRAO, onMudou }: {
   comercioId: string; tipo: string; products: Product[]; api?: ApiRelatorio | undefined; /** O limite mudou (o resumo geral recalcula). */ onMudou?: (() => void) | undefined;
 }) {
-  const hoje = useMemo(() => hojeEm(), []);
+  const hoje = useHoje();
   const [periodo, setPeriodo] = useState<Periodo>("mes");
   const [dados, setDados] = useState<{ diferencas: Diferenca[]; perdas: Perda[]; contagens: Contagem[]; limite: number } | null>(null);
   const [erro, setErro] = useState(false);

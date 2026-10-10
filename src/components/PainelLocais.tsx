@@ -1,7 +1,8 @@
+import { useHoje } from "@/hooks/useHoje";
 /* Abas Depósito/Estoque e Gôndola/Área de venda: cada local com os produtos e quanto tem de cada um. */
 import { useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, MapPin, Package } from "lucide-react";
-import type { Product } from "@/components/ProductArea";
+import type { Product } from "@/lib/produto";
 import { fmtQ, unPlural, unSingular } from "@/lib/deposito";
 import { textoDoTipo } from "@/lib/exemplos";
 import { nomeVenda, porLocal, precisaAtencaoItem, type EstadoItem, type ItemLocal } from "@/lib/situacao";
@@ -17,7 +18,7 @@ const COR: Record<EstadoItem, { barra: string; texto: string }> = {
 export function PainelLocais({ products, tipo, area, locaisCadastrados = [], onOpen }: {
   products: Product[]; tipo: string; area: "dep" | "ven"; locaisCadastrados?: string[] | undefined; onOpen: (p: Product) => void;
 }) {
-  const hoje = useMemo(() => hojeEm(), []);
+  const hoje = useHoje();
   const d = useMemo(() => porLocal(products, area, hoje, locaisCadastrados), [products, area, hoje, locaisCadastrados]);
   const [so, setSo] = useState(false);
   const [verFalta, setVerFalta] = useState(false);
