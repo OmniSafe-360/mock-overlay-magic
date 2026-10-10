@@ -3,7 +3,8 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { PainelDiferencas } from "@/components/PainelDiferencas";
 import { RelatorioAntifurto, type ApiRelatorio } from "@/components/RelatorioAntifurto";
 import type { Product } from "@/components/ProductArea";
-import { contagemAnterior, intervaloFalta, limitesPeriodo, relatorioAntifurto, type Contagem } from "@/lib/antifurto";
+import { alertasAntifurto, contagemAnterior, intervaloFalta, limitesPeriodo, relatorioAntifurto, type Contagem } from "@/lib/antifurto";
+import { AtencaoHoje } from "@/components/AtencaoHoje";
 import type { Diferenca, Perda } from "@/lib/diferencas";
 
 const AGORA = new Date("2026-10-10T15:00:00-03:00");
@@ -83,11 +84,42 @@ describe("regras do antifurto", () => {
   });
 });
 
+describe("alertas automáticos", () => {
+  const agora = AGORA.getTime();
+  it("produto visado: 3 faltas em 30 dias com a última em 7 dias; erro de contagem não conta", () => {
+    const a = alertasAntifurto(difs, "2026-10-10", agora, info, nomeArea, 20000);
+    expect(a.visados.map((v) => [v.titulo, v.vezes, v.valor])).toEqual([["Arroz", 4, 8000]]);
+    // última falta há mais de 7 dias: deixa de ser visado
+    const antigas = difs.map((d) => ({ ...d, criadaEm: new Date(Date.parse(d.criadaEm) - 9 * 86_400_000).toISOString() }));
+    expect(alertasAntifurto(antigas, "2026-10-10", agora, info, nomeArea, 20000).visados).toEqual([]);
+  });
+  it("lugar com 3 produtos diferentes faltando; limite do mês", () => {
+    const tres = [...difs, dif({ produtoId: "sab", area: "venda", criadaEm: "2026-10-09T10:00:00-03:00", valor: -300, diferenca: -1 })];
+    const sabG3 = tres.map((d) => (d.produtoId === "sab" && d.area === "venda" ? { ...d } : d));
+    const info3 = { ...info, local: (id: string, a: "deposito" | "venda") => (a === "venda" ? "Gôndola 3" : info.local(id, a)) };
+    const a = alertasAntifurto(sabG3, "2026-10-10", agora, info3, nomeArea, 20000);
+    expect(a.lugares.map((l) => [l.titulo, l.sub, l.produtos])).toEqual([["Gôndola 3", "Gôndola", 3]]);
+    expect(a.faltouMes).toBe(9800);
+    expect(a.passouLimite).toBe(false);
+    expect(alertasAntifurto(sabG3, "2026-10-10", agora, info3, nomeArea, 5000).passouLimite).toBe(true);
+    expect(alertasAntifurto(sabG3, "2026-10-10", agora, info3, nomeArea, 0).passouLimite).toBe(false);
+  });
+  it("Atenção hoje mostra os quadros e abre o relatório", () => {
+    const a = alertasAntifurto(difs, "2026-10-10", AGORA.getTime(), info, nomeArea, 5000);
+    const abrir = vi.fn();
+    render(<AtencaoHoje products={[]} tipo="mercado" suppliers={[]} onOpen={() => {}} antifurto={a} onVerAntifurto={abrir} />);
+    expect(screen.getByRole("button", { name: /Produto visado/ }).textContent).toMatch(/^1/);
+    expect(screen.getByRole("button", { name: /Faltou no mês/ }).textContent).toMatch(/R\$\s95,00.*limite de R\$\s50,00/);
+    fireEvent.click(screen.getByRole("button", { name: /Produto visado/ }));
+    expect(abrir).toHaveBeenCalled();
+  });
+});
+
 describe("tela do relatório", () => {
-  const api = (): ApiRelatorio => ({ carregar: vi.fn(async () => ({ diferencas: difs, perdas })), contagens: vi.fn(async () => contagens) });
+  const api = (): ApiRelatorio => ({ carregar: vi.fn(async () => ({ diferencas: difs, perdas })), contagens: vi.fn(async () => contagens), limite: vi.fn(async () => 5000), definirLimite: vi.fn(async () => {}) });
   it("mostra total, produtos (abre o intervalo), lugares e equipe; troca o período", async () => {
     render(<RelatorioAntifurto comercioId="c1" tipo="mercado" products={products} api={api()} />);
-    expect(await screen.findByText(/R\$\s95,00/)).toBeTruthy();
+    expect(within(await screen.findByRole("region", { name: "Total do período" })).getByText(/R\$\s95,00/)).toBeTruthy();
     expect(screen.getByText("5 faltas")).toBeTruthy();
     const prods = within(screen.getByRole("region", { name: "Produtos que mais somem" }));
     const arroz = prods.getByRole("button", { name: /Arroz/ });
@@ -99,6 +131,22 @@ describe("tela do relatório", () => {
     expect(within(screen.getByRole("region", { name: "Equipe" })).getByText(/Registrou 1 perda/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Mês passado" }));
     expect(screen.getByText("1 falta")).toBeTruthy();
+  });
+  it("alertas no topo, selo Visado e mudar o limite", async () => {
+    const a = api();
+    const onMudou = vi.fn();
+    render(<RelatorioAntifurto comercioId="c1" tipo="mercado" products={products} api={a} onMudou={onMudou} />);
+    const sec = within(await screen.findByRole("region", { name: "Alertas de antifurto" }));
+    expect(sec.getByText("Produto visado: Arroz")).toBeTruthy();
+    expect(sec.getByText(/Faltou R\$\s95,00 este mês/)).toBeTruthy();
+    expect(within(screen.getByRole("region", { name: "Produtos que mais somem" })).getByRole("button", { name: /Arroz/ }).textContent).toMatch(/Visado/);
+    fireEvent.click(sec.getByRole("button", { name: "Mudar" }));
+    fireEvent.change(sec.getByLabelText("Limite do mês"), { target: { value: "R$ 300,00" } });
+    fireEvent.click(sec.getByRole("button", { name: "Salvar" }));
+    await vi.waitFor(() => expect(a.definirLimite).toHaveBeenCalledWith("c1", 30000));
+    expect(await sec.findByText(/R\$\s300,00/)).toBeTruthy();
+    expect(sec.queryByText(/Faltou R\$\s95,00 este mês/)).toBeNull();
+    expect(onMudou).toHaveBeenCalled();
   });
   it("aba Diferenças tem Para resolver e Relatório", async () => {
     const apiD = { carregar: vi.fn(async () => ({ diferencas: [], perdas: [] })), decidirPerda: vi.fn(), explicar: vi.fn(), resolver: vi.fn(), registrarPerda: vi.fn() };

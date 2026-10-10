@@ -48,11 +48,12 @@ const listaContagens = (ns: number[], unidade: string) => {
 /** Mostra 30 dias de histórico; abertas e aguardando aparecem sempre. */
 const DIAS_HISTORICO = 30;
 
-export function PainelDiferencas({ comercioId, tipo, products, api = API_PADRAO, apiRelatorio, onMudou }: {
+export function PainelDiferencas({ comercioId, tipo, products, api = API_PADRAO, apiRelatorio, onMudou, vistaInicial = "resolver" }: {
   comercioId: string; tipo: string; products: Product[]; api?: ApiDiferencas | undefined; apiRelatorio?: ApiRelatorio | undefined;
   /** O estoque ou os números do resumo mudaram. */ onMudou?: (() => void) | undefined;
+  vistaInicial?: "resolver" | "relatorio" | undefined;
 }) {
-  const [vista, setVista] = useState<"resolver" | "relatorio">("resolver");
+  const [vista, setVista] = useState<"resolver" | "relatorio">(vistaInicial);
   const [dados, setDados] = useState<{ diferencas: Diferenca[]; perdas: Perda[] } | null>(null);
   const [erro, setErro] = useState(false);
   const [atualizando, setAtualizando] = useState(false);
@@ -97,7 +98,7 @@ export function PainelDiferencas({ comercioId, tipo, products, api = API_PADRAO,
       ))}
     </div>
   );
-  if (vista === "relatorio") return <div className="space-y-5">{abas}<RelatorioAntifurto comercioId={comercioId} tipo={tipo} products={products} api={apiRelatorio} /></div>;
+  if (vista === "relatorio") return <div className="space-y-5">{abas}<RelatorioAntifurto comercioId={comercioId} tipo={tipo} products={products} api={apiRelatorio} onMudou={onMudou} /></div>;
   if (!dados && !erro) return <div className="space-y-5">{abas}<p className="py-10 text-center text-muted-foreground">Carregando…</p></div>;
 
   return (

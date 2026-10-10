@@ -1,23 +1,32 @@
 /* Relatório antifurto do comércio (Fase 5.1), dentro da aba Diferenças: o que falta, onde, quando e quem contou. */
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, ChevronDown, MapPin, Package, ShieldAlert, Users } from "lucide-react";
+import { BellRing, CalendarDays, ChevronDown, MapPin, Package, ShieldAlert, Users } from "lucide-react";
 import type { Product } from "@/components/ProductArea";
 import * as banco from "@/lib/banco";
-import { DIAS_SEMANA, PERIODOS, intervaloFalta, limitesPeriodo, relatorioAntifurto, type Contagem, type Periodo } from "@/lib/antifurto";
+import { DIAS_SEMANA, PERIODOS, PRODUTOS_LUGAR, VEZES_VISADO, alertasAntifurto, infoDosProdutos, intervaloFalta, limitesPeriodo, nomeAreaDoTipo, relatorioAntifurto, type Contagem, type Periodo } from "@/lib/antifurto";
 import { qtdUn } from "@/lib/deposito";
-import { MOTIVO_PERDA_TXT, motivoDiferencaTxt, type AreaEstoque, type Diferenca, type Perda } from "@/lib/diferencas";
+import { MOTIVO_PERDA_TXT, motivoDiferencaTxt, type Diferenca, type Perda } from "@/lib/diferencas";
 import { textoDoTipo } from "@/lib/exemplos";
 import { nomeVenda } from "@/lib/situacao";
 import { hojeEm } from "@/lib/validade";
 import { brl } from "@/lib/vendas";
+import { btnGhost, btnPrimary } from "@/components/StoreSetup";
+import { mensagemErro } from "@/lib/persistencia";
 
-export type ApiRelatorio = { carregar: typeof banco.carregarDiferencas; contagens: typeof banco.carregarContagensAntifurto };
-const API_PADRAO: ApiRelatorio = { carregar: banco.carregarDiferencas, contagens: banco.carregarContagensAntifurto };
+export type ApiRelatorio = {
+  carregar: typeof banco.carregarDiferencas; contagens: typeof banco.carregarContagensAntifurto;
+  limite: typeof banco.carregarLimiteFaltas; definirLimite: typeof banco.definirLimiteFaltas;
+};
+const API_PADRAO: ApiRelatorio = {
+  carregar: banco.carregarDiferencas, contagens: banco.carregarContagensAntifurto, limite: banco.carregarLimiteFaltas, definirLimite: banco.definirLimiteFaltas,
+};
 
-export function RelatorioAntifurto({ comercioId, tipo, products, api = API_PADRAO }: { comercioId: string; tipo: string; products: Product[]; api?: ApiRelatorio | undefined }) {
+export function RelatorioAntifurto({ comercioId, tipo, products, api = API_PADRAO, onMudou }: {
+  comercioId: string; tipo: string; products: Product[]; api?: ApiRelatorio | undefined; /** O limite mudou (o resumo geral recalcula). */ onMudou?: (() => void) | undefined;
+}) {
   const hoje = useMemo(() => hojeEm(), []);
   const [periodo, setPeriodo] = useState<Periodo>("mes");
-  const [dados, setDados] = useState<{ diferencas: Diferenca[]; perdas: Perda[]; contagens: Contagem[] } | null>(null);
+  const [dados, setDados] = useState<{ diferencas: Diferenca[]; perdas: Perda[]; contagens: Contagem[]; limite: number } | null>(null);
   const [erro, setErro] = useState(false);
   const [aberto, setAberto] = useState<string | null>(null);
   useEffect(() => {
@@ -26,30 +35,53 @@ export function RelatorioAntifurto({ comercioId, tipo, products, api = API_PADRA
     const de = limitesPeriodo("tres", hoje).de;
     const desde = new Date(`${de}T00:00:00-03:00`).toISOString();
     const antes = new Date(Date.parse(desde) - 30 * 86_400_000).toISOString();
-    Promise.all([api.carregar(comercioId, desde), api.contagens(comercioId, antes)])
-      .then(([d, c]) => { if (vivo) { setDados({ ...d, contagens: c }); setErro(false); } })
+    Promise.all([api.carregar(comercioId, desde), api.contagens(comercioId, antes), api.limite(comercioId)])
+      .then(([d, c, limite]) => { if (vivo) { setDados({ ...d, contagens: c, limite }); setErro(false); } })
       .catch(() => { if (vivo) setErro(true); });
     return () => { vivo = false; };
   }, [api, comercioId, hoje]);
 
   const prod = (id: string) => products.find((p) => (p.db?.id ?? String(p.id)) === id);
   const t = textoDoTipo(tipo);
-  const nomeArea = (a: AreaEstoque) => (a === "deposito" ? t("Depósito") : nomeVenda(tipo));
-  const rel = useMemo(() => dados && relatorioAntifurto(dados.diferencas, dados.perdas, dados.contagens, periodo, hoje, {
-    nome: (id, v) => { const p = prod(id); const x = v ? p?.variacoes.find((y) => y.uid === v) : undefined; return `${p?.nome ?? "Produto removido"}${x ? ` · ${[x.tam, x.cor].filter(Boolean).join(" ")}` : ""}`; },
-    local: (id, a) => (a === "deposito" ? prod(id)?.deposito?.local : prod(id)?.areaVenda?.local) ?? null,
-    compra: (id) => prod(id)?.compra ?? 0,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, nomeArea), [dados, periodo, hoje, products, tipo]);
+  const info = useMemo(() => infoDosProdutos(products), [products]);
+  const rel = useMemo(() => dados && relatorioAntifurto(dados.diferencas, dados.perdas, dados.contagens, periodo, hoje, info, nomeAreaDoTipo(tipo)), [dados, periodo, hoje, info, tipo]);
+  const alertas = useMemo(() => dados && alertasAntifurto(dados.diferencas, hoje, Date.now(), info, nomeAreaDoTipo(tipo), dados.limite), [dados, hoje, info, tipo]);
 
   if (erro && !dados) return <p role="alert" className="rounded-2xl border border-warning/50 p-4 text-sm text-warning">Não foi possível carregar o relatório agora. Tente de novo em instantes.</p>;
-  if (!rel) return <p className="py-10 text-center text-muted-foreground">Carregando…</p>;
+  if (!rel || !alertas || !dados) return <p className="py-10 text-center text-muted-foreground">Carregando…</p>;
+  const visados = new Set(alertas.visados.map((v) => v.chave));
   const unidade = (id: string) => prod(id)?.unidade ?? "Unidade";
   const maxDia = Math.max(1, ...rel.diasSemana.map((d) => d.vezes));
   const maxMotivo = Math.max(1, ...rel.porMotivo.map((m) => m.valor));
 
   return (
     <div className="space-y-5">
+      <section aria-label="Alertas de antifurto" className={`space-y-3 rounded-3xl border p-4 ${alertas.visados.length || alertas.lugares.length || alertas.passouLimite ? "border-warning/50 bg-warning/5" : "border-border"}`}>
+        <h2 className="flex items-center gap-2 text-base font-bold"><BellRing size={18} className="text-warning" /> Alertas dos últimos 30 dias</h2>
+        {!alertas.visados.length && !alertas.lugares.length && !alertas.passouLimite && <p className="text-sm text-muted-foreground">Nenhum alerta. O Omni avisa quando um produto faltar {VEZES_VISADO} vezes, quando {PRODUTOS_LUGAR} produtos faltarem no mesmo lugar ou quando o mês passar do limite.</p>}
+        <ul className="space-y-2 text-sm">
+          {alertas.passouLimite && (
+            <li className="rounded-2xl border border-warning/50 bg-background/40 p-3">
+              <p className="font-bold">Faltou {brl(alertas.faltouMes)} este mês</p>
+              <p className="text-xs text-muted-foreground">Passou do limite de {brl(alertas.limite)}.</p>
+            </li>
+          )}
+          {alertas.visados.map((v) => (
+            <li key={v.chave} className="rounded-2xl border border-warning/50 bg-background/40 p-3">
+              <p className="font-bold">Produto visado: {v.titulo}</p>
+              <p className="text-xs text-muted-foreground">Faltou {v.vezes} vezes ({brl(v.valor)}). {t("A equipe passa a conferir no depósito todo dia")}, sem saber o motivo, até passar 7 dias sem faltar.</p>
+            </li>
+          ))}
+          {alertas.lugares.map((l) => (
+            <li key={l.chave} className="rounded-2xl border border-warning/50 bg-background/40 p-3">
+              <p className="font-bold">Lugar com muitas faltas: {l.titulo}</p>
+              <p className="text-xs text-muted-foreground">{l.sub} · {l.produtos} produtos diferentes faltaram ({brl(l.valor)}). Vale olhar a câmera e quem passa por ali.</p>
+            </li>
+          ))}
+        </ul>
+        <Limite limite={dados.limite} onSalvar={async (c) => { await api.definirLimite(comercioId, c); setDados((d) => (d ? { ...d, limite: c } : d)); onMudou?.(); }} />
+      </section>
+
       <div className="flex flex-wrap gap-2" role="group" aria-label="Período">
         {PERIODOS.map((p) => (
           <button key={p.id} type="button" aria-pressed={periodo === p.id} onClick={() => { setPeriodo(p.id); setAberto(null); }}
@@ -105,7 +137,7 @@ export function RelatorioAntifurto({ comercioId, tipo, products, api = API_PADRA
                 <li key={p.chave} className="rounded-2xl border border-border bg-secondary/50">
                   <button type="button" aria-expanded={on} onClick={() => setAberto(on ? null : p.chave)} className="flex w-full items-center gap-3 p-3 text-left">
                     <span className="min-w-0 flex-1">
-                      <span className="block break-words text-sm font-bold">{p.titulo}</span>
+                      <span className="block break-words text-sm font-bold">{p.titulo}{visados.has(p.chave) && <span className="ml-2 rounded-full bg-warning/20 px-2 py-0.5 text-xs font-semibold text-warning">Visado</span>}</span>
                       <span className={`block text-xs ${p.vezes >= 3 ? "font-semibold text-destructive" : "text-muted-foreground"}`}>{p.vezes === 1 ? "1 vez" : `${p.vezes} vezes`} · {qtdUn(p.qtd, un)}</span>
                     </span>
                     <span className="shrink-0 text-sm font-bold tabular-nums text-destructive">{brl(p.valor)}</span>
@@ -183,6 +215,38 @@ export function RelatorioAntifurto({ comercioId, tipo, products, api = API_PADRA
       <p className="text-xs text-muted-foreground">
         Os valores são pelo preço de compra. {t("O depósito é conferido todo dia pela equipe")}; a {nomeVenda(tipo).toLowerCase()} só mostra falta quando o caixa está ligado ao Omni (aba Vendas).
       </p>
+    </div>
+  );
+}
+
+/** "Avisar quando faltar mais de R$ 200,00 no mês · Mudar". */
+function Limite({ limite, onSalvar }: { limite: number; onSalvar: (centavos: number) => Promise<void> }) {
+  const [editando, setEditando] = useState(false);
+  const [valor, setValor] = useState(String(limite));
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState("");
+  const centavos = Number(valor.replace(/\D/g, "").slice(0, 10) || 0);
+  if (!editando)
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-sm">
+        <span className="text-muted-foreground">Avisar quando faltar mais de <b className="text-foreground">{brl(limite)}</b> no mês</span>
+        <button type="button" onClick={() => { setValor(String(limite)); setEditando(true); }} className="min-h-11 px-2 font-semibold text-primary">Mudar</button>
+      </div>
+    );
+  const salvar = () => { setSalvando(true); setErro(""); onSalvar(centavos).then(() => { setEditando(false); setSalvando(false); }, (e) => { setErro(mensagemErro(e).replace("Seus dados continuam no formulário. ", "")); setSalvando(false); }); };
+  return (
+    <div className="space-y-2 border-t border-border pt-3">
+      <label className="block space-y-1">
+        <span className="text-sm font-medium">Avisar quando faltar mais de (por mês)</span>
+        <input inputMode="numeric" value={brl(centavos)} onChange={(e) => setValor(e.target.value)} aria-label="Limite do mês"
+          className="h-13 w-full rounded-2xl border border-border bg-background-deep/60 px-4 text-lg font-bold text-foreground outline-none focus-visible:border-primary" />
+      </label>
+      <p className="text-xs text-muted-foreground">Coloque R$ 0,00 para não receber este aviso.</p>
+      {erro && <p role="alert" className="text-sm font-semibold text-destructive">{erro}</p>}
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" onClick={() => setEditando(false)} className={btnGhost}>Cancelar</button>
+        <button type="button" disabled={salvando} onClick={salvar} className={btnPrimary(!salvando)}>{salvando ? "Salvando…" : "Salvar"}</button>
+      </div>
     </div>
   );
 }

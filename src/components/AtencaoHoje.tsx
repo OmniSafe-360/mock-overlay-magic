@@ -5,6 +5,7 @@ import type { Product, Supplier } from "@/components/ProductArea";
 import type { ResumoPagamentos } from "@/lib/pagamento";
 import { atencaoHoje, type GrupoAtencao } from "@/lib/situacao";
 import { hojeEm } from "@/lib/validade";
+import { PRODUTOS_LUGAR, VEZES_VISADO, type AlertasAntifurto } from "@/lib/antifurto";
 
 const COR: Record<GrupoAtencao["nivel"], { quadro: string; numero: string; ponto: string }> = {
   urgente: { quadro: "border-destructive/50 bg-destructive/10", numero: "text-destructive", ponto: "bg-destructive" },
@@ -23,7 +24,7 @@ const maiuscula = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const linhaItem = (titulo: string, detalhe: string | undefined, assunto: string) =>
   titulo.toLowerCase() === assunto.toLowerCase() ? detalhe ?? "" : detalhe ? `${titulo} — ${detalhe}` : titulo;
 
-export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFazerPedido, contas, onVerContas, entregasDecidir = 0, onVerEntregas, semCadastro = 0, onVerSemCadastro, diferencas = 0, onVerDiferencas }: {
+export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFazerPedido, contas, onVerContas, entregasDecidir = 0, onVerEntregas, semCadastro = 0, onVerSemCadastro, diferencas = 0, onVerDiferencas, antifurto, onVerAntifurto }: {
   products: Product[]; tipo: string; suppliers: Supplier[]; onOpen: (p: Product) => void;
   /** Produtos (id do banco) já num pedido em andamento. */ jaPedidos?: Set<string> | undefined;
   /** Abre a montagem do pedido de compra. */ onFazerPedido?: (() => void) | undefined;
@@ -31,6 +32,7 @@ export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFa
   /** Produtos recebidos que esperam o dono decidir (E2); tocar abre a aba Pedidos. */ entregasDecidir?: number | undefined; onVerEntregas?: (() => void) | undefined;
   /** Códigos vendidos no caixa que o Omni não sabe qual produto é (Fase 3.4); tocar abre a aba Vendas. */ semCadastro?: number | undefined; onVerSemCadastro?: (() => void) | undefined;
   /** Perdas para confirmar + diferenças para explicar (Fase 4.3); tocar abre a aba Diferenças. */ diferencas?: number | undefined; onVerDiferencas?: (() => void) | undefined;
+  /** Alertas de antifurto (Fase 5.2); tocar abre o Relatório da aba Diferenças. */ antifurto?: AlertasAntifurto | undefined; onVerAntifurto?: (() => void) | undefined;
 }) {
   const hoje = useMemo(() => hojeEm(), []);
   const grupos = useMemo(() => atencaoHoje(products, tipo, hoje, (p) => suppliers.find((f) => f.id === p.fornecedor)?.nome, jaPedidos), [products, tipo, hoje, suppliers, jaPedidos]);
@@ -47,7 +49,12 @@ export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFa
     ...(diferencas > 0 ? [{ k: "difs", n: diferencas, titulo: diferencas === 1 ? "Perda ou diferença" : "Perdas e diferenças", ajuda: "confirme ou explique", onClick: onVerDiferencas }] : []),
     ...(entregasDecidir > 0 ? [{ k: "entrega", n: entregasDecidir, titulo: entregasDecidir === 1 ? "Entrega para decidir" : "Entregas para decidir", ajuda: "contagem ou produto fora do pedido", onClick: onVerEntregas }] : []),
   ];
-  if (!products.length && !quadrosContas.length && !quadrosEntrega.length) return null;
+  const quadrosAntifurto = !antifurto ? [] : [
+    ...(antifurto.visados.length ? [{ k: "visado", n: antifurto.visados.length, titulo: antifurto.visados.length === 1 ? "Produto visado" : "Produtos visados", ajuda: `faltou ${VEZES_VISADO}+ vezes em 30 dias` }] : []),
+    ...(antifurto.lugares.length ? [{ k: "lugar", n: antifurto.lugares.length, titulo: antifurto.lugares.length === 1 ? "Lugar com muitas faltas" : "Lugares com muitas faltas", ajuda: `${PRODUTOS_LUGAR}+ produtos em 30 dias` }] : []),
+    ...(antifurto.passouLimite ? [{ k: "limite", n: brl(antifurto.faltouMes), titulo: "Faltou no mês", ajuda: `passou do limite de ${brl(antifurto.limite)}` }] : []),
+  ];
+  if (!products.length && !quadrosContas.length && !quadrosEntrega.length && !quadrosAntifurto.length) return null;
   const sel = grupos.find((g) => g.tipo === aberto);
   const importantes = grupos.filter((g) => g.nivel !== "info").reduce((n, g) => n + g.itens.length, 0);
 
@@ -58,19 +65,26 @@ export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFa
         <span className="text-xs text-muted-foreground">{maiuscula(dataPorExtenso(hoje))}</span>
       </div>
 
-      {!grupos.some((g) => g.nivel !== "info") && !quadrosContas.some((q) => q.nivel !== "info") && !quadrosEntrega.length && (
+      {!grupos.some((g) => g.nivel !== "info") && !quadrosContas.some((q) => q.nivel !== "info") && !quadrosEntrega.length && !quadrosAntifurto.length && (
         <p className="mt-3 flex items-center gap-2 rounded-2xl border border-accent/50 bg-accent/10 p-3 text-sm font-semibold text-accent">
           <CircleCheck size={18} className="shrink-0" /> Tudo certo! Nenhum produto precisa de atenção agora.
         </p>
       )}
       {importantes > 0 && <p className="mt-1 text-sm text-muted-foreground">Toque num quadro para ver os produtos.</p>}
 
-      {(grupos.length > 0 || quadrosContas.length > 0 || quadrosEntrega.length > 0) && (
+      {(grupos.length > 0 || quadrosContas.length > 0 || quadrosEntrega.length > 0 || quadrosAntifurto.length > 0) && (
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
           {quadrosEntrega.map((q) => (
             <button key={q.k} type="button" onClick={q.onClick}
               className={`flex min-h-[84px] flex-col justify-between rounded-2xl border p-3 text-left transition hover:border-primary ${COR.urgente.quadro}`}>
               <span className={`text-3xl font-bold leading-none tabular-nums ${COR.urgente.numero}`}>{q.n}</span>
+              <span className="mt-2 text-sm font-semibold leading-tight">{q.titulo}<span className="block text-xs font-normal text-muted-foreground">{q.ajuda}</span></span>
+            </button>
+          ))}
+          {quadrosAntifurto.map((q) => (
+            <button key={q.k} type="button" onClick={onVerAntifurto}
+              className={`flex min-h-[84px] flex-col justify-between rounded-2xl border p-3 text-left transition hover:border-primary ${COR.atencao.quadro}`}>
+              <span className={`${typeof q.n === "number" ? "text-3xl" : "text-xl"} font-bold leading-none tabular-nums ${COR.atencao.numero}`}>{q.n}</span>
               <span className="mt-2 text-sm font-semibold leading-tight">{q.titulo}<span className="block text-xs font-normal text-muted-foreground">{q.ajuda}</span></span>
             </button>
           ))}

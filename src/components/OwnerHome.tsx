@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { conferirEnvio, carregarFornecedores, carregarProdutos, carregarVendas, carregarPendentesVenda, contarDiferencasParaDecidir, atualizarFornecedor, criarFornecedor, gerarCodigoInterno, salvarProduto, carregarPedidos, salvarPedido, marcarPedidoEnviado, cancelarPedido, novoLinkPedido, atualizarPagamento, resolverItemRecebimento, carregarRecebimentos, type LocaisCadastrados } from "@/lib/banco";
+import { conferirEnvio, carregarFornecedores, carregarProdutos, carregarVendas, carregarPendentesVenda, carregarDiferencas, carregarLimiteFaltas, atualizarFornecedor, criarFornecedor, gerarCodigoInterno, salvarProduto, carregarPedidos, salvarPedido, marcarPedidoEnviado, cancelarPedido, novoLinkPedido, atualizarPagamento, resolverItemRecebimento, carregarRecebimentos, type LocaisCadastrados } from "@/lib/banco";
 import type { CanalPedido, LinhaPedido, Pedido } from "@/lib/pedido";
 import type { DadosPagamento } from "@/components/PainelPedidos";
 import type { Recebimento } from "@/lib/recebimento";
@@ -14,6 +14,8 @@ import { AtencaoHoje } from "@/components/AtencaoHoje";
 import { resumoPagamentos } from "@/lib/pagamento";
 import { hojeEm } from "@/lib/validade";
 import { agruparPendentes, brl as brlVenda, diaDaVenda } from "@/lib/vendas";
+import { alertasAntifurto, desdeAlertas, infoDosProdutos, nAlertas, nomeAreaDoTipo, type AlertasAntifurto } from "@/lib/antifurto";
+import type { Diferenca, Perda } from "@/lib/diferencas";
 import { deOlho, entregasParaDecidir, fraseComercio, paraResolver, produtosJaPedidos, resumoComercio, somaResumos, type ResumoComercio } from "@/lib/resumoGeral";
 import { PainelEquipe } from "@/components/PainelEquipe";
 import { ProductWizard, type Product, type Supplier } from "@/components/ProductArea";
@@ -34,9 +36,9 @@ const idDe = (s: StoreData) => (typeof s.id === "string" && s.id.trim() ? s.id :
 type Geral = { estado: "ok" | "carregando" | "erro"; produtos: Product[]; pedidos: Pedido[];
   /** Vendas de hoje e códigos sem cadastro (null = não deu para ler; não impede o resto). */
   vendas?: { hojeN: number; hojeTotal: number; semCadastro: number } | null | undefined;
-  /** Perdas para confirmar + diferenças para explicar (null = não deu para ler). */
-  diferencas?: number | null | undefined };
-type VisaoGeral = { geral: Record<string, Geral>; resumos: Record<string, ResumoComercio>; total: ResumoComercio; carregando: boolean; erro: boolean };
+  /** Perdas, diferenças (30 dias e as abertas) e o limite do mês, para a aba Diferenças e o antifurto (null = não deu para ler). */
+  dif?: { diferencas: Diferenca[]; perdas: Perda[]; limite: number } | null | undefined };
+type VisaoGeral = { geral: Record<string, Geral>; resumos: Record<string, ResumoComercio>; alertas: Record<string, AlertasAntifurto>; decidir: Record<string, number>; total: ResumoComercio; carregando: boolean; erro: boolean };
 
 function Backdrop() {
   return (
@@ -130,14 +132,14 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
     await Promise.all(ids.map(async (id) => {
       try {
         const inicioHoje = new Date(`${hojeEm()}T00:00:00-03:00`).toISOString();
-        const [r, ps, vendas, diferencas] = await Promise.all([carregarProdutos(id, fs), carregarPedidos(id),
+        const [r, ps, vendas, dif] = await Promise.all([carregarProdutos(id, fs), carregarPedidos(id),
           Promise.all([carregarVendas(id, inicioHoje), carregarPendentesVenda(id)])
             .then(([vs, pend]) => {
               const hoje = vs.filter((v) => v.situacao === "finalizada" && diaDaVenda(v) === hojeEm());
               return { hojeN: hoje.length, hojeTotal: hoje.reduce((t, v) => t + v.total, 0), semCadastro: agruparPendentes(pend).length };
             }).catch(() => null),
-          contarDiferencasParaDecidir(id).then((d) => d.perdas + d.diferencas).catch(() => null)]);
-        if (vigente()) setGeral((m) => ({ ...m, [id]: { estado: "ok", produtos: r.produtos, pedidos: ps, vendas, diferencas } }));
+          Promise.all([carregarDiferencas(id, desdeAlertas(hojeEm(), Date.now())), carregarLimiteFaltas(id)]).then(([d, limite]) => ({ ...d, limite })).catch(() => null)]);
+        if (vigente()) setGeral((m) => ({ ...m, [id]: { estado: "ok", produtos: r.produtos, pedidos: ps, vendas, dif } }));
       } catch {
         if (vigente()) setGeral((m) => ({ ...m, [id]: { produtos: m[id]?.produtos ?? [], pedidos: m[id]?.pedidos ?? [], estado: "erro" } }));
       }
@@ -156,9 +158,19 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
   const hojeGeral = hojeEm();
   const visao: VisaoGeral = useMemo(() => {
     const resumos: Record<string, ResumoComercio> = {};
-    for (const s of stores) { const id = idDe(s); const g = id ? geral[id] : undefined; if (id && g && (g.estado === "ok" || g.produtos.length)) resumos[id] = resumoComercio(g.produtos, s.tipo, hojeGeral, g.pedidos, g.vendas ?? {}, g.diferencas ?? 0); }
+    const alertas: Record<string, AlertasAntifurto> = {};
+    const decidir: Record<string, number> = {};
+    for (const s of stores) {
+      const id = idDe(s); const g = id ? geral[id] : undefined;
+      if (!id || !g || !(g.estado === "ok" || g.produtos.length)) continue;
+      if (g.dif) {
+        alertas[id] = alertasAntifurto(g.dif.diferencas, hojeGeral, Date.now(), infoDosProdutos(g.produtos), nomeAreaDoTipo(s.tipo), g.dif.limite);
+        decidir[id] = g.dif.perdas.filter((p) => p.situacao === "aguardando").length + g.dif.diferencas.filter((d) => d.situacao === "aberta").length;
+      }
+      resumos[id] = resumoComercio(g.produtos, s.tipo, hojeGeral, g.pedidos, g.vendas ?? {}, decidir[id] ?? 0, nAlertas(alertas[id]));
+    }
     const gs = Object.values(geral);
-    return { geral, resumos, total: somaResumos(Object.values(resumos)), carregando: gs.some((g) => g.estado === "carregando"), erro: gs.some((g) => g.estado === "erro") };
+    return { geral, resumos, alertas, decidir, total: somaResumos(Object.values(resumos)), carregando: gs.some((g) => g.estado === "carregando"), erro: gs.some((g) => g.estado === "erro") };
   }, [stores, geral, hojeGeral]);
   const abrirLoja = (s: StoreData, inicio?: InicioComercio) => { setInicioLoja(inicio); setSaved(false); setOpen(s); setTab("inicio"); };
 
@@ -400,7 +412,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
               inicio={inicioLoja}
               vendidoSemCadastro={sid ? geral[sid]?.vendas?.semCadastro ?? 0 : 0}
               onVendasMudou={() => { if (sid) { void recarregar(sid); if (idsLojas) void carregarGeral(idsLojas.split(",")); } }}
-              diferencasDecidir={sid ? geral[sid]?.diferencas ?? 0 : 0}
+              diferencasDecidir={sid ? visao.decidir[sid] ?? 0 : 0} antifurto={sid ? visao.alertas[sid] : undefined}
               onDiferencasMudou={() => { if (sid) { void recarregar(sid); if (idsLojas) void carregarGeral(idsLojas.split(",")); } }}
               onBack={() => { setOpen(null); setSaved(false); setInicioLoja(undefined); }} onNew={() => openWizard()} onEdit={(p) => openWizard(p)} onDismissSaved={() => setSaved(false)} />
           ) : tab === "inicio" ? (
@@ -642,7 +654,8 @@ function Alertas({ stores, visao, suppliers, onAbrir, onTentar }: {
               onVerContas={() => onAbrir(s, { pedidos: "contas" })}
               onVerEntregas={() => onAbrir(s, { pedidos: "lista" })}
               semCadastro={g.vendas?.semCadastro ?? 0} onVerSemCadastro={() => onAbrir(s, { aba: "Vendas" })}
-              diferencas={g.diferencas ?? 0} onVerDiferencas={() => onAbrir(s, { aba: "Diferenças" })} />
+              diferencas={visao.decidir[id] ?? 0} onVerDiferencas={() => onAbrir(s, { aba: "Diferenças" })}
+              antifurto={visao.alertas[id]} onVerAntifurto={() => onAbrir(s, { relatorio: true })} />
           </section>
         );
       })}

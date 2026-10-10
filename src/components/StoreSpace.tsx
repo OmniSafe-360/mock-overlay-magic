@@ -17,13 +17,14 @@ import { entregasParaDecidir, produtosJaPedidos } from "@/lib/resumoGeral";
 import { hojeEm } from "@/lib/validade";
 import type { CanalPedido, Pedido } from "@/lib/pedido";
 import type { LocaisCadastrados } from "@/lib/banco";
+import type { AlertasAntifurto } from "@/lib/antifurto";
 
 const TABS = ["Produtos", "Depósito", "Gôndolas", "Pedidos", "Fornecedores", "Equipe", "Vendas", "Diferenças"] as const;
 
 /** Por onde o comércio abre quando vem do menu Alertas: um produto (a ficha), ou a aba Pedidos (montar um pedido ou só as contas a pagar). */
-export type InicioComercio = { produtoId: Product["id"] } | { pedidos: "montar" | "contas" | "lista" } | { aba: "Vendas" | "Diferenças" };
+export type InicioComercio = { produtoId: Product["id"] } | { pedidos: "montar" | "contas" | "lista" } | { aba: "Vendas" | "Diferenças" } | { relatorio: true };
 
-export function StoreSpace({ store, products, suppliers, saved, locais, pedidos = [], pedidosProntos = true, pedidosCarregados = true, atualizando = false, onAtualizar, onSalvarPedido, onPedidoEnviado, onCancelarPedido, onNovoLinkPedido, onPagamentoPedido, onResolverRecebimento, onCarregarSemPedido, onAddSupplier, onUpdateSupplier, onBack, onNew, onEdit, onDismissSaved, inicio, vendidoSemCadastro = 0, onVendasMudou, diferencasDecidir = 0, onDiferencasMudou }: {
+export function StoreSpace({ store, products, suppliers, saved, locais, pedidos = [], pedidosProntos = true, pedidosCarregados = true, atualizando = false, onAtualizar, onSalvarPedido, onPedidoEnviado, onCancelarPedido, onNovoLinkPedido, onPagamentoPedido, onResolverRecebimento, onCarregarSemPedido, onAddSupplier, onUpdateSupplier, onBack, onNew, onEdit, onDismissSaved, inicio, vendidoSemCadastro = 0, onVendasMudou, diferencasDecidir = 0, onDiferencasMudou, antifurto }: {
   store: StoreData; products: Product[]; suppliers: Supplier[]; saved: boolean; locais?: LocaisCadastrados | undefined;
   pedidos?: Pedido[] | undefined; onSalvarPedido: SalvarPedido; onPedidoEnviado: (id: string, canal: CanalPedido) => Promise<unknown>; onCancelarPedido: (id: string) => Promise<unknown>; onNovoLinkPedido: (id: string) => Promise<string>; onPagamentoPedido: (id: string, d: DadosPagamento) => Promise<unknown>;
   onResolverRecebimento?: ((itemId: string, acao: "aceitar" | "recusar", tentativa: number | null) => Promise<unknown>) | undefined;
@@ -36,8 +37,11 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
   /** Um item vendido foi ligado a um produto: o estoque mudou. */ onVendasMudou?: (() => void) | undefined;
   /** Perdas para confirmar + diferenças para explicar (do resumo geral). */ diferencasDecidir?: number | undefined;
   /** Uma perda ou diferença foi resolvida: o estoque e o resumo mudaram. */ onDiferencasMudou?: (() => void) | undefined;
+  /** Alertas de antifurto (Fase 5.2). */ antifurto?: AlertasAntifurto | undefined;
 }) {
-  const [tab, setTab] = useState<(typeof TABS)[number]>(inicio && "pedidos" in inicio ? "Pedidos" : inicio && "aba" in inicio ? inicio.aba : "Produtos");
+  const [tab, setTab] = useState<(typeof TABS)[number]>(inicio && "pedidos" in inicio ? "Pedidos" : inicio && "aba" in inicio ? inicio.aba : inicio && "relatorio" in inicio ? "Diferenças" : "Produtos");
+  /** Muda a cada toque num alerta de antifurto para abrir a aba Diferenças já no Relatório. */
+  const [verRelatorio, setVerRelatorio] = useState(inicio && "relatorio" in inicio ? 1 : 0);
   const [view, setView] = useState<Product | null>(() => (inicio && "produtoId" in inicio ? products.find((p) => p.id === inicio.produtoId) ?? null : null));
   const entregasDecidir = useMemo(() => entregasParaDecidir(pedidos), [pedidos]);
   /** Muda a cada "Fazer pedido" para abrir a aba Pedidos já na montagem. */
@@ -67,7 +71,7 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
       <div className="-mx-5 overflow-x-auto px-5 [scrollbar-width:none]">
         <div className="flex w-max gap-2">
           {TABS.map((t) => (
-            <button key={t} type="button" onClick={() => { setTab(t); setMontar(0); setVerPagar(0); }} aria-current={tab === t ? "page" : undefined}
+            <button key={t} type="button" onClick={() => { setTab(t); setMontar(0); setVerPagar(0); setVerRelatorio(0); }} aria-current={tab === t ? "page" : undefined}
               className={`min-h-12 rounded-2xl px-4 text-base font-semibold transition ${tab === t ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground hover:text-foreground"}`}>{t === "Gôndolas" ? nomeAreaVenda(store.tipo) : textoDoTipo(store.tipo)(t)}</button>
           ))}
         </div>
@@ -81,7 +85,8 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
             contas={pedidosProntos ? contas : undefined} onVerContas={() => { onDismissSaved(); setMontar(0); setVerPagar((n) => n + 1); setTab("Pedidos"); }}
             entregasDecidir={entregasDecidir} onVerEntregas={() => { onDismissSaved(); setMontar(0); setVerPagar(0); setTab("Pedidos"); }}
             semCadastro={vendidoSemCadastro} onVerSemCadastro={() => { onDismissSaved(); setTab("Vendas"); }}
-            diferencas={diferencasDecidir} onVerDiferencas={() => { onDismissSaved(); setTab("Diferenças"); }} />
+            diferencas={diferencasDecidir} onVerDiferencas={() => { onDismissSaved(); setVerRelatorio(0); setTab("Diferenças"); }}
+            antifurto={antifurto} onVerAntifurto={() => { onDismissSaved(); setVerRelatorio((n) => n + 1); setTab("Diferenças"); }} />
           <ListaProdutos products={products} tipo={store.tipo} suppliers={suppliers} onNew={onNew} onOpen={(p) => { onDismissSaved(); setView(p); }} />
         </>
       ) : tab === "Depósito" || tab === "Gôndolas" ? (
@@ -103,7 +108,7 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
       ) : tab === "Vendas" && store.id ? (
         <PainelVendas comercioId={store.id} tipo={store.tipo} products={products} onMudou={onVendasMudou} />
       ) : tab === "Diferenças" && store.id ? (
-        <PainelDiferencas comercioId={store.id} tipo={store.tipo} products={products} onMudou={onDiferencasMudou} />
+        <PainelDiferencas key={verRelatorio} comercioId={store.id} tipo={store.tipo} products={products} onMudou={onDiferencasMudou} vistaInicial={verRelatorio > 0 ? "relatorio" : "resolver"} />
       ) : (
         <div className="flex flex-col items-center gap-2 py-20 text-center">
           <p className="text-xl font-bold">{tab}</p>

@@ -531,16 +531,6 @@ export async function carregarDiferencas(comercioId: string, desde: string): Pro
     })),
   };
 }
-/** Para a tela inicial: perdas aguardando + diferenças abertas. */
-export async function contarDiferencasParaDecidir(comercioId: string): Promise<{ perdas: number; diferencas: number }> {
-  const [a, b] = await Promise.all([
-    db.from("perdas").select("id", { count: "exact", head: true }).eq("comercio_id", comercioId).eq("situacao", "aguardando"),
-    db.from("diferencas").select("id", { count: "exact", head: true }).eq("comercio_id", comercioId).eq("situacao", "aberta"),
-  ]);
-  if (a.error) throw a.error;
-  if (b.error) throw b.error;
-  return { perdas: a.count ?? 0, diferencas: b.count ?? 0 };
-}
 export async function decidirPerda(id: string, aceitar: boolean) {
   const { error } = await db.rpc("decidir_perda", { _id: id, _aceitar: aceitar });
   if (error) throw error;
@@ -575,4 +565,14 @@ export async function carregarContagensAntifurto(comercioId: string, desde: stri
     ...rp.map((r) => ({ produtoId: r.produto_id, variacaoId: r.variacao_id ?? null, area: "venda" as const, em: r.concluido_em })),
     ...ct.map((r) => ({ produtoId: r.produto_id, variacaoId: r.variacao_id ?? null, area: r.area, em: r.created_at })),
   ];
+}
+/** Limite do aviso "faltou no mês" do comércio (centavos). */
+export async function carregarLimiteFaltas(comercioId: string): Promise<number> {
+  const { data, error } = await db.from("comercios").select("limite_faltas_mes").eq("id", comercioId).maybeSingle();
+  if (error) throw error;
+  return data?.limite_faltas_mes == null ? 20000 : centavos(data.limite_faltas_mes);
+}
+export async function definirLimiteFaltas(comercioId: string, centavosValor: number) {
+  const { error } = await db.rpc("definir_limite_faltas", { _comercio: comercioId, _valor: centavosValor / 100 });
+  if (error) throw error;
 }
