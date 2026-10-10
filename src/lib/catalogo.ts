@@ -33,6 +33,16 @@ function arrumarMaiusculas(s: string): string {
 /** "250g" → "250 g", "2l" → "2 L". */
 const arrumarTamanho = (q: string) => q.replace(/(\d)\s*(kg|g|mg|ml|l)\b/gi, (_, n: string, u: string) => `${n} ${u.toLowerCase() === "l" ? "L" : u.toLowerCase()}`).trim();
 
+/** Marca e peso/volume do catálogo para os detalhes do mercado. Só preenche o que está vazio: nunca apaga o que o comerciante digitou. */
+export function detalhesDoCatalogo(i: Pick<ItemCatalogo, "marca" | "quantidade">, det: Record<string, string>): Record<string, string> {
+  const novo = { ...det };
+  const marca = i.marca?.trim() ? arrumarMaiusculas(i.marca.trim().replace(/\s+/g, " ")) : "";
+  if (marca && !novo["marca"]?.trim()) novo["marca"] = marca;
+  const q = i.quantidade?.trim() ? arrumarTamanho(i.quantidade.replace(/\s+/g, " ")) : "";
+  if (q && /\d/.test(q) && !novo["peso"]?.trim()) novo["peso"] = q;
+  return novo;
+}
+
 /** Nome sugerido para o cadastro: nome + marca + tamanho, sem repetir o que já está no nome. Até 160 letras. */
 export function nomeSugerido(i: Pick<ItemCatalogo, "nome" | "marca" | "quantidade">): string {
   let n = arrumarMaiusculas(i.nome.trim().replace(/\s+/g, " "));
