@@ -1,6 +1,6 @@
 import { useHoje } from "@/hooks/useHoje";
 import { useMemo, useState } from "react";
-import { ArrowLeft, Check, ClipboardList, LayoutGrid, Menu, Package, Receipt, RefreshCw, Scale, Store, Truck, Users, Warehouse, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, ClipboardList, LayoutGrid, MoreHorizontal, Package, Receipt, RefreshCw, Scale, Store, Truck, Users, Warehouse, type LucideIcon } from "lucide-react";
 import { nomeAreaVenda, textoDoTipo } from "@/lib/exemplos";
 import { TIPOS, type StoreData } from "@/components/StoreSetup";
 import { Sheet } from "@/components/ProductArea";
@@ -25,7 +25,10 @@ import type { AlertasAntifurto } from "@/lib/antifurto";
 
 const TABS = ["Produtos", "Depósito", "Gôndolas", "Pedidos", "Fornecedores", "Equipe", "Vendas", "Diferenças"] as const;
 type Aba = (typeof TABS)[number];
-/** Ícone e frase de cada parte do comércio, no menu ☰. */
+/** As 4 partes do dia a dia ficam na barra; as outras ficam em "Mais". */
+const PRINCIPAIS: Aba[] = ["Produtos", "Depósito", "Gôndolas", "Pedidos"];
+const OUTRAS: Aba[] = ["Fornecedores", "Equipe", "Vendas", "Diferenças"];
+/** Ícone e frase de cada parte do comércio. */
 const SECOES: Record<Aba, { Icon: LucideIcon; ajuda: string }> = {
   Produtos: { Icon: Package, ajuda: "Lista, cadastro e o que precisa de atenção" },
   "Depósito": { Icon: Warehouse, ajuda: "O que está guardado, em cada lugar" },
@@ -70,6 +73,8 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
   const Icon = TIPOS.find((t) => t.id === store.tipo)?.Icon ?? Store;
   const [menu, setMenu] = useState(false);
   const nomeAba = (t: Aba) => (t === "Gôndolas" ? nomeAreaVenda(store.tipo) : textoDoTipo(store.tipo)(t));
+  /** Nome curto na barra ("Área de venda" não cabe: vira "À venda"). */
+  const curtoAba = (t: Aba) => (t === "Gôndolas" && nomeAreaVenda(store.tipo) !== "Gôndolas" ? "À venda" : nomeAba(t));
   const irPara = (t: Aba) => { setTab(t); setMontar(0); setVerPagar(0); setVerRelatorio(0); setMenu(false); };
   /** Números de cada parte no menu: quantos assuntos esperam o dono (vermelho = urgente). */
   const avisos = useMemo(() => {
@@ -84,9 +89,9 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
     };
     return m;
   }, [products, store.tipo, jaPedidos, contas, entregasDecidir, vendidoSemCadastro, diferencasDecidir, antifurto]);
-  const totalAvisos = TABS.reduce((n, t) => n + (avisos[t]?.n ?? 0), 0);
-  const algumUrgente = TABS.some((t) => avisos[t]?.urgente);
-  const Secao = SECOES[tab].Icon;
+  const avisosMais = OUTRAS.reduce((n, t) => n + (avisos[t]?.n ?? 0), 0);
+  const maisUrgente = OUTRAS.some((t) => avisos[t]?.urgente);
+  const naMais = OUTRAS.includes(tab);
   const current = view ? products.find((p) => p.id === view.id) ?? null : null;
 
   if (current)
@@ -94,64 +99,51 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
 
   return (
     <div className="space-y-5 animate-in fade-in slide-in-from-right-8 duration-300">
-      <header className="space-y-4">
-        <div className="flex items-center gap-2">
-          <button type="button" onClick={onBack} aria-label="Voltar" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-secondary/60 text-foreground hover:border-primary"><ArrowLeft size={20} /></button>
-          <span className="flex-1" />
-          {onAtualizar && (
-            <button type="button" disabled={atualizando} onClick={onAtualizar} aria-label={atualizando ? "Atualizando" : "Atualizar"}
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border text-muted-foreground hover:border-primary disabled:opacity-60">
-              <RefreshCw size={20} className={atualizando ? "animate-spin" : ""} />
-            </button>
-          )}
-          <button type="button" onClick={() => setMenu(true)} aria-label={totalAvisos ? `Abrir menu (${totalAvisos} avisos)` : "Abrir menu"} aria-haspopup="dialog"
-            className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-secondary/60 text-foreground hover:border-primary">
-            <Menu size={22} />
-            {totalAvisos > 0 && <span aria-hidden className={`absolute right-2 top-2 h-2.5 w-2.5 rounded-full ${algumUrgente ? "bg-destructive" : "bg-warning"}`} />}
+      <header className="flex items-center gap-3">
+        <button type="button" onClick={onBack} aria-label="Voltar" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-secondary/60 text-foreground hover:border-primary"><ArrowLeft size={20} /></button>
+        <div className="min-w-0 flex-1">
+          <h1 className="line-clamp-2 text-lg font-bold leading-tight" title={store.nome}>{store.nome}</h1>
+          <p className="flex items-center gap-1 truncate text-xs text-muted-foreground"><Icon size={13} className="shrink-0 text-primary" /> {store.cidade} - {store.uf}</p>
+        </div>
+        {onAtualizar && (
+          <button type="button" disabled={atualizando} onClick={onAtualizar} aria-label={atualizando ? "Atualizando" : "Atualizar"}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground hover:border-primary hover:text-foreground disabled:opacity-60">
+            <RefreshCw size={19} className={atualizando ? "animate-spin" : ""} />
           </button>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary"><Icon size={24} /></span>
-          <div className="min-w-0 flex-1">
-            <h1 className="line-clamp-2 text-xl font-bold leading-tight">{store.nome}</h1>
-            <p className="truncate text-sm text-muted-foreground">{store.cidade} - {store.uf}</p>
-          </div>
-        </div>
+        )}
       </header>
 
-      <div className="flex items-center gap-3 border-b border-border pb-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"><Secao size={20} /></span>
-        <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-bold leading-tight">{nomeAba(tab)}</h2>
-          <p className="text-sm leading-snug text-muted-foreground">{textoDoTipo(store.tipo)(SECOES[tab].ajuda)}</p>
-        </div>
-      </div>
+      <nav aria-label="Partes do comércio" className="grid grid-cols-5 gap-0.5 rounded-2xl border border-border bg-secondary/40 p-1">
+        {PRINCIPAIS.map((t) => (
+          <BotaoBarra key={t} on={tab === t} Icon={SECOES[t].Icon} rotulo={curtoAba(t)} aviso={avisos[t]} onClick={() => irPara(t)} />
+        ))}
+        <BotaoBarra on={naMais} Icon={naMais ? SECOES[tab].Icon : MoreHorizontal} rotulo={naMais ? curtoAba(tab) : "Mais"} mais
+          aviso={avisosMais ? { n: avisosMais, urgente: maisUrgente } : undefined} onClick={() => setMenu(true)} />
+      </nav>
 
       {menu && (
-        <Sheet title="Menu do comércio" onClose={() => setMenu(false)}>
-          <nav aria-label="Partes do comércio" className="min-h-0 overflow-y-auto px-3 pb-2">
-            <ul className="space-y-1">
-              {TABS.map((t) => {
-                const { Icon: I, ajuda } = SECOES[t];
-                const on = tab === t;
-                const a = avisos[t];
-                return (
-                  <li key={t}>
-                    <button type="button" onClick={() => irPara(t)} aria-current={on ? "page" : undefined}
-                      className={`flex min-h-16 w-full items-center gap-3 rounded-2xl px-3 py-2 text-left transition ${on ? "bg-primary/15" : "hover:bg-secondary/60"}`}>
-                      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${on ? "bg-primary text-primary-foreground" : "bg-secondary text-primary"}`}><I size={22} /></span>
-                      <span className="min-w-0 flex-1">
-                        <span className={`block text-base font-semibold ${on ? "text-primary" : ""}`}>{nomeAba(t)}</span>
-                        <span className="block text-xs text-muted-foreground">{textoDoTipo(store.tipo)(ajuda)}</span>
-                      </span>
-                      {a && a.n > 0 && <span className={`flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full px-2 text-sm font-bold ${a.urgente ? "bg-destructive text-white" : "bg-warning text-background"}`}>{a.n}</span>}
-                      {on && <Check size={18} className="shrink-0 text-primary" />}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
+        <Sheet title="Mais opções" onClose={() => setMenu(false)}>
+          <ul className="min-h-0 space-y-1 overflow-y-auto px-3 pb-2" aria-label="Mais partes do comércio">
+            {OUTRAS.map((t) => {
+              const { Icon: I, ajuda } = SECOES[t];
+              const on = tab === t;
+              const a = avisos[t];
+              return (
+                <li key={t}>
+                  <button type="button" onClick={() => irPara(t)} aria-current={on ? "page" : undefined}
+                    className={`flex min-h-16 w-full items-center gap-3 rounded-2xl px-3 py-2 text-left transition ${on ? "bg-primary/15" : "hover:bg-secondary/60"}`}>
+                    <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${on ? "bg-primary text-primary-foreground" : "bg-secondary text-primary"}`}><I size={22} /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className={`block text-base font-semibold ${on ? "text-primary" : ""}`}>{nomeAba(t)}</span>
+                      <span className="block text-xs text-muted-foreground">{textoDoTipo(store.tipo)(ajuda)}</span>
+                    </span>
+                    {a && a.n > 0 && <span className={`flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full px-2 text-sm font-bold ${a.urgente ? "bg-destructive text-white" : "bg-warning text-background"}`}>{a.n}</span>}
+                    {on && <Check size={18} className="shrink-0 text-primary" />}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         </Sheet>
       )}
 
@@ -194,5 +186,24 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
         </div>
       )}
     </div>
+  );
+}
+
+/** Um botão da barra de navegação do comércio: ícone, nome curto e número de aviso. */
+function BotaoBarra({ on, Icon, rotulo, aviso, mais = false, onClick }: {
+  on: boolean; Icon: LucideIcon; rotulo: string; aviso?: { n: number; urgente: boolean } | undefined; mais?: boolean; onClick: () => void;
+}) {
+  return (
+    <button type="button" onClick={onClick} aria-current={on ? "page" : undefined} aria-haspopup={mais ? "dialog" : undefined}
+      aria-label={`${mais && !on ? "Mais" : rotulo}${aviso && aviso.n > 0 ? ` (${aviso.n} ${aviso.n === 1 ? "aviso" : "avisos"})` : ""}`}
+      className={`relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0 py-1.5 transition ${on ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"}`}>
+      <Icon size={20} />
+      <span className="flex max-w-full items-center gap-0.5 truncate text-[11px] font-semibold leading-none tracking-tight">
+        <span className="truncate">{rotulo}</span>{mais && <ChevronDown size={12} className="shrink-0" />}
+      </span>
+      {aviso && aviso.n > 0 && (
+        <span aria-hidden className={`absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none ${aviso.urgente ? "bg-destructive text-white" : "bg-warning text-background"}`}>{aviso.n > 99 ? "99+" : aviso.n}</span>
+      )}
+    </button>
   );
 }
