@@ -16,7 +16,7 @@ import {
   rotuloSoltas, totalContado, type Embalagem,
 } from "@/lib/embalagem";
 import { FichaProduto } from "@/components/FichaProduto";
-import { avisoCodigo } from "@/lib/codigoBarras";
+import { avisoCodigo, codigosIguais } from "@/lib/codigoBarras";
 import { LOCAIS_SUGERIDOS, exemplos, textoDoTipo } from "@/lib/exemplos";
 import { acimaPmcMsg, localNaoCombina, localPelaTarja, pmcCentavos, pmcTexto } from "@/lib/farmacia";
 import { CATEGORIAS, DETALHES, GRUPOS_TAMANHO, UNICO, UNIDADES, grupoInicial } from "@/lib/listas";
@@ -243,17 +243,18 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const [lin, setLin] = useState<Record<string, LinhaEd[]>>(() => linhasIniciais(initVal, isFarm));
   const desligarBloq = temQtdValidade(initVal);
 
-  const used = useMemo(() => usedCodes(products, initial?.id), [products, initial?.id]);
+  const mercado = tipo === "mercado";
+  const used = useMemo(() => usedCodes(products, initial?.id, mercado), [products, initial?.id, mercado]);
   const isRoupas = tipo === "roupas";
   /** Escolheu "Em caixa, fardo ou pacote" mas não adicionou nenhuma. */
   const embBad = !isRoupas && embModo === "embalagem" && embs.length === 0;
-  const codeErr = mainCodeError(codigo, used, isRoupas ? vars : [])
-    || (!isRoupas && codigo.trim() && embs.some((e) => e.codigo.trim() === codigo.trim()) ? "Este código já pertence a uma embalagem deste produto." : "");
+  const codeErr = mainCodeError(codigo, used, isRoupas ? vars : [], mercado)
+    || (!isRoupas && codigo.trim() && embs.some((e) => codigosIguais(e.codigo, codigo, mercado)) ? "Este código já pertence a uma embalagem deste produto." : "");
   const [triedSave, setTriedSave] = useState(false);
   /** Detalhes com opções fixas do tipo: se preenchidos, precisam estar na lista (o banco confere igual). */
   const fixos = (DETALHES[tipo] ?? []).filter((f) => f.opts).map((f) => ({ k: f.k, opts: f.opts!, msg: msgDetalheFixo(f.label) }));
   const rules: TypeRules | undefined =
-    tipo === "mercado" ? { unidades: UNIDADES["mercado"]!, categorias: CATEGORIAS["mercado"]!, semVariacoes: true }
+    tipo === "mercado" ? { unidades: UNIDADES["mercado"]!, categorias: CATEGORIAS["mercado"]!, semVariacoes: true, equivalenciaEanUpc: true }
     : tipo === "farmacia" ? { unidades: UNIDADES["farmacia"]!, categorias: CATEGORIAS["farmacia"]!, semVariacoes: true, varsMsg: FARMACIA_VARS_MSG, detalhesFixos: fixos }
     : tipo === "construcao" ? { unidades: UNIDADES["construcao"]!, categorias: CATEGORIAS["construcao"]!, semVariacoes: true, varsMsg: CONSTRUCAO_VARS_MSG, detalhesFixos: fixos }
     : tipo === "pet" ? { unidades: UNIDADES["pet"]!, categorias: CATEGORIAS["pet"]!, semVariacoes: true, varsMsg: PET_VARS_MSG, detalhesFixos: fixos }
@@ -412,7 +413,8 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     if (to === STEP_VAL && s === 2) seed("dep");
     if (to === STEP_VAL && s === 3) seed("ven");
   };
-  const baseBad = firstInvalidStep({ codigo, nome, compra, venda, unidade, categoria, variacoes: vars, detalhes: det, fornecedor: forn }, isRoupas, used, rules);
+  const baseBad = firstInvalidStep({ codigo, nome, compra, venda, unidade, categoria, variacoes: vars, detalhes: det, fornecedor: forn }, isRoupas, used, rules)
+    ?? (codeErr ? { step: 0, msg: codeErr } : null);
   const bad: { step: number; sub?: number; msg: string } | null =
     unidadeTravada ? { step: 1, msg: T(unidadeTravadaMsg(initial!.unidade)) }
     : baseBad ?? (embBad ? { step: 3, msg: EMB_VAZIA } : depBad ? { step: STEP_DEP, sub: depBad.sub, msg: depBad.msg } : venBad ? { step: STEP_VEN, sub: venBad.sub, msg: venBad.msg }
@@ -1229,7 +1231,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
       </main>
 
       {scan && (
-        <Scanner onClose={() => setScan(false)} onType={() => { setScan(false); setCodeMode("type"); }}
+        <Scanner mercado={mercado} onClose={() => setScan(false)} onType={() => { setScan(false); setCodeMode("type"); }}
           onDenied={() => { setScan(false); setDenied(true); setCodeMode("type"); }}
           onCode={(c) => { setScan(false); setCodigo(c); setCodeMode("type"); setTimeout(() => document.getElementById("pnome")?.focus(), 80); }} />
       )}
@@ -1452,7 +1454,7 @@ function EmbalagemSheet({ tipoComercio, index, lista, unidade, codigoProduto, us
   const [scan, setScan] = useState(false); const [denied, setDenied] = useState(false);
   const gerador = useGerarCodigo(onGerarCodigo);
   const q = lerQtdEmbalagem(qtdTxt, unidade);
-  const errs = errosEmbalagem({ tipo, qtd: q.v ?? -1, codigo: cod }, index, lista, codigoProduto, usados, unidade);
+  const errs = errosEmbalagem({ tipo, qtd: q.v ?? -1, codigo: cod }, index, lista, codigoProduto, usados, unidade, tipoComercio === "mercado");
   const unit = q.v ? precoUnidade(preco, q.v) : 0;
   const mudaCompra = unit > 0 && unit !== compra;
   const ok = !!tipo && !q.err && !errs.repetida && !errs.codigo;
@@ -1501,7 +1503,7 @@ function EmbalagemSheet({ tipoComercio, index, lista, unidade, codigoProduto, us
         <div className="px-5 pt-2"><button type="submit" className={btnPrimary(ok)} aria-disabled={!ok}>{index >= 0 ? "Salvar embalagem" : "Adicionar"}</button></div>
       </form>
       {scan && (
-        <Scanner onClose={() => setScan(false)} onType={() => setScan(false)}
+        <Scanner mercado={tipoComercio === "mercado"} onClose={() => setScan(false)} onType={() => setScan(false)}
           onDenied={() => { setScan(false); setDenied(true); }}
           onCode={(c) => { setScan(false); setCod(c); setTimeout(() => document.getElementById("epreco")?.focus(), 80); }} />
       )}

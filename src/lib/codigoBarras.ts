@@ -17,6 +17,19 @@ export const digitoEan = (semDv: string) => {
 };
 export const eanValido = (c: string) => /^\d{13}$/.test(c) && digitoEan(c.slice(0, 12)) === Number(c[12]);
 
+/** UPC-A e EAN-13 com zero inicial identificam o mesmo item. Nunca altera o texto salvo.
+ * Códigos inválidos, EAN-8/UPC-E, ITF-14 e códigos internos curtos continuam com comparação exata. */
+export function eanUpcEquivalente(codigo: string): string | null {
+  const c = codigo.trim();
+  if (!/^\d{12,13}$/.test(c) || digitoEan(c.slice(0, -1)) !== Number(c.at(-1))) return null;
+  return c.padStart(13, "0");
+}
+
+export const codigoComparavel = (codigo: string, mercado = false): string =>
+  (mercado ? eanUpcEquivalente(codigo) : null) ?? codigo.trim();
+export const codigosIguais = (a: string, b: string, mercado = false): boolean =>
+  codigoComparavel(a, mercado) === codigoComparavel(b, mercado);
+
 export function ean13(c: string): string {
   if (!eanValido(c)) throw new Error("ean_invalido");
   const d = [...c].map(Number);

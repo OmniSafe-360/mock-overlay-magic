@@ -108,7 +108,7 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO }: { codigoInic
             onDestravou={() => { const c = lerChave(); if (c) void abrirInicio(c); else setTela({ t: "codigo" }); }} />
         )}
         {tela.t === "receber" && (
-          <ReceberMercadoria chave={lerChave() ?? ""} api={api.receber}
+          <ReceberMercadoria chave={lerChave() ?? ""} api={api.receber} mercado={ultimo.current?.comercio.tipo === "mercado"}
             onVoltar={() => { const c = lerChave(); if (c) void abrirInicio(c); else setTela({ t: "codigo" }); }} />
         )}
         {tela.t === "repor" && (

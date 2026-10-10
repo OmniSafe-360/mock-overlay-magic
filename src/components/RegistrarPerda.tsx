@@ -116,7 +116,7 @@ function FormularioPerda({ chave, tipo, onVoltar, api: apiDada }: { chave: strin
             <button type="button" onClick={() => { setProduto(null); setValor(""); }} className="shrink-0 text-sm font-semibold text-primary">Trocar</button>
           </div>
         ) : (
-          <EscolherProduto chave={chave} api={api} onEscolher={(p) => { setProduto(p); setFeito(""); }} />
+          <EscolherProduto mercado={tipo === "mercado"} chave={chave} api={api} onEscolher={(p) => { setProduto(p); setFeito(""); }} />
         )}
       </section>
 
@@ -172,7 +172,7 @@ function FormularioPerda({ chave, tipo, onVoltar, api: apiDada }: { chave: strin
   );
 }
 
-function EscolherProduto({ chave, api, onEscolher }: { chave: string; api: ApiPerda; onEscolher: (p: ProdutoFunc) => void }) {
+function EscolherProduto({ chave, api, onEscolher, mercado }: { chave: string; api: ApiPerda; onEscolher: (p: ProdutoFunc) => void; mercado: boolean }) {
   const [q, setQ] = useState("");
   const [res, setRes] = useState<ProdutoFunc[] | null>(null);
   const [scan, setScan] = useState(false);
@@ -206,7 +206,7 @@ function EscolherProduto({ chave, api, onEscolher }: { chave: string; api: ApiPe
           </li>
         ))}
       </ul>
-      {scan && <Scanner onClose={() => setScan(false)} onType={() => setScan(false)} onDenied={() => setScan(false)} onCode={(c) => { setScan(false); setQ(c); void procurar(c); }} />}
+      {scan && <Scanner mercado={mercado} onClose={() => setScan(false)} onType={() => setScan(false)} onDenied={() => setScan(false)} onCode={(c) => { setScan(false); setQ(c); void procurar(c); }} />}
     </form>
   );
 }
