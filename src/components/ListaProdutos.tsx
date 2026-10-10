@@ -45,7 +45,7 @@ export function ListaProdutos({ products, tipo, suppliers, onNew, onOpen }: {
   const novo = <button type="button" onClick={onNew} className={`flex items-center justify-center gap-2 ${btnPrimary(true)}`}><Plus size={20} /> Novo produto</button>;
   if (!products.length)
     return (
-      <div className="mx-auto flex max-w-[420px] flex-col items-center gap-3 py-10 text-center animate-in fade-in duration-300">
+      <div className="mx-auto mt-2 flex max-w-[420px] flex-col items-center gap-3 rounded-3xl border border-dashed border-border bg-secondary/30 px-5 py-8 text-center animate-in fade-in duration-300">
         <div className="relative flex h-28 w-28 items-center justify-center rounded-full bg-secondary/60">
           <Package size={52} className="text-primary" />
           <span className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-accent text-accent-foreground"><Plus size={20} /></span>
