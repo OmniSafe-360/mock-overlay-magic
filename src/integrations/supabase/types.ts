@@ -1444,6 +1444,7 @@ type FuncoesOperacionais = {
   funcionario_reposicao_contar: { Args: { _chave: string | null; _id: string | null; _produto: string | null; _variacao: string | null; _contado: number | null }; Returns: Json }
   decidir_perda: { Args: { _id: string | null; _aceitar: boolean | null }; Returns: undefined }
   resolver_conferencia: { Args: { _diferenca: string | null; _contado: number | null }; Returns: Json }
+  buscar_catalogo: { Args: { _codigo: string | null }; Returns: Json }
 }
 type EnumsOperacionais = {
   app_role: "dono" | "gerente" | "repositor"

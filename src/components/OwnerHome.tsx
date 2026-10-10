@@ -1,6 +1,6 @@
 import { useHoje } from "@/hooks/useHoje";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { conferirEnvio, carregarFornecedores, carregarProdutos, carregarVendas, carregarPendentesVenda, carregarDiferencas, carregarLimiteFaltas, atualizarFornecedor, criarFornecedor, gerarCodigoInterno, salvarProduto, carregarPedidos, salvarPedido, marcarPedidoEnviado, cancelarPedido, novoLinkPedido, atualizarPagamento, resolverItemRecebimento, carregarRecebimentos, type LocaisCadastrados } from "@/lib/banco";
+import { conferirEnvio, carregarFornecedores, carregarProdutos, carregarVendas, carregarPendentesVenda, buscarCatalogo, carregarDiferencas, carregarLimiteFaltas, atualizarFornecedor, criarFornecedor, gerarCodigoInterno, salvarProduto, carregarPedidos, salvarPedido, marcarPedidoEnviado, cancelarPedido, novoLinkPedido, atualizarPagamento, resolverItemRecebimento, carregarRecebimentos, type LocaisCadastrados } from "@/lib/banco";
 import type { CanalPedido, LinhaPedido, Pedido } from "@/lib/pedido";
 import type { DadosPagamento } from "@/components/PainelPedidos";
 import type { Recebimento } from "@/lib/recebimento";
@@ -335,6 +335,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
     return (
       <ProductWizard store={cur} products={list} initial={wizard.initial} suppliers={suppliers} saving={saving} erro={saveErro} locaisCadastrados={locais[sid]}
         onGerarCodigo={() => gerarCodigoInterno(sid)}
+        onBuscarCatalogo={buscarCatalogo}
         onAddSupplier={addSupplier}
         onCancel={() => { if (!saving) setWizard(null); }}
         onSave={async (p) => {

@@ -22,6 +22,7 @@ async function rpc<N extends keyof Database["public"]["Functions"]>(nome: N, arg
 
 import type { AreaEstoque, Diferenca, MotivoDiferenca, MotivoPerda, Perda } from "@/lib/diferencas";
 import type { Contagem } from "@/lib/antifurto";
+import type { ItemCatalogo } from "@/lib/catalogo";
 
 async function todos(tabela: keyof Database["public"]["Tables"], colunas: string, filtro: (q: any) => any): Promise<any[]> {
   const out: any[] = [];
@@ -583,4 +584,12 @@ export async function carregarLimiteFaltas(comercioId: string): Promise<number> 
 export async function definirLimiteFaltas(comercioId: string, centavosValor: number) {
   const { error } = await rpc("definir_limite_faltas", { _comercio: comercioId, _valor: centavosValor / 100 });
   if (error) throw error;
+}
+
+/* ---------- Catálogo por código de barras: sugere o nome ao bipar um código novo ---------- */
+export async function buscarCatalogo(codigo: string): Promise<ItemCatalogo | null> {
+  const { data, error } = await rpc("buscar_catalogo", { _codigo: codigo });
+  if (error) throw error;
+  if (!data) return null;
+  return { codigo: data.codigo, nome: data.nome, marca: data.marca ?? null, quantidade: data.quantidade ?? null, imagemUrl: data.imagem_url ?? null, fonte: data.fonte };
 }
