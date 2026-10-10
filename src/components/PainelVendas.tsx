@@ -1,7 +1,7 @@
 /* Aba Vendas do comércio (Fase 3.2): os caixas do mercado ligados ao Omni e as vendas do dia.
  * Regra do dono: cada venda FINALIZADA no caixa desconta da gôndola na hora (bipar não desconta). */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Ban, Check, Copy, MonitorSmartphone, PackageSearch, Pencil, Plus, Receipt, RefreshCw, Search } from "lucide-react";
+import { Ban, Check, Copy, MonitorSmartphone, PackageSearch, Pencil, Plus, Receipt, RefreshCw, Search, Smartphone } from "lucide-react";
 import { Sheet } from "@/components/parts/Sheet";
 import { type Product } from "@/components/ProductArea";
 import { btnGhost, btnPrimary } from "@/components/StoreSetup";
@@ -9,7 +9,7 @@ import * as banco from "@/lib/banco";
 import { mensagemErro } from "@/lib/persistencia";
 import { nomeVenda } from "@/lib/situacao";
 import {
-  agruparPendentes, brl, codigoCaixaTexto, diaDaVenda, formaPagamento, haQuanto, horaVenda, normalizar, proximoNomeCaixa, resumoVendas, situacaoCaixa,
+  agruparPendentes, brl, codigoCaixaTexto, codigoVisivel, diaDaVenda, formaPagamento, haQuanto, horaVenda, normalizar, proximoNomeCaixa, resumoVendas, situacaoCaixa,
   textoCaixa, textoItemVenda, validadeCodigoCaixa, type Caixa, type GrupoPendente, type ItemPendente, type Venda,
 } from "@/lib/vendas";
 
@@ -152,7 +152,7 @@ export function PainelVendas({ comercioId, tipo, products, api = API_PADRAO, onM
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-bold">{g.descricao}</span>
                     <span className="block text-xs text-muted-foreground">
-                      Código {g.codigoBarras ?? g.codigo} · {g.vendas === 1 ? "1 venda" : `${g.vendas} vendas`}{g.ultimaEm ? ` · última ${haQuanto(g.ultimaEm, agora)}` : ""}
+                      {g.codigoBarras ? `Código ${g.codigoBarras}` : codigoVisivel(g.codigo) === g.codigo ? `Código ${g.codigo}` : "Sem código"} · {g.vendas === 1 ? "1 venda" : `${g.vendas} vendas`}{g.ultimaEm ? ` · última ${haQuanto(g.ultimaEm, agora)}` : ""}
                     </span>
                     {g.conferir && <span className="block text-xs font-semibold text-warning">Vendido em quantidade quebrada: confira o produto</span>}
                   </span>
@@ -177,6 +177,8 @@ export function PainelVendas({ comercioId, tipo, products, api = API_PADRAO, onM
             <p className="text-sm text-muted-foreground">
               Cada venda finalizada no caixa chega ao Omni e sai da {area} na hora. Ligue um caixa de cada vez: o Omni mostra um código para digitar no computador do caixa.
             </p>
+            <p className="flex items-start gap-2 rounded-2xl bg-secondary/50 p-3 text-left text-sm"><Smartphone size={18} className="mt-0.5 shrink-0 text-primary" />
+              <span><b>Sem computador?</b> Na Equipe, ligue <b>Caixa</b> no nome de um funcionário: ele vende pelo próprio celular, no app Omni Operação.</span></p>
           </div>
         )}
         {ativos.length > 0 && (
@@ -211,7 +213,7 @@ export function PainelVendas({ comercioId, tipo, products, api = API_PADRAO, onM
                   className={`flex w-full items-center gap-3 rounded-2xl border border-border bg-secondary/50 p-3 text-left transition hover:border-primary ${v.situacao === "cancelada" ? "opacity-60" : ""}`}>
                   <span className="w-12 shrink-0 text-sm font-bold">{horaVenda(v)}</span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold">{nomeCaixa(v.caixaId)}{v.numero ? ` · Nota ${v.numero}` : ""}</span>
+                    <span className="block truncate text-sm font-semibold">{nomeCaixa(v.caixaId)}{v.numero ? ` · ${v.celular ? "Venda" : "Nota"} ${v.numero}` : ""}</span>
                     <span className="block text-xs text-muted-foreground">
                       {v.situacao === "cancelada" ? "Cancelada" : `${v.itens.length} ${v.itens.length === 1 ? "item" : "itens"}`}
                       {pend > 0 && <span className="font-semibold text-destructive"> · {pend} sem cadastro</span>}
@@ -255,7 +257,7 @@ function CartaoCaixa({ c, agora, hoje, onClick }: { c: Caixa; agora: number; hoj
       <button type="button" onClick={onClick} aria-label={`${c.nome}: ${t.titulo}`}
         className="flex w-full items-center gap-3 rounded-3xl border border-border bg-secondary/60 p-4 text-left transition hover:border-primary">
         <span className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary">
-          <MonitorSmartphone size={22} />
+          {c.tipo === "celular" ? <Smartphone size={22} /> : <MonitorSmartphone size={22} />}
           <span aria-hidden className={`absolute -right-0.5 -top-0.5 h-3.5 w-3.5 rounded-full border-2 border-background ${COR[t.nivel].bolinha}`} />
         </span>
         <span className="min-w-0 flex-1">
@@ -283,6 +285,8 @@ function NovoCaixa({ sugestao, onCriar, onClose }: { sugestao: string; onCriar: 
             className="h-13 w-full rounded-2xl border border-border bg-background-deep/60 px-4 text-base text-foreground outline-none focus-visible:border-primary" />
           <span className="block text-xs text-muted-foreground">Use o mesmo nome ou número que está no caixa, para não confundir.</span>
         </label>
+        <p className="flex items-start gap-2 rounded-2xl bg-secondary/50 p-3 text-sm"><Smartphone size={18} className="mt-0.5 shrink-0 text-primary" />
+          <span>Este é o caixa do <b>computador</b>. Para vender pelo <b>celular</b>, ligue <b>Caixa</b> no nome do funcionário, na Equipe.</span></p>
         {erro && <p role="alert" className="text-sm font-semibold text-destructive">{erro}</p>}
       </div>
       <div className="px-5 pt-2">
@@ -339,6 +343,11 @@ function DetalheCaixa({ c, agora, api, onMudou, onClose }: { c: Caixa; agora: nu
         <p className="flex items-center gap-2 text-base font-bold"><span className={`h-3 w-3 rounded-full ${COR[t.nivel].bolinha}`} /> <span className={COR[t.nivel].texto}>{t.titulo}</span></p>
         <p className="text-sm text-muted-foreground">{t.detalhe}</p>
         {c.ligadoEm && c.aparelho && <p className="text-xs text-muted-foreground">Computador: {c.aparelho}</p>}
+        {s === "celular" && (
+          <p className="rounded-2xl border border-border bg-secondary/40 p-3 text-sm">
+            Vende pelo celular, no app <b>Omni Operação</b>. Para tirar o caixa deste funcionário, desligue <b>Caixa</b> no nome dele, na Equipe.
+          </p>
+        )}
         {s === "parado" && (
           <p className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">
             Confira se o computador do caixa está ligado, com internet e com a página do Omni aberta. Venda que não chega vira "furto falso" no antifurto.
@@ -373,7 +382,7 @@ function DetalheCaixa({ c, agora, api, onMudou, onClose }: { c: Caixa; agora: nu
               <button type="button" onClick={() => setConfirmar("codigo")} className={`flex items-center justify-center gap-2 ${btnGhost}`}><MonitorSmartphone size={18} /> Trocou o computador do caixa?</button>
             )}
             <button type="button" onClick={() => setRenomear(true)} className={`flex items-center justify-center gap-2 ${btnGhost}`}><Pencil size={18} /> Mudar o nome</button>
-            {!c.desligadoEm && (
+            {!c.desligadoEm && s !== "celular" && (
               <button type="button" onClick={() => setConfirmar("desligar")} className="flex min-h-12 items-center justify-center gap-2 text-sm font-semibold text-destructive"><Ban size={16} /> Desligar este caixa</button>
             )}
           </div>
@@ -391,11 +400,11 @@ function DetalheVenda({ v, caixa, products, area, onClose }: { v: Venda; caixa: 
       <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3">
         <div className="flex items-baseline justify-between gap-2">
           <p className={`text-2xl font-bold ${v.situacao === "cancelada" ? "line-through opacity-60" : ""}`}>{brl(v.total)}</p>
-          <p className="text-sm text-muted-foreground">{v.numero ? `Nota ${v.numero}` : ""}</p>
+          <p className="text-sm text-muted-foreground">{v.numero ? `${v.celular ? "Venda" : "Nota"} ${v.numero}` : ""}</p>
         </div>
         {v.situacao === "cancelada" && <p className="rounded-2xl border border-border p-3 text-sm">Venda cancelada no caixa. O que tinha saído voltou para a {area}.</p>}
         {v.pagamentos.length > 0 && (
-          <p className="text-sm text-muted-foreground">{v.pagamentos.map((p) => `${formaPagamento(p.forma)} ${brl(p.valor)}`).join(" · ")}</p>
+          <p className="text-sm text-muted-foreground">{v.pagamentos.map((p) => `${formaPagamento(p.forma)} ${brl(p.valor)}`).join(" · ")}{v.troco ? ` · troco ${brl(v.troco)}` : ""}</p>
         )}
         <ul className="space-y-2">
           {v.itens.map((i) => {
@@ -407,7 +416,7 @@ function DetalheVenda({ v, caixa, products, area, onClose }: { v: Venda; caixa: 
                   <span className="min-w-0">
                     <span className="block text-sm font-semibold">{p?.nome ?? i.descricao}</span>
                     {p && p.nome.toLowerCase() !== i.descricao.toLowerCase() && <span className="block text-xs text-muted-foreground">No caixa: {i.descricao}</span>}
-                    <span className="block text-xs text-muted-foreground">{String(i.qtdNota).replace(".", ",")} {i.unidadeNota ?? ""} · código {i.codigoBarras ?? i.codigoPdv}</span>
+                    <span className="block text-xs text-muted-foreground">{String(i.qtdNota).replace(".", ",")} {i.unidadeNota ?? ""}{i.codigoBarras || !/^(omni|avulso):/.test(i.codigoPdv) ? ` · código ${i.codigoBarras ?? i.codigoPdv}` : ""}</span>
                   </span>
                   <span className="shrink-0 text-sm font-semibold">{brl(i.valor)}</span>
                 </div>
@@ -416,7 +425,7 @@ function DetalheVenda({ v, caixa, products, area, onClose }: { v: Venda; caixa: 
             );
           })}
         </ul>
-        <p className="flex items-center gap-2 text-xs text-muted-foreground"><Receipt size={14} /> Chegou do caixa depois de finalizada. Bipar sem finalizar não desconta.</p>
+        <p className="flex items-center gap-2 text-xs text-muted-foreground"><Receipt size={14} /> {v.celular ? "Vendida pelo celular da equipe (sem nota fiscal). Só saiu da gôndola ao finalizar." : "Chegou do caixa depois de finalizada. Bipar sem finalizar não desconta."}</p>
       </div>
     </Sheet>
   );
@@ -450,7 +459,7 @@ function ResolverPendente({ g, products, area, onResolver, onClose }: {
         <div className="rounded-2xl border border-border p-3 text-sm">
           <p className="text-xs text-muted-foreground">No caixa aparece como</p>
           <p className="text-base font-bold">{g.descricao}</p>
-          <p className="text-xs text-muted-foreground">Código {g.codigo}{g.codigoBarras && g.codigoBarras !== g.codigo ? ` · barras ${g.codigoBarras}` : ""} · {g.vendas === 1 ? "1 venda" : `${g.vendas} vendas`} · {String(g.qtd).replace(".", ",")} {g.unidadeNota ?? ""}</p>
+          <p className="text-xs text-muted-foreground">{codigoVisivel(g.codigo) === g.codigo ? `Código ${g.codigo}` : "Sem código"}{g.codigoBarras && g.codigoBarras !== g.codigo ? ` · barras ${g.codigoBarras}` : ""} · {g.vendas === 1 ? "1 venda" : `${g.vendas} vendas`} · {String(g.qtd).replace(".", ",")} {g.unidadeNota ?? ""}</p>
           {g.conferir && <p className="mt-1 text-xs font-semibold text-warning">Foi vendido em quantidade quebrada, mas o produto ligado é contado inteiro. Escolha um produto vendido por Kg, metro ou litro, ou marque para não controlar.</p>}
         </div>
 

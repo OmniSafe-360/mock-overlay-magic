@@ -1,13 +1,14 @@
 /* App do funcionário "Omni Operação" (E1): entrada com o código de 6 números e o PIN de 4, e a tela inicial
- * com os botões grandes Receber mercadoria / Repor gôndola (E2 e E3).
+ * com os botões grandes Caixa (C2), Receber mercadoria / Repor gôndola (E2 e E3).
  * O celular fica lembrado, mas o app pede o PIN toda vez que é aberto e depois de alguns minutos fora da tela. */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowLeft, Check, Delete, Lock, Download, EllipsisVertical, ClipboardCheck, LogOut, PackageOpen, PackageX, RefreshCw, Share, ShoppingBasket, SquarePlus } from "lucide-react";
+import { ArrowLeft, Check, Delete, Lock, Download, EllipsisVertical, ClipboardCheck, LogOut, PackageOpen, PackageX, RefreshCw, Share, ShoppingBasket, ShoppingCart, SquarePlus } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import { ReceberMercadoria, type ApiReceber } from "@/components/ReceberMercadoria";
 import { ReporGondola, type ApiRepor } from "@/components/ReporGondola";
 import { ConferirDeposito, type ApiConferir } from "@/components/ConferirDeposito";
 import { RegistrarPerda, type ApiPerda } from "@/components/RegistrarPerda";
+import { CaixaCelular, type ApiCaixa } from "@/components/CaixaCelular";
 import { textoDoTipo } from "@/lib/exemplos";
 import { Sheet } from "@/components/parts/Sheet";
 import { abertoComoApp, adiado, adiar, dentroDoAppDono, enderecoFuncionario, instalar, jaInstalado, linkChromeAndroid, ouvirInstalacao, podeInstalarDireto, prepararInstalacaoFuncionario, tipoAparelho } from "@/lib/instalar";
@@ -27,6 +28,7 @@ export type ApiFuncionario = {
   repor?: ApiRepor | undefined;
   conferirDeposito?: ApiConferir | undefined;
   perda?: ApiPerda | undefined;
+  caixa?: ApiCaixa | undefined;
 };
 const API_PADRAO: ApiFuncionario = { conferir: banco.conferirCodigoFuncionario, entrar: banco.entrarFuncionario, inicio: banco.inicioFuncionario, desbloquear: banco.desbloquearFuncionario, sair: banco.sairFuncionario };
 
@@ -40,6 +42,7 @@ type Tela =
   | { t: "repor" }
   | { t: "conferir" }
   | { t: "perda"; tipo: string }
+  | { t: "caixa" }
   | { t: "erro" };
 
 /** Minutos com o app fora da tela (minimizado, celular apagado) antes de pedir o PIN de novo. */
@@ -123,8 +126,12 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO }: { codigoInic
           <RegistrarPerda chave={lerChave() ?? ""} tipo={tela.tipo} api={api.perda}
             onVoltar={() => { const c = lerChave(); if (c) void abrirInicio(c); else setTela({ t: "codigo" }); }} />
         )}
+        {tela.t === "caixa" && (
+          <CaixaCelular chave={lerChave() ?? ""} api={api.caixa} mercado={ultimo.current?.comercio.tipo === "mercado"}
+            onSair={() => { const c = lerChave(); if (c) void abrirInicio(c); else setTela({ t: "codigo" }); }} />
+        )}
         {tela.t === "inicio" && (
-          <TelaInicio dados={tela.dados} onReceber={() => setTela({ t: "receber" })} onRepor={() => setTela({ t: "repor" })}
+          <TelaInicio dados={tela.dados} onCaixa={() => setTela({ t: "caixa" })} onReceber={() => setTela({ t: "receber" })} onRepor={() => setTela({ t: "repor" })}
             onConferir={() => setTela({ t: "conferir" })} onPerda={(tipo) => setTela({ t: "perda", tipo })} onAtualizar={async () => { const c = lerChave(); if (c) await abrirInicio(c); }}
             onSair={sair} />
         )}
@@ -303,8 +310,8 @@ function TelaTravado({ dados, api, onDestravou, onSair }: { dados: banco.InicioF
   );
 }
 
-function TelaInicio({ dados, onAtualizar, onSair, onReceber, onRepor, onConferir, onPerda }: {
-  dados: banco.InicioFuncionario; onAtualizar: () => Promise<void>; onSair: () => Promise<void>; onReceber: () => void; onRepor: () => void; onConferir: () => void; onPerda: (tipo: string) => void;
+function TelaInicio({ dados, onAtualizar, onSair, onCaixa, onReceber, onRepor, onConferir, onPerda }: {
+  dados: banco.InicioFuncionario; onCaixa: () => void; onAtualizar: () => Promise<void>; onSair: () => Promise<void>; onReceber: () => void; onRepor: () => void; onConferir: () => void; onPerda: (tipo: string) => void;
 }) {
   const [sair, setSair] = useState(false);
   const [atualizando, setAtualizando] = useState(false);
@@ -333,6 +340,10 @@ function TelaInicio({ dados, onAtualizar, onSair, onReceber, onRepor, onConferir
       <CartaoInstalar />
 
       <div className="grid flex-1 grid-cols-1 content-start gap-4">
+        {dados.caixa && (
+          <BotaoGrande icone={<ShoppingCart size={40} />} titulo="Caixa" detalhe={a.caixaAberto ? "Caixa aberto · toque para vender" : "Abrir o caixa e vender"}
+            numero={0} destaque={a.caixaAberto ? "ok" : null} onClick={onCaixa} />
+        )}
         {fazReceber(dados.funcao) && (
           <BotaoGrande icone={<PackageOpen size={40} />} titulo="Receber mercadoria" detalhe={entregasTxt} destaque={a.entregasHoje > 0 ? "atencao" : null}
             numero={a.entregasHoje || a.entregas} onClick={onReceber} />
@@ -363,9 +374,10 @@ function TelaInicio({ dados, onAtualizar, onSair, onReceber, onRepor, onConferir
 }
 
 function BotaoGrande({ icone, titulo, detalhe, numero, destaque, onClick }: {
-  icone: ReactNode; titulo: string; detalhe: string; numero: number; destaque: "urgente" | "atencao" | null; onClick: () => void;
+  icone: ReactNode; titulo: string; detalhe: string; numero: number; destaque: "urgente" | "atencao" | "ok" | null; onClick: () => void;
 }) {
-  const cor = destaque === "urgente" ? "border-destructive/60 bg-destructive/10" : destaque === "atencao" ? "border-warning/60 bg-warning/10" : "border-border bg-secondary/60";
+  const cor = destaque === "urgente" ? "border-destructive/60 bg-destructive/10" : destaque === "atencao" ? "border-warning/60 bg-warning/10"
+    : destaque === "ok" ? "border-accent/60 bg-accent/10" : "border-border bg-secondary/60";
   const bolinha = destaque === "urgente" ? "bg-destructive text-white" : destaque === "atencao" ? "bg-warning text-background" : "bg-secondary text-muted-foreground";
   return (
     <button type="button" onClick={onClick} className={`relative flex min-h-[150px] w-full flex-col justify-between rounded-3xl border-2 p-5 text-left transition active:scale-[0.98] ${cor}`}>

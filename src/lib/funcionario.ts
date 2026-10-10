@@ -9,7 +9,7 @@ export const fazReceber = (f: Funcao) => f === "receber" || f === "ambos";
 export const fazRepor = (f: Funcao) => f === "repor" || f === "ambos";
 
 export type Funcionario = {
-  id: string; nome: string; funcao: Funcao; codigo: string; codigoGeradoEm: string; primeiroAcessoEm: string | null;
+  id: string; nome: string; funcao: Funcao; /** Opera o caixa no celular. */ caixa?: boolean | undefined; codigo: string; codigoGeradoEm: string; primeiroAcessoEm: string | null;
   bloqueadoEm: string | null; ultimoAcesso: string | null; travadoAte: string | null; celulares: number;
 };
 

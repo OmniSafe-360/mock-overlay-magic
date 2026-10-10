@@ -1,7 +1,7 @@
 /* Aba Equipe (E1): o dono cadastra os funcionários do comércio e dá o acesso ao app "Omni Operação"
  * (QR Code ou código de 6 números + PIN que o funcionário cria). Bloquear e "Novo acesso" desligam o celular na hora. */
 import { useCallback, useEffect, useState } from "react";
-import { Ban, Check, Copy, KeyRound, MessageCircle, Pencil, ShieldCheck, Smartphone, UserPlus, Users } from "lucide-react";
+import { Ban, Check, Copy, KeyRound, MessageCircle, Pencil, ShieldCheck, ShoppingCart, Smartphone, UserPlus, Users } from "lucide-react";
 import { Sheet } from "@/components/parts/Sheet";
 import { QrCode } from "@/components/QrCode";
 import { btnGhost, btnPrimary } from "@/components/StoreSetup";
@@ -18,10 +18,12 @@ export type ApiEquipe = {
   atualizar: (id: string, nome: string, funcao: Funcao) => Promise<unknown>;
   bloquear: (id: string, bloquear: boolean) => Promise<string | null>;
   novoAcesso: (id: string) => Promise<string>;
+  /** Liga ou desliga a função Caixa (vender pelo celular). */
+  caixa?: ((id: string, ligado: boolean) => Promise<unknown>) | undefined;
 };
 const API_PADRAO: ApiEquipe = {
   carregar: banco.carregarFuncionarios, criar: banco.criarFuncionario, atualizar: banco.atualizarFuncionario,
-  bloquear: banco.bloquearFuncionario, novoAcesso: banco.novoAcessoFuncionario,
+  bloquear: banco.bloquearFuncionario, novoAcesso: banco.novoAcessoFuncionario, caixa: banco.definirCaixaFuncionario,
 };
 const erroTexto = (e: unknown) => mensagemErro(e).replace("Seus dados continuam no formulário. ", "");
 
@@ -51,7 +53,7 @@ export function PainelEquipe({ comercioId, comercioNome, api = API_PADRAO, titul
         <div className="rounded-3xl border border-border bg-secondary/40 p-4">
           <p className="flex items-center gap-2 text-base font-bold"><Users size={20} className="text-primary" /> Equipe</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Os funcionários usam o app <b className="text-foreground">{NOME_APP_FUNCIONARIO}</b> no próprio celular para receber mercadoria e repor a gôndola.
+            Os funcionários usam o app <b className="text-foreground">{NOME_APP_FUNCIONARIO}</b> no próprio celular para receber mercadoria, repor a gôndola e vender no caixa.
             Eles nunca veem preços nem quanto deveria ter.
           </p>
         </div>
@@ -82,7 +84,7 @@ export function PainelEquipe({ comercioId, comercioNome, api = API_PADRAO, titul
                   <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-base font-bold text-primary">{iniciais(f.nome)}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block break-words text-base font-bold leading-snug">{f.nome}</span>
-                    <span className="block text-sm text-muted-foreground">{FUNCAO_TXT[f.funcao]}</span>
+                    <span className="block text-sm text-muted-foreground">{FUNCAO_TXT[f.funcao]}{f.caixa ? " · Caixa" : ""}</span>
                     <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                       <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${SIT[s].cor}`}>{SIT[s].txt}</span>
                       {s === "ativo" && f.ultimoAcesso && <span className="text-xs text-muted-foreground">usou {quandoTexto(f.ultimoAcesso)}</span>}
@@ -228,6 +230,24 @@ function DetalheFuncionario({ f, comercioNome, api, onMudou, onClose }: {
             <button type="button" disabled={trabalhando} onClick={() => fazer(() => api.bloquear(f.id, false))} className={`mt-3 flex items-center justify-center gap-2 ${btnPrimary(!trabalhando)}`}>
               <KeyRound size={18} /> Desbloquear e gerar código
             </button>
+          </section>
+        )}
+
+        {s !== "bloqueado" && (
+          <section aria-label="Caixa no celular" className="space-y-2 rounded-3xl border border-border p-4">
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary"><ShoppingCart size={20} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-base font-bold">Caixa no celular</span>
+                <span className="block text-sm text-muted-foreground">{f.caixa ? "Pode vender pelo app: bipar, receber e finalizar." : "Desligado: não vende pelo app."}</span>
+              </span>
+              <button type="button" role="switch" aria-checked={!!f.caixa} aria-label="Caixa no celular" disabled={trabalhando}
+                onClick={() => fazer(() => (api.caixa ?? banco.definirCaixaFuncionario)(f.id, !f.caixa))}
+                className={`relative h-8 w-14 shrink-0 rounded-full transition ${f.caixa ? "bg-accent" : "bg-secondary"}`}>
+                <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${f.caixa ? "left-7" : "left-1"}`} />
+              </button>
+            </div>
+            {f.caixa && <p className="text-xs text-muted-foreground">No app {NOME_APP_FUNCIONARIO}, aparece o botão <b>Caixa</b>. O produto só sai da gôndola quando a venda é finalizada.</p>}
           </section>
         )}
 
