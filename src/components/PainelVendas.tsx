@@ -1,15 +1,15 @@
 /* Aba Vendas do comércio (Fase 3.2): os caixas do mercado ligados ao Omni e as vendas do dia.
  * Regra do dono: cada venda FINALIZADA no caixa desconta da gôndola na hora (bipar não desconta). */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Ban, Check, Copy, MonitorSmartphone, Pencil, Plus, Receipt, RefreshCw } from "lucide-react";
+import { Ban, Check, Copy, MonitorSmartphone, PackageSearch, Pencil, Plus, Receipt, RefreshCw, Search } from "lucide-react";
 import { Sheet, type Product } from "@/components/ProductArea";
 import { btnGhost, btnPrimary } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";
 import { mensagemErro } from "@/lib/persistencia";
 import { nomeVenda } from "@/lib/situacao";
 import {
-  brl, codigoCaixaTexto, diaDaVenda, formaPagamento, horaVenda, proximoNomeCaixa, resumoVendas, situacaoCaixa, textoCaixa, textoItemVenda,
-  validadeCodigoCaixa, type Caixa, type Venda,
+  agruparPendentes, brl, codigoCaixaTexto, diaDaVenda, formaPagamento, haQuanto, horaVenda, normalizar, proximoNomeCaixa, resumoVendas, situacaoCaixa,
+  textoCaixa, textoItemVenda, validadeCodigoCaixa, type Caixa, type GrupoPendente, type ItemPendente, type Venda,
 } from "@/lib/vendas";
 
 export type ApiVendas = {
@@ -19,10 +19,12 @@ export type ApiVendas = {
   renomear: (id: string, nome: string) => Promise<unknown>;
   novoCodigo: (id: string) => Promise<string>;
   desligar: (id: string) => Promise<unknown>;
+  pendentes: (comercioId: string) => Promise<ItemPendente[]>;
+  resolver: (itemId: string, acao: "ligar" | "ignorar", produto: string | null, variacao: string | null, embalagem: string | null) => Promise<{ itens: number; conferir?: number }>;
 };
 const API_PADRAO: ApiVendas = {
   caixas: banco.carregarCaixas, vendas: banco.carregarVendas, criar: banco.criarCaixa, renomear: banco.renomearCaixa,
-  novoCodigo: banco.novoCodigoCaixa, desligar: banco.desligarCaixa,
+  novoCodigo: banco.novoCodigoCaixa, desligar: banco.desligarCaixa, pendentes: banco.carregarPendentesVenda, resolver: banco.resolverItemVenda,
 };
 const erroTexto = (e: unknown) => mensagemErro(e).replace("Seus dados continuam no formulário. ", "");
 const COR = {
@@ -35,8 +37,10 @@ const diaSP = (ms: number) => new Date(ms).toLocaleDateString("en-CA", { timeZon
 /** Endereço do Omni Conector, que fica aberto no computador do caixa. */
 export const enderecoConector = () => `${typeof window !== "undefined" ? window.location.origin : ""}/conector`;
 
-export function PainelVendas({ comercioId, tipo, products, api = API_PADRAO }: {
+export function PainelVendas({ comercioId, tipo, products, api = API_PADRAO, onMudou }: {
   comercioId: string; tipo: string; products: Product[]; api?: ApiVendas | undefined;
+  /** Avisa que algo mudou no estoque (item sem cadastro ligado a um produto), para atualizar o resto do app. */
+  onMudou?: (() => void) | undefined;
 }) {
   const [caixas, setCaixas] = useState<Caixa[] | null>(null);
   const [vendas, setVendas] = useState<Venda[] | null>(null);
@@ -47,6 +51,9 @@ export function PainelVendas({ comercioId, tipo, products, api = API_PADRAO }: {
   const [novo, setNovo] = useState(false);
   const [caixaAberto, setCaixaAberto] = useState<string | null>(null);
   const [vendaAberta, setVendaAberta] = useState<string | null>(null);
+  const [pendentes, setPendentes] = useState<ItemPendente[]>([]);
+  const [resolvendo, setResolvendo] = useState<string | null>(null);
+  const [pronto, setPronto] = useState("");
 
   const recarregar = useCallback(async () => {
     setAtualizando(true);
@@ -54,8 +61,8 @@ export function PainelVendas({ comercioId, tipo, products, api = API_PADRAO }: {
     // Desde o começo de ontem (São Paulo): cobre "Hoje" e "Ontem".
     const desde = new Date(`${diaSP(t - 86_400_000)}T00:00:00-03:00`).toISOString();
     try {
-      const [cs, vs] = await Promise.all([api.caixas(comercioId), api.vendas(comercioId, desde)]);
-      setCaixas(cs); setVendas(vs); setErro(false); setAgora(Date.now());
+      const [cs, vs, ps] = await Promise.all([api.caixas(comercioId), api.vendas(comercioId, desde), api.pendentes(comercioId)]);
+      setCaixas(cs); setVendas(vs); setPendentes(ps); setErro(false); setAgora(Date.now());
     } catch { setErro(true); }
     setAtualizando(false);
   }, [api, comercioId]);
@@ -71,6 +78,8 @@ export function PainelVendas({ comercioId, tipo, products, api = API_PADRAO }: {
   const caixaSel = caixas?.find((c) => c.id === caixaAberto);
   const vendaSel = vendas?.find((v) => v.id === vendaAberta);
   const ativos = (caixas ?? []).filter((c) => !c.desligadoEm);
+  const grupos = useMemo(() => agruparPendentes(pendentes), [pendentes]);
+  const grupoSel = grupos.find((g) => g.codigo === resolvendo);
   const desligados = (caixas ?? []).filter((c) => c.desligadoEm);
 
   if (caixas === null && !erro) return <p className="py-10 text-center text-sm text-muted-foreground">Carregando as vendas…</p>;
@@ -114,7 +123,7 @@ export function PainelVendas({ comercioId, tipo, products, api = API_PADRAO }: {
         )}
         {resumo.pendentes > 0 && (
           <p className="mt-3 rounded-2xl border border-destructive/50 bg-destructive/10 p-3 text-sm">
-            <b>{resumo.pendentes === 1 ? "1 item vendido" : `${resumo.pendentes} itens vendidos`} sem cadastro no Omni.</b> {resumo.pendentes === 1 ? "Ainda não saiu" : "Ainda não saíram"} do estoque. Toque na venda para ver qual é.
+            <b>{resumo.pendentes === 1 ? "1 item vendido" : `${resumo.pendentes} itens vendidos`} sem cadastro no Omni.</b> {resumo.pendentes === 1 ? "Ainda não saiu" : "Ainda não saíram"} do estoque. Veja em "Vendido sem cadastro", logo abaixo.
           </p>
         )}
         {resumo.faltou > 0 && (
@@ -124,6 +133,35 @@ export function PainelVendas({ comercioId, tipo, products, api = API_PADRAO }: {
         )}
         {erro && <p role="alert" className="mt-3 text-sm text-warning">Não foi possível atualizar agora. Os números são da última consulta.</p>}
       </section>
+
+      {pronto && <p role="status" className="flex items-center gap-2 rounded-2xl border border-accent/50 bg-accent/10 p-3 text-sm font-semibold text-accent"><Check size={18} /> {pronto}</p>}
+
+      {/* vendido sem cadastro */}
+      {grupos.length > 0 && (
+        <section aria-label="Vendido sem cadastro" className="space-y-3 rounded-3xl border border-destructive/50 bg-destructive/5 p-4">
+          <div>
+            <h2 className="flex items-center gap-2 text-base font-bold"><PackageSearch size={20} className="text-destructive" /> Vendido sem cadastro</h2>
+            <p className="text-sm text-muted-foreground">O caixa vendeu, mas o Omni não sabe qual produto é. Diga uma vez e as próximas vendas saem da {area} sozinhas.</p>
+          </div>
+          <ul className="space-y-2">
+            {grupos.map((g) => (
+              <li key={g.codigo}>
+                <button type="button" onClick={() => { setPronto(""); setResolvendo(g.codigo); }}
+                  className="flex w-full items-center gap-3 rounded-2xl border border-border bg-background/40 p-3 text-left transition hover:border-primary">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-bold">{g.descricao}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      Código {g.codigoBarras ?? g.codigo} · {g.vendas === 1 ? "1 venda" : `${g.vendas} vendas`}{g.ultimaEm ? ` · última ${haQuanto(g.ultimaEm, agora)}` : ""}
+                    </span>
+                    {g.conferir && <span className="block text-xs font-semibold text-warning">Vendido em quantidade quebrada: confira o produto</span>}
+                  </span>
+                  <span className="shrink-0 text-sm font-semibold text-primary">Resolver</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* caixas */}
       <section aria-label="Caixas" className="space-y-3">
@@ -192,6 +230,18 @@ export function PainelVendas({ comercioId, tipo, products, api = API_PADRAO }: {
           onCriar={async (nome) => { const r = await api.criar(comercioId, nome); await recarregar(); setNovo(false); setCaixaAberto(r.id); }} />
       )}
       {caixaSel && <DetalheCaixa c={caixaSel} agora={agora} api={api} onMudou={recarregar} onClose={() => setCaixaAberto(null)} />}
+      {grupoSel && (
+        <ResolverPendente g={grupoSel} products={products} area={area} onClose={() => setResolvendo(null)}
+          onResolver={async (acao, produto, variacao, embalagem) => {
+            const r = await api.resolver(grupoSel.itemId, acao, produto, variacao, embalagem);
+            const nome = products.find((p) => (p.db?.id ?? String(p.id)) === produto)?.nome;
+            setResolvendo(null);
+            setPronto(acao === "ignorar" ? `"${grupoSel.descricao}" não será controlado no estoque.`
+              : `${r.itens === 1 ? "1 venda ligada" : `${r.itens} vendas ligadas`} a ${nome ?? "este produto"}. As próximas saem da ${area} sozinhas.`
+                + (r.conferir ? ` ${r.conferir} com quantidade quebrada: confira.` : ""));
+            await recarregar(); onMudou?.();
+          }} />
+      )}
       {vendaSel && <DetalheVenda v={vendaSel} caixa={nomeCaixa(vendaSel.caixaId)} products={products} area={area} onClose={() => setVendaAberta(null)} />}
     </div>
   );
@@ -366,6 +416,103 @@ function DetalheVenda({ v, caixa, products, area, onClose }: { v: Venda; caixa: 
           })}
         </ul>
         <p className="flex items-center gap-2 text-xs text-muted-foreground"><Receipt size={14} /> Chegou do caixa depois de finalizada. Bipar sem finalizar não desconta.</p>
+      </div>
+    </Sheet>
+  );
+}
+
+/** "Qual produto é?": liga o código do caixa a um produto (e embalagem/variação) ou marca para não controlar. */
+function ResolverPendente({ g, products, area, onResolver, onClose }: {
+  g: GrupoPendente; products: Product[]; area: string; onClose: () => void;
+  onResolver: (acao: "ligar" | "ignorar", produto: string | null, variacao: string | null, embalagem: string | null) => Promise<unknown>;
+}) {
+  const [busca, setBusca] = useState(() => g.codigoBarras ?? "");
+  const [sel, setSel] = useState<Product | null>(null);
+  const [variacao, setVariacao] = useState<string | null>(null);
+  const [embalagem, setEmbalagem] = useState<string | null>(null);
+  const [ignorar, setIgnorar] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState("");
+  const q = normalizar(busca);
+  const achados = (q ? products.filter((p) => normalizar(p.nome ?? "").includes(q) || (p.codigo ?? "").includes(q) || (p.embalagens ?? []).some((e) => e.codigo === q)) : products).slice(0, 30);
+  const vars = (sel?.variacoes ?? []).filter((v) => v.uid);
+  const embs = (sel?.embalagens ?? []).filter((e) => e.uid);
+  const ok = !!sel && (!vars.length || !!variacao) && !salvando;
+  const enviar = (acao: "ligar" | "ignorar") => {
+    setSalvando(true); setErro("");
+    onResolver(acao, acao === "ligar" ? sel?.db?.id ?? String(sel?.id) : null, acao === "ligar" ? variacao : null, acao === "ligar" ? embalagem : null)
+      .catch((e) => { setErro(erroTexto(e)); setSalvando(false); });
+  };
+  return (
+    <Sheet title="Qual produto é?" onClose={onClose}>
+      <div className="min-h-0 space-y-4 overflow-y-auto px-5 py-3">
+        <div className="rounded-2xl border border-border p-3 text-sm">
+          <p className="text-xs text-muted-foreground">No caixa aparece como</p>
+          <p className="text-base font-bold">{g.descricao}</p>
+          <p className="text-xs text-muted-foreground">Código {g.codigo}{g.codigoBarras && g.codigoBarras !== g.codigo ? ` · barras ${g.codigoBarras}` : ""} · {g.vendas === 1 ? "1 venda" : `${g.vendas} vendas`} · {String(g.qtd).replace(".", ",")} {g.unidadeNota ?? ""}</p>
+          {g.conferir && <p className="mt-1 text-xs font-semibold text-warning">Foi vendido em quantidade quebrada, mas o produto ligado é contado inteiro. Escolha um produto vendido por Kg, metro ou litro, ou marque para não controlar.</p>}
+        </div>
+
+        {!ignorar ? (
+          <>
+            <label className="relative block">
+              <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input value={busca} onChange={(e) => { setBusca(e.target.value); }} placeholder="Procurar pelo nome ou código" aria-label="Procurar produto"
+                className="h-13 w-full rounded-2xl border border-border bg-background-deep/60 pl-11 pr-4 text-base text-foreground outline-none focus-visible:border-primary" />
+            </label>
+            <ul className="max-h-60 space-y-1.5 overflow-y-auto" aria-label="Produtos">
+              {!achados.length && <li className="p-3 text-center text-sm text-muted-foreground">Nenhum produto com esse nome. Se for um produto novo, cadastre na aba Produtos e volte aqui.</li>}
+              {achados.map((p) => (
+                <li key={String(p.id)}>
+                  <button type="button" aria-pressed={sel?.id === p.id} onClick={() => { setSel(p); setVariacao(null); setEmbalagem(null); }}
+                    className={`flex min-h-12 w-full items-center justify-between gap-2 rounded-2xl border px-3 text-left text-sm transition ${sel?.id === p.id ? "border-primary bg-primary/15" : "border-border"}`}>
+                    <span className="min-w-0"><span className="block truncate font-semibold">{p.nome}</span><span className="block text-xs text-muted-foreground">{p.codigo} · {p.unidade}</span></span>
+                    {sel?.id === p.id && <Check size={18} className="shrink-0 text-primary" />}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {sel && vars.length > 0 && (
+              <fieldset className="space-y-2">
+                <legend className="mb-1 text-sm font-medium">Qual tamanho e cor?</legend>
+                <div className="flex flex-wrap gap-2">
+                  {vars.map((v) => (
+                    <button key={v.uid} type="button" aria-pressed={variacao === v.uid} onClick={() => setVariacao(v.uid!)}
+                      className={`min-h-11 rounded-2xl border px-3 text-sm font-semibold ${variacao === v.uid ? "border-primary bg-primary/15 text-primary" : "border-border"}`}>
+                      {[v.tam, v.cor].filter(Boolean).join(" · ")}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+            )}
+            {sel && embs.length > 0 && (
+              <fieldset className="space-y-2">
+                <legend className="mb-1 text-sm font-medium">O caixa vende este código como:</legend>
+                <div className="grid grid-cols-1 gap-2">
+                  {[{ uid: null as string | null, txt: `${sel.unidade} (1 de cada vez)` }, ...embs.map((e) => ({ uid: e.uid as string | null, txt: `${e.tipo} com ${e.qtd}` }))].map((o) => (
+                    <button key={o.uid ?? "un"} type="button" aria-pressed={embalagem === o.uid} onClick={() => setEmbalagem(o.uid)}
+                      className={`flex min-h-12 items-center justify-between rounded-2xl border px-3 text-left text-sm font-semibold ${embalagem === o.uid ? "border-primary bg-primary/15 text-primary" : "border-border"}`}>
+                      {o.txt} {embalagem === o.uid && <Check size={18} />}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+            )}
+            {erro && <p role="alert" className="text-sm font-semibold text-destructive">{erro}</p>}
+            <button type="button" disabled={!ok} onClick={() => enviar("ligar")} className={btnPrimary(ok)}>
+              {salvando ? "Ligando…" : sel ? `Ligar a ${sel.nome} e tirar da ${area}` : "Escolha o produto"}
+            </button>
+            <p className="text-center text-xs text-muted-foreground">Vale para {g.vendas === 1 ? "esta venda" : `as ${g.vendas} vendas`} e para as próximas deste código.</p>
+            <button type="button" onClick={() => setIgnorar(true)} className="min-h-11 w-full text-sm font-semibold text-muted-foreground">Não é produto do estoque (ex.: sacola, serviço)</button>
+          </>
+        ) : (
+          <div className="space-y-2 rounded-2xl border border-border p-3">
+            <p className="text-sm">"{g.descricao}" deixa de aparecer aqui e não sai do estoque, agora e nas próximas vendas.</p>
+            {erro && <p role="alert" className="text-sm font-semibold text-destructive">{erro}</p>}
+            <button type="button" disabled={salvando} onClick={() => enviar("ignorar")} className={`w-full ${btnGhost}`}>Sim, não controlar</button>
+            <button type="button" onClick={() => setIgnorar(false)} className="min-h-11 w-full text-sm font-semibold text-muted-foreground">Voltar</button>
+          </div>
+        )}
       </div>
     </Sheet>
   );

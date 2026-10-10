@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PainelVendas, type ApiVendas } from "@/components/PainelVendas";
 import type { Product } from "@/components/ProductArea";
 import {
-  codigoCaixaTexto, formaPagamento, proximoNomeCaixa, resumoVendas, situacaoCaixa, textoCaixa, textoItemVenda, type Caixa, type ItemVenda, type Venda,
+  codigoCaixaTexto, formaPagamento, proximoNomeCaixa, resumoVendas, situacaoCaixa, textoCaixa, textoItemVenda, type Caixa, type ItemPendente, type ItemVenda, type Venda,
 } from "@/lib/vendas";
 
 const AGORA = Date.parse("2026-10-10T15:00:00-03:00");
@@ -61,6 +61,8 @@ function api(over: Partial<ApiVendas> = {}) {
     renomear: vi.fn(async () => {}),
     novoCodigo: vi.fn(async () => "11112222"),
     desligar: vi.fn(async () => {}),
+    pendentes: vi.fn(async (): Promise<ItemPendente[]> => []),
+    resolver: vi.fn(async () => ({ itens: 2 })),
     ...over,
   } satisfies ApiVendas;
 }
@@ -120,5 +122,39 @@ describe("aba Vendas", () => {
     vi.mocked(a.caixas).mockResolvedValue([caixa()]);
     fireEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
     expect(await screen.findByRole("button", { name: "Caixa 1: Ligado" })).toBeTruthy();
+  });
+
+  it("vendido sem cadastro: agrupa pelo código, liga ao produto (com a embalagem) e avisa", async () => {
+    const pend = (id: string, quando: string): ItemPendente => ({ id, codigoPdv: "X1", codigoBarras: "7891000432687", descricao: "CERVEJA LATA FD", qtdNota: 1, unidadeNota: "FD",
+      valor: 4000, situacao: "sem_cadastro", motivo: null, produtoId: null, vendidoEm: quando });
+    const cerveja = { id: "p-cerv", db: { id: "p-cerv", contadas: [] }, nome: "Cerveja Lata", codigo: "7891000432687", unidade: "Unidade", variacoes: [],
+      embalagens: [{ uid: "emb-fd", tipo: "Fardo", qtd: 12, codigo: "2900000000018", preco: 0 }] } as unknown as Product;
+    const a = api({ pendentes: vi.fn(async () => [pend("i1", min(30)), pend("i2", min(10))]), resolver: vi.fn(async () => ({ itens: 2 })) });
+    const mudou = vi.fn();
+    render(<PainelVendas comercioId="c1" tipo="mercado" products={[...produtos, cerveja]} api={a} onMudou={mudou} />);
+    const sec = within(await screen.findByRole("region", { name: "Vendido sem cadastro" }));
+    expect(sec.getByRole("button", { name: /CERVEJA LATA FD/ }).textContent).toMatch(/2 vendas · última há 10 min/);
+    fireEvent.click(sec.getByRole("button", { name: /CERVEJA LATA FD/ }));
+    const dlg = within(screen.getByRole("dialog", { name: "Qual produto é?" }));
+    // A busca já começa pelo código de barras da nota e acha a cerveja.
+    expect(dlg.queryByRole("button", { name: /Arroz/ })).toBeNull();
+    fireEvent.click(dlg.getByRole("button", { name: /Cerveja Lata/ }));
+    fireEvent.click(dlg.getByRole("button", { name: /Fardo com 12/ }));
+    fireEvent.click(dlg.getByRole("button", { name: /Ligar a Cerveja Lata e tirar da gôndola/ }));
+    await waitFor(() => expect(a.resolver).toHaveBeenCalledWith("i1", "ligar", "p-cerv", null, "emb-fd"));
+    expect(await screen.findByText(/2 vendas ligadas a Cerveja Lata/)).toBeTruthy();
+    expect(mudou).toHaveBeenCalled();
+  });
+  it("não controlar no estoque pede confirmação", async () => {
+    const a = api({ pendentes: vi.fn(async () => [{ id: "i9", codigoPdv: "999", codigoBarras: null, descricao: "SACOLA", qtdNota: 1, unidadeNota: "UN", valor: 10,
+      situacao: "sem_cadastro" as const, motivo: null, produtoId: null, vendidoEm: min(3) }]) });
+    render(<PainelVendas comercioId="c1" tipo="mercado" products={produtos} api={a} />);
+    fireEvent.click(await screen.findByRole("button", { name: /SACOLA/ }));
+    const dlg = within(screen.getByRole("dialog", { name: "Qual produto é?" }));
+    fireEvent.click(dlg.getByRole("button", { name: /Não é produto do estoque/ }));
+    expect(a.resolver).not.toHaveBeenCalled();
+    fireEvent.click(dlg.getByRole("button", { name: "Sim, não controlar" }));
+    await waitFor(() => expect(a.resolver).toHaveBeenCalledWith("i9", "ignorar", null, null, null));
+    expect(await screen.findByText(/"SACOLA" não será controlado no estoque/)).toBeTruthy();
   });
 });
