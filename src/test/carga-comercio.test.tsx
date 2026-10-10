@@ -54,7 +54,7 @@ it("resposta atrasada da mesma loja não sobrescreve a consulta mais recente", a
 it("erro de pedidos não vira uma lista vazia nem permite montar compra sem conferir", async () => {
   banco.carregarPedidos.mockRejectedValue(new Error("Failed to fetch"));
   await abrir(); await screen.findByText(/Não foi possível atualizar os pedidos/);
-  fireEvent.click(screen.getByRole("button", { name: "Pedidos" }));
+  fireEvent.click(screen.getByRole("button", { name: /Abrir menu/ })); fireEvent.click(screen.getByRole("button", { name: /^Pedidos/ }));
   expect(screen.queryByText("Nenhum pedido ainda")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Novo pedido" })).not.toBeInTheDocument();
   expect(screen.getByText(/Atualize os dados e confira os envios pendentes/)).toBeInTheDocument();

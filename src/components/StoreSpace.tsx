@@ -1,7 +1,10 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, Store } from "lucide-react";
+import { ArrowLeft, Check, ClipboardList, LayoutGrid, Menu, Package, Receipt, RefreshCw, Scale, Store, Truck, Users, Warehouse, type LucideIcon } from "lucide-react";
 import { nomeAreaVenda, textoDoTipo } from "@/lib/exemplos";
 import { TIPOS, type StoreData } from "@/components/StoreSetup";
+import { Sheet } from "@/components/ProductArea";
+import { atencaoHoje } from "@/lib/situacao";
+import { nAlertas } from "@/lib/antifurto";
 import { ProductDetail, SavedBanner, type Product, type Supplier } from "@/components/ProductArea";
 import { ListaProdutos } from "@/components/ListaProdutos";
 import { PainelLocais } from "@/components/PainelLocais";
@@ -20,6 +23,18 @@ import type { LocaisCadastrados } from "@/lib/banco";
 import type { AlertasAntifurto } from "@/lib/antifurto";
 
 const TABS = ["Produtos", "Depósito", "Gôndolas", "Pedidos", "Fornecedores", "Equipe", "Vendas", "Diferenças"] as const;
+type Aba = (typeof TABS)[number];
+/** Ícone e frase de cada parte do comércio, no menu ☰. */
+const SECOES: Record<Aba, { Icon: LucideIcon; ajuda: string }> = {
+  Produtos: { Icon: Package, ajuda: "Lista, cadastro e o que precisa de atenção" },
+  "Depósito": { Icon: Warehouse, ajuda: "O que está guardado, em cada lugar" },
+  "Gôndolas": { Icon: LayoutGrid, ajuda: "O que está à venda, em cada lugar" },
+  Pedidos: { Icon: ClipboardList, ajuda: "Compras, contas a pagar e entregas" },
+  Fornecedores: { Icon: Truck, ajuda: "Contatos e o que comprar de cada um" },
+  Equipe: { Icon: Users, ajuda: "Funcionários e acesso ao Omni Operação" },
+  Vendas: { Icon: Receipt, ajuda: "Caixas ligados e vendas do dia" },
+  "Diferenças": { Icon: Scale, ajuda: "Perdas, faltas e relatório antifurto" },
+};
 
 /** Por onde o comércio abre quando vem do menu Alertas: um produto (a ficha), ou a aba Pedidos (montar um pedido ou só as contas a pagar). */
 export type InicioComercio = { produtoId: Product["id"] } | { pedidos: "montar" | "contas" | "lista" } | { aba: "Vendas" | "Diferenças" } | { relatorio: true };
@@ -39,7 +54,7 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
   /** Uma perda ou diferença foi resolvida: o estoque e o resumo mudaram. */ onDiferencasMudou?: (() => void) | undefined;
   /** Alertas de antifurto (Fase 5.2). */ antifurto?: AlertasAntifurto | undefined;
 }) {
-  const [tab, setTab] = useState<(typeof TABS)[number]>(inicio && "pedidos" in inicio ? "Pedidos" : inicio && "aba" in inicio ? inicio.aba : inicio && "relatorio" in inicio ? "Diferenças" : "Produtos");
+  const [tab, setTab] = useState<Aba>(inicio && "pedidos" in inicio ? "Pedidos" : inicio && "aba" in inicio ? inicio.aba : inicio && "relatorio" in inicio ? "Diferenças" : "Produtos");
   /** Muda a cada toque num alerta de antifurto para abrir a aba Diferenças já no Relatório. */
   const [verRelatorio, setVerRelatorio] = useState(inicio && "relatorio" in inicio ? 1 : 0);
   const [view, setView] = useState<Product | null>(() => (inicio && "produtoId" in inicio ? products.find((p) => p.id === inicio.produtoId) ?? null : null));
@@ -51,6 +66,25 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
   const contas = useMemo(() => resumoPagamentos(pedidos, hojeEm()), [pedidos]);
   const jaPedidos = useMemo(() => produtosJaPedidos(pedidos), [pedidos]);
   const Icon = TIPOS.find((t) => t.id === store.tipo)?.Icon ?? Store;
+  const [menu, setMenu] = useState(false);
+  const nomeAba = (t: Aba) => (t === "Gôndolas" ? nomeAreaVenda(store.tipo) : textoDoTipo(store.tipo)(t));
+  const irPara = (t: Aba) => { setTab(t); setMontar(0); setVerPagar(0); setVerRelatorio(0); setMenu(false); };
+  /** Números de cada parte no menu: quantos assuntos esperam o dono (vermelho = urgente). */
+  const avisos = useMemo(() => {
+    const grupos = atencaoHoje(products, store.tipo, hojeEm(), () => undefined, jaPedidos);
+    const ids = (f: (n: string) => boolean) => new Set(grupos.filter((g) => f(g.nivel)).flatMap((g) => g.itens.map((i) => i.p.id))).size;
+    const urgentes = ids((n) => n === "urgente");
+    const m: Partial<Record<Aba, { n: number; urgente: boolean }>> = {
+      Produtos: { n: ids((n) => n !== "info"), urgente: urgentes > 0 },
+      Pedidos: { n: contas.atrasados.n + contas.hoje.n + entregasDecidir, urgente: contas.atrasados.n + entregasDecidir > 0 },
+      Vendas: { n: vendidoSemCadastro, urgente: vendidoSemCadastro > 0 },
+      "Diferenças": { n: diferencasDecidir + nAlertas(antifurto), urgente: diferencasDecidir > 0 },
+    };
+    return m;
+  }, [products, store.tipo, jaPedidos, contas, entregasDecidir, vendidoSemCadastro, diferencasDecidir, antifurto]);
+  const totalAvisos = TABS.reduce((n, t) => n + (avisos[t]?.n ?? 0), 0);
+  const algumUrgente = TABS.some((t) => avisos[t]?.urgente);
+  const Secao = SECOES[tab].Icon;
   const current = view ? products.find((p) => p.id === view.id) ?? null : null;
 
   if (current)
@@ -58,24 +92,66 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
 
   return (
     <div className="space-y-5 animate-in fade-in slide-in-from-right-8 duration-300">
-      <div className="flex items-center gap-3">
-        <button type="button" onClick={onBack} aria-label="Voltar" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-secondary/60 text-foreground hover:border-primary"><ArrowLeft size={20} /></button>
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary"><Icon size={24} /></span>
-        <div className="min-w-0">
-          <h1 className="truncate text-lg font-bold">{store.nome}</h1>
-          <p className="truncate text-sm text-muted-foreground">{store.cidade} - {store.uf}</p>
+      <header className="space-y-4">
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={onBack} aria-label="Voltar" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-secondary/60 text-foreground hover:border-primary"><ArrowLeft size={20} /></button>
+          <span className="flex-1" />
+          {onAtualizar && (
+            <button type="button" disabled={atualizando} onClick={onAtualizar} aria-label={atualizando ? "Atualizando" : "Atualizar"}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border text-muted-foreground hover:border-primary disabled:opacity-60">
+              <RefreshCw size={20} className={atualizando ? "animate-spin" : ""} />
+            </button>
+          )}
+          <button type="button" onClick={() => setMenu(true)} aria-label={totalAvisos ? `Abrir menu (${totalAvisos} avisos)` : "Abrir menu"} aria-haspopup="dialog"
+            className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-secondary/60 text-foreground hover:border-primary">
+            <Menu size={22} />
+            {totalAvisos > 0 && <span aria-hidden className={`absolute right-2 top-2 h-2.5 w-2.5 rounded-full ${algumUrgente ? "bg-destructive" : "bg-warning"}`} />}
+          </button>
         </div>
-        {onAtualizar && <button type="button" disabled={atualizando} onClick={onAtualizar} className="ml-auto min-h-12 rounded-2xl border border-border px-3 text-sm font-semibold disabled:opacity-50">{atualizando ? "Atualizando…" : "Atualizar"}</button>}
+        <div className="flex items-center gap-3">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary"><Icon size={24} /></span>
+          <div className="min-w-0 flex-1">
+            <h1 className="line-clamp-2 text-xl font-bold leading-tight">{store.nome}</h1>
+            <p className="truncate text-sm text-muted-foreground">{store.cidade} - {store.uf}</p>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex items-center gap-3 border-b border-border pb-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"><Secao size={20} /></span>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl font-bold leading-tight">{nomeAba(tab)}</h2>
+          <p className="text-sm leading-snug text-muted-foreground">{textoDoTipo(store.tipo)(SECOES[tab].ajuda)}</p>
+        </div>
       </div>
 
-      <div className="-mx-5 overflow-x-auto px-5 [scrollbar-width:none]">
-        <div className="flex w-max gap-2">
-          {TABS.map((t) => (
-            <button key={t} type="button" onClick={() => { setTab(t); setMontar(0); setVerPagar(0); setVerRelatorio(0); }} aria-current={tab === t ? "page" : undefined}
-              className={`min-h-12 rounded-2xl px-4 text-base font-semibold transition ${tab === t ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground hover:text-foreground"}`}>{t === "Gôndolas" ? nomeAreaVenda(store.tipo) : textoDoTipo(store.tipo)(t)}</button>
-          ))}
-        </div>
-      </div>
+      {menu && (
+        <Sheet title="Menu do comércio" onClose={() => setMenu(false)}>
+          <nav aria-label="Partes do comércio" className="min-h-0 overflow-y-auto px-3 pb-2">
+            <ul className="space-y-1">
+              {TABS.map((t) => {
+                const { Icon: I, ajuda } = SECOES[t];
+                const on = tab === t;
+                const a = avisos[t];
+                return (
+                  <li key={t}>
+                    <button type="button" onClick={() => irPara(t)} aria-current={on ? "page" : undefined}
+                      className={`flex min-h-16 w-full items-center gap-3 rounded-2xl px-3 py-2 text-left transition ${on ? "bg-primary/15" : "hover:bg-secondary/60"}`}>
+                      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${on ? "bg-primary text-primary-foreground" : "bg-secondary text-primary"}`}><I size={22} /></span>
+                      <span className="min-w-0 flex-1">
+                        <span className={`block text-base font-semibold ${on ? "text-primary" : ""}`}>{nomeAba(t)}</span>
+                        <span className="block text-xs text-muted-foreground">{textoDoTipo(store.tipo)(ajuda)}</span>
+                      </span>
+                      {a && a.n > 0 && <span className={`flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full px-2 text-sm font-bold ${a.urgente ? "bg-destructive text-white" : "bg-warning text-background"}`}>{a.n}</span>}
+                      {on && <Check size={18} className="shrink-0 text-primary" />}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+        </Sheet>
+      )}
 
       {tab === "Produtos" ? (
         <>
