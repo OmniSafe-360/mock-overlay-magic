@@ -274,7 +274,7 @@ FORNECEDOR ──(receber, cego)──▶ DEPÓSITO ──(repor, cego)──▶
 
 ## 10. BANCO DE DADOS (SUPABASE)
 
-Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Postgres 17. **22 tabelas, todas com RLS ligada.**
+Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Postgres 17. **26 tabelas, todas com RLS ligada.**
 
 | Grupo | Tabelas | Quem grava |
 |---|---|---|
@@ -285,6 +285,7 @@ Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Pos
 | Compras | `pedidos_compra`, `pedido_itens` | `salvar_pedido`, `marcar_pedido_enviado`, `cancelar_pedido`, `responder_pedido` (link), `atualizar_pagamento` |
 | Equipe | `funcionarios` (PIN embaralhado, ilegível até para o dono), `funcionario_aparelhos` (só o resumo da chave do celular) | só funções |
 | Operação | `recebimentos`, `recebimento_itens`, `reposicoes` | só funções do app do funcionário (com a chave do celular e o PIN em dia) |
+| Vendas | `caixas`, `vendas`, `venda_itens`, `codigos_pdv` | só funções do computador do caixa (com a chave do caixa) e do dono |
 
 - **Velocidade (10/10/2026):** toda ligação entre tabelas tem atalho de busca (índice) e as regras de RLS usam `(select auth.uid())`, calculado uma vez por consulta. Tabela ou regra nova segue o mesmo padrão. O aviso "índice não usado" do Supabase é esperado enquanto há poucos dados.
 - **Funções sem login, de propósito** (o aviso do Supabase sobre elas é esperado): a página do fornecedor (`pedido_publico`, `responder_pedido`, que exigem o link secreto) e o app do funcionário (exigem o código e o PIN, ou a chave do celular).
@@ -292,9 +293,8 @@ Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Pos
   - Google e e-mail/senha;
   - o envio de e-mail do Supabase tem limite baixo, por isso o "Esqueci minha senha" falhou; precisa de serviço de e-mail próprio;
   - a "proteção contra senhas vazadas" está **desligada**: o dono liga no painel do Supabase.
-- **Tabelas previstas (precisam de desenho aprovado):**
-  - Fase 3: `caixas`, `vendas`, `venda_itens`, ligação código do caixa ↔ produto;
-  - Fase 4: `perdas`, conferências do depósito e diferenças.
+- **Vendas (Fase 3, desde 10/10/2026):** `caixas` (código de 8 números para ligar, chave do computador do caixa guardada só como resumo), `vendas` (uma por nota, chave de 44 números única), `venda_itens` (cada item com quanto saiu da gôndola, quanto "faltou" e de quais saldos saiu) e `codigos_pdv` (código do caixa ligado a um produto, ou "não controlar"). O computador do caixa usa `conector_ligar`, `conector_estado`, `conector_enviar_venda` e `conector_cancelar_venda`; o dono, `criar_caixa`, `renomear_caixa`, `novo_codigo_caixa`, `desligar_caixa` e `resolver_item_venda`.
+- **Tabelas previstas (precisam de desenho aprovado):** Fase 4: `perdas`, conferências do depósito e diferenças.
 
 ## 11. INFRAESTRUTURA
 
@@ -334,7 +334,7 @@ Cada fase termina com o roteiro de teste para o dono.
 |---|---|---|
 | **1. Base** | Contas, comércios, cadastro, estoque, pedidos, equipe, receber, repor | ✅ feita (parte falta testar, 12.2) |
 | **2. Arrumação** | 2.1 este documento ✅ · 2.2 tela inicial com números reais e os menus Comércios e Alertas ✅ · 2.3 velocidade do banco ✅ | ✅ feita |
-| **3. Vendas pelo caixa** | 3.0 piloto com um arquivo de nota real · 3.1 banco das vendas (desenho aprovado antes) · 3.2 Omni Conector e aba Vendas/Caixas · 3.3 vendas em tempo real e "Vendido sem cadastro" | **▶ PRÓXIMA** — aguarda as respostas do dono (seção 14) |
+| **3. Vendas pelo caixa** | 3.1 banco das vendas ✅ · 3.2 **aba Vendas e caixas** · 3.3 Omni Conector · 3.4 "Vendas hoje" e "Vendido sem cadastro" · piloto num mercado real no fim | **▶ ETAPA ATUAL** (desenho aprovado em 10/10/2026) |
 | **4. Fechar a conta** | Registrar perda · conferir o depósito todo dia (E4) · reposição acusando diferença · quadro Diferenças | depois da Fase 3 |
 | **5. Antifurto** | Relatórios do que sumiu (produto, lugar, horário, valor), alertas, painel de todos os comércios | depois da Fase 4 |
 | **6. Lançamento** | E-mail próprio ("Esqueci minha senha"), Termos e Privacidade, proteção de senhas, Google verificado, teste em computador, tablet, Android e iPhone | antes de abrir ao público |
@@ -342,10 +342,7 @@ Cada fase termina com o roteiro de teste para o dono.
 
 ## 14. DECISÕES ABERTAS (PERGUNTAR AO DONO)
 
-1. **Vendas:** aprova o caminho da seção 7.6 (conector como principal, reservas B e C)?
-2. Quais **sistemas de caixa** usam os mercados-alvo, e em que estado?
-3. Um **arquivo `.xml` de nota** de um caixa real para o piloto.
-4. Os computadores dos caixas usam **Windows com Chrome**?
+1. ~~Vendas: caminho da seção 7.6~~ — aprovado em 10/10/2026. Para o piloto no fim: um mercado real, o arquivo `.xml` de uma nota e se o computador do caixa tem Chrome.
 5. **Perdas:** o funcionário registra e o dono confirma?
 6. **Gerente:** quais funções pode usar?
 7. **Android:** o app do dono estava instalado no celular onde o Omni Operação não oferecia instalar?
