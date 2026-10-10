@@ -334,7 +334,7 @@ Cada fase termina com o roteiro de teste para o dono.
 |---|---|---|
 | **1. Base** | Contas, comércios, cadastro, estoque, pedidos, equipe, receber, repor | ✅ feita (parte falta testar, 12.2) |
 | **2. Arrumação** | 2.1 este documento ✅ · 2.2 tela inicial com números reais e os menus Comércios e Alertas ✅ · 2.3 velocidade do banco ✅ | ✅ feita |
-| **3. Vendas pelo caixa** | 3.1 banco das vendas ✅ · 3.2 aba Vendas e caixas ✅ · 3.3 Omni Conector ✅ · 3.4 ** "Vendas hoje" e "Vendido sem cadastro" · piloto num mercado real no fim | **▶ ETAPA ATUAL** (desenho aprovado em 10/10/2026) |
+| **3. Vendas pelo caixa** | 3.1 banco das vendas ✅ · 3.2 aba Vendas e caixas ✅ · 3.3 Omni Conector ✅ · 3.4 **"Vendas hoje" e "Vendido sem cadastro"** · piloto num mercado real no fim | **▶ ETAPA ATUAL** (desenho aprovado em 10/10/2026) |
 | **4. Fechar a conta** | Registrar perda · conferir o depósito todo dia (E4) · reposição acusando diferença · quadro Diferenças | depois da Fase 3 |
 | **5. Antifurto** | Relatórios do que sumiu (produto, lugar, horário, valor), alertas, painel de todos os comércios | depois da Fase 4 |
 | **6. Lançamento** | E-mail próprio ("Esqueci minha senha"), Termos e Privacidade, proteção de senhas, Google verificado, teste em computador, tablet, Android e iPhone | antes de abrir ao público |
