@@ -3,7 +3,8 @@ import { formatarCentavos as brl2, normLocal } from "@/lib/formatacao";
 import type { Product, Supplier, Variation } from "@/lib/produto";
 import { useHoje } from "@/hooks/useHoje";
 import type { EntityId } from "@/lib/identidade";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { codigoConsultavel, nomeSugerido, tipoUsaCatalogo, type ItemCatalogo } from "@/lib/catalogo";
 import { lotesAConfirmar } from "@/lib/persistencia";
 import { ArrowLeft, Check, CheckCircle2, Keyboard, Package, Pencil, Plus, ScanLine, Tag, Truck, X } from "lucide-react";
 import { Field, btnGhost, btnPrimary, digits, maskPhone, nextOnEnter, useKeyboard, type StoreData } from "@/components/StoreSetup";
@@ -118,7 +119,7 @@ function linhasIniciais(v: Validade | undefined, farm: boolean): Record<string, 
 
 type VarDep = { qtd?: string | undefined; min: string; max: string };
 
-export function ProductWizard({ store, products, initial, suppliers, onAddSupplier, onCancel, onSave, saving = false, erro = "", locaisCadastrados, onGerarCodigo }: {
+export function ProductWizard({ store, products, initial, suppliers, onAddSupplier, onCancel, onSave, saving = false, erro = "", locaisCadastrados, onGerarCodigo, onBuscarCatalogo }: {
   store: StoreData; products: Product[]; initial?: Product | undefined; suppliers: Supplier[];
   onAddSupplier: (s: Omit<Supplier, "id">) => EntityId | Promise<EntityId>; onCancel: () => void; onSave: (p: Product) => void;
   saving?: boolean; erro?: string;
@@ -126,6 +127,8 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   locaisCadastrados?: { deposito: string[]; venda: string[] } | undefined;
   /** Cria um código interno no banco para produto sem código de barras (ex.: 2900000000018). */
   onGerarCodigo?: (() => Promise<string>) | undefined;
+  /** Procura o código no catálogo (Open Food Facts) para sugerir o nome do produto novo. */
+  onBuscarCatalogo?: ((codigo: string) => Promise<ItemCatalogo | null>) | undefined;
 }) {
   const kb = useKeyboard();
   const tipo = store.tipo;
@@ -150,6 +153,27 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     setTimeout(() => document.getElementById("pnome")?.focus(), 80);
   });
   const [nome, setNome] = useState(initial?.nome ?? "");
+  /* Código novo de fábrica: procura no catálogo e sugere o nome (o comerciante confere; nunca preenche sozinho). */
+  const [sugestao, setSugestao] = useState<ItemCatalogo | null>(null);
+  const [buscando, setBuscando] = useState(false);
+  const descartados = useRef(new Set<string>());
+  useEffect(() => {
+    setSugestao(null); setBuscando(false);
+    const c = codigo.trim();
+    if (initial || !onBuscarCatalogo || !tipoUsaCatalogo(store.tipo) || !codigoConsultavel(c) || descartados.current.has(c)) return;
+    if (products.some((p) => p.codigo === c)) return;
+    let vivo = true;
+    const t = setTimeout(() => {
+      setBuscando(true);
+      onBuscarCatalogo(c)
+        .then((i) => { if (vivo) setSugestao(i); })
+        .catch(() => { /* sem catálogo: segue digitando o nome */ })
+        .finally(() => { if (vivo) setBuscando(false); });
+    }, 350);
+    return () => { vivo = false; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [codigo]);
+  const mostrarSugestao = !!sugestao && nomeSugerido(sugestao) !== nome.trim();
   const [compra, setCompra] = useState(initial?.compra ?? 0);
   const [venda, setVenda] = useState(initial?.venda ?? 0);
   /** % digitado em "Ganho sobre a compra". Enquanto valer, mudar a compra recalcula a venda. */
@@ -661,6 +685,28 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                   )}
                   {gerador.erro && <p role="alert" className="text-sm text-destructive">{gerador.erro}</p>}
                   {denied && codeMode === "choose" && <p className="text-sm text-destructive">Sem acesso à câmera. Você pode digitar o código.</p>}
+                  {mostrarSugestao && sugestao && (
+                    <div role="status" aria-label="Produto encontrado no catálogo" className="flex gap-3 rounded-2xl border border-primary/50 bg-primary/10 p-3 animate-in fade-in duration-200">
+                      {sugestao.imagemUrl && (
+                        <img src={sugestao.imagemUrl} alt="" loading="lazy" referrerPolicy="no-referrer"
+                          onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-16 w-16 shrink-0 rounded-xl bg-white object-contain p-1" />
+                      )}
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <div>
+                          <p className="text-xs font-semibold text-primary">Encontramos este produto</p>
+                          <p className="break-words text-base font-bold leading-snug">{nomeSugerido(sugestao)}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" onClick={() => { setNome(nomeSugerido(sugestao)); setTimeout(() => document.getElementById("pnome")?.focus(), 50); }}
+                            className="flex min-h-11 items-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground"><Check size={16} /> Usar este nome</button>
+                          <button type="button" onClick={() => { descartados.current.add(codigo.trim()); setSugestao(null); }}
+                            className="min-h-11 rounded-xl border border-border px-3 text-sm font-semibold text-muted-foreground">Não é este</button>
+                        </div>
+                        <p className="text-[11px] leading-tight text-muted-foreground">Fonte: Open Food Facts. Confira antes de salvar.</p>
+                      </div>
+                    </div>
+                  )}
+                  {buscando && !sugestao && <p role="status" className="text-xs text-muted-foreground">Procurando este código no catálogo…</p>}
                   <Field label="Nome do produto" name="pnome" id="pnome" autoComplete="off" enterKeyHint="done" placeholder={`Ex.: ${exemplos(tipo).produto}`}
                     value={nome} onChange={(e) => setNome(e.target.value)} hint="Como aparece na etiqueta e no caixa." />
                 </>

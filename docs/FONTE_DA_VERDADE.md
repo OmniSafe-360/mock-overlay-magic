@@ -293,6 +293,7 @@ Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Pos
 | Equipe | `funcionarios` (PIN embaralhado, ilegível até para o dono), `funcionario_aparelhos` (só o resumo da chave do celular) | só funções |
 | Operação | `recebimentos`, `recebimento_itens`, `reposicoes` | só funções do app do funcionário (com a chave do celular e o PIN em dia) |
 | Vendas | `caixas`, `vendas`, `venda_itens`, `codigos_pdv` | só funções do computador do caixa (com a chave do caixa) e do dono |
+| Catálogo de produtos | `catalogo_produtos` (código de barras → nome, marca, tamanho, foto; fonte Open Food Facts, licença ODbL: dar o crédito e manter aberta) | ninguém lê direto; o dono logado consulta um código por vez (`buscar_catalogo`); a importação (`_catalogo_importar`, extensão `http` no esquema fechado `importador`) é só interna |
 | Fechar a conta | `perdas`, `conferencias`, `diferencas` | só funções do app do funcionário e do dono |
 
 - **Velocidade (10/10/2026):** toda ligação entre tabelas tem atalho de busca (índice) e as regras de RLS usam `(select auth.uid())`, calculado uma vez por consulta. Tabela ou regra nova segue o mesmo padrão. O aviso "índice não usado" do Supabase é esperado enquanto há poucos dados.
