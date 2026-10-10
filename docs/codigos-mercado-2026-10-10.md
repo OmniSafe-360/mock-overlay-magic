@@ -13,9 +13,9 @@ Autorizada pelo dono em 10/10/2026 após a análise dos códigos. Escopo desta e
 - O scanner da equipe recebe o contexto de Mercado em Receber, Repor, Conferir e Registrar perda. As contagens e os pedidos enviados são os mesmos de antes.
 - Os outros cinco tipos mantêm os formatos e a comparação anteriores.
 
-## Banco — migração preparada, ainda não aplicada em produção
+## Banco — migração aplicada em produção em 10/10/2026 (versão 20261010150302)
 
-Arquivo: `supabase/migrations/20261010123000_codigos_mercado_ean_upc.sql`.
+Arquivo: `supabase/migrations/20261010150302_codigos_mercado_ean_upc.sql`.
 
 A migração acrescenta uma chave de comparação em `codigos_barras`, preenchida somente para Mercado. O índice único protege cadastros simultâneos. A busca do funcionário e a identificação da venda usam essa chave e continuam respeitando a chave/PIN e o comércio. Vínculos explícitos dos códigos do caixa continuam tendo prioridade. Nenhuma tabela nova, mudança de saldo ou movimentação é criada pela migração.
 
