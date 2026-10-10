@@ -158,13 +158,16 @@ FORNECEDOR ──(receber, cego)──▶ DEPÓSITO ──(repor, cego)──▶
 
 ### 7.2 Contagem cega (receber, repor e conferir)
 - O funcionário **nunca vê a quantidade esperada**. Ele conta e informa.
-- **Até 3 contagens:** vale quando duas dão o mesmo número; senão vira **inconsistência** para o dono decidir.
+- **Até 3 contagens:** a repetição de um número confirma a contagem; sem confirmação, vira **inconsistência** para o dono decidir. No recebimento, também confirma quando bate com o pedido, conforme o critério atual do banco.
 - **Receber:**
+  - aceita quando a quantidade bate com o pedido ou repete uma tentativa anterior. Três números diferentes, sem nenhum bater, esperam a decisão do dono; sem pedido para comparar, aceita a quantidade informada. A equipe nunca vê a quantidade esperada;
+  - enviar contagens parciais não conclui a entrega. Produto conferido aguarda a conclusão do recebimento para entrar no depósito. Toda recontagem pendente precisa ser resolvida, mesmo que não esteja no último envio;
   - "Veio quebrado ou vencido" não entra no estoque;
   - produto fora do pedido fica separado, e o dono decide se fica ou se devolve.
 - **Repor:**
   - **primeiro** o funcionário conta a prateleira (cega), **depois** o app diz quanto buscar, até o máximo;
   - o produto que vence primeiro sai antes, mantendo o lote.
+  - registrar a contagem sem transferir produto não é reposição concluída. Sem estoque disponível, distinguir entrega em conferência, estoque aguardando liberação/validade, depósito sem estoque e depósito ainda não contado;
 - **Conferir o depósito (Fase 4.2):** até 5 produtos por dia, revezando; o funcionário conta fardos/caixas fechados e o que está sem embalagem, e o app soma. Cada nova contagem começa do zero.
 - **Enquanto as vendas não chegam do caixa,** a contagem da gôndola só acerta o número, sem acusar diferença. Com as vendas chegando (Fase 3), passa a acusar.
 
@@ -323,6 +326,8 @@ Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Pos
 - Primeiro acesso do funcionário (código, QR e PIN), que levou à correção do PIN ao abrir.
 
 ### 12.2 Pronto, falta o teste do dono
+
+10/10/2026: correção da **coerência do recebimento e da reposição**, autorizada após os prints do Kapo: envio parcial, conferência e conclusão aparecem separados; avisos atuais; sem falso sucesso quando não há transferência. A proteção de todas as recontagens pendentes e os motivos detalhados de indisponibilidade estão na migração `20261010183000_coerencia_recebimento.sql`, **preparada e testada, ainda não aplicada ao Supabase por falta de vínculo administrativo neste ambiente**. Critério de aceite existente preservado. Ver [registro e roteiro](coerencia-recebimento-2026-10-10.md).
 - Ver o estoque: ficha, lista, Depósito, Gôndolas e "Atenção hoje".
 - Fornecedores (aba), pedido de compra, link do fornecedor e contas a pagar.
 - Equipe (QR, bloquear, novo acesso) e app Omni Operação: instalar, PIN ao abrir, receber mercadoria, repor gôndola, conferir depósito e registrar perda (10/10/2026).

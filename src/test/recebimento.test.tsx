@@ -98,6 +98,58 @@ const contar = (valores: Record<string, string>) => {
 describe("Receber mercadoria (funcionário)", () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => localStorage.clear());
+  it("troca o aviso de recontagem pela contagem atual sem esconder o produto que falta", async () => {
+    render(<ReceberMercadoria chave={"c".repeat(64)} api={apiReceber()} onVoltar={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Distribuidora Sol/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Arroz 5 kg: falta contar/ }));
+    contar({ "Sem embalagem (unidades)": "110" });
+    fireEvent.click(screen.getByRole("button", { name: "Enviar contagens" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Arroz 5 kg: conte de novo/ }));
+    contar({ "Sem embalagem (unidades)": "50" });
+    expect(screen.queryByText(/Conte de novo 1 produto/)).toBeNull();
+    expect(screen.getByText(/Nova contagem pronta para enviar · 50 unidades/)).toBeTruthy();
+    expect(screen.getByText(/Ainda falta contar: Refrigerante Tiss/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Enviar contagens" })).toBeEnabled();
+    expect(screen.queryByText(/quantidade esperada|eram 20/)).toBeNull();
+  });
+  it.each(["inconsistente", "fora_do_pedido", "recusado", "aceito"] as const)("reabrir preserva a situação %s sem confundir decisão do dono com aceite", async (situacao) => {
+    const a = apiReceber({ abrir: vi.fn(async () => ({ ...aberto, itens: [{ produtoId: arroz.produtoId, variacaoId: null, situacao }] })) });
+    render(<ReceberMercadoria chave={"c".repeat(64)} api={a} onVoltar={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Distribuidora Sol/ }));
+    const estado = situacao === "aceito" ? "conferido" : situacao === "recusado" ? "recusado" : "aguardando decisão";
+    const b = await screen.findByRole("button", { name: new RegExp(`Arroz 5 kg: ${estado}`) });
+    expect(b.className.includes("border-accent")).toBe(situacao === "aceito");
+    fireEvent.click(b);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    if (situacao === "aceito") expect(screen.getByText(/esta quantidade ainda não entrou no depósito/)).toBeTruthy();
+  });
+  it.each(["aceito", "inconsistente", "fora_do_pedido"] as const)("usa o estado %s devolvido no envio parcial", async (situacao) => {
+    const a = apiReceber({ enviar: vi.fn(async (): Promise<RespostaRecebimento> => ({ situacao: "recontar", rodada: 1, recontar: [], faltam: [{ produtoId: tiss.produtoId, variacaoId: null }],
+      itens: [{ produtoId: arroz.produtoId, variacaoId: null, situacao }] })) });
+    render(<ReceberMercadoria chave={"c".repeat(64)} api={a} onVoltar={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Distribuidora Sol/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Arroz 5 kg: falta contar/ }));
+    contar({ "Sem embalagem (unidades)": "50" });
+    fireEvent.click(screen.getByRole("button", { name: "Enviar contagens" }));
+    const estado = situacao === "aceito" ? "conferido" : "aguardando decisão";
+    expect(await screen.findByRole("button", { name: new RegExp(`Arroz 5 kg: ${estado}`) })).toBeTruthy();
+    expect(a.abrir).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/já no estoque/)).toBeNull();
+  });
+  it.each([false, true])("consulta respostas antigas sem declarar aceite se a consulta falhar (%s)", async (falha) => {
+    const abrir = vi.fn().mockResolvedValueOnce(aberto);
+    if (falha) abrir.mockRejectedValue(new Error("sem internet"));
+    else abrir.mockResolvedValue({ ...aberto, rodada: 1, itens: [{ produtoId: arroz.produtoId, variacaoId: null, situacao: "inconsistente" }] });
+    const a = apiReceber({ abrir, enviar: vi.fn(async (): Promise<RespostaRecebimento> => ({ situacao: "recontar", rodada: 1, recontar: [], faltam: [{ produtoId: tiss.produtoId, variacaoId: null }] })) });
+    render(<ReceberMercadoria chave={"c".repeat(64)} api={a} onVoltar={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Distribuidora Sol/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Arroz 5 kg: falta contar/ }));
+    contar({ "Sem embalagem (unidades)": "50" });
+    fireEvent.click(screen.getByRole("button", { name: "Enviar contagens" }));
+    expect(await screen.findByRole("button", { name: new RegExp(`Arroz 5 kg: ${falha ? "contagem enviada" : "aguardando decisão"}`) })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Arroz 5 kg: conferido/ })).toBeNull();
+    expect(a.enviar).toHaveBeenCalledTimes(1);
+  });
   it("recupera o envio exato após fechar e não reaproveita a contagem na rodada seguinte", async () => {
     const api = apiReceber({
       abrir: vi.fn().mockResolvedValueOnce(aberto).mockResolvedValue({ ...aberto, rodada: 1, itens: [{ produtoId: "p-arroz", variacaoId: null, situacao: "recontar" }] }),
@@ -107,7 +159,7 @@ describe("Receber mercadoria (funcionário)", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Distribuidora Sol/ }));
     fireEvent.click(await screen.findByRole("button", { name: /Arroz 5 kg: falta contar/ }));
     contar({ "Sem embalagem (unidades)": "18" });
-    fireEvent.click(screen.getByRole("button", { name: /Terminei/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Enviar contagens|Conferir e concluir entrega|Confirmar envio anterior/ }));
     await screen.findByRole("alert");
     fireEvent.click(linha(/Arroz 5 kg: contado/));
     contar({ "Sem embalagem (unidades)": "20" });
@@ -115,7 +167,7 @@ describe("Receber mercadoria (funcionário)", () => {
     render(<ReceberMercadoria chave={"c".repeat(64)} api={api} onVoltar={() => {}} />);
     fireEvent.click(await screen.findByRole("button", { name: /Distribuidora Sol/ }));
     await screen.findByText(/Contagem enviada sem confirmação/);
-    fireEvent.click(screen.getByRole("button", { name: /Terminei/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Enviar contagens|Conferir e concluir entrega|Confirmar envio anterior/ }));
     await screen.findByText(/Conte de novo 1 produto/);
     expect(vi.mocked(api.enviar).mock.calls[1]).toEqual(vi.mocked(api.enviar).mock.calls[0]);
     expect(vi.mocked(api.enviar).mock.calls[1]![3][0]).toMatchObject({ total: 18 });
@@ -129,18 +181,18 @@ describe("Receber mercadoria (funcionário)", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Distribuidora Sol/ }));
     expect(await screen.findByText("Pedido nº 14 · bipe cada produto e conte o que chegou.")).toBeTruthy();
     expect(api.abrir).toHaveBeenCalledWith("c".repeat(64), expect.any(String), "ped-1", null);
-    expect((screen.getByRole("button", { name: /Terminei/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: /Enviar contagens|Conferir e concluir entrega|Confirmar envio anterior/ }) as HTMLButtonElement).disabled).toBe(true);
 
     fireEvent.click(linha(/Arroz 5 kg: falta contar/));
     contar({ "Caixas com 10": "1", "Sem embalagem (unidades)": "8" });
-    expect(screen.getByText("1 caixa + 8 = 18 unidades")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /Terminei/ }));
+    expect(screen.getByText(/1 caixa \+ 8 = 18 unidades/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Enviar contagens|Conferir e concluir entrega|Confirmar envio anterior/ }));
     await waitFor(() => expect(api.enviar).toHaveBeenCalledTimes(1));
     expect(vi.mocked(api.enviar).mock.calls[0]!.slice(2)).toEqual([0, [{ produto_id: "p-arroz", variacao_id: null, total: 18, avaria: 0, partes: [] }]]);
     expect(await screen.findByText(/Conte de novo 1 produto/)).toBeTruthy();
     expect(screen.getByText(/Ainda falta contar: Refrigerante Tiss/)).toBeTruthy();
-    expect(screen.queryByText("1 caixa + 8 = 18 unidades")).toBeNull();
-    expect((screen.getByRole("button", { name: /Terminei/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByText(/1 caixa \+ 8 = 18 unidades/)).toBeNull();
+    expect((screen.getByRole("button", { name: /Enviar contagens|Conferir e concluir entrega|Confirmar envio anterior/ }) as HTMLButtonElement).disabled).toBe(true);
 
     fireEvent.click(linha(/Arroz 5 kg: conte de novo/));
     expect(screen.getByText(/Conte de novo, com calma/)).toBeTruthy();
@@ -148,7 +200,7 @@ describe("Receber mercadoria (funcionário)", () => {
     contar({ "Caixas com 10": "1", "Sem embalagem (unidades)": "8" });
     fireEvent.click(linha(/Refrigerante Tiss: falta contar/));
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: /Não veio/ }));
-    fireEvent.click(screen.getByRole("button", { name: /Terminei/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Enviar contagens|Conferir e concluir entrega|Confirmar envio anterior/ }));
     await waitFor(() => expect(api.enviar).toHaveBeenCalledTimes(2));
     expect(vi.mocked(api.enviar).mock.calls[1]![2]).toBe(1);
     expect(vi.mocked(api.enviar).mock.calls[1]![3]).toEqual([
@@ -156,7 +208,7 @@ describe("Receber mercadoria (funcionário)", () => {
       { produto_id: "p-tiss", variacao_id: null, total: 0, avaria: 0, partes: [] },
     ]);
     expect(await screen.findByText("Pronto!")).toBeTruthy();
-    expect(screen.getByText(/diferenças foram avisadas ao dono/)).toBeTruthy();
+    expect(screen.getByText(/Há diferenças para o dono conferir/)).toBeTruthy();
     expect(localStorage.getItem(chaveRascunho("ped-1", await escopoAcesso("c".repeat(64))))).toBeNull();
   });
   it("bipar produto fora do pedido avisa para separar; quebrados não passam do total", async () => {
@@ -195,7 +247,7 @@ describe("Receber mercadoria (funcionário)", () => {
     unmount();
     render(<ReceberMercadoria chave={"c".repeat(64)} api={api} onVoltar={() => {}} />);
     fireEvent.click(await screen.findByRole("button", { name: /Distribuidora Sol/ }));
-    expect(await screen.findByText("12 unidades")).toBeTruthy();
+    expect(await screen.findByText(/Contagem pronta para enviar · 12 unidades/)).toBeTruthy();
     expect(vi.mocked(api.abrir).mock.calls[1]![1]).toBe("rec-1");
   });
 });

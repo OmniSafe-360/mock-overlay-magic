@@ -15,7 +15,14 @@ export type Contagem = {
   temAvaria: boolean; avaria: string; partes: ParteValidade[];
 };
 /** Como o produto aparece na lista do funcionário. */
-export type EstadoItem = "falta" | "contado" | "recontar" | "conferido";
+export type EstadoItem = "falta" | "contado" | "recontar" | "conferido" | "aguardando_dono" | "recusado" | "enviado";
+export const estadoRecebido = (situacao: SituacaoItemRecebido): EstadoItem =>
+  situacao === "aceito" ? "conferido" : situacao === "recontar" ? "recontar" : situacao === "recusado" ? "recusado" : "aguardando_dono";
+export const textoEstado: Record<EstadoItem, string> = {
+  falta: "Falta contar", contado: "Contagem pronta para enviar", recontar: "Conte de novo", conferido: "Conferido",
+  aguardando_dono: "Aguardando decisão do dono — deixe separado", recusado: "Recusado — não entra no estoque",
+  enviado: "Contagem enviada — volte à lista e abra para consultar a conferência",
+};
 
 export const chaveProduto = (p: { produtoId: string; variacaoId: string | null }) => `${p.produtoId}:${p.variacaoId ?? "_"}`;
 export const nomeProdutoFunc = (p: Pick<ProdutoFunc, "nome" | "variacao">) => (p.variacao ? `${p.nome} — ${p.variacao}` : p.nome);

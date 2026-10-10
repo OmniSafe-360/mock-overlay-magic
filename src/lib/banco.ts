@@ -206,15 +206,17 @@ export async function buscarProdutoFuncionario(chave: string, texto: string): Pr
   if (error) throw error;
   return (data ?? []).map(produtoFunc);
 }
-export type RespostaRecebimento =
+type ItensConferidos = { itens?: RecebimentoAberto["itens"] };
+export type RespostaRecebimento = ItensConferidos & (
   | { situacao: "recontar"; rodada: number; recontar: { produtoId: string; variacaoId: string | null }[]; faltam: { produtoId: string; variacaoId: string | null }[] }
-  | { situacao: "concluido"; rodada: number; produtos: number; avisos: boolean };
+  | { situacao: "concluido"; rodada: number; produtos: number; avisos: boolean });
 export async function enviarRecebimento(chave: string, id: string, rodada: number, itens: ReturnType<typeof itemParaEnvio>[]): Promise<RespostaRecebimento> {
   const { data, error } = await rpc("funcionario_enviar_recebimento", { _chave: chave, _id: id, _rodada: rodada, _itens: itens });
   if (error) throw error;
   const par = (x: any) => ({ produtoId: x.produto_id, variacaoId: x.variacao_id ?? null });
-  if (data.situacao === "recontar") return { situacao: "recontar", rodada: Number(data.rodada), recontar: (data.recontar ?? []).map(par), faltam: (data.faltam ?? []).map(par) };
-  return { situacao: "concluido", rodada: Number(data.rodada ?? rodada + 1), produtos: Number(data.produtos ?? 0), avisos: !!data.avisos };
+  const conferidos = data.itens?.map((x: any) => ({ ...par(x), situacao: x.situacao }));
+  if (data.situacao === "recontar") return { situacao: "recontar", rodada: Number(data.rodada), recontar: (data.recontar ?? []).map(par), faltam: (data.faltam ?? []).map(par), itens: conferidos };
+  return { situacao: "concluido", rodada: Number(data.rodada ?? rodada + 1), produtos: Number(data.produtos ?? 0), avisos: !!data.avisos, itens: conferidos };
 }
 /** Grava o pedido pronto. Repetir com o mesmo id não duplica. Preço estimado vai em reais por unidade de venda. */
 export async function salvarPedido(a: { id: string; comercioId: string; fornecedorId: string; observacao: string; linhas: LinhaPedido[] }, sessao?: Sessao): Promise<{ id: string; numero: number; recuperado: boolean }> {
@@ -505,21 +507,22 @@ export async function registrarPerdaFuncionario(chave: string, p: NovaPerda) {
 }
 
 /* ---------- reposição (E3) ---------- */
-export type ItemReposicao = ProdutoFunc & { local: string | null; localDeposito: string | null; depositoVazio: boolean };
+export type MotivoSemReposicao = "recebimento_em_conferencia" | "estoque_nao_liberado" | "deposito_sem_estoque" | "deposito_nao_contado";
+export type ItemReposicao = ProdutoFunc & { local: string | null; localDeposito: string | null; depositoVazio: boolean; motivoSemReposicao?: MotivoSemReposicao | null };
 export async function listaReposicao(chave: string): Promise<{ tipo: string; produtos: ItemReposicao[] }> {
   const { data, error } = await rpc("funcionario_reposicao_lista", { _chave: chave });
   if (error) throw error;
   return {
     tipo: data?.tipo ?? "",
-    produtos: (data?.produtos ?? []).map((x: any) => ({ ...produtoFunc(x), local: x.local ?? null, localDeposito: x.local_deposito ?? null, depositoVazio: !!x.deposito_vazio })),
+    produtos: (data?.produtos ?? []).map((x: any) => ({ ...produtoFunc(x), local: x.local ?? null, localDeposito: x.local_deposito ?? null, depositoVazio: !!x.deposito_vazio, motivoSemReposicao: x.motivo_sem_reposicao ?? null })),
   };
 }
-export type RespostaContagemPrateleira = { sugerido: number; cheio: boolean; depositoVazio: boolean; localDeposito: string | null; situacao: "contado" | "concluido" };
+export type RespostaContagemPrateleira = { sugerido: number; cheio: boolean; depositoVazio: boolean; localDeposito: string | null; situacao: "contado" | "concluido"; motivoSemReposicao?: MotivoSemReposicao | null };
 /** O funcionário contou a prateleira; o servidor devolve só quanto buscar no depósito. */
 export async function contarPrateleira(chave: string, id: string, produtoId: string, variacaoId: string | null, contado: number): Promise<RespostaContagemPrateleira> {
   const { data, error } = await rpc("funcionario_reposicao_contar", { _chave: chave, _id: id, _produto: produtoId, _variacao: variacaoId, _contado: contado });
   if (error) throw error;
-  return { sugerido: Number(data.sugerido), cheio: !!data.cheio, depositoVazio: !!data.deposito_vazio, localDeposito: data.local_deposito ?? null, situacao: data.situacao };
+  return { sugerido: Number(data.sugerido), cheio: !!data.cheio, depositoVazio: !!data.deposito_vazio, localDeposito: data.local_deposito ?? null, situacao: data.situacao, motivoSemReposicao: data.motivo_sem_reposicao ?? null };
 }
 export async function concluirReposicao(chave: string, id: string, levado: number) {
   const { error } = await rpc("funcionario_reposicao_concluir", { _chave: chave, _id: id, _levado: levado });
