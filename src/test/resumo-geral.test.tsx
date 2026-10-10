@@ -6,7 +6,7 @@ import type { StoreData } from "@/components/StoreSetup";
 import type { Pedido } from "@/lib/pedido";
 import { fraseComercio, resumoComercio, somaResumos } from "@/lib/resumoGeral";
 
-const banco = vi.hoisted(() => ({ carregarFornecedores: vi.fn(), carregarProdutos: vi.fn(), carregarPedidos: vi.fn(), conferirEnvio: vi.fn(), carregarVendas: vi.fn(), carregarPendentesVenda: vi.fn(), carregarDiferencas: vi.fn(), carregarLimiteFaltas: vi.fn(), carregarCaixas: vi.fn() }));
+const banco = vi.hoisted(() => ({ carregarFornecedores: vi.fn(), carregarProdutos: vi.fn(), carregarPedidos: vi.fn(), conferirEnvio: vi.fn(), carregarVendas: vi.fn(), carregarPendentesVenda: vi.fn(), carregarDiferencas: vi.fn(), carregarLimiteFaltas: vi.fn(), carregarContagensAntifurto: vi.fn(), carregarCaixas: vi.fn() }));
 vi.mock("@/lib/banco", async (original) => ({ ...await original<object>(), ...banco }));
 vi.mock("@/components/Scanner", () => ({ Scanner: () => null }));
 
@@ -48,7 +48,7 @@ beforeEach(() => {
   localStorage.clear(); vi.clearAllMocks();
   banco.carregarFornecedores.mockResolvedValue([]);
   banco.carregarPedidos.mockResolvedValue([]);
-  banco.carregarVendas.mockResolvedValue([]); banco.carregarPendentesVenda.mockResolvedValue([]); banco.carregarDiferencas.mockResolvedValue({ diferencas: [], perdas: [] }); banco.carregarLimiteFaltas.mockResolvedValue(20000); banco.carregarCaixas.mockResolvedValue([]);
+  banco.carregarVendas.mockResolvedValue([]); banco.carregarPendentesVenda.mockResolvedValue([]); banco.carregarDiferencas.mockResolvedValue({ diferencas: [], perdas: [] }); banco.carregarLimiteFaltas.mockResolvedValue(20000); banco.carregarContagensAntifurto.mockResolvedValue([]); banco.carregarCaixas.mockResolvedValue([]);
   banco.carregarProdutos.mockImplementation(async (id: string) => ({
     produtos: id === "c1" ? [tudoCerto, repor, comprar, acabou] : [prod("f1", "Dipirona", 20, 10)],
     locais: { deposito: ["Estante A"], venda: ["Gôndola 1"] },
@@ -125,5 +125,22 @@ describe("tela inicial, Comércios e Alertas do dono", () => {
     // 3 faltas do mesmo produto em 30 dias, a última ontem: produto visado (de olho)
     expect(sec.getByRole("button", { name: /Produto visado/ }).textContent).toMatch(/^1/);
     expect(screen.getByRole("button", { name: /^Abrir Farmácia Vida|Farmácia Vida/ }).textContent).toMatch(/1 alerta de falta/);
+  });
+  it("Faltou este mês na tela inicial abre o antifurto de todos os comércios", async () => {
+    const d = (id: string, dias: number, valor: number) => ({ id, produtoId: "f1", variacaoId: null, area: "venda", origem: "reposicao", esperado: 10, contado: 8, diferenca: -2, valor,
+      funcionario: null, situacao: "explicada", motivo: "sumiu", observacao: null, tentativas: [], resolvida: false, motivoInformado: null, criadaEm: new Date(Date.now() - dias * 60_000).toISOString() });
+    banco.carregarDiferencas.mockImplementation(async (id: string) => (id === "c2" ? { diferencas: [d("a", 1, -30000), d("b", 2, -2000), d("c", 3, -1000)], perdas: [] } : { diferencas: [], perdas: [] }));
+    render(<OwnerApp userId="u1" owner="Monica" initial={[lojaA, lojaB]} />);
+    const quadro = await screen.findByRole("button", { name: /Faltou este mês: R\$\s?330,00/ });
+    expect(quadro.textContent).toMatch(/2 alertas/);
+    fireEvent.click(quadro);
+    const lista = within(await screen.findByRole("list", { name: "Comércios com faltas" }));
+    const farm = lista.getByRole("button", { name: /Farmácia Vida/ });
+    expect(farm.textContent).toMatch(/Passou do limite de R\$\s?200,00/);
+    expect(farm.textContent).toMatch(/1 produto visado/);
+    expect(farm.textContent).toMatch(/Mais sumiu: Dipirona · 3 vezes · R\$\s?330,00/);
+    expect(screen.getByText(/Sem faltas este mês/).parentElement!.textContent).toMatch(/Mercado Bom Preço/);
+    fireEvent.click(farm);
+    expect(await screen.findByRole("region", { name: "Alertas de antifurto" })).toBeTruthy();
   });
 });

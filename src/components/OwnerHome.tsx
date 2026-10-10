@@ -6,7 +6,7 @@ import type { Recebimento } from "@/lib/recebimento";
 import { ehIncerto, mensagemErro, type Sessao } from "@/lib/persistencia";
 import { ERRO_REGISTRO, registroEnvio, type TipoEnvio } from "@/lib/envios";
 import { newUid } from "@/lib/deposito";
-import { AlertTriangle, Bell, CalendarClock, ChevronRight, CircleCheck, Home, Plus, ShoppingBag, ShoppingBasket, ShoppingCart, Store, UserCircle, Users, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, Bell, CalendarClock, ChevronRight, CircleCheck, Home, Plus, ShieldAlert, ShoppingBag, ShoppingBasket, ShoppingCart, Store, UserCircle, Users, CheckCircle2 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import { StoreSetup, TIPOS, type StoreData } from "@/components/StoreSetup";
 import { StoreSpace, type InicioComercio } from "@/components/StoreSpace";
@@ -14,7 +14,8 @@ import { AtencaoHoje } from "@/components/AtencaoHoje";
 import { resumoPagamentos } from "@/lib/pagamento";
 import { hojeEm } from "@/lib/validade";
 import { agruparPendentes, brl as brlVenda, diaDaVenda } from "@/lib/vendas";
-import { alertasAntifurto, desdeAlertas, infoDosProdutos, nAlertas, nomeAreaDoTipo, type AlertasAntifurto } from "@/lib/antifurto";
+import { alertasAntifurto, desdeAlertas, infoDosProdutos, nAlertas, nomeAreaDoTipo, relatorioAntifurto, type AlertasAntifurto } from "@/lib/antifurto";
+import { AntifurtoGeral, totalAntifurto, type LinhaAntifurto } from "@/components/AntifurtoGeral";
 import type { Diferenca, Perda } from "@/lib/diferencas";
 import { deOlho, entregasParaDecidir, fraseComercio, paraResolver, produtosJaPedidos, resumoComercio, somaResumos, type ResumoComercio } from "@/lib/resumoGeral";
 import { PainelEquipe } from "@/components/PainelEquipe";
@@ -38,7 +39,7 @@ type Geral = { estado: "ok" | "carregando" | "erro"; produtos: Product[]; pedido
   vendas?: { hojeN: number; hojeTotal: number; semCadastro: number } | null | undefined;
   /** Perdas, diferenças (30 dias e as abertas) e o limite do mês, para a aba Diferenças e o antifurto (null = não deu para ler). */
   dif?: { diferencas: Diferenca[]; perdas: Perda[]; limite: number } | null | undefined };
-type VisaoGeral = { geral: Record<string, Geral>; resumos: Record<string, ResumoComercio>; alertas: Record<string, AlertasAntifurto>; decidir: Record<string, number>; total: ResumoComercio; carregando: boolean; erro: boolean };
+type VisaoGeral = { geral: Record<string, Geral>; resumos: Record<string, ResumoComercio>; alertas: Record<string, AlertasAntifurto>; decidir: Record<string, number>; antifurto: LinhaAntifurto[]; total: ResumoComercio; carregando: boolean; erro: boolean };
 
 function Backdrop() {
   return (
@@ -160,19 +161,28 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
     const resumos: Record<string, ResumoComercio> = {};
     const alertas: Record<string, AlertasAntifurto> = {};
     const decidir: Record<string, number> = {};
+    const antifurto: LinhaAntifurto[] = [];
     for (const s of stores) {
       const id = idDe(s); const g = id ? geral[id] : undefined;
-      if (!id || !g || !(g.estado === "ok" || g.produtos.length)) continue;
+      if (!id) continue;
+      if (!g || !(g.estado === "ok" || g.produtos.length)) { antifurto.push({ s, id, alertas: null, maisSumiu: null }); continue; }
       if (g.dif) {
-        alertas[id] = alertasAntifurto(g.dif.diferencas, hojeGeral, Date.now(), infoDosProdutos(g.produtos), nomeAreaDoTipo(s.tipo), g.dif.limite);
+        const info = infoDosProdutos(g.produtos);
+        alertas[id] = alertasAntifurto(g.dif.diferencas, hojeGeral, Date.now(), info, nomeAreaDoTipo(s.tipo), g.dif.limite);
+        const top = relatorioAntifurto(g.dif.diferencas, g.dif.perdas, [], "mes", hojeGeral, info, nomeAreaDoTipo(s.tipo)).produtos[0];
+        antifurto.push({ s, id, alertas: alertas[id], maisSumiu: top ? { titulo: top.titulo, vezes: top.vezes, valor: top.valor } : null });
         decidir[id] = g.dif.perdas.filter((p) => p.situacao === "aguardando").length + g.dif.diferencas.filter((d) => d.situacao === "aberta").length;
+      } else {
+        antifurto.push({ s, id, alertas: null, maisSumiu: null });
       }
       resumos[id] = resumoComercio(g.produtos, s.tipo, hojeGeral, g.pedidos, g.vendas ?? {}, decidir[id] ?? 0, nAlertas(alertas[id]));
     }
     const gs = Object.values(geral);
-    return { geral, resumos, alertas, decidir, total: somaResumos(Object.values(resumos)), carregando: gs.some((g) => g.estado === "carregando"), erro: gs.some((g) => g.estado === "erro") };
+    return { geral, resumos, alertas, decidir, antifurto, total: somaResumos(Object.values(resumos)), carregando: gs.some((g) => g.estado === "carregando"), erro: gs.some((g) => g.estado === "erro") };
   }, [stores, geral, hojeGeral]);
-  const abrirLoja = (s: StoreData, inicio?: InicioComercio) => { setInicioLoja(inicio); setSaved(false); setOpen(s); setTab("inicio"); };
+  const [verAntifurto, setVerAntifurto] = useState(false);
+  useEffect(() => { if (tab !== "inicio") setVerAntifurto(false); }, [tab]);
+  const abrirLoja = (s: StoreData, inicio?: InicioComercio) => { setInicioLoja(inicio); setSaved(false); setOpen(s); setTab("inicio"); setVerAntifurto(false); };
 
   const openSid = typeof open?.id === "string" && open.id.trim() ? open.id : null;
   useEffect(() => { if (openSid) void recarregar(openSid); }, [openSid, recarregar]);
@@ -415,8 +425,10 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
               diferencasDecidir={sid ? visao.decidir[sid] ?? 0 : 0} antifurto={sid ? visao.alertas[sid] : undefined}
               onDiferencasMudou={() => { if (sid) { void recarregar(sid); if (idsLojas) void carregarGeral(idsLojas.split(",")); } }}
               onBack={() => { setOpen(null); setSaved(false); setInicioLoja(undefined); }} onNew={() => openWizard()} onEdit={(p) => openWizard(p)} onDismissSaved={() => setSaved(false)} />
+          ) : tab === "inicio" && verAntifurto ? (
+            <AntifurtoGeral linhas={visao.antifurto} carregando={visao.carregando} onAbrir={(s) => abrirLoja(s, { relatorio: true })} onVoltar={() => setVerAntifurto(false)} />
           ) : tab === "inicio" ? (
-            <HomeContent stores={stores} visao={visao} onAdd={() => setAdding(true)} onOpen={(s) => abrirLoja(s)} onAlertas={() => setTab("alertas")}
+            <HomeContent stores={stores} visao={visao} onAdd={() => setAdding(true)} onOpen={(s) => abrirLoja(s)} onAlertas={() => setTab("alertas")} onAntifurto={() => setVerAntifurto(true)}
               onVendas={() => { const com = stores.filter((s) => idDe(s)); if (com.length === 1) abrirLoja(com[0]!, { aba: "Vendas" }); else setTab("comercios"); }}
               onTentar={() => { if (idsLojas) void carregarGeral(idsLojas.split(",")); }} />
           ) : tab === "comercios" ? (
@@ -483,10 +495,12 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
 
 const COR_FRASE = { urgente: "text-destructive", atencao: "text-warning", ok: "text-accent", vazio: "text-muted-foreground" } as const;
 
-function HomeContent({ stores, visao, onAdd, onOpen, onAlertas, onVendas, onTentar }: {
-  stores: StoreData[]; visao: VisaoGeral; onAdd: () => void; onOpen: (s: StoreData) => void; onAlertas: () => void; onVendas: () => void; onTentar: () => void;
+function HomeContent({ stores, visao, onAdd, onOpen, onAlertas, onVendas, onTentar, onAntifurto }: {
+  stores: StoreData[]; visao: VisaoGeral; onAdd: () => void; onOpen: (s: StoreData) => void; onAlertas: () => void; onVendas: () => void; onTentar: () => void; onAntifurto: () => void;
 }) {
   const t = visao.total;
+  const af = totalAntifurto(visao.antifurto);
+  const afPronto = visao.antifurto.some((l) => l.alertas);
   const pronto = Object.keys(visao.resumos).length > 0;
   const kpis = [
     { label: "Para resolver agora", n: paraResolver(t), Icon: AlertTriangle, cor: "urgente" as const },
@@ -519,6 +533,18 @@ function HomeContent({ stores, visao, onAdd, onOpen, onAlertas, onVendas, onTent
             <span className="shrink-0 text-right text-xs text-muted-foreground">
               {!pronto ? "" : t.vendasHojeN === 0 ? "Nenhuma venda ainda" : t.vendasHojeN === 1 ? "1 venda" : `${t.vendasHojeN} vendas`}
               <span className="block font-semibold text-primary">Ver vendas</span>
+            </span>
+          </button>
+          <button type="button" onClick={onAntifurto} aria-label={`Faltou este mês: ${brlVenda(af.faltou)}`}
+            className={`mb-3 flex w-full items-center gap-4 rounded-3xl border p-4 text-left transition hover:border-primary ${af.faltou > 0 || af.alertas > 0 ? "border-destructive/50 bg-destructive/10" : "border-border bg-secondary/70"}`}>
+            <ShieldAlert size={24} className={`shrink-0 ${af.faltou > 0 || af.alertas > 0 ? "text-destructive" : "text-muted-foreground"}`} />
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs text-muted-foreground sm:text-sm">Faltou este mês</span>
+              <span className="block text-2xl font-bold tracking-tight sm:text-3xl">{afPronto ? brlVenda(af.faltou) : "…"}</span>
+            </span>
+            <span className="shrink-0 text-right text-xs text-muted-foreground">
+              {!afPronto ? "" : af.alertas === 0 ? "Nenhum alerta" : af.alertas === 1 ? "1 alerta" : `${af.alertas} alertas`}
+              <span className="block font-semibold text-primary">Ver antifurto</span>
             </span>
           </button>
           {tudoCerto ? (
