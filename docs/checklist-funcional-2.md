@@ -23,7 +23,7 @@ Fora desta lista, a pedido do dono: Omni Conector (caixa no computador) e "Esque
 
 ## Etapa A — trava o uso, perde dinheiro ou estoque (fazer primeiro)
 
-- [ ] A1. **O dono fica preso no app da equipe.** Se o celular já abriu o Omni Operação alguma vez, abrir o app do dono manda sempre para `/funcionario`, mesmo logado. O desvio acontece antes de o app conferir a sessão (`src/routes/index.tsx:479`, `:530-532`).
+- [x] A1. (11/10/2026: o desvio para `/funcionario` só acontece depois de o app confirmar que não há sessão do dono; dono logado fica no app dele. Sem mudança no banco. Teste `src/test/dono-nao-desvia.test.tsx`) **O dono fica preso no app da equipe.** Se o celular já abriu o Omni Operação alguma vez, abrir o app do dono manda sempre para `/funcionario`, mesmo logado. O desvio acontece antes de o app conferir a sessão (`src/routes/index.tsx:479`, `:530-532`).
 - [ ] A2. **A resposta do fornecedor apaga a conta que o dono corrigiu.**
   - Quando o fornecedor "altera a resposta" pelo link, o banco recalcula o vencimento e troca o valor, até em conta já paga.
   - Na recusa, valor e vencimento somem mesmo com a conta paga; "desfazer pagamento" passa a dar erro.

@@ -484,6 +484,8 @@ function Index() {
   const [confirmEmail, setConfirmEmail] = useState("");
   const [okMsg, setOkMsg] = useState("");
   const [recovery, setRecovery] = useState(false);
+  // Só vira true depois de o app confirmar que não há sessão do dono (ou depois de sair).
+  const [semSessao, setSemSessao] = useState(false);
   const recoveryRef = useRef(false);
   const encerrarRef = useRef<() => void>(() => {});
   const fetchRef = useRef<(animate: boolean) => Promise<void>>(async () => {});
@@ -503,7 +505,7 @@ function Index() {
       for (const timer of timers) clearTimeout(timer);
       timers.clear();
       fetchRef.current = lerSessao;
-      setStores([]); setAccount({ id: "", nome: "", email: "", foto: null }); setPhase("auth");
+      setStores([]); setAccount({ id: "", nome: "", email: "", foto: null }); setPhase("auth"); setSemSessao(true);
     };
     encerrarRef.current = limpar;
     if (window.location.hash.includes("type=recovery")) { recoveryRef.current = true; setRecovery(true); }
@@ -569,8 +571,8 @@ function Index() {
   const logout = () => { encerrarRef.current(); void supabase.auth.signOut(); setView("entrar"); };
   // Celular do funcionário (app instalado abre aqui): vai direto para o Omni Operação. "/?dono" fica na entrada do dono.
   useEffect(() => {
-    if (phase === "auth" && !recovery && lerChave() && !/[?&]dono\b|access_token|error/.test(window.location.search + window.location.hash)) window.location.replace("/funcionario");
-  }, [phase, recovery]);
+    if (phase === "auth" && semSessao && !recovery && lerChave() && !/[?&]dono\b|access_token|error/.test(window.location.search + window.location.hash)) window.location.replace("/funcionario");
+  }, [phase, recovery, semSessao]);
   if (phase === "loading") return <Entering />;
   if (phase === "error")
     return (
