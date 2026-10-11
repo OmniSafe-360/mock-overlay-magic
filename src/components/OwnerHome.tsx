@@ -189,14 +189,26 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
     document.addEventListener("visibilitychange", atualizar);
     return () => { window.removeEventListener("online", atualizar); document.removeEventListener("visibilitychange", atualizar); };
   }, [telaGeral, idsLojas, carregarGeral, hojeGeral]);
-  // B11: com um comércio aberto, os avisos de Vendas e Diferenças também se atualizam ao voltar ao app ou à internet.
+  // B11: avisos de Vendas e Diferenças do comércio aberto, sem mexer na carga dos produtos.
+  const atualizarAvisos = useCallback(async (id: string) => {
+    const inicioHoje = new Date(`${hojeEm()}T00:00:00-03:00`).toISOString();
+    const [vendas, dif] = await Promise.all([
+      Promise.all([carregarVendas(id, inicioHoje), carregarPendentesVenda(id)]).then(([vs, pend]) => {
+        const hoje = vs.filter((v) => v.situacao === "finalizada" && diaDaVenda(v) === hojeEm());
+        return { hojeN: hoje.length, hojeTotal: hoje.reduce((t, v) => t + v.total, 0), semCadastro: agruparPendentes(pend).length };
+      }).catch(() => undefined),
+      Promise.all([carregarDiferencas(id, desdeAlertas(hojeEm(), Date.now())), carregarLimiteFaltas(id)]).then(([d, limite]) => ({ ...d, limite })).catch(() => undefined)]);
+    if (!ativo.current) return;
+    setGeral((m) => (m[id] ? { ...m, [id]: { ...m[id], ...(vendas ? { vendas } : {}), ...(dif ? { dif } : {}) } } : m));
+  }, []);
+  const sidAberto = open ? idDe(open) : undefined;
   useEffect(() => {
-    if (!open || !idsLojas) return;
-    const atualizar = () => { if (document.visibilityState === "visible") void carregarGeral(idsLojas.split(",")); };
+    if (!sidAberto) return;
+    const atualizar = () => { if (document.visibilityState === "visible") void atualizarAvisos(sidAberto); };
     window.addEventListener("online", atualizar);
     document.addEventListener("visibilitychange", atualizar);
     return () => { window.removeEventListener("online", atualizar); document.removeEventListener("visibilitychange", atualizar); };
-  }, [open, idsLojas, carregarGeral]);
+  }, [sidAberto, atualizarAvisos]);
   const visao: VisaoGeral = useMemo(() => {
     const resumos: Record<string, ResumoComercio> = {};
     const alertas: Record<string, AlertasAntifurto> = {};
@@ -456,7 +468,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
               pedidosProntos={carga === "ok" && cargaPedidos === "ok" && !pendentes.length && !registroErro && !conferindo}
               pedidosCarregados={!!sid && sid in pedidos}
               atualizando={carga === "carregando" || cargaPedidos === "carregando" || conferindo}
-              onAtualizar={() => { if (sid) { void recarregar(sid); if (idsLojas) void carregarGeral(idsLojas.split(",")); } }}
+              onAtualizar={() => { if (sid) { void recarregar(sid); void atualizarAvisos(sid); } }}
               onSalvarPedido={sid ? salvarPedidoNovo(sid) : async () => { throw new Error(NO_ID); }}
               onPedidoEnviado={sid ? pedidoEnviado(sid) : async () => {}} onCancelarPedido={sid ? pedidoCancelado(sid) : async () => {}}
               onNovoLinkPedido={sid ? pedidoNovoLink(sid) : async () => { throw new Error(NO_ID); }}
