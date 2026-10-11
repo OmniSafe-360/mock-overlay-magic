@@ -147,12 +147,15 @@ export async function carregarPedidos(comercioId: string): Promise<Pedido[]> {
 
 /* ---------- recebimento (E2) ---------- */
 const numOuNull = (v: unknown) => (v == null ? null : Number(v));
-/** Recebimentos concluídos do comércio: com pedido (para os pedidos) ou sem pedido (entregas avulsas). */
+/** Pedidos mostram também a conferência em andamento; entregas avulsas mostram só as concluídas. */
 export async function carregarRecebimentos(comercioId: string, comPedido: boolean): Promise<Recebimento[]> {
   const doComercio = (q: any) => q.eq("comercio_id", comercioId);
   const [recs, itens, funcs] = await Promise.all([
     todos("recebimentos", "id,pedido_id,fornecedor_id,funcionario_id,situacao,concluido_em,iniciado_em",
-      (q) => (comPedido ? doComercio(q).not("pedido_id", "is", null) : doComercio(q).is("pedido_id", null)).eq("situacao", "concluido").order("concluido_em", { ascending: false }).order("id")),
+      (q) => (comPedido
+        ? doComercio(q).not("pedido_id", "is", null).in("situacao", ["contando", "concluido"])
+        : doComercio(q).is("pedido_id", null).eq("situacao", "concluido"))
+        .order("concluido_em", { ascending: false, nullsFirst: true }).order("id")),
     todos("recebimento_itens", "id,recebimento_id,produto_id,variacao_id,no_pedido,esperado,situacao,quantidade_aceita,avaria,entrou_estoque,tentativas", (q) => doComercio(q).order("id")),
     todos("funcionarios", "id,nome", (q) => doComercio(q).order("id")),
   ]);

@@ -38,8 +38,8 @@ const valorEstimativa = (p: Pedido) => p.itens.some((i) => i.precoEstimado != nu
 function orientacaoPedido(p: Pedido): string {
   if (p.situacao === "cancelado") return "Pedido cancelado. Consulte os dados no histórico.";
   if (p.situacao === "recusado") return "O fornecedor não pode atender. Você pode cancelar e pedir a outro fornecedor.";
-  if (p.recebimento?.itens.some(precisaDecidir)) return "Confira o recebimento e decida sobre os produtos que ficaram separados.";
   if (p.recebimento?.situacao === "contando") return "A equipe está conferindo a mercadoria. Aguarde a conclusão da contagem.";
+  if (p.recebimento?.itens.some(precisaDecidir)) return "Confira o recebimento e decida sobre os produtos que ficaram separados.";
   switch (p.situacao) {
     case "rascunho": return "Pedido salvo. Envie ao fornecedor para ele confirmar.";
     case "enviado": return "Aguarde a resposta do fornecedor pelo link enviado.";
@@ -575,7 +575,7 @@ function DetalhePedido({ pedido, products, store, fornecedor, hoje, onEnviado, o
           )}
         </div>
       )}
-      {confirmar && <p className="text-sm text-muted-foreground">Avise o fornecedor que o pedido foi cancelado.{pedido.pagamento?.situacao === "a_pagar" ? " A conta a pagar deste pedido também sai." : ""}</p>}
+      {confirmar && !pedidoFechado(pedido) && !pedido.recebimento && <p className="text-sm text-muted-foreground">Avise o fornecedor que o pedido foi cancelado.{pedido.pagamento?.situacao === "a_pagar" ? " A conta a pagar deste pedido também sai." : ""}</p>}
 
       {!pedidoFechado(pedido) && !pedido.recebimento && (
         <section aria-label="Link do fornecedor" className="rounded-3xl border border-border p-4">
@@ -600,7 +600,7 @@ function DetalhePedido({ pedido, products, store, fornecedor, hoje, onEnviado, o
         </section>
       )}
       {erro && <p role="alert" className="text-sm font-semibold text-destructive">{erro}</p>}
-      {enviar && <EnviarSheet numero={pedido.numero} fornecedor={fornecedor} texto={texto} onCanal={(c) => onEnviado(pedido.id, c)} onClose={() => setEnviar(false)} />}
+      {enviar && !pedidoFechado(pedido) && !pedido.recebimento && <EnviarSheet numero={pedido.numero} fornecedor={fornecedor} texto={texto} onCanal={(c) => onEnviado(pedido.id, c)} onClose={() => setEnviar(false)} />}
     </div>
   );
 }
@@ -755,7 +755,7 @@ function RecebimentoPedido({ rec, products, onResolver }: {
   rec: Recebimento; products: Product[];
   onResolver?: ((itemId: string, acao: "aceitar" | "recusar", tentativa: number | null) => Promise<unknown>) | undefined;
 }) {
-  const decidir = rec.itens.filter(precisaDecidir).length;
+  const decidir = rec.situacao === "concluido" ? rec.itens.filter(precisaDecidir).length : 0;
   return (
     <section aria-label="Recebimento" className={`rounded-3xl border p-4 ${decidir ? "border-destructive/50 bg-destructive/5" : "border-border bg-secondary/40"}`}>
       <p className="flex items-center gap-2 text-base font-bold"><PackageCheck size={20} className="text-primary" /> {rec.situacao === "contando" ? "Conferência da mercadoria" : "Mercadoria recebida"}</p>
@@ -763,7 +763,7 @@ function RecebimentoPedido({ rec, products, onResolver }: {
       {rec.situacao === "contando" && <p className="mt-2 text-sm text-warning">A equipe ainda não concluiu a entrega. Os produtos aceitos nesta conferência aguardam a conclusão para entrar no estoque.</p>}
       {decidir > 0 && <p className="mt-2 text-sm font-semibold text-destructive">{decidir === 1 ? "1 produto precisa" : `${decidir} produtos precisam`} da sua decisão.</p>}
       <ul className="mt-2 divide-y divide-border">
-        {rec.itens.map((i) => <LinhaRecebida key={i.id} i={i} products={products} onResolver={onResolver} />)}
+        {rec.itens.map((i) => <LinhaRecebida key={i.id} i={i} products={products} onResolver={rec.situacao === "concluido" ? onResolver : undefined} />)}
       </ul>
     </section>
   );
