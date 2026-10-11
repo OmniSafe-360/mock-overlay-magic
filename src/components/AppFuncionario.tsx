@@ -14,6 +14,9 @@ import { Sheet } from "@/components/parts/Sheet";
 import { abertoComoApp, adiado, adiar, dentroDoAppDono, enderecoFuncionario, instalar, jaInstalado, linkChromeAndroid, ouvirInstalacao, podeInstalarDireto, prepararInstalacaoFuncionario, tipoAparelho } from "@/lib/instalar";
 import { TIPO_FROM_DB, btnGhost, btnPrimary } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";
+import { escopoAcesso } from "@/lib/operacaoLocal";
+import { enviarFila, filaCaixa, semInternet } from "@/lib/caixa";
+import { apagarAcessoLocal, conferirPinLocal, guardarInicio, guardarPinLocal, lerInicio } from "@/lib/acessoLocal";
 import {
   NOME_APP_FUNCIONARIO, apagarChave, codigoTexto, fazReceber, fazRepor, guardarChave, lerChave, mensagemEntrada, nomeAparelho, pinFacil,
 } from "@/lib/funcionario";
@@ -41,7 +44,7 @@ type Tela =
   | { t: "abrindo" }
   | { t: "codigo"; aviso?: string }
   | { t: "pin"; codigo: string; novo: boolean }
-  | { t: "travado"; dados: banco.InicioFuncionario }
+  | { t: "travado"; dados: banco.InicioFuncionario; semInternet?: boolean }
   | { t: "inicio"; dados: banco.InicioFuncionario }
   | { t: "receber" }
   | { t: "repor" }
@@ -64,21 +67,40 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO, modoCaixa = fa
   const telaRef = useRef(tela);
   telaRef.current = tela;
 
-  /** Abre a tela inicial; com `travar`, mostra antes a tela do PIN (ao abrir o app). */
+  /** Já digitou o PIN certo desde que o app abriu (o "Tentar de novo" não pula o PIN). */
+  const destravado = useRef(false);
+  /** Envia as vendas do caixa guardadas no celular, mesmo com o caixa fechado na tela. */
+  const enviarVendasGuardadas = useCallback(async (chave: string) => {
+    const registrar = api.caixa?.registrar ?? banco.caixaRegistrarVenda;
+    try { await enviarFila(filaCaixa(await escopoAcesso(chave)), (v) => registrar(chave, v.venda)); } catch { /* tenta de novo depois */ }
+  }, [api]);
+  /** Abre a tela inicial; com `travar`, mostra antes a tela do PIN (ao abrir o app).
+   * Sem internet, usa a última tela inicial guardada no celular: o PIN é conferido aqui e o app vai direto ao caixa. */
   const abrirInicio = useCallback(async (chave: string, avisoSeDesligado = true, travar = false) => {
     try {
       const d = await api.inicio(chave);
       if (d) {
         ultimo.current = d;
+        void escopoAcesso(chave).then((e) => guardarInicio(e, d)).catch(() => {});
         if (travar || d.pinNecessario) setTela({ t: "travado", dados: d });
-        else if (irAoCaixa.current && d.caixa) setTela({ t: "caixa" });
-        else setTela({ t: "inicio", dados: d });
+        else {
+          destravado.current = true;
+          if (irAoCaixa.current && d.caixa) setTela({ t: "caixa" });
+          else setTela({ t: "inicio", dados: d });
+          if (d.caixa) void enviarVendasGuardadas(chave);
+        }
         return;
       }
       apagarChave();
       setTela({ t: "codigo", ...(avisoSeDesligado ? { aviso: "Este celular saiu do app (o dono bloqueou ou gerou um acesso novo). Peça o código ao dono." } : {}) });
-    } catch { setTela({ t: "erro" }); }
-  }, [api]);
+    } catch (e) {
+      const guardado = semInternet(e) ? lerInicio(await escopoAcesso(chave).catch(() => "")) : null;
+      if (!guardado?.caixa) { setTela({ t: "erro" }); return; }
+      ultimo.current = guardado;
+      if (travar || !destravado.current) setTela({ t: "travado", dados: guardado, semInternet: true });
+      else setTela({ t: "caixa" });
+    }
+  }, [api, enviarVendasGuardadas]);
   const instalarApp = useInstalar();
 
   useEffect(() => { prepararInstalacaoFuncionario(modoCaixa ? "caixa" : "operacao"); }, [modoCaixa]);
@@ -103,7 +125,17 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO, modoCaixa = fa
     document.addEventListener("visibilitychange", mudou);
     return () => document.removeEventListener("visibilitychange", mudou);
   }, []);
-  const sair = async () => { const c = lerChave(); apagarChave(); ultimo.current = null; setTrava(null); if (c) await api.sair(c).catch(() => {}); setTela({ t: "codigo" }); };
+  // A internet voltou: as vendas do caixa guardadas no celular sobem, mesmo fora da tela do caixa.
+  useEffect(() => {
+    const voltou = () => { const c = lerChave(); if (c && destravado.current && ultimo.current?.caixa) void enviarVendasGuardadas(c); };
+    window.addEventListener("online", voltou);
+    return () => window.removeEventListener("online", voltou);
+  }, [enviarVendasGuardadas]);
+  const sair = async () => {
+    const c = lerChave(); apagarChave(); ultimo.current = null; destravado.current = false; setTrava(null);
+    if (c) { await escopoAcesso(c).then(apagarAcessoLocal).catch(() => {}); await api.sair(c).catch(() => {}); }
+    setTela({ t: "codigo" });
+  };
 
   return (
     <div className="min-h-dvh bg-app text-foreground">
@@ -113,7 +145,7 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO, modoCaixa = fa
           <div className="m-auto w-full space-y-3 text-center">
             <p className="text-lg font-bold">Sem conexão</p>
             <p className="text-sm text-muted-foreground">Confira a internet do celular e tente de novo.</p>
-            <button type="button" onClick={() => { const c = lerChave(); if (c) void abrirInicio(c); else setTela({ t: "codigo" }); }} className={btnPrimary(true)}>Tentar de novo</button>
+            <button type="button" onClick={() => { const c = lerChave(); if (c) void abrirInicio(c, true, !destravado.current); else setTela({ t: "codigo" }); }} className={btnPrimary(true)}>Tentar de novo</button>
           </div>
         )}
         {tela.t === "codigo" && (
@@ -121,15 +153,21 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO, modoCaixa = fa
         )}
         {tela.t === "pin" && (
           <TelaPin codigo={tela.codigo} novo={tela.novo} api={api} onVoltar={() => setTela({ t: "codigo" })}
-            onEntrou={(chave) => { guardarChave(chave); void abrirInicio(chave, false); }} />
+            onEntrou={(chave, pin) => { guardarChave(chave); void escopoAcesso(chave).then((e) => guardarPinLocal(e, pin)).catch(() => {}); void abrirInicio(chave, false); }} />
         )}
         {tela.t === "travado" && (
-          <TelaTravado dados={tela.dados} api={api} onSair={sair}
-            onDestravou={() => { const c = lerChave(); if (c) void abrirInicio(c); else setTela({ t: "codigo" }); }} />
+          <TelaTravado dados={tela.dados} api={api} onSair={sair} semInternet={tela.semInternet}
+            onDestravou={(local) => {
+              destravado.current = true;
+              const c = lerChave();
+              if (!c) setTela({ t: "codigo" });
+              else if (local) setTela({ t: "caixa" });
+              else void abrirInicio(c);
+            }} />
         )}
         {trava && (
           <TelaTravado dados={trava} api={api} onSair={sair}
-            onDestravou={() => { setTrava(null); const c = lerChave(); if (telaRef.current.t === "inicio" && c) void abrirInicio(c); }} />
+            onDestravou={(local) => { setTrava(null); const c = lerChave(); if (!local && telaRef.current.t === "inicio" && c) void abrirInicio(c); }} />
         )}
         <div hidden={!!trava} className={trava ? undefined : "contents"}>
         {tela.t === "receber" && (
@@ -222,7 +260,7 @@ function TelaCodigo({ api, codigoInicial, aviso, onCodigo }: {
 }
 
 function TelaPin({ codigo, novo, api, onVoltar, onEntrou }: {
-  codigo: string; novo: boolean; api: ApiFuncionario; onVoltar: () => void; onEntrou: (chave: string) => void;
+  codigo: string; novo: boolean; api: ApiFuncionario; onVoltar: () => void; onEntrou: (chave: string, pin: string) => void;
 }) {
   const [pin, setPin] = useState("");
   const [primeiro, setPrimeiro] = useState<string | null>(null);
@@ -238,7 +276,7 @@ function TelaPin({ codigo, novo, api, onVoltar, onEntrou }: {
     }
     if (novo && primeiro !== p) { setErro("Os PINs não são iguais. Crie de novo."); setPrimeiro(null); setPin(""); return; }
     setEnviando(true); setErro("");
-    try { onEntrou(await api.entrar(codigo, p, nomeAparelho())); }
+    try { onEntrou(await api.entrar(codigo, p, nomeAparelho()), p); }
     catch (e) { setErro(mensagemEntrada(e)); setPin(""); if (novo) setPrimeiro(null); setEnviando(false); }
   };
   const tecla = (d: string) => {
@@ -284,7 +322,9 @@ function TecladoPin({ pin, erro, ocupado, onTecla, onApagar }: { pin: string; er
 }
 
 /** App travado: o celular é conhecido, só falta o PIN. */
-function TelaTravado({ dados, api, onDestravou, onSair }: { dados: banco.InicioFuncionario; api: ApiFuncionario; onDestravou: () => void; onSair: () => Promise<void> }) {
+function TelaTravado({ dados, api, onDestravou, onSair, semInternet: offline = false }: {
+  dados: banco.InicioFuncionario; api: ApiFuncionario; onDestravou: (semInternet: boolean) => void; onSair: () => Promise<void>; semInternet?: boolean | undefined;
+}) {
   const [pin, setPin] = useState("");
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -298,9 +338,19 @@ function TelaTravado({ dados, api, onDestravou, onSair }: { dados: banco.InicioF
     const chave = lerChave();
     if (!chave) { void onSair(); return; }
     setEnviando(true);
-    void api.desbloquear(chave, p).then(onDestravou, (e: unknown) => {
+    void api.desbloquear(chave, p).then(async () => {
+      await escopoAcesso(chave).then((e) => guardarPinLocal(e, p)).catch(() => {});
+      onDestravou(false);
+    }, async (e: unknown) => {
       const m = String((e as { message?: string } | null)?.message ?? e ?? "");
       if (m.includes("acesso_encerrado")) { void onSair(); return; }
+      if (semInternet(e) && dados.caixa) {
+        // Sem internet: confere o PIN aqui e abre só o caixa.
+        const r = await conferirPinLocal(await escopoAcesso(chave).catch(() => ""), p).catch(() => ({ r: "indisponivel" as const }));
+        if (r.r === "ok") { onDestravou(true); return; }
+        setErro(r.r === "errado" ? `PIN errado. Você ainda tem ${r.restam} ${r.restam === 1 ? "tentativa" : "tentativas"}.` : "Sem internet. Para entrar, conecte o celular à internet.");
+        setPin(""); setEnviando(false); return;
+      }
       setErro(mensagemEntrada(e)); setPin(""); setEnviando(false);
     });
   };
@@ -314,6 +364,7 @@ function TelaTravado({ dados, api, onDestravou, onSair }: { dados: banco.InicioF
         <p className="text-2xl font-bold">Olá, {dados.nome.split(" ")[0]}!</p>
         <p className="flex items-center justify-center gap-2 text-xl font-bold"><Lock size={20} className="text-primary" /> Digite seu PIN</p>
         <p className="text-sm text-muted-foreground">A sua senha de 4 números.</p>
+        {offline && <p role="status" className="mx-auto mt-2 max-w-xs rounded-2xl border border-warning/50 bg-warning/10 p-2 text-sm font-semibold text-warning">Sem internet: depois do PIN, abre só o caixa. As vendas sobem quando a internet voltar.</p>}
       </div>
       <TecladoPin pin={pin} erro={erro} ocupado={enviando ? "Abrindo…" : ""} onTecla={tecla} onApagar={() => setPin((p) => p.slice(0, -1))} />
       <div className="space-y-1 text-center">
