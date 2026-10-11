@@ -78,7 +78,6 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
   const ativo = useRef(true);
   const [, atualizarEnvios] = useState(0);
   const [conferindo, setConferindo] = useState(false);
-  const [recuperacoes, setRecuperacoes] = useState<Record<string, number>>({});
   const conferindoRef = useRef(false);
   const semPedidoCache = useRef<Record<string, () => Promise<Recebimento[]>>>({});
   useEffect(() => { ativo.current = true; return () => { ativo.current = false; }; }, []);
@@ -278,7 +277,8 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
     try {
       const s = registroEnvio(userId, sid, tipo).sessao(newUid());
       await conferirEnvio(s, tipo);
-      setRecuperacoes((m) => ({ ...m, [sid]: (m[sid] ?? 0) + 1 }));
+      // B14: não remonta a tela do comércio (isso reabria o alerta de entrada); a recarga abaixo traz os dados novos.
+      setInicioLoja(undefined);
       setToast("Envio confirmado. Confira os dados atualizados no comércio.");
     } catch (e) {
       setToast(e instanceof Error && e.message === ERRO_REGISTRO ? ERRO_REGISTRO : ehIncerto(e)
@@ -462,7 +462,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
               )}
             </div>
           ) : tab === "inicio" && cur ? (
-            <StoreSpace key={`${sid ?? "sem-id"}:${sid ? recuperacoes[sid] ?? 0 : 0}`} store={cur} products={list} suppliers={suppliers} saved={saved} locais={sid ? locais[sid] : undefined}
+            <StoreSpace key={sid ?? "sem-id"} store={cur} products={list} suppliers={suppliers} saved={saved} locais={sid ? locais[sid] : undefined}
               onAddSupplier={addSupplier} onUpdateSupplier={updateSupplier}
               pedidos={sid ? pedidos[sid] ?? [] : []}
               pedidosProntos={carga === "ok" && cargaPedidos === "ok" && !pendentes.length && !registroErro && !conferindo}
