@@ -264,7 +264,7 @@ export type ItemPublico = {
   qtdEmbalagens: number; qtdUnidades: number; qtdConfirmada: number | null;
 };
 export type PedidoPublico = {
-  numero: number; situacao: SituacaoPedido; fornecedor: string; observacao: string; enviadoEm: string | null; podeResponder: boolean;
+  numero: number; situacao: SituacaoPedido; fornecedor: string; observacao: string; enviadoEm: string | null; podeResponder: boolean; emConferencia?: boolean;
   comercio: { nome: string; rua: string; numero: string; bairro: string; cidade: string; uf: string; complemento: string; telefone: string };
   resposta: RespostaPedido | null; itens: ItemPublico[];
 };
@@ -275,7 +275,7 @@ export async function carregarPedidoPublico(token: string): Promise<PedidoPublic
   const r = data.resposta;
   return {
     numero: Number(data.numero), situacao: data.situacao, fornecedor: data.fornecedor ?? "", observacao: data.observacao ?? "", enviadoEm: data.enviado_em ?? null,
-    podeResponder: !!data.pode_responder,
+    podeResponder: !!data.pode_responder, emConferencia: !!data.em_contagem,
     comercio: { nome: data.comercio?.nome ?? "", rua: data.comercio?.rua ?? "", numero: data.comercio?.numero ?? "", bairro: data.comercio?.bairro ?? "",
       cidade: data.comercio?.cidade ?? "", uf: data.comercio?.uf ?? "", complemento: data.comercio?.complemento ?? "", telefone: data.comercio?.telefone ?? "" },
     resposta: r ? { em: r.em, previsaoEntrega: r.previsao_entrega ?? null, valorTotal: centavosDe(r.valor_total), forma: r.forma_pagamento ?? null, prazoDias: r.prazo_dias ?? null, recado: r.recado ?? "" } : null,

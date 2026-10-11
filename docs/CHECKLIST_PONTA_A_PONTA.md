@@ -2,7 +2,7 @@
 
 Plano de execução pedido pelo dono em **11/10/2026**. As regras continuam em [FONTE_DA_VERDADE.md](FONTE_DA_VERDADE.md); este arquivo detalha suas etapas. O histórico permanece em [CLAUDE.md](../CLAUDE.md). Não há uma segunda fonte de regras.
 
-**Etapa atual: E1 — confiabilidade. Próxima correção: R02, concorrência entre pedido e recebimento em conferência.** R01 foi corrigido no código em 11/10/2026; falta publicar e o teste do dono. [Registro e roteiro de R01](reposicao-retomada-2026-10-11.md). Nenhum dado real foi alterado nesta entrega.
+**Etapa atual: E1 — confiabilidade. Próxima correção: R03, mostrar falha de consulta do fiado.** R01 e R02 corrigidos; publicação e teste do dono pendentes. R02 já aplicada no banco oficial, sem alterar dados de comércio/estoque. [Registro de R01](reposicao-retomada-2026-10-11.md) e [registro de R02](pedido-conferencia-banco-2026-10-11.md).
 
 ## Ponto de partida e limites da análise
 
@@ -36,7 +36,7 @@ Ao encerrar uma tarefa, registrar: ID, problema e cenário, PR/commit, testes ex
 
 | Etapa | Objetivo | Situação em 11/10/2026 |
 |---|---|---|
-| E1 | Fechar as pendências de confiabilidade identificadas nesta revisão | Em andamento; R01 corrigido, falta publicação/teste; R02 próximo |
+| E1 | Fechar as pendências de confiabilidade identificadas nesta revisão | Em andamento; R01/R02 corrigidos, falta publicação/teste; R03 próximo |
 | E2 | Validar a jornada do dono, dos cadastros às compras e pagamentos | Implementada em grande parte; validação completa pendente |
 | E3 | Validar recebimento, estoque, reposição, perdas e diferenças juntos | Implementada; teste completo pendente |
 | E4 | Validar vendas, caixa, fiado e integração usada no piloto | Implementada; teste real pendente |
@@ -57,9 +57,9 @@ E2–E4 verificam o que já existe; não reconstroem os módulos. E5 inclui pend
 
 ### R02 — proteger pedido em conferência também no banco
 
-- [ ] **Reproduzir o cenário concorrente e corrigir se necessário.** O item 11 esconde cancelar/reenviar/link quando a consulta mostra conferência. A versão de `cancelar_pedido` em `20261011062555_cancelar_pedido_limpa_conta.sql` recusa situações fechadas, mas não consulta recebimento em contagem. Não está comprovado que os demais caminhos impeçam a corrida em produção.
+- [ ] **Pronto, falta publicação e o teste do dono.** Reproduzido cancelamento aceito após abrir conferência. Cancelar, reenviar, renovar link e responder agora recusam contagem aberta depois do bloqueio do pedido na transação; o link explica a conferência e o reenvio só anuncia sucesso confirmado. [Registro e roteiro](pedido-conferencia-banco-2026-10-11.md).
 - Critério: dono com tela antiga não cancela ou altera indevidamente um pedido após a equipe começar a contar. Testar cancelar, reenviar, renovar link e responder pelo link antigo junto com abrir/concluir recebimento. Recusas devem ser claras; nenhum estado parcial, conta indevida ou estoque alterado por uma ação recusada.
-- Estado: **a verificar no fluxo completo**; antes de SQL, comparar as definições atuais do banco com os arquivos. Não retirar permissões de todas as funções nem alterar o fluxo público do fornecedor.
+- Estado: **corrigido no código e aplicado no banco oficial em 11/10/2026**, migração `20261011144500`. Oito funções comparadas antes; cinco alteradas conferidas depois, RLS/políticas/permissões preservadas. Simulação oficial com rollback; testes funcionais e 13 disputas reais em banco local descartável; 851 testes/tipos duas vezes, build e Chromium 320/1280 px aprovados. Consulta automática de avisos pendente: API recusou por falta de `advisors_read`. Precisa **Publicar → Atualizar** no Lovable; `[ ]` aberto até o teste do dono.
 
 ### R03 — mostrar falha de consulta do fiado
 
@@ -169,7 +169,7 @@ Gerente com permissões novas, integração direta por API com marcas de PDV, ba
 | ID | Código/testes | Banco/publicação | Teste do dono | Próximo passo |
 |---|---|---|---|---|
 | E1 / R01 | Corrigido em 11/10/2026, [PR #100](https://github.com/OmniSafe-360/mock-overlay-magic/pull/100); 846 testes duas vezes, build e testes locais aprovados; [registro](reposicao-retomada-2026-10-11.md) | Banco sem mudança; publicação pendente | Pendente | Publicar → Atualizar e executar roteiro de fechamento/retomada |
-| R02 | Cenário a verificar | Comparação atual pendente antes de mudar SQL | Pendente | Testar corrida entre pedido e conferência |
+| E1 / R02 | Corrigido em 11/10/2026, [PR #101](https://github.com/OmniSafe-360/mock-overlay-magic/pull/101); 851 testes duas vezes, build, SQL e 13 disputas aprovados; [registro](pedido-conferencia-banco-2026-10-11.md) | Migração `20261011144500` aplicada/conferida; app e consulta de avisos pendentes | Pendente | Publicar → Atualizar e executar roteiro de abas antigas |
 | R03 | Pendente | Sem mudança preparada | Pendente | Explicar falha de consulta do fiado |
 | R04 | Pendente | Sem mudança preparada | Pendente | Tratar falha de rascunho local |
 | R05 | Teste real pendente | Sem mudança preparada | Pendente | Testar reabertura offline com E6 |
