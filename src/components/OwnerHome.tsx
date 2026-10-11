@@ -23,7 +23,7 @@ import type { Diferenca, Perda } from "@/lib/diferencas";
 import { deOlho, entregasParaDecidir, fraseComercio, paraResolver, produtosJaPedidos, resumoComercio, somaResumos, type ResumoComercio } from "@/lib/resumoGeral";
 import { PainelEquipe } from "@/components/PainelEquipe";
 import { PrimeirosPassos } from "@/components/PrimeirosPassos";
-import { ocultarPassos, passosOcultos, primeirosPassos, type Passo } from "@/lib/primeirosPassos";
+import { caixaLigado, ocultarPassos, passosOcultos, primeirosPassos, type Passo } from "@/lib/primeirosPassos";
 import { nomeAreaVenda, textoDoTipo } from "@/lib/exemplos";
 import { ProductWizard, type Product, type Supplier } from "@/components/ProductArea";
 
