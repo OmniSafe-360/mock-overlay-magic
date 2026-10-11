@@ -16,6 +16,7 @@ import { ERRO_REGISTRO } from "@/lib/envios";
 import {
   apagarRascunho, chaveProduto, chaveRascunho, erroContagem, guardarRascunho, itemParaEnvio, lerRascunho, nomeProdutoFunc, novaContagem, resumoContagem,
   totalDaContagem, estadoRecebido, textoEstado, type Contagem, type EstadoItem, type ProdutoFunc, type Rascunho,
+  ERRO_GUARDAR_RASCUNHO, ERRO_LER_RASCUNHO, ERRO_RASCUNHO_ILEGIVEL,
 } from "@/lib/recebimento";
 
 export type ApiReceber = {
@@ -47,6 +48,7 @@ const MSG_RECEBER: [string, string][] = [
 ];
 const erroTexto = (e: unknown) => {
   const m = String((e as { message?: string } | null)?.message ?? e ?? "");
+  if ([ERRO_GUARDAR_RASCUNHO, ERRO_LER_RASCUNHO, ERRO_RASCUNHO_ILEGIVEL, ERRO_REGISTRO].includes(m)) return m;
   return MSG_RECEBER.find(([k]) => m.includes(k))?.[1] ?? mensagemErro(e).replace("Seus dados continuam no formulário. ", "").replace("Não foi possível salvar agora. ", "Não foi possível enviar agora. ");
 };
 
@@ -263,7 +265,9 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
   kr: string; fornecedorId: string | null; mercado: boolean;
 }) {
   const inicial = useMemo(() => {
-    const r = lerRascunho(kr);
+    let r: Rascunho | null = null;
+    let erroLeitura = "";
+    try { r = lerRascunho(kr); } catch (e) { erroLeitura = erroTexto(e); }
     const mesmo = r && r.id === aberto.id && r.rodada === aberto.rodada ? r : null;
     const estados: Record<string, EstadoItem> = {};
     const contagens: Record<string, Contagem> = { ...(mesmo?.contagens ?? {}) };
@@ -275,7 +279,7 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
       if (i.situacao === "recontar" && contagens[k] && mesmo?.estados[k] !== "contado") delete contagens[k];
       if (i.situacao === "recontar" && mesmo?.estados[k] === "contado" && contagens[k]) estados[k] = "contado";
     }
-    return { estados, contagens, rodada: aberto.rodada };
+    return { estados, contagens, rodada: aberto.rodada, erroLeitura };
   }, [aberto, kr]);
   const [estados, setEstados] = useState(inicial.estados);
   const [contagens, setContagens] = useState(inicial.contagens);
@@ -293,16 +297,30 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
   const [aviso, setAviso] = useState("");
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [erroRascunho, setErroRascunho] = useState(inicial.erroLeitura);
   const [registro] = useState(() => {
     try { return operacaoLocal(kr, `receber:${aberto.id}`, validarEnvio); } catch { return null; }
   });
   const envioPendente = !!registro?.pendente();
   const noPedido = useMemo(() => new Set(aberto.produtos.map(chaveProduto)), [aberto.produtos]);
 
+  const tentarGuardar = () => {
+    try {
+      // Se a leitura inicial falhou, reabra a entrega antes de substituir dados que não foram vistos.
+      if (inicial.erroLeitura) throw new Error(inicial.erroLeitura);
+      const atual = lerRascunho(kr);
+      // Uma tela antiga não pode recriar o rascunho descartado nem substituir a entrega nova.
+      if (!aberto.pedidoId && atual?.id !== aberto.id) throw new Error("rascunho_atualizado");
+      guardarRascunho(kr, { id: aberto.id, pedidoId: aberto.pedidoId, fornecedorId, contagens, estados, rodada });
+      setErroRascunho("");
+    } catch (e) {
+      const mensagem = erroTexto(e);
+      setErroRascunho([ERRO_LER_RASCUNHO, ERRO_RASCUNHO_ILEGIVEL].includes(mensagem)
+        ? `${ERRO_GUARDAR_RASCUNHO} ${mensagem}` : mensagem);
+    }
+  };
   useEffect(() => {
-    // Uma tela antiga não pode recriar o rascunho que foi descartado ou substituir a entrega nova.
-    if (!aberto.pedidoId && lerRascunho(kr)?.id !== aberto.id) return;
-    guardarRascunho(kr, { id: aberto.id, pedidoId: aberto.pedidoId, fornecedorId, contagens, estados, rodada });
+    tentarGuardar();
   }, [kr, aberto.id, aberto.pedidoId, fornecedorId, contagens, estados, rodada]);
 
   const chaves = Object.keys(produtos);
@@ -310,7 +328,7 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
   const lista = [...chaves].sort((a, b) => ordem(a) - ordem(b));
   const contados = chaves.filter((k) => estados[k] === "contado");
   const pendentes = chaves.filter((k) => estados[k] === "recontar" || (estados[k] === "falta" && noPedido.has(k)));
-  const podeTerminar = !!registro && (envioPendente || (contados.length > 0 && !chaves.some((k) => estados[k] === "recontar"))) && !enviando;
+  const podeTerminar = !!registro && (envioPendente || (!inicial.erroLeitura && contados.length > 0 && !chaves.some((k) => estados[k] === "recontar"))) && !enviando;
   const paraRecontar = chaves.filter((k) => estados[k] === "recontar");
   const faltam = chaves.filter((k) => estados[k] === "falta" && noPedido.has(k));
   const orientacao = [
@@ -352,9 +370,9 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
 
   const terminar = async () => {
     if (!podeTerminar || !registro) return;
-    if (!aberto.pedidoId && lerRascunho(kr)?.id !== aberto.id) { setErro(erroTexto(new Error("rascunho_atualizado"))); return; }
     setEnviando(true); setErro("");
     try {
+      if (!aberto.pedidoId && lerRascunho(kr)?.id !== aberto.id) throw new Error("rascunho_atualizado");
       const confirmado = await registro.enviar(() => ({ rodada, itens: contados.map((k) => itemParaEnvio(contagens[k]!)), chaves: contados }),
         (p) => api.enviar(chave, aberto.id, p.rodada, p.itens));
       const r = confirmado.resultado;
@@ -386,6 +404,10 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
   return (
     <div className="space-y-4 pb-28">
       {!registro && <p role="alert" className="text-sm text-destructive">{ERRO_REGISTRO}</p>}
+      {erroRascunho && erroRascunho !== erro && <div role="alert" aria-label="Contagem não guardada" className="space-y-2 rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">
+        <p>{erroRascunho}</p>
+        {erroRascunho === ERRO_GUARDAR_RASCUNHO && <button type="button" onClick={tentarGuardar} className="min-h-11 font-semibold text-primary">Tentar guardar de novo</button>}
+      </div>}
       {envioPendente && <p role="status" className="rounded-2xl border border-warning/50 p-3 text-sm">Contagem enviada sem confirmação. Toque em Confirmar envio anterior para repetir os dados originais, sem duplicar.</p>}
       <button type="button" onClick={onSair} className="flex min-h-12 items-center gap-2 pr-3 text-base font-semibold text-primary"><ArrowLeft size={18} /> Entregas</button>
       <div>
@@ -443,6 +465,7 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
       {busca && <BuscarProduto chave={chave} api={api} onClose={() => setBusca(false)} onEscolher={(p) => { setBusca(false); escolher(p); }} />}
       {sel && aberta && contagens[aberta] && (
         <ContarProduto c={contagens[aberta]!} recontagem={estados[aberta] === "recontar"} noPedido={!aberto.pedidoId || noPedido.has(aberta)} temPedido={!!aberto.pedidoId}
+          erroRascunho={erroRascunho}
           onClose={() => setAberta(null)}
           onSalvar={(c) => { setContagens((m) => ({ ...m, [aberta]: c })); setEstados((m) => ({ ...m, [aberta]: "contado" })); setAviso(""); setAberta(null); }}
           onTirar={estados[aberta] === "recontar" || noPedido.has(aberta) ? undefined : () => {
@@ -496,8 +519,9 @@ function BuscarProduto({ chave, api, onClose, onEscolher }: { chave: string; api
 }
 
 export { Contador } from "@/components/parts/Contador";
-function ContarProduto({ c: inicial, recontagem, noPedido, temPedido, onClose, onSalvar, onTirar }: {
+function ContarProduto({ c: inicial, recontagem, noPedido, temPedido, erroRascunho, onClose, onSalvar, onTirar }: {
   c: Contagem; recontagem: boolean; noPedido: boolean; temPedido: boolean; onClose: () => void; onSalvar: (c: Contagem) => void; onTirar?: (() => void) | undefined;
+  erroRascunho: string;
 }) {
   const [c, setC] = useState(inicial);
   const p = c.p;
@@ -509,6 +533,7 @@ function ContarProduto({ c: inicial, recontagem, noPedido, temPedido, onClose, o
   return (
     <Sheet title={nomeProdutoFunc(p)} onClose={onClose}>
       <div className="min-h-0 space-y-4 overflow-y-auto px-5 py-3">
+        {erroRascunho && <p role="alert" className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">{erroRascunho}</p>}
         {p.codigo && <p className="-mt-2 text-xs text-muted-foreground">Cód. {p.codigo}</p>}
         {recontagem && <p className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">Conte de novo, com calma, tudo o que chegou deste produto.</p>}
         {temPedido && !noPedido && <p className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">Este produto <b>não está no pedido</b>. Conte e deixe separado: o dono vai decidir.</p>}
