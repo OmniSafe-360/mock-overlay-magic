@@ -11,7 +11,7 @@ Conferido e **sem problema**: os 59 comandos que o app manda ao banco existem co
 - [x] 3. (corrigido em 11/10/2026, migração `20261011062555_cancelar_pedido_limpa_conta.sql`: cancelar tira a conta; o pago continua; o app também ignora conta de pedido cancelado/recusado) **Pedido cancelado continua como "Conta a pagar"** (e vira "Conta atrasada" no Atenção hoje) (`cancelar_pedido`).
 - [x] 4. (corrigido em 11/10/2026, migração `20261011063431_contagem_inicial_absorve_recebido.sql`: a primeira contagem passa a ser o total — o que entrou antes sai com "ajuste" na mesma operação; sem dobro. Enquanto a área não é contada, o app continua mostrando "não contado", pela regra de nunca inventar número) **Mercadoria recebida some quando o depósito nunca foi contado**; contar depois soma de novo (fica em dobro) (`_entrar_no_deposito` não marca a contagem).
 - [x] 5. (corrigido em 11/10/2026: a trava de 5 minutos mostra o PIN por cima e mantém a tela de trabalho aberta embaixo; ao destravar volta no mesmo ponto — vale para repor, receber, conferir, perda e caixa. Se o app for fechado de vez no meio, a reposição ainda se perde) **Repor gôndola:** se o celular travar (5 min) depois de "Busque no depósito X", a reposição fica perdida; ao refazer, a gôndola sobe e o depósito não desce.
-- [ ] 6. **Caixa no celular sem internet:** não abre (vai para "Sem conexão") e as vendas guardadas só sobem com o caixa aberto.
+- [x] 6. (corrigido em 11/10/2026: sem internet, o app usa a última tela inicial guardada, confere o PIN no celular — 5 erros travam até a internet voltar — e vai direto ao caixa; as vendas guardadas sobem quando a internet volta ou ao abrir o início, mesmo fora do caixa. O caixa precisa já estar aberto para vender sem internet) **Caixa no celular sem internet:** não abre (vai para "Sem conexão") e as vendas guardadas só sobem com o caixa aberto.
 - [ ] 7. **Venda guardada recusada pelo banco** fica presa para sempre e fica fora do fechamento ("Sobraram R$ X" falso).
 
 ## Prioridade 2 — fluxo trava ou some
@@ -26,7 +26,7 @@ Conferido e **sem problema**: os 59 comandos que o app manda ao banco existem co
 - [ ] 16. **PIN do dono na Equipe:** se a leitura falhar, o quadro fica sem botão.
 
 ## Prioridade 3 — texto ou detalhe errado
-- [ ] 17. "Tentar de novo" (sem internet) no Omni Operação entra **sem pedir o PIN**.
+- [x] 17. (corrigido junto com o item 6) "Tentar de novo" (sem internet) no Omni Operação entra **sem pedir o PIN**.
 - [ ] 18. Atualização de 1 em 1 minuto falhando joga o funcionário para "Sem conexão".
 - [ ] 19. Tela inicial do funcionário conta "repor" de variação apagada (não bate com a lista).
 - [ ] 20. Roupa vendida sem tamanho/cor mostra texto de "quantidade quebrada / Kg".

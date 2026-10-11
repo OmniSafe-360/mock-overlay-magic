@@ -6,6 +6,8 @@ import {
   codigoTexto, linkAcesso, lerChave, mensagemEntrada, nomeAparelho, pinFacil, quandoTexto, situacaoFuncionario, validadeCodigoTexto, type Funcionario,
 } from "@/lib/funcionario";
 import type { InicioFuncionario } from "@/lib/banco";
+import { escopoAcesso } from "@/lib/operacaoLocal";
+import { guardarInicio, guardarPinLocal } from "@/lib/acessoLocal";
 
 const agora = new Date("2026-10-09T15:00:00-03:00");
 const func = (extra: Partial<Funcionario> = {}): Funcionario => ({
@@ -241,7 +243,38 @@ describe("app do funcionário (Omni Operação)", () => {
     digitar("2580");
     await waitFor(() => expect(api.desbloquear).toHaveBeenCalledWith(CHAVE, "2580"));
     expect(await screen.findByText("Tudo abastecido!")).toBeTruthy();
-    expect(api.repor.lista).toHaveBeenCalledTimes(1);
+    expect(api.repor!.lista).toHaveBeenCalledTimes(1);
+  });
+  describe("sem internet (caixa)", () => {
+    const semRede = () => { throw new Error("TypeError: Failed to fetch"); };
+    const caixaApi = () => ({ estado: vi.fn(async () => semRede()), produtos: vi.fn(async () => semRede()), clientes: vi.fn(async () => []), abrir: vi.fn(), registrar: vi.fn(), cancelar: vi.fn(), sangria: vi.fn(), fechar: vi.fn() }) as unknown as NonNullable<ApiFuncionario["caixa"]>;
+    async function preparar() {
+      localStorage.setItem("omni.funcionario.chave", CHAVE);
+      const esc = await escopoAcesso(CHAVE);
+      guardarInicio(esc, inicio({ caixa: true }));
+      await guardarPinLocal(esc, "2580");
+    }
+    it("abre com a cópia guardada, confere o PIN no celular e vai direto ao caixa", async () => {
+      await preparar();
+      const api = apiFunc({ inicio: vi.fn(async () => semRede()), desbloquear: vi.fn(async () => semRede()), caixa: caixaApi() });
+      render(<AppFuncionario api={api} />);
+      expect(await screen.findByText("Digite seu PIN")).toBeTruthy();
+      expect(screen.getByText(/Sem internet: depois do PIN, abre só o caixa/)).toBeTruthy();
+      digitar("1357");
+      expect(await screen.findByText("PIN errado. Você ainda tem 4 tentativas.")).toBeTruthy();
+      digitar("2580");
+      await waitFor(() => expect(api.caixa!.estado).toHaveBeenCalled());
+      expect(screen.queryByText("Sem conexão")).toBeNull();
+    });
+    it("sem cópia guardada (ou sem função Caixa) mostra Sem conexão; Tentar de novo pede o PIN", async () => {
+      localStorage.setItem("omni.funcionario.chave", CHAVE);
+      const api = apiFunc({ inicio: vi.fn(async () => semRede()) });
+      render(<AppFuncionario api={api} />);
+      expect(await screen.findByText("Sem conexão")).toBeTruthy();
+      vi.mocked(api.inicio).mockImplementation(async () => inicio());
+      fireEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
+      expect(await screen.findByText("Digite seu PIN")).toBeTruthy();
+    });
   });
   it("celular desligado pelo dono volta para o código com aviso", async () => {
     localStorage.setItem("omni.funcionario.chave", CHAVE);
