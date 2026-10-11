@@ -1,7 +1,7 @@
 import { digits, maskPhone } from "@/lib/formatacao";
 import { useKeyboard } from "@/hooks/useKeyboard";
 import { useEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
-import { ArrowLeft, Check, CheckCircle2, Hammer, PawPrint, Wrench, MapPin, Pencil, Pill, Shirt, ShoppingCart, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, CheckCircle2, Hammer, PawPrint, Wrench, MapPin, Pencil, Pill, Shirt, ShoppingCart, X, Loader2, LogOut } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import { exemplos } from "@/lib/exemplos";
 import { supabase } from "@/integrations/supabase/client";
@@ -105,7 +105,7 @@ export type StoreData = { id?: string | undefined; tipo: string; nome: string; c
 export const TIPO_TO_DB: Record<string, string> = { mercado: "mercado", farmacia: "farmacia", roupas: "loja_roupas", construcao: "material_construcao", pet: "pet_shop", autopecas: "autopecas" };
 export const TIPO_FROM_DB: Record<string, string> = Object.fromEntries(Object.entries(TIPO_TO_DB).map(([a, b]) => [b, a]));
 
-export function StoreSetup({ mode = "first", userId, onFinish, onCancel }: { mode?: "first" | "add"; userId?: string; onFinish?: (s: StoreData) => void; onCancel?: () => void } = {}) {
+export function StoreSetup({ mode = "first", userId, onFinish, onCancel, onExit }: { mode?: "first" | "add"; userId?: string; onFinish?: (s: StoreData) => void; onCancel?: () => void; onExit?: () => Promise<void> } = {}) {
   const kb = useKeyboard();
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState<1 | -1>(1);
@@ -202,6 +202,16 @@ export function StoreSetup({ mode = "first", userId, onFinish, onCancel }: { mod
 
   const go = (to: number) => { if (envio.current) return; setDir(to > step ? 1 : -1); setStep(to); };
   const [saving, setSaving] = useState(false);
+  const [saindo, setSaindo] = useState(false);
+  const [erroSaida, setErroSaida] = useState("");
+  const ocupado = saving || saindo;
+  const sair = async () => {
+    if (envio.current || !ativo.current || !onExit) return;
+    envio.current = true; setSaindo(true); setErroSaida("");
+    try { await onExit(); }
+    catch { if (ativo.current) setErroSaida("Não foi possível sair da conta. Verifique sua internet e tente novamente."); }
+    finally { envio.current = false; if (ativo.current) setSaindo(false); }
+  };
   const [saveErr, setSaveErr] = useState("");
   const [salvo, setSalvo] = useState<StoreData | null>(null);
   const save = async () => {
@@ -443,11 +453,11 @@ export function StoreSetup({ mode = "first", userId, onFinish, onCancel }: { mod
 
                 {step === 3 && (
                   <div className="divide-y divide-border rounded-2xl border border-border bg-background-deep/60">
-                    <Summary title="Tipo de comércio" disabled={saving} onEdit={() => edit(0)}>{tipoNome}</Summary>
-                    <Summary title="Dados" disabled={saving} onEdit={() => edit(1)}>
+                    <Summary title="Tipo de comércio" disabled={ocupado} onEdit={() => edit(0)}>{tipoNome}</Summary>
+                    <Summary title="Dados" disabled={ocupado} onEdit={() => edit(1)}>
                       {nome}<br />{docType} {doc} · {tel}{zap ? " (WhatsApp)" : ""}
                     </Summary>
-                    <Summary title="Endereço" disabled={saving} onEdit={() => edit(2)}>
+                    <Summary title="Endereço" disabled={ocupado} onEdit={() => edit(2)}>
                       {addr?.rua}, {semNumero ? "s/n" : numero}{compl ? ` - ${compl}` : ""}<br />
                       {addr?.bairro}, {addr?.cidade} - {addr?.uf} · {cep}
                     </Summary>
@@ -458,15 +468,24 @@ export function StoreSetup({ mode = "first", userId, onFinish, onCancel }: { mod
               {step === 3 && saveErr && <p role="alert" className="mt-3 shrink-0 break-words text-center text-sm text-destructive">{saveErr}</p>}
               <div className={`relative flex shrink-0 gap-2 ${kb ? "pt-2" : "pt-4 short:pt-3"}`}>
                 {step > 0 && (
-                  <button type="button" disabled={saving} onClick={() => { if (envio.current) return; setFromReview(false); go(step - 1); }} className={`${btnGhost} disabled:opacity-60`} aria-label="Voltar">
+                  <button type="button" disabled={ocupado} onClick={() => { if (envio.current) return; setFromReview(false); go(step - 1); }} className={`${btnGhost} disabled:opacity-60`} aria-label="Voltar">
                     <span className="flex items-center gap-1.5"><ArrowLeft size={18} />Voltar</span>
                   </button>
                 )}
-                <button type="submit" disabled={!valid || saving} aria-disabled={!valid || saving} className={`flex-1 ${btnPrimary(valid && !saving)}`}>
+                <button type="submit" disabled={!valid || ocupado} aria-disabled={!valid || ocupado} className={`flex-1 ${btnPrimary(valid && !ocupado)}`}>
                   {step === 3 ? (saving ? "Salvando..." : "Cadastrar meu comércio") : "Continuar"}
                 </button>
               </div>
             </form>
+          )}
+          {!done && mode === "first" && onExit && (
+            <>
+              {erroSaida && <p role="alert" className="mt-2 shrink-0 break-words text-center text-sm text-destructive">{erroSaida}</p>}
+              <button type="button" disabled={ocupado} onClick={() => void sair()}
+                className="mt-1 flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold text-muted-foreground underline hover:text-foreground disabled:opacity-60">
+                {saindo ? <><Loader2 size={16} className="animate-spin" />Saindo...</> : <><LogOut size={16} />Sair da conta</>}
+              </button>
+            </>
           )}
         </div>
       </main>

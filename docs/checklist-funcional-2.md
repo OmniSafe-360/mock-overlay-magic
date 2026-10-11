@@ -93,3 +93,8 @@ Fora desta lista, a pedido do dono: Omni Conector (caixa no computador) e "Esque
 - 11/10/2026: **B3 feito** — depois de "Confirmar novo link", o detalhe usa na hora o link devolvido pelo banco (copiar e enviar), mesmo se a recarga da lista falhar; falha da recarga não vira erro. Sem mudança no banco. Precisa Publicar → Atualizar; falta o teste do dono.
 
 - 11/10/2026: **B4 feito** — novo campo `CampoQtd` guarda o que é digitado (com vírgula) enquanto o campo está em uso; usado na página do fornecedor ("Outra qtd.") e na montagem do pedido. Embalagem continua só número inteiro. Sem mudança no banco. Teste `src/test/campo-qtd.test.tsx`. Precisa Publicar → Atualizar; falta o teste do dono.
+
+
+## Correção adicional pedida pelo dono — primeiro cadastro
+
+- [x] **C4 / E2.1 — primeiro cadastro sem saída para outra conta** (print `71820.png`, 11/10/2026). Botão **Sair da conta** nas quatro etapas, saída local confirmada, entrada do dono preservada com acesso da equipe guardado e Google pedindo escolha de conta. Enquanto salva não sai; enquanto sai não salva; falha que mantém a sessão conserva os campos e permite tentar novamente. Cancelar comércio adicional preservado. Sem SQL/dados reais alterados. **Pronto no código, falta Publicar → Atualizar e o teste do dono.** [Registro e roteiro](cadastro-saida-2026-10-11.md). C4 foi acrescentado depois dos 31 defeitos originais; não reabre C2 (saída da tela de erro).
