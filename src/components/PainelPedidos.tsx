@@ -307,7 +307,11 @@ function GrupoFornecedor({ fornecedor, grupo, products, store, onSalvar, onEnvia
       const r = await onSalvar({ fornecedor, linhas: grupo.linhas, observacao: grupo.obs });
       // O envio recuperado pode ter outro conteúdo. O texto atual não representa aquele pedido.
       if (r.recuperado) onConcluido();
-      else setSalvo(r);
+      else if (!r.token) {
+        // B2: sem o link, a mensagem iria incompleta e o pedido ficaria como enviado.
+        setErro(`O pedido nº ${r.numero} foi salvo, mas o link para o fornecedor não carregou. Abra o pedido na lista para enviar.`);
+        onConcluido();
+      } else setSalvo(r);
     }
     catch (e) { setErro(String((e as { message?: string })?.message ?? "Não foi possível salvar o pedido.")); }
     finally { setSalvando(false); }
@@ -351,7 +355,7 @@ function GrupoFornecedor({ fornecedor, grupo, products, store, onSalvar, onEnvia
           onClose={() => setAdicionar(false)} onEscolher={(l) => { onMudar((g) => ({ ...g, linhas: [...g.linhas, l] })); setAdicionar(false); }} />
       )}
       {salvo && (
-        <EnviarSheet numero={salvo.numero} fornecedor={fornecedor} texto={textoPedido({ numero: salvo.numero, comercio: store, fornecedor: fornecedor.nome, linhas: grupo.linhas, observacao: grupo.obs, link: salvo.token ? linkPedido(salvo.token) : undefined })}
+        <EnviarSheet numero={salvo.numero} fornecedor={fornecedor} texto={textoPedido({ numero: salvo.numero, comercio: store, fornecedor: fornecedor.nome, linhas: grupo.linhas, observacao: grupo.obs, link: linkPedido(salvo.token!) })}
           novo onCanal={(c) => onEnviado(salvo.id, c)} onClose={() => { setSalvo(null); onConcluido(); }} />
       )}
     </section>

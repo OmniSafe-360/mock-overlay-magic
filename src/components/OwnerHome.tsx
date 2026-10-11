@@ -308,8 +308,10 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
         : mensagemErro(e));
     } finally { atualizarEnvios((n) => n + 1); }
     if (r.recuperado) setToast("O pedido anterior foi confirmado. Confira-o na lista de pedidos.");
-    const ps = await recarregarPedidos(comercioId);
-    return { ...r, token: ps?.find((x) => x.id === r.id)?.token };
+    const ps = await recarregarPedidos(comercioId).catch(() => undefined);
+    let token = ps?.find((x) => x.id === r.id)?.token;
+    if (!token) token = await tokenDoPedido(r.id).catch(() => undefined);
+    return { ...r, token };
   };
   const resolverRecebimento = (comercioId: string) => async (itemId: string, acao: "aceitar" | "recusar", tentativa: number | null) => {
     await comMensagem(() => resolverItemRecebimento(itemId, acao, tentativa), "Não foi possível salvar a decisão.");
