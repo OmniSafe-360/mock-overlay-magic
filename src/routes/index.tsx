@@ -582,7 +582,7 @@ function Index() {
           className="relative h-12 rounded-2xl bg-primary px-6 font-semibold text-primary-foreground">Tentar de novo</button>
       </div>
     );
-  if (phase === "store") return <StoreSetup onFinish={(s) => { setStores([s]); setPhase("home"); }} />;
+  if (phase === "store") return <StoreSetup key={account.id} userId={account.id} onFinish={(s) => { setStores([s]); setPhase("home"); }} />;
   if (phase === "home") return <OwnerApp key={account.id} userId={account.id} owner={owner} fullName={account.nome} email={account.email} avatarUrl={account.foto}
     onPerfilSalvo={(perfil) => setAccount((atual) => atual.id === account.id ? { ...atual, nome: perfil.nome, foto: perfil.foto } : atual)} onLogout={logout} initial={stores} />;
   return (
