@@ -1,6 +1,6 @@
 # E1/R04 — falha ao guardar contagem de recebimento visível
 
-Correção autorizada em 11/10/2026 sobre o `main` `8ccc857f7dd7376698ed2617801efcc5acb4e981` (PR #102), branch `fix/r04-recebimento-rascunho`. **Pronto, falta Publicar → Atualizar no Lovable e o teste do dono no app publicado.** Próxima tarefa: **R05 — verificar a reabertura do Caixa sem internet em aparelhos reais**, junto de E6/item antigo 29. R05 ainda é um cenário a verificar, não uma falha já comprovada em produção.
+Entrega no [PR #103](https://github.com/OmniSafe-360/mock-overlay-magic/pull/103), correção `f7453a2`. Correção autorizada em 11/10/2026 sobre o `main` `8ccc857f7dd7376698ed2617801efcc5acb4e981` (PR #102), branch `fix/r04-recebimento-rascunho`. **Pronto, falta Publicar → Atualizar no Lovable e o teste do dono no app publicado.** Próxima tarefa: **R05 — verificar a reabertura do Caixa sem internet em aparelhos reais**, junto de E6/item antigo 29. R05 ainda é um cenário a verificar, não uma falha já comprovada em produção.
 
 ## Problema comprovado e resultado
 
