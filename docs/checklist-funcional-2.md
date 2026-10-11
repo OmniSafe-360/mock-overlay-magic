@@ -50,7 +50,7 @@ Fora desta lista, a pedido do dono: Omni Conector (caixa no computador) e "Esque
 
 ## Etapa B — números errados ou telas que confundem
 
-- [ ] B1. **"Valor informado pelo fornecedor" mostra o valor que o dono digitou.** A resposta e o pagamento usam a mesma coluna `valor_total` (`banco.ts:136-138`, `PainelPedidos.tsx:509`, `PaginaFornecedor.tsx:134`).
+- [x] B1. (11/10/2026, ver registro no fim) **"Valor informado pelo fornecedor" mostra o valor que o dono digitou.** A resposta e o pagamento usam a mesma coluna `valor_total` (`banco.ts:136-138`, `PainelPedidos.tsx:509`, `PaginaFornecedor.tsx:134`).
 - [ ] B2. **Pedido novo pode ser enviado sem o link do fornecedor.** Se a recarga logo depois de salvar falha, a mensagem sai sem link e o pedido é marcado como enviado (`OwnerHome.tsx:311-312`, `PainelPedidos.tsx:358`).
 - [ ] B3. **"Gerar novo link" pode deixar na tela o link antigo, que não vale mais** (`PainelPedidos.tsx:493`, `:593`).
 - [ ] B4. **Não dá para digitar quantidade quebrada (ex.: 2,5 kg).** A vírgula some ao digitar, tanto na página do fornecedor quanto na montagem do pedido (`PaginaFornecedor.tsx:313-314`, `PainelPedidos.tsx:384-385`).
@@ -85,3 +85,5 @@ Fora desta lista, a pedido do dono: Omni Conector (caixa no computador) e "Esque
   - Dipirona vencida na gôndola (registrar a perda pelo app);
   - 2 contagens abandonadas vazias. Apagar foi barrado pelo ambiente; fazer pelo painel do Supabase, ou deixar como está, porque são inofensivas.
 - [ ] D2. Teste no celular de verdade, pelo dono: caixa no celular e Omni Operação no Android e no iPhone. Roteiro em [roteiro-teste-celular-2026-10-11.md](roteiro-teste-celular-2026-10-11.md).
+
+- 11/10/2026: **B1 feito** — nova coluna `pedidos_compra.valor_fornecedor` guarda só o que o fornecedor informou (`responder_pedido` grava; recusa limpa; `pedido_publico` mostra esse valor). `valor_total` continua sendo o valor da conta a pagar. Pedidos já respondidos copiaram o valor atual. App lê `valor_fornecedor` na resposta. Precisa Publicar → Atualizar; falta o teste do dono.
