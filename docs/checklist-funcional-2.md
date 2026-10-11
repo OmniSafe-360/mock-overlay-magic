@@ -28,7 +28,7 @@ Fora desta lista, a pedido do dono: Omni Conector (caixa no computador) e "Esque
   - Quando o fornecedor "altera a resposta" pelo link, o banco recalcula o vencimento e troca o valor, até em conta já paga.
   - Na recusa, valor e vencimento somem mesmo com a conta paga; "desfazer pagamento" passa a dar erro.
   - Onde: `responder_pedido`.
-- [ ] A3. **A reposição devolve à gôndola o que foi vendido enquanto o funcionário buscava no depósito.**
+- [x] A3. (11/10/2026: `funcionario_reposicao_concluir` mudada a partir da versão do banco; o acerto da gôndola usa a diferença da hora da contagem (contado − esperado), então vendas feitas enquanto o funcionário buscava continuam descontadas e não há diferença falsa. Teste `src/test/reposicao-vendas-meio.test.ts`) **A reposição devolve à gôndola o que foi vendido enquanto o funcionário buscava no depósito.**
   - O acerto usa o saldo da hora de "Coloquei", e não o da hora da contagem. Exemplo: contou 5, vendeu 2 no caixa, a gôndola fica com 2 a mais.
   - Com o caixa ligado, também cria uma diferença falsa.
   - Onde: `funcionario_reposicao_concluir`.
