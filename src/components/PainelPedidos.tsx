@@ -743,11 +743,12 @@ const COR_RESULTADO: Record<TipoResultado, string> = {
   fora: "text-warning", recusado: "text-muted-foreground", contando: "text-muted-foreground",
 };
 const dataHoraCurta = (ts: string) => new Date(ts).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-const nomeDoItem = (i: Pick<ItemRecebido, "produtoId" | "variacaoId">, products: Product[]) => {
+const nomeDoItem = (i: Pick<ItemRecebido, "produtoId" | "variacaoId" | "tentativas">, products: Product[]) => {
   const p = products.find((x) => x.db?.id === i.produtoId);
   if (!p) return { nome: "Produto removido", unidade: "Unidade" };
   const v = i.variacaoId ? p.variacoes.find((x) => x.uid === i.variacaoId) : null;
-  return { nome: v ? `${p.nome} — ${v.tam} · ${v.cor}` : p.nome, unidade: p.unidade };
+  const variacao = v ? `${v.tam} · ${v.cor}` : i.tentativas[i.tentativas.length - 1]?.variacao;
+  return { nome: variacao ? `${p.nome} — ${variacao}` : p.nome, unidade: p.unidade };
 };
 
 function RecebimentoPedido({ rec, products, onResolver }: {
@@ -773,13 +774,23 @@ function LinhaRecebida({ i, products, onResolver }: {
 }) {
   const { nome, unidade } = nomeDoItem(i, products);
   const res = resultadoItem(i, unidade);
+  const variacaoRemovida = i.tentativas[i.tentativas.length - 1]?.variacaoRemovida === true;
   const [escolha, setEscolha] = useState<number | null>(null);
   const [trabalhando, setTrabalhando] = useState(false);
   const [erro, setErro] = useState("");
   const fazer = (acao: "aceitar" | "recusar", t: number | null) => {
     if (!onResolver) return;
     setTrabalhando(true); setErro("");
-    onResolver(i.id, acao, t).catch((e) => setErro(String(e?.message ?? "Não foi possível salvar."))).finally(() => setTrabalhando(false));
+    onResolver(i.id, acao, t).catch((e) => {
+      const mensagem = String(e?.message ?? "Não foi possível salvar.");
+      setErro(mensagem.includes("variacao_igual_ativa_recebimento")
+        ? "Já existe outro cadastro com este tamanho e esta cor. Confira o produto antes de aceitar. A mercadoria continua separada."
+        : mensagem.includes("codigo_em_uso")
+          ? "O código desta variação já está em outro cadastro. Confira os códigos antes de aceitar. A mercadoria continua separada."
+          : mensagem.includes("variacao_removida_recebimento")
+            ? "Esta variação foi removida. Atualize a entrega para conferir antes de aceitar."
+            : mensagem);
+    }).finally(() => setTrabalhando(false));
   };
   return (
     <li className="py-2.5">
@@ -789,7 +800,7 @@ function LinhaRecebida({ i, products, onResolver }: {
       {i.entrouEstoque > 0 && <p className="text-xs text-muted-foreground">Entrou no estoque: {qtdUn(i.entrouEstoque, unidade)}</p>}
       {i.situacao === "inconsistente" && onResolver && (
         <div className="mt-2 space-y-2">
-          <p className="text-xs text-muted-foreground">Qual contagem está certa? Ela entra no estoque.</p>
+          <p className="text-xs text-muted-foreground">{variacaoRemovida ? "Confira a quantidade. Ao aceitar peças boas, este tamanho e esta cor voltam ao cadastro antes de entrar no depósito. Se não quiser ficar com a mercadoria, devolva." : "Qual contagem está certa? Ela entra no estoque."}</p>
           <div className="flex flex-wrap gap-2">
             {i.tentativas.map((t, k) => (
               <button key={k} type="button" aria-pressed={escolha === k} onClick={() => setEscolha(k)}
@@ -798,9 +809,10 @@ function LinhaRecebida({ i, products, onResolver }: {
           </div>
           {escolha != null && (
             <button type="button" disabled={trabalhando} onClick={() => fazer("aceitar", escolha)} className={`flex items-center justify-center gap-2 ${btnPrimary(!trabalhando)}`}>
-              <Check size={18} /> Confirmar {qtdUn(i.tentativas[escolha]!.total, unidade)}
+              <Check size={18} /> Confirmar {qtdUn(i.tentativas[escolha]!.total, unidade)}{variacaoRemovida && i.tentativas[escolha]!.total > i.tentativas[escolha]!.avaria ? " e restaurar tamanho e cor" : ""}
             </button>
           )}
+          {variacaoRemovida && <button type="button" disabled={trabalhando} onClick={() => fazer("recusar", null)} className="flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl border border-destructive/50 px-4 text-base font-semibold text-destructive"><X size={18} /> Devolver</button>}
         </div>
       )}
       {i.situacao === "fora_do_pedido" && onResolver && (
