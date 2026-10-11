@@ -31,7 +31,7 @@ Conferido e **sem problema**: os 59 comandos que o app manda ao banco existem co
 - [x] 19. (corrigido em 11/10/2026: o número "Repor" da tela inicial usa o mesmo filtro da lista de reposição — tamanho/cor apagado não conta; migração `20261011125553`) Tela inicial do funcionário conta "repor" de variação apagada (não bate com a lista).
 - [x] 20. (corrigido em 11/10/2026: agora diz "Vendido sem tamanho/cor: diga qual saiu" e, em "Qual produto é?", pede o produto e o tamanho/cor que saiu) Roupa vendida sem tamanho/cor mostra texto de "quantidade quebrada / Kg".
 - [x] 21. (corrigido em 11/10/2026: sem internet, cada mensagem diz o que não aconteceu — "O caixa não foi aberto", "O dinheiro tirado não foi registrado", "O caixa não foi fechado", "A venda não foi cancelada", "O caixa não carregou", "A lista de clientes não carregou") Mensagens do caixa dizem "A venda não foi enviada" ao abrir, sangria e fechar.
-- [ ] 22. Total do pedido salvo difere alguns centavos do mostrado na montagem.
+- [x] 22. (corrigido em 11/10/2026: o preço por unidade passou a ser guardado com 8 casas — migração `20261011131114` — e o app não arredonda mais o centavo antes de salvar; caixa de R$ 10,00 com 12 fica R$ 10,00, não R$ 9,96) Total do pedido salvo difere alguns centavos do mostrado na montagem.
 - [ ] 23. Mudar o CEP do comércio para um que falha mantém o endereço antigo.
 - [ ] 24. Criar conta com e-mail que já existe diz "Confirme seu e-mail" em vez de "já cadastrado".
 - [ ] 25. Algumas recusas mostram "tente de novo" quando tentar de novo nunca vai dar certo.

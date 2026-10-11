@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { PainelPedidos } from "@/components/PainelPedidos";
 import type { Product, Supplier } from "@/lib/produto";
-import { linhasDoPedido, quantidadeTexto, totalPedido, valorItemPedido, type Pedido } from "@/lib/pedido";
+import { linhasDoPedido, precoDoBanco, precoParaBanco, precoUnidade, quantidadeTexto, totalLinha, totalPedido, valorItemPedido, type LinhaPedido, type Pedido } from "@/lib/pedido";
 
 const fornecedor: Supplier = { id: "f-1", dbId: "f-1", nome: "Monica Kazama", tel: "14999998888", email: "" };
 const comercio = { id: "c-1", tipo: "mercado", nome: "Supermercado União", cidade: "Jacarezinho", uf: "PR", rua: "Rua A", numero: "1", bairro: "Centro" };
@@ -172,6 +172,14 @@ describe("quantidades registradas no pedido", () => {
     expect(totalPedido(pedido)).toBe(5000);
     expect(valorItemPedido(pedido.itens[0]!)).toBe(5000);
     expect(valorItemPedido({ ...pedido.itens[0]!, precoEstimado: null })).toBeNull();
+  });
+  it("total salvo bate com o da montagem (caixa de R$ 10,00 com 12, não R$ 9,96)", () => {
+    for (const [preco, emb, qtd] of [[1000, 12, 1], [1000, 12, 7], [1990, 6, 3], [4590, 24, 250], [100, 3, 1]] as const) {
+      const linha = { p: { compra: 0 }, embalagem: { preco, qtd: emb }, qtd } as unknown as LinhaPedido;
+      const guardado = precoDoBanco(String(precoParaBanco(precoUnidade(linha))))!;
+      const item = { ...pedido.itens[0]!, qtdEmbalagens: qtd, qtdUnidades: qtd * emb, precoEstimado: guardado };
+      expect(totalPedido({ ...pedido, itens: [item] })).toBe(totalLinha(linha));
+    }
   });
 });
 
