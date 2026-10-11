@@ -211,16 +211,17 @@ export async function buscarProdutoFuncionario(chave: string, texto: string): Pr
   if (error) throw error;
   return (data ?? []).map(produtoFunc);
 }
+import { motivoDoBanco, type MotivoInfo } from "@/lib/recebimento";
 type ItensConferidos = { itens?: RecebimentoAberto["itens"] };
 export type RespostaRecebimento = ItensConferidos & (
-  | { situacao: "recontar"; rodada: number; recontar: { produtoId: string; variacaoId: string | null }[]; faltam: { produtoId: string; variacaoId: string | null }[] }
+  | { situacao: "recontar"; rodada: number; recontar: ({ produtoId: string; variacaoId: string | null } & MotivoInfo)[]; faltam: { produtoId: string; variacaoId: string | null }[] }
   | { situacao: "concluido"; rodada: number; produtos: number; avisos: boolean });
 export async function enviarRecebimento(chave: string, id: string, rodada: number, itens: ReturnType<typeof itemParaEnvio>[]): Promise<RespostaRecebimento> {
   const { data, error } = await rpc("funcionario_enviar_recebimento", { _chave: chave, _id: id, _rodada: rodada, _itens: itens });
   if (error) throw error;
   const par = (x: any) => ({ produtoId: x.produto_id, variacaoId: x.variacao_id ?? null });
   const conferidos = data.itens?.map((x: any) => ({ ...par(x), situacao: x.situacao }));
-  if (data.situacao === "recontar") return { situacao: "recontar", rodada: Number(data.rodada), recontar: (data.recontar ?? []).map(par), faltam: (data.faltam ?? []).map(par), itens: conferidos };
+  if (data.situacao === "recontar") return { situacao: "recontar", rodada: Number(data.rodada), recontar: (data.recontar ?? []).map((x: any) => ({ ...par(x), ...motivoDoBanco(x) })), faltam: (data.faltam ?? []).map(par), itens: conferidos };
   return { situacao: "concluido", rodada: Number(data.rodada ?? rodada + 1), produtos: Number(data.produtos ?? 0), avisos: !!data.avisos, itens: conferidos };
 }
 /** Grava o pedido pronto. Repetir com o mesmo id não duplica. Preço estimado vai em reais por unidade de venda. */
