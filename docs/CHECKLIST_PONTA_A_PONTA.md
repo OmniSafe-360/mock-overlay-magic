@@ -2,7 +2,7 @@
 
 Plano de execução pedido pelo dono em **11/10/2026**. As regras continuam em [FONTE_DA_VERDADE.md](FONTE_DA_VERDADE.md); este arquivo detalha suas etapas. O histórico permanece em [CLAUDE.md](../CLAUDE.md). Não há uma segunda fonte de regras.
 
-**Etapa atual: E1 — confiabilidade. Próxima correção: R04, avisar falha ao guardar rascunho de recebimento.** R01, R02 e R03 corrigidos; publicação e teste do dono pendentes. R02 já aplicada no banco oficial, sem alterar dados de comércio/estoque. [Registro de R01](reposicao-retomada-2026-10-11.md) e [registro de R02](pedido-conferencia-banco-2026-10-11.md). [Registro de R03](fiado-consulta-2026-10-11.md).
+**Etapa atual: E1 — confiabilidade. Próxima tarefa: R05, verificar a reabertura do Caixa sem internet em aparelhos reais.** R01, R02, R03 e R04 corrigidos; publicação e teste do dono pendentes. R02 já aplicada no banco oficial, sem alterar dados de comércio/estoque. [Registro de R01](reposicao-retomada-2026-10-11.md), [R02](pedido-conferencia-banco-2026-10-11.md), [R03](fiado-consulta-2026-10-11.md) e [R04](recebimento-rascunho-2026-10-11.md). R05 permanece a verificar; teste físico adiado impede encerrar a validação geral.
 
 ## Ponto de partida e limites da análise
 
@@ -36,7 +36,7 @@ Ao encerrar uma tarefa, registrar: ID, problema e cenário, PR/commit, testes ex
 
 | Etapa | Objetivo | Situação em 11/10/2026 |
 |---|---|---|
-| E1 | Fechar as pendências de confiabilidade identificadas nesta revisão | Em andamento; R01/R02/R03 corrigidos, falta publicação/teste; R04 próximo |
+| E1 | Fechar as pendências de confiabilidade identificadas nesta revisão | Em andamento; R01–R04 corrigidos, falta publicação/teste; R05 a verificar em aparelhos |
 | E2 | Validar a jornada do dono, dos cadastros às compras e pagamentos | Implementada em grande parte; validação completa pendente |
 | E3 | Validar recebimento, estoque, reposição, perdas e diferenças juntos | Implementada; teste completo pendente |
 | E4 | Validar vendas, caixa, fiado e integração usada no piloto | Implementada; teste real pendente |
@@ -69,9 +69,9 @@ E2–E4 verificam o que já existe; não reconstroem os módulos. E5 inclui pend
 
 ### R04 — não esconder falha ao guardar rascunho de recebimento
 
-- [ ] **Corrigir e validar.** `guardarRascunho` em `src/lib/recebimento.ts` ignora erro de armazenamento; a contagem ainda não enviada pode deixar de ser recuperável sem aviso. A fila de operações já enviadas tem outra proteção; não confundir os dois casos.
+- [ ] **Pronto, falta publicação e o teste do dono.** Falha de gravação do rascunho agora avisa que as últimas alterações podem se perder, também na ficha do produto, com Tentar guardar de novo. Rascunho ilegível/inacessível deixa de ser tratado como ausente; dados e fila anterior são preservados. A nova tentativa só guarda no aparelho, sem enviar. [Registro e roteiro](recebimento-rascunho-2026-10-11.md).
 - Critério: simular armazenamento indisponível/cheio, rascunho ilegível e fechamento do app. Informar quando não foi possível guardar; não anunciar recuperação garantida. Preservar separação por acesso, pedido e fornecedor, inclusive “Não sei”, e nunca descartar envio sem resposta.
-- Estado: **pendente de correção**; preservar as garantias dos itens 9–10.
+- Estado: **corrigido no código em 11/10/2026**, sem SQL. Três falhas reproduzidas antes; 20 testes novos e 61 focados aprovados. Tipos e **879 testes em 76 arquivos passaram duas vezes**; build e Chromium 320/1280 px aprovados com Supabase simulado: aviso, nova tentativa, recarga/PIN, reenvio original sem duplicação e dados ilegíveis preservados. Garantias dos itens 9–10 mantidas. Precisa **Publicar → Atualizar**; `[ ]` aberto até o teste do dono, inclusive fechamento real no aparelho.
 
 ### R05 — confirmar abertura do Caixa sem internet após fechar o app
 
@@ -171,7 +171,7 @@ Gerente com permissões novas, integração direta por API com marcas de PDV, ba
 | E1 / R01 | Corrigido em 11/10/2026, [PR #100](https://github.com/OmniSafe-360/mock-overlay-magic/pull/100); 846 testes duas vezes, build e testes locais aprovados; [registro](reposicao-retomada-2026-10-11.md) | Banco sem mudança; publicação pendente | Pendente | Publicar → Atualizar e executar roteiro de fechamento/retomada |
 | E1 / R02 | Corrigido em 11/10/2026, [PR #101](https://github.com/OmniSafe-360/mock-overlay-magic/pull/101); 851 testes duas vezes, build, SQL e 13 disputas aprovados; [registro](pedido-conferencia-banco-2026-10-11.md) | Migração `20261011144500` aplicada/conferida; app e consulta de avisos pendentes | Pendente | Publicar → Atualizar e executar roteiro de abas antigas |
 | E1 / R03 | Corrigido em 11/10/2026, [PR #102](https://github.com/OmniSafe-360/mock-overlay-magic/pull/102); 859 testes duas vezes, build e Chromium aprovados; [registro](fiado-consulta-2026-10-11.md) | Banco sem mudança; publicação pendente | Pendente | Publicar → Atualizar e validar consulta/recuperação do fiado |
-| R04 | Pendente | Sem mudança preparada | Pendente | Tratar falha de rascunho local |
+| E1 / R04 | Corrigido em 11/10/2026, [PR #103](https://github.com/OmniSafe-360/mock-overlay-magic/pull/103); 879 testes duas vezes, build e Chromium aprovados; [registro](recebimento-rascunho-2026-10-11.md) | Banco sem mudança; publicação pendente | Pendente | Publicar → Atualizar e validar aviso/gravação/retomada do recebimento |
 | R05 | Teste real pendente | Sem mudança preparada | Pendente | Testar reabertura offline com E6 |
 | E2–E4 | Módulos existentes; validação conjunta pendente | Publicação atual não confirmada nesta revisão | Pendente | Executar roteiros após correções |
 | E5 | Parte existe; configuração/validação pendente | Depende de painel/serviços quando aplicável | Pendente | Conferir situação e concluir lançamento |
