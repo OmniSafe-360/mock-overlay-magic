@@ -1,5 +1,5 @@
 /* Controle de pagamento dos pedidos (D2c): a pagar, vence hoje, atrasado, pago. Valores em centavos; datas AAAA-MM-DD. */
-import { totalPedido, type Pedido } from "@/lib/pedido";
+import { totalConfirmado, type Pedido } from "@/lib/pedido";
 
 export type EstadoPagamento = "pago" | "atrasado" | "hoje" | "em_breve" | "a_pagar";
 
@@ -13,7 +13,7 @@ export const somaDias = (iso: string, n: number) => new Date((dia(iso) + n) * 86
 /** Valor da conta: o informado (fornecedor ou dono); sem isso, o total estimado do pedido. */
 export function valorConta(p: Pedido): { valor: number; estimado: boolean } {
   const v = p.pagamento?.valor ?? p.resposta?.valorTotal ?? null;
-  return v != null ? { valor: v, estimado: false } : { valor: totalPedido(p), estimado: true };
+  return v != null ? { valor: v, estimado: false } : { valor: totalConfirmado(p), estimado: true };
 }
 
 /** null = pedido sem conta registrada. */
