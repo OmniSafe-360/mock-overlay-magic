@@ -414,6 +414,7 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
   return (
     <div className="space-y-4 pb-28">
       {!registro && <p role="alert" className="text-sm text-destructive">{ERRO_REGISTRO}</p>}
+      {inicial.avisoOutro && <p role="status" className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">{inicial.avisoOutro}</p>}
       {erroRascunho && erroRascunho !== erro && <div role="alert" aria-label="Contagem não guardada" className="space-y-2 rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">
         <p>{erroRascunho}</p>
         {erroRascunho === ERRO_GUARDAR_RASCUNHO && <button type="button" onClick={tentarGuardar} className="min-h-11 font-semibold text-primary">Tentar guardar de novo</button>}
