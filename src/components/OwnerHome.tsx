@@ -559,7 +559,6 @@ function HomeContent({ stores, visao, fornecedores, locais, onPasso, onAdd, onOp
         <PrimeirosPassos passos={passos.passos} comercio={passos.s.nome} mostrarNome={stores.length > 1}
           onPasso={(p) => onPasso(passos.s, p)} onOcultar={() => { ocultarPassos(passos.id); setOcultos(passosOcultos().concat(passos.id)); }} />
       )}
-      {unico && <ComercioUnico s={unico} visao={visao} onOpen={onOpen} onAdd={onAdd} />}
       {stores.length > 0 && (
         <section aria-label="Resumo geral">
           <div className="mb-3 flex items-center justify-between gap-2">
@@ -619,19 +618,63 @@ function HomeContent({ stores, visao, fornecedores, locais, onPasso, onAdd, onOp
         </section>
       )}
 
-      {!unico && (
+      {stores.length === 0 ? (
         <section>
-          <h2 className="mb-1 text-base font-semibold">Seus comércios <span className="text-muted-foreground">({stores.length})</span></h2>
-          {stores.length > 1 && <p className="mb-3 text-sm text-muted-foreground">Toque num comércio para entrar: produtos, depósito, pedidos, equipe e caixa.</p>}
+          <h2 className="mb-3 text-base font-semibold">Seus comércios</h2>
           <CartoesComercios stores={stores} visao={visao} onAdd={onAdd} onOpen={onOpen} />
         </section>
+      ) : unico ? (
+        <CartaoComercio s={unico} visao={visao} onOpen={onOpen} onAdd={onAdd} />
+      ) : (
+        <FaixaComercios stores={stores} visao={visao} onOpen={onOpen} onAdd={onAdd} />
       )}
     </div>
   );
 }
 
-/** Com um comércio só, ele fica no topo com um botão grande para entrar. */
-function ComercioUnico({ s, visao, onOpen, onAdd }: { s: StoreData; visao: VisaoGeral; onOpen: (s: StoreData) => void; onAdd: () => void }) {
+/** Vários comércios: uma faixa que corre para o lado com o dedo, um cartão de cada vez, e "Adicionar" no fim. */
+function FaixaComercios({ stores, visao, onOpen, onAdd }: { stores: StoreData[]; visao: VisaoGeral; onOpen: (s: StoreData) => void; onAdd: () => void }) {
+  const faixa = useRef<HTMLDivElement>(null);
+  const [atual, setAtual] = useState(0);
+  const total = stores.length + 1;
+  const aoCorrer = () => {
+    const el = faixa.current; if (!el || !el.clientWidth) return;
+    const filhos = [...el.children] as HTMLElement[];
+    const meio = el.scrollLeft + el.clientWidth / 2;
+    let melhor = 0;
+    filhos.forEach((c, i) => { if (Math.abs(c.offsetLeft + c.offsetWidth / 2 - meio) < Math.abs((filhos[melhor]!.offsetLeft + filhos[melhor]!.offsetWidth / 2) - meio)) melhor = i; });
+    setAtual(melhor);
+  };
+  const irPara = (i: number) => { const c = faixa.current?.children[i] as HTMLElement | undefined; c?.scrollIntoView?.({ behavior: "smooth", inline: "center", block: "nearest" }); };
+  return (
+    <section aria-label="Seus comércios">
+      <h2 className="text-base font-semibold">Seus comércios <span className="text-muted-foreground">({stores.length})</span></h2>
+      <p className="mb-3 text-sm text-muted-foreground">Passe o dedo para o lado para ver os outros.</p>
+      <div ref={faixa} onScroll={aoCorrer}
+        className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-5 px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {stores.map((s, i) => (
+          <div key={s.id ?? i} className="w-[85%] max-w-md shrink-0 snap-center">
+            <CartaoComercio s={s} visao={visao} onOpen={onOpen} />
+          </div>
+        ))}
+        <button type="button" onClick={onAdd}
+          className="flex w-[60%] max-w-xs shrink-0 snap-center flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-accent/80 p-4 text-center transition hover:bg-accent/5 focus-visible:outline-2 focus-visible:outline-ring">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-accent"><Plus size={24} /></span>
+          <span className="font-semibold">Adicionar comércio</span>
+        </button>
+      </div>
+      <div className="mt-3 flex justify-center gap-1.5">
+        {Array.from({ length: total }, (_, i) => (
+          <button key={i} type="button" onClick={() => irPara(i)} aria-label={i < stores.length ? `Ver ${stores[i]!.nome}` : "Ver Adicionar comércio"}
+            className="flex h-6 items-center"><span className={`block h-2 rounded-full transition-all ${i === atual ? "w-5 bg-primary" : "w-2 bg-muted-foreground/40"}`} /></button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Cartão de um comércio com o botão grande para entrar (sozinho, ou dentro da faixa). */
+function CartaoComercio({ s, visao, onOpen, onAdd }: { s: StoreData; visao: VisaoGeral; onOpen: (s: StoreData) => void; onAdd?: () => void }) {
   const Icon = iconOf(s.tipo);
   const id = idDe(s);
   const r = id ? visao.resumos[id] : undefined;
@@ -639,7 +682,7 @@ function ComercioUnico({ s, visao, onOpen, onAdd }: { s: StoreData; visao: Visao
   const f = r ? fraseComercio(r) : null;
   const tipo = TIPOS.find((t) => t.id === s.tipo)?.nome ?? "";
   return (
-    <section aria-label="Seu comércio" className="rounded-3xl border border-border bg-secondary/70 p-4">
+    <section aria-label={s.nome} className="h-full rounded-3xl border border-border bg-secondary/70 p-4">
       <div className="flex items-center gap-4">
         <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-background-deep/60 text-primary"><Icon size={28} /></span>
         <div className="min-w-0 flex-1">
@@ -648,16 +691,20 @@ function ComercioUnico({ s, visao, onOpen, onAdd }: { s: StoreData; visao: Visao
           <p className={`mt-1 text-xs font-semibold ${f ? COR_FRASE[f.nivel] : "text-muted-foreground"}`}>
             {g?.estado === "erro" ? "Não foi possível atualizar" : g?.estado === "carregando" || !f ? "Atualizando…" : f.texto}
           </p>
+          {f?.extra && <p className="mt-0.5 text-xs font-semibold text-warning">{f.extra}</p>}
+          {r && r.vendasHojeTotal > 0 && <p className="mt-0.5 text-xs text-muted-foreground"><b className="text-foreground">{brlVenda(r.vendasHojeTotal)}</b> vendidos hoje</p>}
         </div>
       </div>
-      <button type="button" onClick={() => onOpen(s)}
+      <button type="button" onClick={() => onOpen(s)} aria-label={`Entrar no ${s.nome}`}
         className="mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-base font-bold text-primary-foreground transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-ring">
-        <span className="truncate">Entrar no {s.nome}</span> <ChevronRight size={20} className="shrink-0" />
+        <span className="truncate">{onAdd ? `Entrar no ${s.nome}` : "Entrar"}</span> <ChevronRight size={20} className="shrink-0" />
       </button>
       <p className="mt-2 text-center text-xs text-muted-foreground">Lá dentro: produtos, {textoDoTipo(s.tipo)("depósito")}, pedidos, equipe e caixa.</p>
-      <button type="button" onClick={onAdd} className="mx-auto mt-2 flex min-h-11 items-center gap-1 text-sm font-semibold text-accent">
-        <Plus size={16} /> Adicionar outro comércio
-      </button>
+      {onAdd && (
+        <button type="button" onClick={onAdd} className="mx-auto mt-2 flex min-h-11 items-center gap-1 text-sm font-semibold text-accent">
+          <Plus size={16} /> Adicionar outro comércio
+        </button>
+      )}
     </section>
   );
 }

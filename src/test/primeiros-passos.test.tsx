@@ -55,4 +55,13 @@ describe("primeiros passos", () => {
     fireEvent.click(await screen.findByText("Esconder os primeiros passos"));
     expect(screen.queryByText(/de 6 feitos/)).toBeNull();
   });
+
+  it("comércios ficam embaixo do resumo; com dois, correm para o lado", async () => {
+    render(<OwnerApp userId="u1" owner="Monica" initial={[loja, { ...loja, id: "c2", nome: "Mercado Dois" }]} />);
+    const faixa = await screen.findByRole("region", { name: "Seus comércios" });
+    expect(screen.getByText("Resumo de hoje").compareDocumentPosition(faixa) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText("Passe o dedo para o lado para ver os outros.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Entrar no Mercado Dois/ })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /^Ver / })).toHaveLength(3);
+  });
 });

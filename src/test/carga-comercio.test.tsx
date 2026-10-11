@@ -22,7 +22,7 @@ beforeEach(() => {
 });
 async function abrir(stores = [store]) {
   const r = render(<OwnerApp userId="u1" owner="Monica" initial={stores} />);
-  fireEvent.click(screen.getByRole("button", { name: /Mercado A/ }));
+  fireEvent.click(screen.getByRole("button", { name: /^Entrar no Mercado A/ }));
   await screen.findByRole("button", { name: /Arroz atual/ });
   return r;
 }
@@ -82,7 +82,7 @@ it("um carregamento antigo de A não esconde a falha do comércio B", async () =
   // A tela inicial atualiza o resumo dos dois comércios antes de abrir B.
   await waitFor(() => expect(banco.carregarProdutos).toHaveBeenCalledTimes(antes + 3));
   banco.carregarProdutos.mockRejectedValueOnce(new Error("Failed to fetch"));
-  fireEvent.click(screen.getByRole("button", { name: /Mercado B/ }));
+  fireEvent.click(screen.getByRole("button", { name: /^Entrar no Mercado B/ }));
   // B já foi lido no resumo: a consulta confirmada fica visível com o aviso de falha.
   await screen.findByText(/Os dados exibidos são da última consulta/);
   await act(async () => antiga.resolve(carga("Arroz de A")));

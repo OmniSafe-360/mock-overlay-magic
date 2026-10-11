@@ -88,8 +88,8 @@ describe("tela inicial, Comércios e Alertas do dono", () => {
     expect(resumo.getByRole("button", { name: /Para comprar/ }).textContent).toMatch(/^1/);
     expect(screen.queryByText(/Dados de exemplo/)).toBeNull();
     expect(screen.getByRole("button", { name: /Vendas hoje: R\$\s?0,00/ }).textContent).toMatch(/Nenhuma venda ainda/);
-    expect(screen.getByRole("button", { name: /Mercado Bom Preço/ }).textContent).toMatch(/1 para resolver agora.*1 para repor · 1 para comprar/);
-    expect(screen.getByRole("button", { name: /Farmácia Vida/ }).textContent).toMatch(/Tudo certo/);
+    expect(screen.getByRole("region", { name: "Mercado Bom Preço" }).textContent).toMatch(/1 para resolver agora.*1 para repor · 1 para comprar/);
+    expect(screen.getByRole("region", { name: "Farmácia Vida" }).textContent).toMatch(/Tudo certo/);
     expect(screen.getByRole("button", { name: /Alertas: 1 para resolver agora/ })).toBeTruthy();
   });
   it("Alertas: o comércio com aviso primeiro; tocar no produto abre a ficha dentro do comércio", async () => {
@@ -113,7 +113,7 @@ describe("tela inicial, Comércios e Alertas do dono", () => {
     banco.carregarProdutos.mockImplementation(async (id: string) => { if (id === "c2") throw new Error("Failed to fetch"); return { produtos: [tudoCerto], locais: { deposito: [], venda: [] } }; });
     render(<OwnerApp userId="u1" owner="Monica" initial={[lojaA, lojaB]} />);
     expect(await screen.findByText(/Não foi possível atualizar algum comércio/)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Farmácia Vida/ }).textContent).toMatch(/Não foi possível atualizar/);
+    expect(screen.getByRole("region", { name: "Farmácia Vida" }).textContent).toMatch(/Não foi possível atualizar/);
     banco.carregarProdutos.mockImplementation(async () => ({ produtos: [tudoCerto], locais: { deposito: [], venda: [] } }));
     fireEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
     expect(await screen.findByText(/Tudo certo! Nenhum comércio precisa de atenção agora/)).toBeTruthy();
@@ -128,8 +128,8 @@ describe("tela inicial, Comércios e Alertas do dono", () => {
     render(<OwnerApp userId="u1" owner="Monica" initial={[lojaA, lojaB]} />);
     expect(await screen.findByRole("button", { name: /Vendas hoje: R\$\s?133,45/ })).toBeTruthy();
     expect(screen.getByText("2 vendas")).toBeTruthy();
-    await waitFor(() => expect(screen.getByRole("button", { name: /Farmácia Vida/ }).textContent).toMatch(/1 para resolver agora/));
-    expect(screen.getByRole("button", { name: /Mercado Bom Preço/ }).textContent).toMatch(/R\$\s?133,45 vendidos hoje/);
+    await waitFor(() => expect(screen.getByRole("region", { name: "Farmácia Vida" }).textContent).toMatch(/1 para resolver agora/));
+    expect(screen.getByRole("region", { name: "Mercado Bom Preço" }).textContent).toMatch(/R\$\s?133,45 vendidos hoje/);
     fireEvent.click(screen.getAllByRole("button", { name: "Alertas" })[0]!);
     const sec = within(await screen.findByRole("region", { name: "Farmácia Vida" }));
     expect(sec.getByRole("button", { name: /Vendido sem cadastro/ }).textContent).toMatch(/^1/);
@@ -142,7 +142,7 @@ describe("tela inicial, Comércios e Alertas do dono", () => {
     const perda = { id: "pe", produtoId: "f1", variacaoId: null, area: "venda", quantidade: 1, baixado: 1, motivo: "quebrou", observacao: null, funcionario: "João", peloDono: false, situacao: "aguardando", criadaEm: new Date().toISOString() };
     banco.carregarDiferencas.mockImplementation(async (id: string) => (id === "c2" ? { diferencas: [d("a", "aberta"), d("b", "aberta", 2), d("c", "explicada", 3)], perdas: [perda] } : { diferencas: [], perdas: [] }));
     render(<OwnerApp userId="u1" owner="Monica" initial={[lojaA, lojaB]} />);
-    await waitFor(() => expect(screen.getByRole("button", { name: /Farmácia Vida/ }).textContent).toMatch(/3 para resolver agora/));
+    await waitFor(() => expect(screen.getByRole("region", { name: "Farmácia Vida" }).textContent).toMatch(/3 para resolver agora/));
     fireEvent.click(screen.getAllByRole("button", { name: "Alertas" })[0]!);
     const sec = within(await screen.findByRole("region", { name: "Farmácia Vida" }));
     expect(sec.getByRole("button", { name: /Perdas e diferenças/ }).textContent).toMatch(/^3/);
