@@ -168,7 +168,7 @@ Gerente com permissões novas, integração direta por API com marcas de PDV, ba
 
 | ID | Código/testes | Banco/publicação | Teste do dono | Próximo passo |
 |---|---|---|---|---|
-| E1 / R01 | Corrigido em 11/10/2026; 846 testes duas vezes, build e testes locais aprovados; [registro](reposicao-retomada-2026-10-11.md) | Banco sem mudança; publicação pendente | Pendente | Publicar → Atualizar e executar roteiro de fechamento/retomada |
+| E1 / R01 | Corrigido em 11/10/2026, [PR #100](https://github.com/OmniSafe-360/mock-overlay-magic/pull/100); 846 testes duas vezes, build e testes locais aprovados; [registro](reposicao-retomada-2026-10-11.md) | Banco sem mudança; publicação pendente | Pendente | Publicar → Atualizar e executar roteiro de fechamento/retomada |
 | R02 | Cenário a verificar | Comparação atual pendente antes de mudar SQL | Pendente | Testar corrida entre pedido e conferência |
 | R03 | Pendente | Sem mudança preparada | Pendente | Explicar falha de consulta do fiado |
 | R04 | Pendente | Sem mudança preparada | Pendente | Tratar falha de rascunho local |

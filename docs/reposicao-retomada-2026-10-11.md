@@ -2,7 +2,7 @@
 
 Entrega de **11/10/2026**, na etapa E1 do [checklist ponta a ponta](CHECKLIST_PONTA_A_PONTA.md). Regras em [FONTE_DA_VERDADE.md](FONTE_DA_VERDADE.md). Relacionada à limitação restante do item 5 do [checklist original](checklist-funcional-2026-10-11.md).
 
-**Estado: corrigido no código; falta Publicar → Atualizar no Lovable e o teste do dono no app publicado.** O teste geral continua adiado conforme a decisão do dono. PR desta entrega: `fix/r01-retomar-reposicao` (referência atualizada antes da mesclagem).
+**Estado: corrigido no código; falta Publicar → Atualizar no Lovable e o teste do dono no app publicado.** O teste geral continua adiado conforme a decisão do dono. Entrega no [PR #100](https://github.com/OmniSafe-360/mock-overlay-magic/pull/100), correção `98638da`, branch `fix/r01-retomar-reposicao`.
 
 ## Problema confirmado
 
