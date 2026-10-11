@@ -6,7 +6,7 @@ import type { StoreData } from "@/components/StoreSetup";
 import type { Pedido } from "@/lib/pedido";
 import { fraseComercio, resumoComercio, somaResumos } from "@/lib/resumoGeral";
 
-const banco = vi.hoisted(() => ({ carregarFornecedores: vi.fn(), carregarProdutos: vi.fn(), carregarPedidos: vi.fn(), conferirEnvio: vi.fn(), carregarVendas: vi.fn(), carregarPendentesVenda: vi.fn(), carregarDiferencas: vi.fn(), carregarLimiteFaltas: vi.fn(), carregarContagensAntifurto: vi.fn(), carregarCaixas: vi.fn() }));
+const banco = vi.hoisted(() => ({ carregarFornecedores: vi.fn(), carregarProdutos: vi.fn(), carregarPedidos: vi.fn(), conferirEnvio: vi.fn(), carregarVendas: vi.fn(), carregarPendentesVenda: vi.fn(), carregarDiferencas: vi.fn(), carregarLimiteFaltas: vi.fn(), carregarContagensAntifurto: vi.fn(), carregarCaixas: vi.fn(), carregarFuncionarios: vi.fn() }));
 vi.mock("@/lib/banco", async (original) => ({ ...await original<object>(), ...banco }));
 vi.mock("@/components/Scanner", () => ({ Scanner: () => null }));
 
@@ -48,7 +48,7 @@ beforeEach(() => {
   localStorage.clear(); vi.clearAllMocks();
   banco.carregarFornecedores.mockResolvedValue([]);
   banco.carregarPedidos.mockResolvedValue([]);
-  banco.carregarVendas.mockResolvedValue([]); banco.carregarPendentesVenda.mockResolvedValue([]); banco.carregarDiferencas.mockResolvedValue({ diferencas: [], perdas: [] }); banco.carregarLimiteFaltas.mockResolvedValue(20000); banco.carregarContagensAntifurto.mockResolvedValue([]); banco.carregarCaixas.mockResolvedValue([]);
+  banco.carregarVendas.mockResolvedValue([]); banco.carregarPendentesVenda.mockResolvedValue([]); banco.carregarDiferencas.mockResolvedValue({ diferencas: [], perdas: [] }); banco.carregarLimiteFaltas.mockResolvedValue(20000); banco.carregarContagensAntifurto.mockResolvedValue([]); banco.carregarCaixas.mockResolvedValue([]); banco.carregarFuncionarios.mockResolvedValue([]);
   banco.carregarProdutos.mockImplementation(async (id: string) => ({
     produtos: id === "c1" ? [tudoCerto, repor, comprar, acabou] : [prod("f1", "Dipirona", 20, 10)],
     locais: { deposito: ["Estante A"], venda: ["Gôndola 1"] },

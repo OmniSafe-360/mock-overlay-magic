@@ -1,6 +1,6 @@
 import { useHoje } from "@/hooks/useHoje";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { conferirEnvio, carregarFornecedores, carregarProdutos, carregarVendas, carregarPendentesVenda, buscarCatalogo, carregarDiferencas, carregarLimiteFaltas, atualizarFornecedor, criarFornecedor, gerarCodigoInterno, salvarProduto, carregarPedidos, salvarPedido, marcarPedidoEnviado, cancelarPedido, novoLinkPedido, atualizarPagamento, resolverItemRecebimento, carregarRecebimentos, type LocaisCadastrados } from "@/lib/banco";
+import { conferirEnvio, carregarFornecedores, carregarProdutos, carregarVendas, carregarPendentesVenda, buscarCatalogo, carregarDiferencas, carregarLimiteFaltas, carregarFuncionarios, carregarCaixas, atualizarFornecedor, criarFornecedor, gerarCodigoInterno, salvarProduto, carregarPedidos, salvarPedido, marcarPedidoEnviado, cancelarPedido, novoLinkPedido, atualizarPagamento, resolverItemRecebimento, carregarRecebimentos, type LocaisCadastrados } from "@/lib/banco";
 import type { CanalPedido, LinhaPedido, Pedido } from "@/lib/pedido";
 import type { DadosPagamento } from "@/components/PainelPedidos";
 import type { Recebimento } from "@/lib/recebimento";
@@ -20,6 +20,9 @@ import { AntifurtoGeral, totalAntifurto, type LinhaAntifurto } from "@/component
 import type { Diferenca, Perda } from "@/lib/diferencas";
 import { deOlho, entregasParaDecidir, fraseComercio, paraResolver, produtosJaPedidos, resumoComercio, somaResumos, type ResumoComercio } from "@/lib/resumoGeral";
 import { PainelEquipe } from "@/components/PainelEquipe";
+import { PrimeirosPassos } from "@/components/PrimeirosPassos";
+import { ocultarPassos, passosOcultos, primeirosPassos, type Passo } from "@/lib/primeirosPassos";
+import { nomeAreaVenda, textoDoTipo } from "@/lib/exemplos";
 import { ProductWizard, type Product, type Supplier } from "@/components/ProductArea";
 
 type Tab = "inicio" | "comercios" | "alertas" | "equipe" | "conta";
@@ -39,7 +42,9 @@ type Geral = { estado: "ok" | "carregando" | "erro"; produtos: Product[]; pedido
   /** Vendas de hoje e códigos sem cadastro (null = não deu para ler; não impede o resto). */
   vendas?: { hojeN: number; hojeTotal: number; semCadastro: number } | null | undefined;
   /** Perdas, diferenças (30 dias e as abertas) e o limite do mês, para a aba Diferenças e o antifurto (null = não deu para ler). */
-  dif?: { diferencas: Diferenca[]; perdas: Perda[]; limite: number } | null | undefined };
+  dif?: { diferencas: Diferenca[]; perdas: Perda[]; limite: number } | null | undefined;
+  /** Para os "Primeiros passos": quantos funcionários e caixas (null = não deu para ler). */
+  passos?: { funcionarios: number | null; caixas: number | null } | undefined };
 type VisaoGeral = { geral: Record<string, Geral>; resumos: Record<string, ResumoComercio>; alertas: Record<string, AlertasAntifurto>; decidir: Record<string, number>; antifurto: LinhaAntifurto[]; total: ResumoComercio; carregando: boolean; erro: boolean };
 
 function Backdrop() {
@@ -147,6 +152,11 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
       const produtoVigente = () => vigente() && requisicoes.current[chave] === versaoProdutos;
       try {
         const inicioHoje = new Date(`${hojeEm()}T00:00:00-03:00`).toISOString();
+        // Equipe e caixas só servem aos "Primeiros passos": carregam à parte, sem segurar o resumo.
+        const contar = (f: () => Promise<unknown[]>) => f().then((l) => l.length).catch(() => null);
+        void Promise.all([contar(() => carregarFuncionarios(id)), contar(() => carregarCaixas(id))]).then(([funcionarios, caixas]) => {
+          if (vigente()) setGeral((m) => (m[id] ? { ...m, [id]: { ...m[id], passos: { funcionarios, caixas } } } : m));
+        });
         const [r, ps, vendas, dif] = await Promise.all([carregarProdutos(id, fs), carregarPedidos(id),
           Promise.all([carregarVendas(id, inicioHoje), carregarPendentesVenda(id)])
             .then(([vs, pend]) => {
@@ -159,7 +169,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
           setProducts((m) => ({ ...m, [id]: r.produtos }));
           setLocais((m) => ({ ...m, [id]: r.locais }));
           setCargas((m) => ({ ...m, [id]: fornecedoresErro ? "erro" : "ok" }));
-          setGeral((m) => ({ ...m, [id]: { estado: fornecedoresErro ? "erro" : "ok", produtos: r.produtos, pedidos: ps, vendas, dif } }));
+          setGeral((m) => ({ ...m, [id]: { estado: fornecedoresErro ? "erro" : "ok", produtos: r.produtos, pedidos: ps, vendas, dif, passos: m[id]?.passos } }));
         }
       } catch {
         if (produtoVigente()) setGeral((m) => ({ ...m, [id]: { ...m[id], produtos: m[id]?.produtos ?? [], pedidos: m[id]?.pedidos ?? [], estado: "erro", vendas: null, dif: null } }));
@@ -448,7 +458,9 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
           ) : tab === "inicio" && verAntifurto ? (
             <AntifurtoGeral linhas={visao.antifurto} carregando={visao.carregando} onAbrir={(s) => abrirLoja(s, { relatorio: true })} onVoltar={() => setVerAntifurto(false)} />
           ) : tab === "inicio" ? (
-            <HomeContent stores={stores} visao={visao} onAdd={() => setAdding(true)} onOpen={(s) => abrirLoja(s)} onAlertas={() => setTab("alertas")} onAntifurto={() => setVerAntifurto(true)}
+            <HomeContent stores={stores} visao={visao} fornecedores={suppliers.length} locais={locais}
+              onPasso={(s, p) => abrirLoja(s, { aba: p.id === "fornecedor" ? "Fornecedores" : p.id === "equipe" ? "Equipe" : p.id === "caixa" ? "Vendas" : "Produtos" })}
+              onAdd={() => setAdding(true)} onOpen={(s) => abrirLoja(s)} onAlertas={() => setTab("alertas")} onAntifurto={() => setVerAntifurto(true)}
               onVendas={() => { const com = stores.filter((s) => idDe(s)); if (com.length === 1) abrirLoja(com[0]!, { aba: "Vendas" }); else setTab("comercios"); }}
               onTentar={() => { if (idsLojas) void carregarGeral(idsLojas.split(",")); }} />
           ) : tab === "comercios" ? (
@@ -515,8 +527,23 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", on
 
 const COR_FRASE = { urgente: "text-destructive", atencao: "text-warning", ok: "text-accent", vazio: "text-muted-foreground" } as const;
 
-function HomeContent({ stores, visao, onAdd, onOpen, onAlertas, onVendas, onTentar, onAntifurto }: {
-  stores: StoreData[]; visao: VisaoGeral; onAdd: () => void; onOpen: (s: StoreData) => void; onAlertas: () => void; onVendas: () => void; onTentar: () => void; onAntifurto: () => void;
+/** O comércio dos "Primeiros passos": o primeiro que ainda tem passo a fazer (e não foi escondido). */
+function passosDaTela(stores: StoreData[], visao: VisaoGeral, fornecedores: number, locais: Record<string, LocaisCadastrados>, ocultos: string[]) {
+  for (const s of stores) {
+    const id = idDe(s); const g = id ? visao.geral[id] : undefined;
+    if (!id || !g || g.estado !== "ok" || !g.passos || ocultos.includes(id)) continue;
+    const passos = primeirosPassos({
+      produtos: g.produtos.length, locais: locais[id], produtoComLocal: g.produtos.some((p) => !!p.deposito?.local || !!p.areaVenda?.local),
+      fornecedores, funcionarios: g.passos.funcionarios, caixas: g.passos.caixas,
+      deposito: textoDoTipo(s.tipo)("Depósito"), venda: nomeAreaVenda(s.tipo),
+    });
+    if (passos.some((p) => !p.feito)) return { s, id, passos };
+  }
+  return null;
+}
+
+function HomeContent({ stores, visao, fornecedores, locais, onPasso, onAdd, onOpen, onAlertas, onVendas, onTentar, onAntifurto }: {
+  stores: StoreData[]; visao: VisaoGeral; fornecedores: number; locais: Record<string, LocaisCadastrados>; onPasso: (s: StoreData, p: Passo) => void; onAdd: () => void; onOpen: (s: StoreData) => void; onAlertas: () => void; onVendas: () => void; onTentar: () => void; onAntifurto: () => void;
 }) {
   const t = visao.total;
   const af = totalAntifurto(visao.antifurto);
@@ -531,8 +558,16 @@ function HomeContent({ stores, visao, onAdd, onOpen, onAlertas, onVendas, onTent
     { label: t.vencendo === 1 ? "Vence em breve" : "Vencem em breve", n: t.vencendo, Icon: CalendarClock, cor: "atencao" as const },
   ];
   const tudoCerto = pronto && !visao.carregando && !visao.erro && kpis.every((k) => k.n === 0);
+  const [ocultos, setOcultos] = useState(passosOcultos);
+  const passos = passosDaTela(stores, visao, fornecedores, locais, ocultos);
+  const unico = stores.length === 1 ? stores[0]! : null;
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
+      {passos && (
+        <PrimeirosPassos passos={passos.passos} comercio={passos.s.nome} mostrarNome={stores.length > 1}
+          onPasso={(p) => onPasso(passos.s, p)} onOcultar={() => { ocultarPassos(passos.id); setOcultos(passosOcultos().concat(passos.id)); }} />
+      )}
+      {unico && <ComercioUnico s={unico} visao={visao} onOpen={onOpen} onAdd={onAdd} />}
       {stores.length > 0 && (
         <section aria-label="Resumo geral">
           <div className="mb-3 flex items-center justify-between gap-2">
@@ -592,11 +627,46 @@ function HomeContent({ stores, visao, onAdd, onOpen, onAlertas, onVendas, onTent
         </section>
       )}
 
-      <section>
-        <h2 className="mb-3 text-base font-semibold">Seus comércios <span className="text-muted-foreground">({stores.length})</span></h2>
-        <CartoesComercios stores={stores} visao={visao} onAdd={onAdd} onOpen={onOpen} />
-      </section>
+      {!unico && (
+        <section>
+          <h2 className="mb-1 text-base font-semibold">Seus comércios <span className="text-muted-foreground">({stores.length})</span></h2>
+          {stores.length > 1 && <p className="mb-3 text-sm text-muted-foreground">Toque num comércio para entrar: produtos, depósito, pedidos, equipe e caixa.</p>}
+          <CartoesComercios stores={stores} visao={visao} onAdd={onAdd} onOpen={onOpen} />
+        </section>
+      )}
     </div>
+  );
+}
+
+/** Com um comércio só, ele fica no topo com um botão grande para entrar. */
+function ComercioUnico({ s, visao, onOpen, onAdd }: { s: StoreData; visao: VisaoGeral; onOpen: (s: StoreData) => void; onAdd: () => void }) {
+  const Icon = iconOf(s.tipo);
+  const id = idDe(s);
+  const r = id ? visao.resumos[id] : undefined;
+  const g = id ? visao.geral[id] : undefined;
+  const f = r ? fraseComercio(r) : null;
+  const tipo = TIPOS.find((t) => t.id === s.tipo)?.nome ?? "";
+  return (
+    <section aria-label="Seu comércio" className="rounded-3xl border border-border bg-secondary/70 p-4">
+      <div className="flex items-center gap-4">
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-background-deep/60 text-primary"><Icon size={28} /></span>
+        <div className="min-w-0 flex-1">
+          <p className="text-lg font-bold leading-tight">{s.nome}</p>
+          <p className="truncate text-sm text-muted-foreground">{tipo ? `${tipo} · ` : ""}{s.cidade} - {s.uf}</p>
+          <p className={`mt-1 text-xs font-semibold ${f ? COR_FRASE[f.nivel] : "text-muted-foreground"}`}>
+            {g?.estado === "erro" ? "Não foi possível atualizar" : g?.estado === "carregando" || !f ? "Atualizando…" : f.texto}
+          </p>
+        </div>
+      </div>
+      <button type="button" onClick={() => onOpen(s)}
+        className="mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-base font-bold text-primary-foreground transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-ring">
+        <span className="truncate">Entrar no {s.nome}</span> <ChevronRight size={20} className="shrink-0" />
+      </button>
+      <p className="mt-2 text-center text-xs text-muted-foreground">Lá dentro: produtos, {textoDoTipo(s.tipo)("depósito")}, pedidos, equipe e caixa.</p>
+      <button type="button" onClick={onAdd} className="mx-auto mt-2 flex min-h-11 items-center gap-1 text-sm font-semibold text-accent">
+        <Plus size={16} /> Adicionar outro comércio
+      </button>
+    </section>
   );
 }
 
