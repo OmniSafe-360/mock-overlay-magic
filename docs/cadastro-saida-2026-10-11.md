@@ -1,6 +1,6 @@
 # E2.1 — sair do primeiro cadastro e trocar a conta
 
-Correção pedida pelo dono com o print `71820.png`, em **11/10/2026**, sobre `main` `0492fdd`, branch `fix/e21-sair-primeiro-cadastro`. Regras na [fonte da verdade](FONTE_DA_VERDADE.md), etapa no [checklist ponta a ponta](CHECKLIST_PONTA_A_PONTA.md) e registro adicional C4 no [checklist funcional 2](checklist-funcional-2.md). **Pronto no código, falta publicação e o teste do dono.**
+Correção pedida pelo dono com o print `71820.png`, em **11/10/2026**, sobre `main` `0492fdd`, branch `fix/e21-sair-primeiro-cadastro`. Entrega no [PR #109](https://github.com/OmniSafe-360/mock-overlay-magic/pull/109), correção `34d537a`. Regras na [fonte da verdade](FONTE_DA_VERDADE.md), etapa no [checklist ponta a ponta](CHECKLIST_PONTA_A_PONTA.md) e registro adicional C4 no [checklist funcional 2](checklist-funcional-2.md). **Pronto no código, falta publicação e o teste do dono.**
 
 ## Problema e mudança
 
