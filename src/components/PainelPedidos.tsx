@@ -496,7 +496,9 @@ function DetalhePedido({ pedido, products, store, fornecedor, hoje, onEnviado, o
   const [copiado, setCopiado] = useState(false);
   const [aviso, setAviso] = useState("");
   const [erro, setErro] = useState("");
-  const link = linkPedido(pedido.token);
+  // B3: o link novo vale na hora, mesmo que a lista ainda traga o antigo.
+  const [tokenNovo, setTokenNovo] = useState<{ id: string; token: string } | null>(null);
+  const link = linkPedido(tokenNovo?.id === pedido.id ? tokenNovo.token : pedido.token);
   const texto = textoPedido({ numero: pedido.numero, comercio: store, fornecedor: fornecedor?.nome ?? "fornecedor", linhas, observacao: pedido.observacao, link });
   const r = pedido.resposta;
   const aceito = ["aceito", "aceito_ajustes", "recebido_parcial", "recebido"].includes(pedido.situacao);
@@ -603,7 +605,7 @@ function DetalhePedido({ pedido, products, store, fornecedor, hoje, onEnviado, o
               <button type="button" onClick={() => { setTrocar(true); setAviso(""); }} className={`flex items-center justify-center gap-2 ${btnGhost}`}><RefreshCw size={18} /> Gerar novo link</button>
             ) : (
               <button type="button" className="flex min-h-13 items-center justify-center gap-2 rounded-2xl border border-warning/60 px-4 text-base font-semibold text-warning"
-                onClick={() => { setErro(""); onNovoLink(pedido.id).then(() => { setTrocar(false); setCopiado(false); setAviso("Novo link criado. O antigo parou de funcionar: envie o pedido de novo."); }).catch((e) => setErro(String(e?.message ?? "Não foi possível gerar o novo link."))); }}>
+                onClick={() => { setErro(""); onNovoLink(pedido.id).then((t) => { if (t) setTokenNovo({ id: pedido.id, token: t }); setTrocar(false); setCopiado(false); setAviso("Novo link criado. O antigo parou de funcionar: envie o pedido de novo."); }).catch((e) => setErro(String(e?.message ?? "Não foi possível gerar o novo link."))); }}>
                 Confirmar novo link
               </button>
             )}

@@ -324,7 +324,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
   };
   const pedidoNovoLink = (comercioId: string) => async (id: string) => {
     const t = await comMensagem(() => novoLinkPedido(id), "Não foi possível gerar o novo link.");
-    await recarregarPedidos(comercioId);
+    await recarregarPedidos(comercioId).catch(() => undefined);
     return t;
   };
   const pedidoEnviado = (comercioId: string) => async (id: string, canal: CanalPedido) => {
