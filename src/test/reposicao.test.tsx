@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { ReporGondola, type ApiRepor } from "@/components/ReporGondola";
 import type { ItemReposicao, RespostaContagemPrateleira } from "@/lib/banco";
@@ -23,6 +23,8 @@ function api(over: Partial<ApiRepor> = {}, tipo = "mercado") {
 const CH = "c".repeat(64);
 
 describe("Repor gôndola (funcionário)", () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => localStorage.clear());
   it.each([
     ["recebimento_em_conferencia", /Há uma entrega em conferência/],
     ["estoque_nao_liberado", /aguardando liberação/],

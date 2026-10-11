@@ -334,6 +334,8 @@ O [checklist ponta a ponta](CHECKLIST_PONTA_A_PONTA.md) registra limitações ad
 
 ### 12.2 Pronto, falta o teste do dono
 
+11/10/2026: **E1/R01 — retomada da reposição após fechar o app**: produto, etapa, números e ID guardados no mesmo aparelho/acesso; envio sem resposta recupera os mesmos dados antes de qualquer novo envio, sem repetir a transferência. Cliques repetidos, aba antiga, resposta atrasada e falhas de armazenamento verificados. Tipos e **846 testes em 74 arquivos passaram duas vezes**, build e testes operacionais locais aprovados; Chromium em 320/1280 px com serviços simulados. Nenhuma alteração no banco. **Precisa Publicar → Atualizar no Lovable; falta o teste do dono no app publicado.** Ver [registro e roteiro](reposicao-retomada-2026-10-11.md). Próxima correção: R02.
+
 11/10/2026: **itens 12–25 também mesclados no GitHub** por outro acesso, conforme checklist/histórico: fechamento antigo, atualização do fiado, avulso sem código, navegação, PIN, tela inicial da equipe, variações removidas, mensagens de roupa/caixa, total de compra, CEP, e-mail repetido e recusas claras. Não reaplicar suas correções. Os roteiros E2–E6 cobrem a validação conjunta; `[x]` na lista antiga não significa aceite geral no app.
 
 11/10/2026: **checklist item 11 — conferência da entrega visível no pedido**: a leitura inclui recebimentos em contagem; o dono vê quem está conferindo, sem controles de reenvio/cancelamento. Decisões e alertas do dono aguardam a conclusão. Atualização pelos caminhos existentes, sem migração; **falta o teste do dono no app publicado**. Ver [registro e roteiro](pedidos-conferencia-2026-10-11.md).
@@ -354,7 +356,7 @@ O [checklist ponta a ponta](CHECKLIST_PONTA_A_PONTA.md) registra limitações ad
 - Aba **Vendas** do comércio: caixas, vendas, fechamento e fiado. Vendas chegam pelo Omni Conector ou pelo Caixa no celular; ambos existem, com validação real ainda pendente.
 
 ### 12.3 Ainda não existe ou está incompleto
-- **Confiabilidade (E1):** reposição não retoma após fechar o app (R01); falha de leitura do fiado escondida (R03); falha ao guardar rascunho sem aviso (R04). Corrigir uma por vez.
+- **Confiabilidade (E1):** falha de leitura do fiado escondida (R03); falha ao guardar rascunho sem aviso (R04). Corrigir uma por vez. R01 corrigido, com publicação e teste do dono pendentes na seção 12.2.
 - **A verificar:** concorrência entre pedido e recebimento no banco (R02) e reabertura do Caixa instalado sem internet (R05). Cenários pendentes não são defeitos de produção já comprovados.
 - **Validação completa:** jornadas do dono, operação, estoque, dinheiro/fiado, alertas e antifurto em conjunto; Android/iPhone/tablet/computador; piloto com conciliação física (E2–E4, E6 e E8).
 - **Lançamento:** e-mail próprio e teste real de recuperação, Google, proteção de senhas, Termos/Privacidade e procedimento de backup/recuperação (E5). Parte depende do dono/painéis/serviços; não foi reconsultada nesta revisão.
@@ -364,7 +366,7 @@ O [checklist ponta a ponta](CHECKLIST_PONTA_A_PONTA.md) registra limitações ad
 
 ## 13. ROTEIRO — O PLANO
 
-**Plano ativo, pedido do dono em 11/10/2026:** [CHECKLIST_PONTA_A_PONTA.md](CHECKLIST_PONTA_A_PONTA.md). **Etapa atual E1; próxima tarefa R01 — retomar reposição após fechar o app.** Depois seguem E2 dono/compras, E3 estoque/operação, E4 caixa/fiado, E5 lançamento/acesso, E6 aparelhos, E7 dados autorizados e E8 piloto. Consultar a indicação atual antes de cada tarefa, executar um item por PR e registrar resultado e pendências reais. Esta revisão criou o plano, não corrigiu R01 nem alterou o banco.
+**Plano ativo, pedido do dono em 11/10/2026:** [CHECKLIST_PONTA_A_PONTA.md](CHECKLIST_PONTA_A_PONTA.md). **Etapa atual E1; próxima correção R02 — verificar e proteger pedido em conferência também no banco.** R01 já corrigido no código; falta publicação/teste do dono (seção 12.2). Depois seguem E2 dono/compras, E3 estoque/operação, E4 caixa/fiado, E5 lançamento/acesso, E6 aparelhos, E7 dados autorizados e E8 piloto. Consultar a indicação atual antes de cada tarefa, executar um item por PR e registrar resultado e pendências reais. R02 exige verificar o cenário concorrente e comparar as funções atuais do banco antes de qualquer SQL.
 
 As fases abaixo são o histórico de construção do produto. “Feita” indica implementação, com testes do dono ainda pendentes onde registrado; **não substitui o checklist ativo nem declara validação geral concluída**.
 
