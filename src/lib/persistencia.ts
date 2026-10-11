@@ -66,7 +66,7 @@ export function montarPedido(p: Product, opId: string, comercioId: string, suppl
  * `precisaConfirmar`: lote com número e sem data recebeu data — exige ação explícita do usuário. */
 export function pedidosPendencias(antes: Validade | undefined, depois: Validade | undefined, farm: boolean) {
   const out: { origem: string; precisaConfirmar: boolean; partes: { numero: string | null; vencimento: string | null; quantidade: number; confirmada: boolean }[] }[] = [];
-  if (!antes?.controla || !depois?.controla) return out;
+  if (!antes || !depois?.controla) return out;
   for (const a of ["dep", "ven"] as const)
     for (const [k, ls] of Object.entries(antes[a])) {
       const novas = depois[a][k] ?? [];
@@ -296,9 +296,10 @@ export function montarProdutos(b: Bruto, _suppliers: Supplier[]): Product[] {
       return { local: nomeLocal, qtd: null, min: null, max: null, vars: vs };
     };
     let validade: Validade | undefined;
-    if (pr.controla_validade === false) validade = { controla: false, avisos: [], dep: {}, ven: {} };
-    else if (pr.controla_validade === true) {
-      validade = { controla: true, avisos: (pr.avisos_dias ?? []).map(Number).sort((a: number, c: number) => a - c), dep: {}, ven: {} };
+    // Com a validade desligada, a quantidade já contada também é carregada (sem data): ao ligar, ela vira a
+    // pendência que recebe as datas. Quem lê `dep`/`ven` confere `controla` antes.
+    if (pr.controla_validade === false || pr.controla_validade === true) {
+      validade = { controla: pr.controla_validade === true, avisos: pr.controla_validade ? (pr.avisos_dias ?? []).map(Number).sort((a: number, c: number) => a - c) : [], dep: {}, ven: {} };
       for (const s of b.saldos.filter((x) => x.produto_id === pr.id && Number(x.quantidade) > 0)) {
         const l = s.lote_id ? lote.get(s.lote_id) : undefined;
         const linha: LinhaVal = { id: s.id, qtd: Number(s.quantidade), data: l?.vencimento ?? null, lote: l?.numero ?? null, ...(s.pendencia_confirmada ? { pendConf: true } : {}) };
