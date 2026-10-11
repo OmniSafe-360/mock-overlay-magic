@@ -477,9 +477,9 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
               onCarregarSemPedido={sid ? semPedido(sid) : undefined}
               inicio={inicioLoja}
               vendidoSemCadastro={sid ? geral[sid]?.vendas?.semCadastro ?? 0 : 0}
-              onVendasMudou={() => { if (sid) { void recarregar(sid); if (idsLojas) void carregarGeral(idsLojas.split(",")); } }}
+              onVendasMudou={() => { if (sid) { void recarregar(sid); void atualizarAvisos(sid); } }}
               diferencasDecidir={sid ? visao.decidir[sid] ?? 0 : 0} antifurto={sid ? visao.alertas[sid] : undefined}
-              onDiferencasMudou={() => { if (sid) { void recarregar(sid); if (idsLojas) void carregarGeral(idsLojas.split(",")); } }}
+              onDiferencasMudou={() => { if (sid) { void recarregar(sid); void atualizarAvisos(sid); } }}
               onBack={() => { setOpen(null); setSaved(false); setInicioLoja(undefined); }} onNew={() => openWizard()} onEdit={(p) => openWizard(p)} onDismissSaved={() => setSaved(false)} />
           ) : tab === "inicio" && verAntifurto ? (
             <AntifurtoGeral linhas={visao.antifurto} carregando={visao.carregando} onAbrir={(s) => abrirLoja(s, { relatorio: true })} onVoltar={() => setVerAntifurto(false)} />
