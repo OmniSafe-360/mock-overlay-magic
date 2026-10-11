@@ -327,6 +327,8 @@ Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Pos
 
 ### 12.2 Pronto, falta o teste do dono
 
+11/10/2026: **checklist item 9 — variação de roupa removida depois do pedido**: correção preparada e testada no código e no banco local. A equipe conclui a entrega deixando a variação removida para o dono; aceitar restaura antes de registrar peças boas, devolver não entra no estoque. **Faltam comparação/aplicação no Supabase e verificação no app publicado; item 9 continua aberto.** Ver [registro e roteiro](recebimento-variacao-removida-2026-10-11.md).
+
 11/10/2026: **organização da tela de Pedidos**, com entrega e pagamento separados, orientação sobre o que fazer e pendências de recebimento antes dos produtos. Fluxo e regras preservados; nenhuma alteração no banco. Ver [registro e roteiro](pedidos-organizacao-2026-10-11.md).
 
 10/10/2026: correção da **coerência do recebimento e da reposição**, autorizada após os prints do Kapo: envio parcial, conferência e conclusão aparecem separados; avisos atuais; sem falso sucesso quando não há transferência. A proteção de todas as recontagens pendentes e os motivos detalhados de indisponibilidade estão na migração `20261010183000_coerencia_recebimento.sql`, **preparada e testada; em 11/10/2026 o Claude conferiu que as 4 funções no banco já estão idênticas ao arquivo (aplicada antes, sem registro) e registrou a versão `20261010183000` no histórico do banco, junto com `20261010161000` (caixa no celular)**. Critério de aceite existente preservado. Ver [registro e roteiro](coerencia-recebimento-2026-10-10.md).

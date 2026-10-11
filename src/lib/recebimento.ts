@@ -110,7 +110,7 @@ export const chaveRascunho = (pedidoId: string | null, escopo: string) => `${esc
 
 /* ---------- dono ---------- */
 export type SituacaoItemRecebido = "recontar" | "aceito" | "inconsistente" | "fora_do_pedido" | "recusado";
-export type TentativaRecebida = { total: number; avaria: number; partes: { quantidade: number; vencimento: string; lote: string | null }[] };
+export type TentativaRecebida = { total: number; avaria: number; partes: { quantidade: number; vencimento: string; lote: string | null }[]; variacaoRemovida?: boolean; variacao?: string | null };
 export type ItemRecebido = {
   id: string; produtoId: string; variacaoId: string | null; noPedido: boolean; esperado: number | null; situacao: SituacaoItemRecebido;
   quantidadeAceita: number | null; avaria: number; entrouEstoque: number; tentativas: TentativaRecebida[];
@@ -125,11 +125,13 @@ export type TipoResultado = "ok" | "falta" | "sobra" | "nao_veio" | "inconsisten
 export function resultadoItem(i: ItemRecebido, unidade: string): { tipo: TipoResultado; texto: string } {
   if (i.situacao === "recontar") return { tipo: "contando", texto: "Ainda sendo contado" };
   if (i.situacao === "inconsistente") {
+    if (i.tentativas[i.tentativas.length - 1]?.variacaoRemovida)
+      return { tipo: "inconsistente", texto: "Este tamanho e esta cor foram removidos do cadastro. A mercadoria ficou separada para sua decisão." };
     const ns = i.tentativas.map((t) => fmtQ(t.total));
     return { tipo: "inconsistente", texto: `A contagem não fechou (${ns.slice(0, -1).join(", ")} e ${ns[ns.length - 1]}). Escolha a certa.` };
   }
   if (i.situacao === "fora_do_pedido") return { tipo: "fora", texto: `Veio sem estar no pedido: ${qtdUn(i.quantidadeAceita ?? 0, unidade)}. Ficou separado.` };
-  if (i.situacao === "recusado") return { tipo: "recusado", texto: "Fora do pedido: recusado (não entrou no estoque)" };
+  if (i.situacao === "recusado") return { tipo: "recusado", texto: i.noPedido ? "Devolvido (não entrou no estoque)" : "Fora do pedido: recusado (não entrou no estoque)" };
   const q = i.quantidadeAceita ?? 0;
   if (i.esperado == null) return { tipo: "ok", texto: `Chegou ${qtdUn(q, unidade)}` };
   if (q === 0 && i.esperado > 0) return { tipo: "nao_veio", texto: `Não veio (eram ${qtdUn(i.esperado, unidade)})` };
@@ -143,7 +145,8 @@ export const precisaDecidir = (i: Pick<ItemRecebido, "situacao">) => i.situacao 
 export function resumoRecebimento(r: Recebimento): { texto: string; alerta: "decidir" | "diferenca" | null } {
   const quando = r.concluidoEm ? ` em ${new Date(r.concluidoEm).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}` : "";
   const decidir = r.itens.filter(precisaDecidir).length;
-  const dif = r.itens.filter((i) => i.situacao === "aceito" && i.esperado != null && i.quantidadeAceita !== i.esperado).length;
+  const dif = r.itens.filter((i) => (i.situacao === "aceito" && i.esperado != null && i.quantidadeAceita !== i.esperado)
+    || (i.situacao === "recusado" && i.noPedido)).length;
   const avaria = r.itens.filter((i) => i.avaria > 0).length;
   const extra = decidir ? ` · ${decidir === 1 ? "1 produto" : `${decidir} produtos`} para você decidir`
     : dif ? ` · ${dif === 1 ? "1 produto" : `${dif} produtos`} com diferença` : avaria ? " · veio produto quebrado ou vencido" : " · tudo certo";

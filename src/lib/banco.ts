@@ -162,7 +162,7 @@ export async function carregarRecebimentos(comercioId: string, comPedido: boolea
     itens: itens.filter((i) => i.recebimento_id === r.id).map((i) => ({
       id: i.id, produtoId: i.produto_id, variacaoId: i.variacao_id ?? null, noPedido: !!i.no_pedido, esperado: numOuNull(i.esperado),
       situacao: i.situacao, quantidadeAceita: numOuNull(i.quantidade_aceita), avaria: Number(i.avaria ?? 0), entrouEstoque: Number(i.entrou_estoque ?? 0),
-      tentativas: (Array.isArray(i.tentativas) ? i.tentativas : []).map((t: any) => ({ total: Number(t.total), avaria: Number(t.avaria ?? 0), partes: t.partes ?? [] })),
+      tentativas: (Array.isArray(i.tentativas) ? i.tentativas : []).map((t: any) => ({ total: Number(t.total), avaria: Number(t.avaria ?? 0), partes: t.partes ?? [], variacaoRemovida: t.variacao_removida === true, variacao: t.variacao ?? null })),
     })),
   }));
 }

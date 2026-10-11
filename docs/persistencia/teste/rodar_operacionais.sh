@@ -55,12 +55,44 @@ for migracao in "$raiz_repo"/supabase/migrations/*.sql; do
       end \$\$;"
     echo 'OK: equivalentes antigos recusados; migração desfeita e dados preservados.'
   fi
+  if [ "$(basename "$migracao")" = '20261011120000_recebimento_variacao_removida.sql' ]; then
+    # Banco divergente: nenhuma das três funções pode ser substituída pela metade.
+    "${psql_teste[@]}" -d postgres -c 'create database item9_divergente template teste'
+    cat > "$dir_teste/divergir_item9.sql" <<'SQL'
+do $$ begin
+  execute replace(pg_get_functiondef('public._entrar_no_deposito(uuid,jsonb,uuid,uuid)'::regprocedure),
+    E'\nbegin\n', E'\nbegin\n  -- Versão alterada diretamente, só para testar a proteção.\n');
+end $$;
+create table auditoria_item9 as select oid, prosrc from pg_proc where proname in
+ ('funcionario_enviar_recebimento','_entrar_no_deposito','resolver_item_recebimento');
+SQL
+    "${psql_teste[@]}" -d item9_divergente -f "$dir_teste/divergir_item9.sql"
+    if "${psql_teste[@]}" -d item9_divergente -1 -f "$migracao" > "$dir_teste/item9_divergente.log" 2>&1; then
+      echo 'FALHOU: item 9 substituiu função divergente.' >&2; exit 1
+    fi
+    rg -q 'funcao_diverge_do_arquivo: _entrar_no_deposito' "$dir_teste/item9_divergente.log"
+    "${psql_teste[@]}" -d item9_divergente -c "do \$\$ begin
+      if exists(select 1 from auditoria_item9 a join pg_proc p on p.oid=a.oid where a.prosrc<>p.prosrc) then
+        raise exception 'FALHOU: item 9 substituiu uma função antes de recusar a divergência'; end if;
+      end \$\$;"
+    echo 'OK: item 9 recusou banco divergente sem substituir nenhuma função.'
+    # Simula a alteração e seus casos funcionais antes de aplicar, desfazendo tudo.
+    {
+      printf 'begin;\n'
+      cat "$migracao"
+      sed '/^begin;$/d; /^rollback;$/d' "$base_teste/012_recebimento_variacao_removida.sql"
+      printf '\nrollback;\n'
+    } > "$dir_teste/simular_item9.sql"
+    "${psql_teste[@]}" -d teste -f "$dir_teste/simular_item9.sql"
+    echo 'OK: item 9 simulado antes da aplicação, com rollback das funções e dos dados.'
+  fi
   "${psql_teste[@]}" -d teste -1 -f "$migracao"
 done
 "${psql_teste[@]}" -d teste -f "$base_teste/005_melhorias_operacionais.sql"
 "${psql_teste[@]}" -d teste -f "$base_teste/006_codigos_mercado.sql"
 "${psql_teste[@]}" -d teste -f "$base_teste/008_codigos_concorrencia.sql"
 "${psql_teste[@]}" -d teste -f "$base_teste/011_coerencia_recebimento.sql"
+"${psql_teste[@]}" -d teste -f "$base_teste/012_recebimento_variacao_removida.sql"
 
 # Duas conexões reais, com pedidos distintos e códigos equivalentes.
 cat >"$dir_teste/tx1.sql" <<'SQL'

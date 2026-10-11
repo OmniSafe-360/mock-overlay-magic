@@ -70,6 +70,9 @@ describe("resultado para o dono", () => {
     expect(resumoRecebimento(r)).toEqual({ texto: "Recebido por Maria em 09/10 · tudo certo", alerta: null });
     expect(resumoRecebimento({ ...r, itens: [item({ quantidadeAceita: 18 })] }).alerta).toBe("diferenca");
     expect(resumoRecebimento({ ...r, itens: [item({ situacao: "inconsistente" })] }).texto).toMatch(/1 produto para você decidir/);
+    expect(resumoRecebimento({ ...r, itens: [item({ situacao: "recusado", quantidadeAceita: null, entrouEstoque: 0 })] }))
+      .toEqual({ texto: "Recebido por Maria em 09/10 · 1 produto com diferença", alerta: "diferenca" });
+    expect(resultadoItem(item({ situacao: "recusado" }), "Peça").texto).toBe("Devolvido (não entrou no estoque)");
   });
 });
 
@@ -266,6 +269,42 @@ const pedido: Pedido = {
   ] },
 };
 describe("recebimento no app do dono", () => {
+  it("variação removida conserva tamanho e cor e avisa antes de restaurar", async () => {
+    const onResolver = vi.fn(async () => {});
+    const roupa: Pedido = { ...pedido, recebimento: { ...pedido.recebimento!, itens: [
+      item({ id: "i-removida", variacaoId: "var-p-azul", situacao: "inconsistente", quantidadeAceita: null, entrouEstoque: 0,
+        tentativas: [{ total: 5, avaria: 1, partes: [], variacaoRemovida: true, variacao: "P · Azul" }] }),
+    ] } };
+    render(<PainelPedidos products={[{ ...prod("p-arroz", "Camisa"), unidade: "Peça" }]} store={{ id: "c1", tipo: "loja_roupas", nome: "Roupas", cidade: "", uf: "", rua: "", numero: "", bairro: "" }}
+      suppliers={[sol]} pedidos={[roupa]} onSalvar={vi.fn()} onEnviado={vi.fn()} onCancelar={vi.fn()} onNovoLink={vi.fn()} onPagamento={vi.fn()} onOpenProduto={vi.fn()}
+      onResolverRecebimento={onResolver} />);
+    fireEvent.click(screen.getByRole("button", { name: /Pedido nº 14/ }));
+    const sec = within(screen.getByRole("region", { name: "Recebimento" }));
+    expect(sec.getByText("Camisa — P · Azul")).toBeTruthy();
+    expect(sec.getByText(/Este tamanho e esta cor foram removidos/)).toBeTruthy();
+    expect(sec.queryByText(/A contagem não fechou/)).toBeNull();
+    fireEvent.click(sec.getByRole("button", { name: "5 peças" }));
+    fireEvent.click(sec.getByRole("button", { name: "Confirmar 5 peças e restaurar tamanho e cor" }));
+    await waitFor(() => expect(onResolver).toHaveBeenCalledWith("i-removida", "aceitar", 0));
+    fireEvent.click(sec.getByRole("button", { name: "Devolver" }));
+    await waitFor(() => expect(onResolver).toHaveBeenCalledWith("i-removida", "recusar", null));
+  });
+  it("conflito no código explica que a mercadoria continua separada", async () => {
+    const onResolver = vi.fn(async () => { throw new Error("codigo_em_uso: 12345"); });
+    const roupa: Pedido = { ...pedido, recebimento: { ...pedido.recebimento!, itens: [
+      item({ variacaoId: "var-p-azul", situacao: "inconsistente", quantidadeAceita: null, entrouEstoque: 0,
+        tentativas: [{ total: 5, avaria: 0, partes: [], variacaoRemovida: true, variacao: "P · Azul" }] }),
+    ] } };
+    render(<PainelPedidos products={[{ ...prod("p-arroz", "Camisa"), unidade: "Peça" }]} store={{ id: "c1", tipo: "loja_roupas", nome: "Roupas", cidade: "", uf: "", rua: "", numero: "", bairro: "" }}
+      suppliers={[sol]} pedidos={[roupa]} onSalvar={vi.fn()} onEnviado={vi.fn()} onCancelar={vi.fn()} onNovoLink={vi.fn()} onPagamento={vi.fn()} onOpenProduto={vi.fn()}
+      onResolverRecebimento={onResolver} />);
+    fireEvent.click(screen.getByRole("button", { name: /Pedido nº 14/ }));
+    const sec = within(screen.getByRole("region", { name: "Recebimento" }));
+    fireEvent.click(sec.getByRole("button", { name: "5 peças" }));
+    fireEvent.click(sec.getByRole("button", { name: /Confirmar 5 peças/ }));
+    expect(await sec.findByRole("alert")).toHaveTextContent("O código desta variação já está em outro cadastro");
+    expect(sec.getByRole("alert")).toHaveTextContent("A mercadoria continua separada");
+  });
   it("cartão, detalhe e decisões", async () => {
     const onResolver = vi.fn(async () => {});
     render(<PainelPedidos products={[prod("p-arroz", "Arroz 5 kg"), prod("p-tiss", "Refrigerante Tiss"), prod("p-cerv", "Cerveja")]} store={{ id: "c1", tipo: "mercado", nome: "Mercado", cidade: "", uf: "", rua: "", numero: "", bairro: "" }}

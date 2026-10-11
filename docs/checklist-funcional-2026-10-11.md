@@ -16,7 +16,7 @@ Conferido e **sem problema**: os 59 comandos que o app manda ao banco existem co
 
 ## Prioridade 2 — fluxo trava ou some
 - [x] 8. (corrigido em 11/10/2026, migração `20261011070050_conferencia_aberta_primeiro.sql`: a começada hoje aparece sempre, mesmo com a meta do dia batida; a de outro dia é deixada de lado e o produto é contado do zero; a rodada certa já vinha do item 2) **Conferência do depósito começada pode sumir da lista** e nunca fechar; ao voltar, conta contagens de dias antigos.
-- [ ] 9. **Recebimento não termina** se uma variação de roupa foi apagada depois do pedido.
+- [ ] 9. **Recebimento não termina** se uma variação de roupa foi apagada depois do pedido. Correção preparada e testada em 11/10/2026: [registro e roteiro](recebimento-variacao-removida-2026-10-11.md), migração `20261011120000`. **Pendente: comparar/aplicar no Supabase e verificar no app publicado; não marcar como concluído antes disso.**
 - [ ] 10. **"Chegou sem pedido"** reabre a contagem abandonada de outro fornecedor, sem como descartar.
 - [ ] 11. **"Conferência em andamento" nunca aparece para o dono**; enquanto a equipe conta, ainda aparecem "Enviar de novo" e "Cancelar pedido".
 - [ ] 12. **Fechamento de caixa com falta de 2+ dias atrás some** da aba Vendas sem o dono ver.
