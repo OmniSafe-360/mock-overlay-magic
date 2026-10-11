@@ -2,7 +2,7 @@
 
 Plano de execução pedido pelo dono em **11/10/2026**. As regras continuam em [FONTE_DA_VERDADE.md](FONTE_DA_VERDADE.md); este arquivo detalha suas etapas. O histórico permanece em [CLAUDE.md](../CLAUDE.md). Não há uma segunda fonte de regras.
 
-**Etapa atual: E1 — confiabilidade. Próxima tarefa: R05, verificar a reabertura do Caixa sem internet em aparelhos reais.** R01, R02, R03 e R04 corrigidos; publicação e teste do dono pendentes. R02 já aplicada no banco oficial, sem alterar dados de comércio/estoque. [Registro de R01](reposicao-retomada-2026-10-11.md), [R02](pedido-conferencia-banco-2026-10-11.md), [R03](fiado-consulta-2026-10-11.md) e [R04](recebimento-rascunho-2026-10-11.md). R05 permanece a verificar; teste físico adiado impede encerrar a validação geral.
+**Próxima tarefa independente: E2.1 — conta e comércio.** R01–R05 corrigidos no código; publicação e teste do dono pendentes. **E1 não está validada por completo:** reabertura offline de R05 exige aparelho real, junto de E6/item antigo 29. R02 já aplicada no banco oficial, sem alterar dados de comércio/estoque. [Registro de R01](reposicao-retomada-2026-10-11.md), [R02](pedido-conferencia-banco-2026-10-11.md), [R03](fiado-consulta-2026-10-11.md), [R04](recebimento-rascunho-2026-10-11.md) e [R05](caixa-reabertura-offline-2026-10-11.md). O teste geral continua adiado conforme decisão do dono; avançar nas verificações independentes não encerra os aceites pendentes.
 
 ## Ponto de partida e limites da análise
 
@@ -36,7 +36,7 @@ Ao encerrar uma tarefa, registrar: ID, problema e cenário, PR/commit, testes ex
 
 | Etapa | Objetivo | Situação em 11/10/2026 |
 |---|---|---|
-| E1 | Fechar as pendências de confiabilidade identificadas nesta revisão | Em andamento; R01–R04 corrigidos, falta publicação/teste; R05 a verificar em aparelhos |
+| E1 | Fechar as pendências de confiabilidade identificadas nesta revisão | R01–R05 corrigidos; falta publicação/teste do dono, incluindo R05 em aparelhos |
 | E2 | Validar a jornada do dono, dos cadastros às compras e pagamentos | Implementada em grande parte; validação completa pendente |
 | E3 | Validar recebimento, estoque, reposição, perdas e diferenças juntos | Implementada; teste completo pendente |
 | E4 | Validar vendas, caixa, fiado e integração usada no piloto | Implementada; teste real pendente |
@@ -75,9 +75,9 @@ E2–E4 verificam o que já existe; não reconstroem os módulos. E5 inclui pend
 
 ### R05 — confirmar abertura do Caixa sem internet após fechar o app
 
-- [ ] **Testar em aparelhos reais; corrigir se falhar.** O Caixa tem dados e fila locais, mas `public/sw-funcionario.js` não mantém os arquivos do app em cache. Trabalhar offline com tela já aberta não comprova reabrir o app instalado offline.
-- Critério: com acesso validado e turno já aberto online, fechar completamente, desligar internet, reabrir, passar pelo PIN, vender e reconectar. A fila é enviada uma vez; não se abre outro turno indevidamente. Mostrar quais ações exigem conexão. Não estender promessa de escrita offline a todos os módulos.
-- Estado: **a verificar**. Executar com E6 e item antigo 29; a ausência de cache no service worker, isoladamente, não comprova falha em todos os navegadores.
+- [ ] **Pronto, falta publicação e o teste do dono em aparelho real.** Falha reproduzida no build de produção: navegador encerrado/reaberto offline não carregava o Caixa, mesmo preservando PIN/turno e cache HTTP. O worker agora guarda a tela pública limpa e os arquivos da mesma versão, separados por app, preservando fila/acesso. [Registro e roteiro](caixa-reabertura-offline-2026-10-11.md).
+- Critério: com acesso validado e turno já aberto online, fechar completamente, desligar internet, reabrir, passar pelo PIN, vender e reconectar. A fila é confirmada sem venda duplicada; não se abre outro turno indevidamente. Mostrar quais ações exigem conexão. Não estender promessa de escrita offline a todos os módulos.
+- Estado: **corrigido no código em 11/10/2026**, sem SQL. 25 testes novos; tipos e **904 testes em 77 arquivos duas vezes**, build aprovado. Chromium de produção 320 px: Caixa/Operação reabrem offline, exigem PIN, conservam venda após outro encerramento e confirmam um envio sem abrir turno novo. 1280 px: atualização espera fechar, mantém fila/cache do outro app e recusa versão incompleta; reabertura sem cache HTTP aprovada. Supabase simulado em todos esses roteiros. Precisa **Publicar → Atualizar**; fechamento/instalação reais em Android/iPhone permanecem pendentes em E6/item 29. `[ ]` aberto até esse aceite.
 
 **Saída de E1:** R01, R03 e R04 corrigidos; R02/R05 com cenário aprovado ou falha corrigida. Qualquer teste físico adiado permanece explicitamente pendente e impede encerrar a validação geral.
 
@@ -172,7 +172,7 @@ Gerente com permissões novas, integração direta por API com marcas de PDV, ba
 | E1 / R02 | Corrigido em 11/10/2026, [PR #101](https://github.com/OmniSafe-360/mock-overlay-magic/pull/101); 851 testes duas vezes, build, SQL e 13 disputas aprovados; [registro](pedido-conferencia-banco-2026-10-11.md) | Migração `20261011144500` aplicada/conferida; app e consulta de avisos pendentes | Pendente | Publicar → Atualizar e executar roteiro de abas antigas |
 | E1 / R03 | Corrigido em 11/10/2026, [PR #102](https://github.com/OmniSafe-360/mock-overlay-magic/pull/102); 859 testes duas vezes, build e Chromium aprovados; [registro](fiado-consulta-2026-10-11.md) | Banco sem mudança; publicação pendente | Pendente | Publicar → Atualizar e validar consulta/recuperação do fiado |
 | E1 / R04 | Corrigido em 11/10/2026, [PR #103](https://github.com/OmniSafe-360/mock-overlay-magic/pull/103); 879 testes duas vezes, build e Chromium aprovados; [registro](recebimento-rascunho-2026-10-11.md) | Banco sem mudança; publicação pendente | Pendente | Publicar → Atualizar e validar aviso/gravação/retomada do recebimento |
-| R05 | Teste real pendente | Sem mudança preparada | Pendente | Testar reabertura offline com E6 |
+| E1 / R05 | Corrigido em 11/10/2026; 904 testes duas vezes, build e Chromium de produção aprovados; [registro](caixa-reabertura-offline-2026-10-11.md) | Banco sem mudança; publicação pendente | Pendente em aparelho real | Publicar → Atualizar; validar reabertura/atualização offline com E6/item 29 |
 | E2–E4 | Módulos existentes; validação conjunta pendente | Publicação atual não confirmada nesta revisão | Pendente | Executar roteiros após correções |
 | E5 | Parte existe; configuração/validação pendente | Depende de painel/serviços quando aplicável | Pendente | Conferir situação e concluir lançamento |
 | E6 | Automatizados não substituem aparelhos | Versão a registrar no teste | Pendente | Android, iPhone, tablet e computador |
