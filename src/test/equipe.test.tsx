@@ -222,6 +222,27 @@ describe("app do funcionário (Omni Operação)", () => {
       expect(screen.queryByRole("button", { name: /Receber mercadoria/ })).toBeNull();
     } finally { spy.mockRestore(); Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true }); }
   });
+  it("travar no meio do trabalho: o PIN aparece por cima e, ao destravar, volta na mesma tela (sem perder a reposição)", async () => {
+    const api = apiFunc();
+    render(<AppFuncionario codigoInicial="255392" api={api} />);
+    await screen.findByText("Agora crie seu PIN");
+    digitar("2580"); digitar("2580");
+    fireEvent.click(await screen.findByRole("button", { name: /Repor gôndola/ }));
+    expect(await screen.findByText("Tudo abastecido!")).toBeTruthy();
+    const agora = Date.now();
+    const visivel = (v: "hidden" | "visible") => { Object.defineProperty(document, "visibilityState", { value: v, configurable: true }); document.dispatchEvent(new Event("visibilitychange")); };
+    const spy = vi.spyOn(Date, "now");
+    try {
+      spy.mockReturnValue(agora); visivel("hidden");
+      spy.mockReturnValue(agora + 8 * 60_000); visivel("visible");
+      expect(await screen.findByText("Digite seu PIN")).toBeTruthy();
+      expect(screen.getByText("Tudo abastecido!").closest("[hidden]")).not.toBeNull();
+    } finally { spy.mockRestore(); Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true }); }
+    digitar("2580");
+    await waitFor(() => expect(api.desbloquear).toHaveBeenCalledWith(CHAVE, "2580"));
+    expect(await screen.findByText("Tudo abastecido!")).toBeTruthy();
+    expect(api.repor.lista).toHaveBeenCalledTimes(1);
+  });
   it("celular desligado pelo dono volta para o código com aviso", async () => {
     localStorage.setItem("omni.funcionario.chave", CHAVE);
     render(<AppFuncionario api={apiFunc({ inicio: vi.fn(async () => null) })} />);
