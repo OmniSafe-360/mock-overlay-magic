@@ -105,7 +105,7 @@ export type StoreData = { id?: string | undefined; tipo: string; nome: string; c
 export const TIPO_TO_DB: Record<string, string> = { mercado: "mercado", farmacia: "farmacia", roupas: "loja_roupas", construcao: "material_construcao", pet: "pet_shop", autopecas: "autopecas" };
 export const TIPO_FROM_DB: Record<string, string> = Object.fromEntries(Object.entries(TIPO_TO_DB).map(([a, b]) => [b, a]));
 
-export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "first" | "add"; onFinish?: (s: StoreData) => void; onCancel?: () => void } = {}) {
+export function StoreSetup({ mode = "first", userId, onFinish, onCancel }: { mode?: "first" | "add"; userId?: string; onFinish?: (s: StoreData) => void; onCancel?: () => void } = {}) {
   const kb = useKeyboard();
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState<1 | -1>(1);
@@ -129,6 +129,9 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const blur = (k: string) => () => setTouched((t) => ({ ...t, [k]: true }));
   const lastCep = useRef("");
+  const envio = useRef(false);
+  const ativo = useRef(true);
+  useEffect(() => { ativo.current = true; return () => { ativo.current = false; }; }, []);
 
   useEffect(() => {
     const d = digits(cep);
@@ -197,16 +200,22 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
     true,
   ][step]!;
 
-  const go = (to: number) => { setDir(to > step ? 1 : -1); setStep(to); };
+  const go = (to: number) => { if (envio.current) return; setDir(to > step ? 1 : -1); setStep(to); };
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState("");
-  const [savedId, setSavedId] = useState<string | undefined>();
+  const [salvo, setSalvo] = useState<StoreData | null>(null);
   const save = async () => {
-    if (saving) return;
+    if (envio.current || !ativo.current) return;
+    envio.current = true;
     setSaving(true); setSaveErr("");
     try {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error("no user");
+      const { data: u, error: authErro } = await supabase.auth.getUser();
+      if (!ativo.current) return;
+      if (authErro) throw authErro;
+      if (!u.user || (userId && u.user.id !== userId)) {
+        setSaveErr("Sua sessão mudou. Entre novamente antes de cadastrar o comércio.");
+        return;
+      }
       const { data, error } = await supabase.from("comercios").insert({
         dono_id: u.user.id,
         tipo: TIPO_TO_DB[tipo] as Database["public"]["Enums"]["tipo_comercio"],
@@ -224,26 +233,29 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
         numero: semNumero ? null : numero.trim(),
         complemento: compl.trim() || null,
       }).select("id").single();
+      if (!ativo.current) return;
       if (error) {
         setSaveErr(error.code === "23505" ? `Você já cadastrou um comércio com este ${docType}.` : "Não foi possível salvar o comércio. Verifique sua internet e tente novamente.");
         return;
       }
-      setSavedId(data.id);
-      if (mode === "add") onFinish?.(build(data.id)); else setDone(true);
+      if (typeof data?.id !== "string" || !data.id.trim()) throw new Error("comercio_nao_confirmado");
+      const confirmado = build(data.id);
+      setSalvo(confirmado);
+      if (mode === "add") onFinish?.(confirmado); else setDone(true);
     } catch {
-      setSaveErr("Não foi possível salvar o comércio. Verifique sua internet e tente novamente.");
-    } finally { setSaving(false); }
+      if (ativo.current) setSaveErr("Não foi possível salvar o comércio. Verifique sua internet e tente novamente.");
+    } finally { envio.current = false; if (ativo.current) setSaving(false); }
   };
   const next = () => {
-    if (!valid) return;
+    if (!valid || envio.current) return;
     if (step === 3) return void save();
     if (fromReview) { setFromReview(false); return go(3); }
     go(step + 1);
   };
-  const edit = (s: number) => { setFromReview(true); go(s); };
+  const edit = (s: number) => { if (envio.current) return; setFromReview(true); go(s); };
   const tipoNome = TIPOS.find((t) => t.id === tipo)?.nome ?? "";
-  const build = (id?: string): StoreData => ({ id, tipo, nome: nome.trim(), cidade: addr?.cidade ?? "", uf: addr?.uf ?? "", rua: addr?.rua ?? "", numero: semNumero ? "s/n" : numero, bairro: addr?.bairro ?? "" });
-  const finish = () => onFinish?.(build(savedId));
+  const build = (id: string): StoreData => ({ id, tipo, nome: nome.trim(), cidade: (addr?.cidade ?? "").trim(), uf: (addr?.uf ?? "").trim().toUpperCase().slice(0, 2), rua: (addr?.rua ?? "").trim(), numero: semNumero ? "s/n" : numero.trim(), bairro: (addr?.bairro ?? "").trim() });
+  const finish = () => { if (salvo) onFinish?.(salvo); };
 
   return (
     <div className="relative h-app overflow-hidden bg-app">
@@ -253,7 +265,7 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
         <div className="flex h-full max-h-full w-full max-w-[480px] flex-col sm:relative sm:h-auto sm:rounded-3xl sm:border sm:border-border sm:bg-card sm:p-8 sm:backdrop-blur-xl short:sm:p-6">
           {/* logo mini fixa */}
           {mode === "add" && (
-            <button type="button" onClick={onCancel} aria-label="Cancelar" className="absolute right-3 top-3 z-10 flex h-12 w-12 items-center justify-center rounded-2xl text-muted-foreground hover:text-foreground sm:right-4 sm:top-4" style={{ marginTop: "env(safe-area-inset-top)" }}>
+            <button type="button" disabled={saving} onClick={() => { if (!envio.current) onCancel?.(); }} aria-label="Cancelar" className="absolute right-3 top-3 z-10 flex h-12 w-12 items-center justify-center rounded-2xl text-muted-foreground hover:text-foreground disabled:opacity-60 sm:right-4 sm:top-4" style={{ marginTop: "env(safe-area-inset-top)" }}>
               <X size={22} />
             </button>
           )}
@@ -265,7 +277,7 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
           </div>
 
           {done ? (
-            <Success nome={nome} onContinue={finish} />
+            <Success nome={salvo?.nome ?? ""} onContinue={finish} />
           ) : (
             <form noValidate onSubmit={(ev) => { ev.preventDefault(); next(); }} className="flex min-h-0 flex-1 flex-col">
               <div className={`shrink-0 overflow-hidden text-center transition-all duration-300 ${kb ? "max-h-0 opacity-0" : "mt-5 max-h-24 opacity-100 short:mt-3 tiny:mt-2"}`}>
@@ -413,11 +425,11 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
 
                 {step === 3 && (
                   <div className="divide-y divide-border rounded-2xl border border-border bg-background-deep/60">
-                    <Summary title="Tipo de comércio" onEdit={() => edit(0)}>{tipoNome}</Summary>
-                    <Summary title="Dados" onEdit={() => edit(1)}>
+                    <Summary title="Tipo de comércio" disabled={saving} onEdit={() => edit(0)}>{tipoNome}</Summary>
+                    <Summary title="Dados" disabled={saving} onEdit={() => edit(1)}>
                       {nome}<br />{docType} {doc} · {tel}{zap ? " (WhatsApp)" : ""}
                     </Summary>
-                    <Summary title="Endereço" onEdit={() => edit(2)}>
+                    <Summary title="Endereço" disabled={saving} onEdit={() => edit(2)}>
                       {addr?.rua}, {semNumero ? "s/n" : numero}{compl ? ` - ${compl}` : ""}<br />
                       {addr?.bairro}, {addr?.cidade} - {addr?.uf} · {cep}
                     </Summary>
@@ -425,13 +437,13 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
                 )}
               </div>
 
+              {step === 3 && saveErr && <p role="alert" className="mt-3 shrink-0 break-words text-center text-sm text-destructive">{saveErr}</p>}
               <div className={`relative flex shrink-0 gap-2 ${kb ? "pt-2" : "pt-4 short:pt-3"}`}>
                 {step > 0 && (
-                  <button type="button" onClick={() => { setFromReview(false); go(step - 1); }} className={btnGhost} aria-label="Voltar">
+                  <button type="button" disabled={saving} onClick={() => { if (envio.current) return; setFromReview(false); go(step - 1); }} className={`${btnGhost} disabled:opacity-60`} aria-label="Voltar">
                     <span className="flex items-center gap-1.5"><ArrowLeft size={18} />Voltar</span>
                   </button>
                 )}
-                {step === 3 && saveErr && <p role="alert" className="absolute -top-6 left-0 right-0 text-center text-xs text-destructive">{saveErr}</p>}
                 <button type="submit" disabled={!valid || saving} aria-disabled={!valid || saving} className={`flex-1 ${btnPrimary(valid && !saving)}`}>
                   {step === 3 ? (saving ? "Salvando..." : "Cadastrar meu comércio") : "Continuar"}
                 </button>
@@ -456,14 +468,14 @@ export function Collapse({ show, children }: { show: boolean; children: ReactNod
   );
 }
 
-function Summary({ title, onEdit, children }: { title: string; onEdit: () => void; children: ReactNode }) {
+function Summary({ title, onEdit, children, disabled = false }: { title: string; onEdit: () => void; children: ReactNode; disabled?: boolean }) {
   return (
     <div className="flex items-start gap-3 p-3.5 tiny:p-3">
       <div className="min-w-0 flex-1">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
         <p className="mt-0.5 break-words text-sm text-foreground">{children}</p>
       </div>
-      <button type="button" onClick={onEdit} className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-primary hover:underline">
+      <button type="button" disabled={disabled} onClick={onEdit} className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-primary hover:underline disabled:opacity-60">
         <Pencil size={13} /> Editar
       </button>
     </div>
@@ -513,7 +525,7 @@ function Success({ nome, onContinue }: { nome: string; onContinue: () => void })
       </span>
       <h1 className="text-xl font-bold text-foreground">Tudo certo! Seu comércio está pronto</h1>
       <p className="text-base font-semibold text-accent">{nome}</p>
-      <p className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">Modo de demonstração: nenhum dado foi salvo.</p>
+      <p className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">Cadastro salvo na sua conta.</p>
       <button type="button" onClick={onContinue} className={`mt-3 ${btnPrimary(true)}`}>Ir para meu painel</button>
     </div>
   );

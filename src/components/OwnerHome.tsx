@@ -237,7 +237,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
 
   if (adding)
     return (
-      <StoreSetup mode="add" onCancel={() => setAdding(false)}
+      <StoreSetup mode="add" userId={userId} onCancel={() => setAdding(false)}
         onFinish={(s) => { setStores((l) => [...l, s]); setAdding(false); setTab("inicio"); setToast("Comércio adicionado!"); }} />
     );
 
