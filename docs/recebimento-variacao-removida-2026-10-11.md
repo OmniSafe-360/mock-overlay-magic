@@ -1,6 +1,6 @@
 # Item 9 — tamanho ou cor removidos depois do pedido
 
-Correção preparada em 11/10/2026. **Ainda falta comparar e aplicar no Supabase oficial e testar no app publicado.** O item 9 permanece aberto no checklist até essa conferência. Nenhum dado de produção foi alterado neste ambiente.
+Correção aplicada em 11/10/2026 no Supabase oficial `bvwjprxfthhreuhovgbk`, depois da comparação e da simulação com rollback. As três funções resultantes são idênticas ao arquivo, e a migração `20261011120000` está registrada no histórico. **Ainda faltam os avisos automáticos do Supabase e a verificação no app publicado.** O item 9 permanece aberto até essas conferências. A aplicação alterou somente as funções e o registro da migração; não acertou quantidades nem resolveu entregas reais.
 
 O pedido conserva a variação histórica, mas o recebimento recusava qualquer contagem dela com `variacao_invalida`, inclusive zero. Os demais produtos ficavam aguardando a conclusão da entrega.
 
@@ -14,24 +14,25 @@ Agora a equipe pode contar a variação que consta no pedido:
 
 Não foram criadas tabelas, colunas, funções de banco ou módulos. Foram ajustadas três funções existentes: `funcionario_enviar_recebimento`, `_entrar_no_deposito` e `resolver_item_recebimento`. Cada entrada continua gravando `operacoes` e `movimentos` na mesma transação. RLS e permissões foram preservadas. A identificação da variação fica no JSON de tentativas que já existe, para o histórico do dono continuar mostrando tamanho e cor.
 
-## Aplicação pendente no banco
+## Aplicação no banco oficial
 
 Arquivo: [`supabase/migrations/20261011120000_recebimento_variacao_removida.sql`](../supabase/migrations/20261011120000_recebimento_variacao_removida.sql).
 
-Este ambiente tem acesso ao GitHub e à chave pública do app, mas não tem uma conexão administrativa com o Supabase `bvwjprxfthhreuhovgbk`. Por isso não foi possível comparar as definições reais, aplicar a migração nem consultar os avisos de segurança e velocidade. A versão está preparada; não há afirmação de aplicação em produção.
+Aplicação autorizada pelo dono e executada pela API administrativa do Supabase em 11/10/2026:
 
-Quem tiver esse acesso deve:
+1. Comparadas as três definições reais, a configuração de segurança e as permissões. `_entrar_no_deposito` e `resolver_item_recebimento` eram idênticas às versões anteriores no Git. `funcionario_enviar_recebimento` tinha somente formatação/comentários diferentes: os 1.560 tokens SQL eram idênticos, incluindo os literais. A proteção passou a aceitar os dois corpos anteriores conhecidos; continua recusando qualquer outro corpo/configuração.
+2. Simulada a migração inteira entre `begin;` e `rollback;` no projeto oficial, sem dados fictícios de recebimento. Sem login, identidade sem acesso ao comércio, chave de equipe ausente e gravação direta foram recusados. RLS e acesso à função interna conferidos. Após o rollback, as três definições e permissões eram exatamente as de antes.
+3. Aplicadas as três substituições e o registro de `20261011120000` em `supabase_migrations.schema_migrations` na mesma transação. Conferidas as definições resultantes e preservadas as permissões e RLS. Nenhuma entrega, contagem ou quantidade real foi modificada.
+4. **Pendente:** as consultas de avisos de segurança e velocidade retornaram HTTP 403, `Missing required permission(s): advisors_read`. O token permite banco/migrações, mas não esses avisos. A conferência direta de RLS/permissões passou; ela não substitui os avisos automáticos.
+5. **Pendente:** Publicar → Atualizar no Lovable e executar o roteiro abaixo. Registrar os resultados antes de marcar o item 9 como concluído.
 
-1. Ler as definições reais de `funcionario_enviar_recebimento(text,uuid,integer,jsonb)`, `_entrar_no_deposito(uuid,jsonb,uuid,uuid)` e `resolver_item_recebimento(uuid,text,integer)` e compará-las às versões anteriores no Git. São, respectivamente, as migrações `20261010183000`, `20261010150241` e `20261009205326`.
-2. Simular a migração entre `begin;` e `rollback;`. O arquivo contém uma comparação dos corpos e da configuração de segurança antes de substituir qualquer função. Se aparecer `funcao_diverge_do_arquivo`, parar e revisar a diferença; não retirar a proteção.
-3. Aplicar a migração inteira em uma transação, registrar a versão no histórico do Supabase, conferir as três definições resultantes e os avisos de segurança e velocidade.
-4. Publicar → Atualizar no Lovable e fazer o roteiro abaixo. Só então marcar a aplicação e o resultado real no checklist e no histórico.
+Corpos atuais conferidos após a aplicação (MD5, usado para comparação de definições): `funcionario_enviar_recebimento` = `865a390a6371d675f205e67f67a3a68c`; `_entrar_no_deposito` = `7be8991bd73215d05479ce34ff3b2b4b`; `resolver_item_recebimento` = `569e0a092d7380da5267cdba2892f040`. Não reaplicar a migração: a proteção reconhece somente as versões anteriores, e o histórico já contém esta versão.
 
 O arquivo `docs/persistencia/teste/012_recebimento_variacao_removida.sql` é **exclusivamente para banco local descartável**: cria dados fictícios e desfaz tudo. Nunca executar esse arquivo de teste em produção.
 
 ## Verificação local
 
-- `npx tsc --noEmit` e `npx vitest run`: duas execuções finais, 767 testes em 70 arquivos.
+- `npx tsc --noEmit` e `npx vitest run`: duas execuções finais, 767 testes em 70 arquivos. Repetidas e aprovadas após conferir a variante de formatação em produção; testes operacionais locais também aprovados novamente.
 - PostgreSQL 17 descartável: cadeia de migrações, simulação da alteração e seus casos antes de aplicar, tudo entre `begin … rollback`. Contagem positiva, Não veio, reenvio sem duplicar, remoção após envio parcial, aceite/restauração, avaria, devolução, código ocupado, combinação duplicada, outra equipe/comércio, outro dono, sem login e gravação direta recusada.
 - Cópia local com função alterada diretamente: a migração recusou a divergência sem substituir nenhuma das três funções.
 - RLS e restrições de entrada interna conferidas. Histórico dos movimentos fecha com o saldo.

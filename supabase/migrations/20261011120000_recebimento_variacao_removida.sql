@@ -7,7 +7,10 @@ do $conferir$
 declare v_body text;
 begin
   select prosrc into v_body from pg_proc where oid = 'public.funcionario_enviar_recebimento(text,uuid,integer,jsonb)'::regprocedure and prosecdef and proconfig = array['search_path=public, pg_temp'];
-  if md5(v_body) is distinct from '1d4b656ebac6b4676fe5ce600a8ecccd' then
+  -- A segunda versão foi conferida no banco oficial: mesmos tokens SQL,
+  -- somente espaços/quebras de linha e comentários diferentes.
+  if md5(v_body) is distinct from '1d4b656ebac6b4676fe5ce600a8ecccd'
+    and md5(v_body) is distinct from '4f15c96e294dc86b3c3623d7a78d4882' then
     raise exception 'funcao_diverge_do_arquivo: funcionario_enviar_recebimento';
   end if;
   select prosrc into v_body from pg_proc where oid = 'public._entrar_no_deposito(uuid,jsonb,uuid,uuid)'::regprocedure and prosecdef and proconfig = array['search_path=public, pg_temp'];
