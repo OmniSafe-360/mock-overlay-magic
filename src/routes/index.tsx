@@ -8,7 +8,7 @@ import { StoreSetup, Entering, TIPO_FROM_DB, type StoreData } from "@/components
 import { OwnerApp } from "@/components/OwnerHome";
 import { supabase } from "@/integrations/supabase/client";
 import { lerChave } from "@/lib/funcionario";
-import { fotoDoPerfil } from "@/lib/perfil";
+import { emailJaCadastrado, fotoDoPerfil } from "@/lib/perfil";
 
 const OAUTH_REDIRECT = "https://mock-overlay-magic.lovable.app";
 
@@ -290,12 +290,14 @@ function SignupForm({ onCreated }: { onCreated: (email: string) => void }) {
   const create = async () => {
     setBusy(true); setError("");
     const email = v.email.trim();
-    const { error: er } = await supabase.auth.signUp({
+    const { data, error: er } = await supabase.auth.signUp({
       email,
       password: v.senha,
       options: { emailRedirectTo: window.location.origin, data: { full_name: v.nome.trim(), phone: v.tel } },
     });
     if (er) { setError(authMsg(er)); setBusy(false); return; }
+    // E-mail já cadastrado: avisa em vez de pedir para confirmar o e-mail.
+    if (emailJaCadastrado(data.user)) { setError(authMsg({ code: "user_already_exists" })); setBusy(false); return; }
     await supabase.auth.signOut();
     setBusy(false);
     onCreated(email);
