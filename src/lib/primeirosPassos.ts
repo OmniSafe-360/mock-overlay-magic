@@ -27,6 +27,10 @@ export function primeirosPassos(d: DadosPassos): Passo[] {
   ];
 }
 
+/** C1: só conta caixa ligado de verdade — com o computador conectado (ou do celular) e não desligado pelo dono. */
+export const caixaLigado = (c: { tipo?: string | undefined; ligadoEm: string | null; desligadoEm: string | null }) =>
+  !c.desligadoEm && (c.tipo === "celular" || !!c.ligadoEm);
+
 export const passosFeitos = (ps: Passo[]) => ps.filter((p) => p.feito).length;
 
 const CHAVE = "omni.passos.ocultos.v1";

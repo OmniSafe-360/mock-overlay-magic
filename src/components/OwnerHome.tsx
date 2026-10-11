@@ -23,7 +23,7 @@ import type { Diferenca, Perda } from "@/lib/diferencas";
 import { deOlho, entregasParaDecidir, fraseComercio, paraResolver, produtosJaPedidos, resumoComercio, somaResumos, type ResumoComercio } from "@/lib/resumoGeral";
 import { PainelEquipe } from "@/components/PainelEquipe";
 import { PrimeirosPassos } from "@/components/PrimeirosPassos";
-import { ocultarPassos, passosOcultos, primeirosPassos, type Passo } from "@/lib/primeirosPassos";
+import { caixaLigado, ocultarPassos, passosOcultos, primeirosPassos, type Passo } from "@/lib/primeirosPassos";
 import { nomeAreaVenda, textoDoTipo } from "@/lib/exemplos";
 import { ProductWizard, type Product, type Supplier } from "@/components/ProductArea";
 
@@ -155,7 +155,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
         const inicioHoje = new Date(`${hojeEm()}T00:00:00-03:00`).toISOString();
         // Equipe e caixas só servem aos "Primeiros passos": carregam à parte, sem segurar o resumo.
         const contar = (f: () => Promise<unknown[]>) => f().then((l) => l.length).catch(() => null);
-        void Promise.all([contar(() => carregarFuncionarios(id)), contar(() => carregarCaixas(id))]).then(([funcionarios, caixas]) => {
+        void Promise.all([contar(() => carregarFuncionarios(id)), contar(() => carregarCaixas(id).then((cs) => cs.filter(caixaLigado)))]).then(([funcionarios, caixas]) => {
           if (vigente()) setGeral((m) => (m[id] ? { ...m, [id]: { ...m[id], passos: { funcionarios, caixas } } } : m));
         });
         const [r, ps, vendas, dif] = await Promise.all([carregarProdutos(id, fs), carregarPedidos(id),
