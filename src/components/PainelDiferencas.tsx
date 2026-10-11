@@ -50,6 +50,12 @@ const listaContagens = (ns: number[], unidade: string) => {
 };
 /** Mostra 30 dias de histórico; abertas e aguardando aparecem sempre. */
 const DIAS_HISTORICO = 30;
+/** O mais antigo entre 30 dias atrás e o dia 1º do mês (horário de Brasília). */
+export function desdeDiferencas(hoje: string, agora: number): string {
+  const trinta = agora - DIAS_HISTORICO * 86_400_000;
+  const mes = new Date(`${hoje.slice(0, 7)}-01T00:00:00-03:00`).getTime();
+  return new Date(Math.min(trinta, mes)).toISOString();
+}
 
 export function PainelDiferencas({ comercioId, tipo, products, api = API_PADRAO, apiRelatorio, onMudou, vistaInicial = "resolver" }: {
   comercioId: string; tipo: string; products: Product[]; api?: ApiDiferencas | undefined; apiRelatorio?: ApiRelatorio | undefined;
@@ -67,7 +73,8 @@ export function PainelDiferencas({ comercioId, tipo, products, api = API_PADRAO,
   const recarregar = useCallback(async () => {
     setAtualizando(true);
     try {
-      const desde = new Date(Date.now() - DIAS_HISTORICO * 86_400_000).toISOString();
+      // C3: lê desde o começo do mês quando ele é mais antigo que 30 dias (dia 31), para "Faltou este mês" bater com o Relatório.
+      const desde = desdeDiferencas(hojeEm(), Date.now());
       setDados(await api.carregar(comercioId, desde)); setErro(false); setAgora(Date.now());
     } catch { setErro(true); }
     setAtualizando(false);
@@ -87,7 +94,7 @@ export function PainelDiferencas({ comercioId, tipo, products, api = API_PADRAO,
   const historico = [
     ...(dados?.diferencas ?? []).filter((d) => d.situacao === "explicada").map((d) => ({ k: `d${d.id}`, em: d.criadaEm, d })),
     ...(dados?.perdas ?? []).filter((p) => p.situacao !== "aguardando").map((p) => ({ k: `p${p.id}`, em: p.criadaEm, p })),
-  ].sort((a, b) => b.em.localeCompare(a.em));
+  ].filter((x) => new Date(x.em).getTime() >= agora - DIAS_HISTORICO * 86_400_000).sort((a, b) => b.em.localeCompare(a.em));
   const difAberta = dados?.diferencas.find((d) => d.id === aberta) ?? null;
   const depois = async (msg: string) => { setPronto(msg); await recarregar(); onMudou?.(); };
 
