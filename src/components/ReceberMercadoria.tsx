@@ -15,7 +15,7 @@ import { escopoAcesso, operacaoLocal } from "@/lib/operacaoLocal";
 import { ERRO_REGISTRO } from "@/lib/envios";
 import {
   apagarRascunho, chaveProduto, chaveRascunho, erroContagem, guardarRascunho, itemParaEnvio, lerRascunho, nomeProdutoFunc, novaContagem, resumoContagem,
-  totalDaContagem, estadoRecebido, textoEstado, type Contagem, type EstadoItem, type ProdutoFunc,
+  totalDaContagem, estadoRecebido, textoEstado, type Contagem, type EstadoItem, type ProdutoFunc, type Rascunho,
 } from "@/lib/recebimento";
 
 export type ApiReceber = {
@@ -40,6 +40,10 @@ const MSG_RECEBER: [string, string][] = [
   ["acesso_encerrado", "Este celular saiu do app. Entre de novo com o código do dono."],
   ["pin_necessario", "Por segurança, o app travou. Volte ao início e digite seu PIN."],
   ["funcao_nao_permite_receber", "Sua função não inclui receber mercadoria. Fale com o dono."],
+  ["rascunho_atualizado", "Esta contagem mudou em outra tela. Volte às entregas e abra novamente."],
+  ["envio_sem_confirmacao", "Há um envio sem confirmação. Continue a contagem e confirme o envio anterior antes de descartar."],
+  ["contagem_ja_enviada", "Esta entrega já tem contagens enviadas. Continue para conferir o resultado; ela não pode ser descartada aqui."],
+  ["rascunho_de_outra_entrega", "Este rascunho pertence a outra entrega. Volte às entregas e escolha o fornecedor da contagem anterior."],
 ];
 const erroTexto = (e: unknown) => {
   const m = String((e as { message?: string } | null)?.message ?? e ?? "");
@@ -48,8 +52,17 @@ const erroTexto = (e: unknown) => {
 
 type Tela =
   | { t: "lista" }
+  | { t: "retomar"; aberto: banco.RecebimentoAberto; kr: string; fornecedorId: string | null; rascunho: Rascunho; pendente: boolean }
   | { t: "contando"; aberto: banco.RecebimentoAberto; kr: string; fornecedorId: string | null }
   | { t: "pronto"; avisos: boolean; produtos: number };
+
+type PedidoEnvio = { rodada: number; itens: ReturnType<typeof itemParaEnvio>[]; chaves: string[] };
+const validarEnvio = (p: unknown): p is PedidoEnvio => {
+  const x = p as PedidoEnvio | null;
+  return !!x && Number.isInteger(x.rodada) && x.rodada >= 0 && Array.isArray(x.itens) && Array.isArray(x.chaves)
+    && x.itens.length === x.chaves.length && x.itens.every((i) => typeof i.produto_id === "string" && Number.isFinite(i.total));
+};
+const temEnvioPendente = (kr: string, id: string) => !!operacaoLocal(kr, `receber:${id}`, validarEnvio).pendente();
 
 export function ReceberMercadoria({ chave, onVoltar, api: apiDada, mercado = false }: { chave: string; onVoltar: () => void; api?: ApiReceber | undefined; mercado?: boolean }) {
   return <ReceberPorAcesso key={chave} mercado={mercado} chave={chave} onVoltar={onVoltar} apiDada={apiDada} />;
@@ -59,15 +72,79 @@ function ReceberPorAcesso({ chave, onVoltar, apiDada, mercado }: { chave: string
   const api = apiDada ?? API_PADRAO;
   const [tela, setTela] = useState<Tela>({ t: "lista" });
   const [erro, setErro] = useState("");
+  const [descartando, setDescartando] = useState(false);
+  const abrirNovaSemPedido = async (kr: string, fornecedorId: string | null) => {
+    const rascunho: Rascunho = { id: newUid(), pedidoId: null, fornecedorId, contagens: {}, estados: {}, rodada: 0 };
+    // A abertura também pode perder a resposta: conserve o id para retomar a mesma entrega.
+    guardarRascunho(kr, rascunho);
+    if (lerRascunho(kr)?.id !== rascunho.id) throw new Error(ERRO_REGISTRO);
+    setTela({ t: "lista" });
+    const aberto = await api.abrir(chave, rascunho.id, null, fornecedorId);
+    setTela({ t: "contando", aberto, kr, fornecedorId });
+  };
   const abrir = async (pedidoId: string | null, fornecedorId: string | null) => {
     setErro("");
     try {
-      const kr = chaveRascunho(pedidoId, await escopoAcesso(chave));
-      const rasc = lerRascunho(kr);
-      const aberto = await api.abrir(chave, rasc?.id ?? newUid(), pedidoId, fornecedorId ?? rasc?.fornecedorId ?? null);
-      setTela({ t: "contando", aberto, kr, fornecedorId: fornecedorId ?? rasc?.fornecedorId ?? null });
+      const escopo = await escopoAcesso(chave);
+      let kr = chaveRascunho(pedidoId, escopo, fornecedorId);
+      let rasc = lerRascunho(kr);
+      if (!pedidoId && !rasc) {
+        const antiga = chaveRascunho(null, escopo);
+        const anterior = lerRascunho(antiga);
+        // Não mova a chave antiga: um envio sem resposta pode estar guardado nela.
+        if (anterior?.pedidoId === null && anterior.fornecedorId === fornecedorId) { kr = antiga; rasc = anterior; }
+      }
+      if (rasc && (rasc.pedidoId !== pedidoId || (!pedidoId && rasc.fornecedorId !== fornecedorId)))
+        throw new Error("rascunho_de_outra_entrega");
+      if (!pedidoId && !rasc) { await abrirNovaSemPedido(kr, fornecedorId); return; }
+      const aberto = await api.abrir(chave, rasc?.id ?? newUid(), pedidoId, fornecedorId);
+      if (!pedidoId && rasc) {
+        const pendente = temEnvioPendente(kr, rasc.id);
+        if (aberto.situacao === "concluido" && !pendente) {
+          await abrirNovaSemPedido(kr, fornecedorId); return;
+        }
+        setTela({ t: "retomar", aberto, kr, fornecedorId, rascunho: rasc, pendente });
+      } else setTela({ t: "contando", aberto, kr, fornecedorId });
     } catch (e) { setErro(erroTexto(e)); }
   };
+  const descartar = async () => {
+    if (tela.t !== "retomar" || descartando) return;
+    setDescartando(true); setErro("");
+    try {
+      const confereRascunho = () => {
+        if (JSON.stringify(lerRascunho(tela.kr)) !== JSON.stringify(tela.rascunho))
+          throw new Error("rascunho_atualizado");
+        if (temEnvioPendente(tela.kr, tela.aberto.id))
+          throw new Error("envio_sem_confirmacao");
+      };
+      confereRascunho();
+      const atual = await api.abrir(chave, tela.aberto.id, null, tela.fornecedorId);
+      if (atual.situacao !== "contando" || atual.rodada !== 0 || atual.itens.length)
+        throw new Error("contagem_ja_enviada");
+      confereRascunho();
+      await abrirNovaSemPedido(tela.kr, tela.fornecedorId);
+    } catch (e) { setErro(erroTexto(e)); }
+    finally { setDescartando(false); }
+  };
+  if (tela.t === "retomar") {
+    const podeDescartar = !tela.pendente && tela.aberto.situacao === "contando" && tela.aberto.rodada === 0 && !tela.aberto.itens.length;
+    return <div className="space-y-4">
+      <h1 className="text-2xl font-bold">Receber mercadoria</h1>
+      <Sheet title="Contagem em andamento" onClose={() => { if (!descartando) { setErro(""); setTela({ t: "lista" }); } }}>
+        <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3">
+          <p className="break-words text-base font-semibold">{tela.aberto.fornecedor ?? "Fornecedor não informado"}</p>
+          <p className="text-sm">Você começou uma entrega sem pedido deste fornecedor.</p>
+          <p className="text-sm text-muted-foreground">{podeDescartar
+            ? "Continue de onde parou ou descarte as contagens ainda não enviadas e comece outra entrega. Descartar não altera o estoque."
+            : tela.pendente ? "Há um envio sem resposta. Continue para confirmar o envio anterior, sem duplicar."
+              : "Esta entrega já tem contagens enviadas. Continue para conferir o resultado."}</p>
+          {erro && <p role="alert" className="text-sm font-semibold text-destructive">{erro}</p>}
+          <button type="button" disabled={descartando} className={btnPrimary(true)} onClick={() => { setErro(""); setTela({ t: "contando", aberto: tela.aberto, kr: tela.kr, fornecedorId: tela.fornecedorId }); }}>Continuar contagem</button>
+          {podeDescartar && <button type="button" disabled={descartando} className={btnGhost} onClick={() => void descartar()}>{descartando ? "Abrindo nova entrega…" : "Descartar contagem e começar outra"}</button>}
+        </div>
+      </Sheet>
+    </div>;
+  }
   if (tela.t === "contando")
     return <Contando mercado={mercado} chave={chave} api={api} aberto={tela.aberto} kr={tela.kr} fornecedorId={tela.fornecedorId} onSair={() => setTela({ t: "lista" })} onPronto={(avisos, produtos) => setTela({ t: "pronto", avisos, produtos })} />;
   if (tela.t === "pronto")
@@ -80,17 +157,18 @@ function ReceberPorAcesso({ chave, onVoltar, apiDada, mercado }: { chave: string
         <button type="button" onClick={onVoltar} className={btnPrimary(true)}>Voltar ao início</button>
       </div>
     );
-  return <ListaEntregas chave={chave} api={api} erroAbrir={erro} onVoltar={onVoltar} onAbrir={abrir} />;
+  return <ListaEntregas chave={chave} api={api} erroAbrir={erro} ocupado={descartando} onVoltar={onVoltar} onAbrir={abrir} />;
 }
 
 /* ---------- lista de entregas ---------- */
-function ListaEntregas({ chave, api, erroAbrir, onVoltar, onAbrir }: {
-  chave: string; api: ApiReceber; erroAbrir: string; onVoltar: () => void; onAbrir: (pedidoId: string | null, fornecedorId: string | null) => Promise<void>;
+function ListaEntregas({ chave, api, erroAbrir, ocupado, onVoltar, onAbrir }: {
+  chave: string; api: ApiReceber; erroAbrir: string; ocupado: boolean; onVoltar: () => void; onAbrir: (pedidoId: string | null, fornecedorId: string | null) => Promise<void>;
 }) {
   const [dados, setDados] = useState<Awaited<ReturnType<ApiReceber["entregas"]>> | null>(null);
   const [erro, setErro] = useState("");
   const [semPedido, setSemPedido] = useState(false);
   const [abrindo, setAbrindo] = useState<string | null>(null);
+  const bloqueado = ocupado || !!abrindo;
   const [atualizando, setAtualizando] = useState(false);
   const carregar = useRef<() => void>(() => {});
   useEffect(() => {
@@ -129,7 +207,7 @@ function ListaEntregas({ chave, api, erroAbrir, onVoltar, onAbrir }: {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <button type="button" onClick={onVoltar} className="flex min-h-12 items-center gap-2 pr-3 text-base font-semibold text-primary"><ArrowLeft size={18} /> Início</button>
-        <button type="button" disabled={atualizando || !!abrindo} onClick={() => carregar.current()} aria-label="Atualizar entregas"
+        <button type="button" disabled={atualizando || bloqueado} onClick={() => carregar.current()} aria-label="Atualizar entregas"
           className="flex min-h-12 items-center gap-2 rounded-2xl border border-border px-3 text-sm font-semibold text-primary disabled:opacity-60">
           <RefreshCw size={18} className={atualizando ? "animate-spin" : ""} /> {atualizando ? "Atualizando…" : "Atualizar"}
         </button>
@@ -147,7 +225,7 @@ function ListaEntregas({ chave, api, erroAbrir, onVoltar, onAbrir }: {
       <ul className="space-y-3">
         {dados?.pedidos.map((p) => (
           <li key={p.id}>
-            <button type="button" disabled={!!abrindo} onClick={() => ir(p.id, null)}
+            <button type="button" disabled={bloqueado} onClick={() => ir(p.id, null)}
               className={`flex w-full items-center gap-3 rounded-3xl border-2 p-4 text-left transition active:scale-[0.99] ${p.previsaoEntrega && p.previsaoEntrega <= hoje ? "border-warning/60 bg-warning/10" : "border-border bg-secondary/60"}`}>
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary"><Truck size={24} /></span>
               <span className="min-w-0 flex-1">
@@ -163,7 +241,7 @@ function ListaEntregas({ chave, api, erroAbrir, onVoltar, onAbrir }: {
           </li>
         ))}
       </ul>
-      <button type="button" disabled={!!abrindo} onClick={() => setSemPedido(true)} className={`flex w-full items-center justify-center gap-2 ${btnGhost}`}><PackageCheck size={18} /> Chegou sem pedido</button>
+      <button type="button" disabled={bloqueado} onClick={() => setSemPedido(true)} className={`flex w-full items-center justify-center gap-2 ${btnGhost}`}><PackageCheck size={18} /> Chegou sem pedido</button>
       {semPedido && dados && (
         <Sheet title="De qual fornecedor?" onClose={() => setSemPedido(false)}>
           <div className="min-h-0 space-y-2 overflow-y-auto px-5 py-3">
@@ -215,18 +293,15 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
   const [aviso, setAviso] = useState("");
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
-  type PedidoEnvio = { rodada: number; itens: ReturnType<typeof itemParaEnvio>[]; chaves: string[] };
   const [registro] = useState(() => {
-    try { return operacaoLocal(kr, `receber:${aberto.id}`, (p: unknown): p is PedidoEnvio => {
-      const x = p as PedidoEnvio | null;
-      return !!x && Number.isInteger(x.rodada) && x.rodada >= 0 && Array.isArray(x.itens) && Array.isArray(x.chaves)
-        && x.itens.length === x.chaves.length && x.itens.every((i) => typeof i.produto_id === "string" && Number.isFinite(i.total));
-    }); } catch { return null; }
+    try { return operacaoLocal(kr, `receber:${aberto.id}`, validarEnvio); } catch { return null; }
   });
   const envioPendente = !!registro?.pendente();
   const noPedido = useMemo(() => new Set(aberto.produtos.map(chaveProduto)), [aberto.produtos]);
 
   useEffect(() => {
+    // Uma tela antiga não pode recriar o rascunho que foi descartado ou substituir a entrega nova.
+    if (!aberto.pedidoId && lerRascunho(kr)?.id !== aberto.id) return;
     guardarRascunho(kr, { id: aberto.id, pedidoId: aberto.pedidoId, fornecedorId, contagens, estados, rodada });
   }, [kr, aberto.id, aberto.pedidoId, fornecedorId, contagens, estados, rodada]);
 
@@ -277,6 +352,7 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
 
   const terminar = async () => {
     if (!podeTerminar || !registro) return;
+    if (!aberto.pedidoId && lerRascunho(kr)?.id !== aberto.id) { setErro(erroTexto(new Error("rascunho_atualizado"))); return; }
     setEnviando(true); setErro("");
     try {
       const confirmado = await registro.enviar(() => ({ rodada, itens: contados.map((k) => itemParaEnvio(contagens[k]!)), chaves: contados }),
