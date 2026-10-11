@@ -215,6 +215,8 @@ export function PainelDiferencas({ comercioId, tipo, products, api = API_PADRAO,
               let dif = difAberta.diferenca;
               if (contado != null) dif = (await api.resolver(difAberta.id, contado)).diferenca;
               if (dif !== 0 && motivo) await api.explicar(difAberta.id, motivo, obs);
+              // Diferença de zero (ex.: perda recusada quando o sistema tinha 0): fecha sem pedir motivo.
+              else if (dif === 0 && contado == null) await api.explicar(difAberta.id, "erro_contagem", obs);
             } catch (e) { await recarregar(); throw e; }
             setAberta(null);
             await depois(contado != null ? "Estoque acertado com a contagem escolhida." : "Explicação salva.");

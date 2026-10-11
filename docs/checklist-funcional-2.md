@@ -45,7 +45,7 @@ Fora desta lista, a pedido do dono: Omni Conector (caixa no computador) e "Esque
   - Depois, preencher dá sempre "pendência já resolvida", e desligar a validade é bloqueado.
   - Onde: `persistencia.ts:36-41`, `:69`; `ProductArea.tsx:1116`, `:1122`; `validade.ts:146`.
 - [x] A10 (11/10/2026: as validades que já vieram do banco numa área ainda sem contagem não bloqueiam mais a edição; só linhas novas pedem a contagem). **Produto com validade que recebeu mercadoria com o depósito em "Definir depois" não pode mais ser editado**, nem o nome nem o preço. Aparece um erro "remova essas linhas" sem botão para remover (`ProductArea.tsx:327`, `:353`, `:549-556`, `:618`; `persistencia.ts:302-307`).
-- [ ] A11. **Perda recusada quando o sistema tinha 0 fica presa em "Diferenças para explicar".** Aparece "Explicação salva", mas nada é gravado, e o aviso nunca zera (`decidir_perda`, `PainelDiferencas.tsx:217`, `:307`).
+- [x] A11 (11/10/2026: `decidir_perda` não cria diferença quando nada tinha saído do estoque; diferença de zero que já existia fecha ao tocar em salvar). **Perda recusada quando o sistema tinha 0 fica presa em "Diferenças para explicar".** Aparece "Explicação salva", mas nada é gravado, e o aviso nunca zera (`decidir_perda`, `PainelDiferencas.tsx:217`, `:307`).
 - [x] A12. (resolvido pela correção R01, [PR #100](https://github.com/OmniSafe-360/mock-overlay-magic/pull/100): a tela "Busque no depósito" ganhou o botão Início e a reposição é retomada ao reabrir) **Repor: a tela "Busque no depósito" não tem botão de voltar.** Com PIN vencido, acesso encerrado ou envio repetido, o funcionário fica preso e só sai fechando o app (`ReporGondola.tsx:200-249`).
 
 ## Etapa B — números errados ou telas que confundem
