@@ -68,9 +68,13 @@ export function sugerirQuantidade(falta: number, unidade: string, embalagens: Em
 
 /** Total em unidades de venda de uma linha. */
 export const unidadesDaLinha = (l: Pick<LinhaPedido, "embalagem" | "qtd">) => Math.round(l.qtd * (l.embalagem?.qtd ?? 1) * 1000) / 1000;
-/** Preço estimado de uma unidade de venda (centavos): o da embalagem dividido, senão o preço de compra. */
+/** Preço estimado de uma unidade de venda (centavos, sem arredondar): o da embalagem dividido, senão o preço de compra.
+ * Sem arredondar, o total salvo bate com o da montagem (caixa de R$ 10,00 com 12 = R$ 10,00, não R$ 9,96). */
 export const precoUnidade = (l: Pick<LinhaPedido, "p" | "embalagem">) =>
-  l.embalagem?.preco ? Math.round(l.embalagem.preco / l.embalagem.qtd) : l.p.compra;
+  l.embalagem?.preco ? l.embalagem.preco / l.embalagem.qtd : l.p.compra;
+/** Preço por unidade de venda para o banco (reais, 8 casas) e de volta (centavos, sem arredondar o centavo). */
+export const precoParaBanco = (centavos: number) => Math.round(centavos * 1e6) / 1e8;
+export const precoDoBanco = (v: unknown): number | null => (v == null ? null : Math.round(Number(v) * 1e8) / 1e6);
 export const totalLinha = (l: Pick<LinhaPedido, "p" | "embalagem" | "qtd">) =>
   l.embalagem?.preco ? Math.round(l.embalagem.preco * l.qtd) : Math.round(l.p.compra * unidadesDaLinha(l));
 export const totalLinhas = (ls: LinhaPedido[]) => ls.reduce((s, l) => s + totalLinha(l), 0);
@@ -168,5 +172,5 @@ export function linhasDoPedido(pedido: Pedido, products: Product[]): LinhaPedido
   });
 }
 /** Valor estimado guardado no item, em centavos. Ausente não é preço zero. */
-export const valorItemPedido = (i: ItemPedido): number | null => i.precoEstimado == null ? null : i.precoEstimado * i.qtdUnidades;
-export const totalPedido = (pedido: Pedido) => pedido.itens.reduce((s, i) => s + (i.precoEstimado ?? 0) * i.qtdUnidades, 0);
+export const valorItemPedido = (i: ItemPedido): number | null => i.precoEstimado == null ? null : Math.round(i.precoEstimado * i.qtdUnidades);
+export const totalPedido = (pedido: Pedido) => pedido.itens.reduce((s, i) => s + (valorItemPedido(i) ?? 0), 0);

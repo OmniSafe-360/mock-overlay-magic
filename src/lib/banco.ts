@@ -2,7 +2,7 @@ import type { Database, Json } from "@/integrations/supabase/types";
 /* Acesso ao Supabase do cadastro de produtos. As regras de acesso do banco garantem que só o dono vê o próprio comércio. */
 import { supabase } from "@/integrations/supabase/client";
 import type { Product, Supplier } from "@/lib/produto";
-import { precoUnidade as precoUnidadePedido, type CanalPedido, type FormaPagamento, type LinhaPedido, type Pedido, type RespostaPedido, type SituacaoPedido } from "@/lib/pedido";
+import { precoDoBanco, precoParaBanco, precoUnidade as precoUnidadePedido, type CanalPedido, type FormaPagamento, type LinhaPedido, type Pedido, type RespostaPedido, type SituacaoPedido } from "@/lib/pedido";
 import type { Funcao, Funcionario } from "@/lib/funcionario";
 import type { Caixa, ItemPendente, ItemVenda, Venda } from "@/lib/vendas";
 import type { ItemRecebido, ProdutoFunc, Recebimento, SituacaoItemRecebido } from "@/lib/recebimento";
@@ -138,7 +138,7 @@ export async function carregarPedidos(comercioId: string): Promise<Pedido[]> {
     pagamento: { situacao: r.pagamento_situacao ?? null, vencimento: r.vencimento ?? null, pagoEm: r.pago_em ?? null, valor: centavosDe(r.valor_total) },
     itens: itens.filter((i) => i.pedido_id === r.id).map((i) => ({
       produtoId: i.produto_id, variacaoId: i.variacao_id ?? null, embalagemId: i.embalagem_id ?? null,
-      qtdEmbalagens: Number(i.qtd_embalagens), qtdUnidades: Number(i.qtd_unidades), precoEstimado: centavosDe(i.preco_estimado),
+      qtdEmbalagens: Number(i.qtd_embalagens), qtdUnidades: Number(i.qtd_unidades), precoEstimado: precoDoBanco(i.preco_estimado),
       qtdConfirmada: i.qtd_confirmada == null ? null : Number(i.qtd_confirmada), qtdRecebida: i.qtd_recebida == null ? null : Number(i.qtd_recebida),
     })),
     recebimento: recs.find((x) => x.pedidoId === r.id) ?? null,
@@ -225,7 +225,7 @@ export async function enviarRecebimento(chave: string, id: string, rodada: numbe
 export async function salvarPedido(a: { id: string; comercioId: string; fornecedorId: string; observacao: string; linhas: LinhaPedido[] }, sessao?: Sessao): Promise<{ id: string; numero: number; recuperado: boolean }> {
   const montar = () => ({ id: a.id, comercio_id: a.comercioId, fornecedor_id: a.fornecedorId, observacao: a.observacao, itens: a.linhas.map((l) => {
     if (!l.p.db?.id) throw new Error("produto_nao_salvo");
-    return { produto_id: l.p.db.id, variacao_id: l.variacao?.uid ?? null, embalagem_id: l.embalagem?.uid ?? null, qtd_embalagens: l.qtd, preco_estimado: precoUnidadePedido(l) / 100 };
+    return { produto_id: l.p.db.id, variacao_id: l.variacao?.uid ?? null, embalagem_id: l.embalagem?.uid ?? null, qtd_embalagens: l.qtd, preco_estimado: precoParaBanco(precoUnidadePedido(l)) };
   }) });
   let resultado: { id: string; numero: number } | undefined;
   const r = await enviarCadastro(sessao ?? { dbId: a.id, incerto: null }, montar, async (p) => {
