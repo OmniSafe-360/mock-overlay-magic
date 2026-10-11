@@ -65,5 +65,33 @@ describe("Fiado no app do dono", () => {
     await waitFor(() => expect(api.receber).toHaveBeenCalledWith(expect.any(String), "a", 2000, "pix", ""));
     expect(await screen.findByText(/Recebido R\$\s20,00 de João/)).toBeTruthy();
     expect(screen.getAllByText("R$ 25,90").length).toBeGreaterThan(0);
+
+    // 2º pagamento do mesmo cliente: código novo (antes repetia e o banco ignorava).
+    fireEvent.click(screen.getByRole("button", { name: /Recebeu/ }));
+    fireEvent.change(screen.getByLabelText("Quanto recebeu?"), { target: { value: "500" } });
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar R\$\s5,00/ }));
+    await waitFor(() => expect(api.receber).toHaveBeenCalledTimes(2));
+    const ids = vi.mocked(api.receber).mock.calls.map((c) => c[0]);
+    expect(ids[1]).not.toBe(ids[0]);
+  });
+
+  it("reenviar depois de falhar usa o mesmo código (não conta duas vezes)", async () => {
+    const api: ApiFiado = {
+      carregar: vi.fn(async () => ({ clientes: CLIENTES, movimentos: MOVS })),
+      receber: vi.fn().mockRejectedValueOnce(new Error("Failed to fetch")).mockResolvedValueOnce(undefined),
+      salvarCliente: vi.fn(async () => {}),
+    };
+    render(<PainelFiado comercioId="c1" comercioNome="Mercado Bom Preço" api={api} agora={AGORA} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Fiado · a receber/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /João da Silva/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Recebeu/ }));
+    fireEvent.change(screen.getByLabelText("Quanto recebeu?"), { target: { value: "1000" } });
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar R\$\s10,00/ }));
+    await waitFor(() => expect(api.receber).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Confirmar R\$\s10,00/ })).not.toBeDisabled());
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar R\$\s10,00/ }));
+    await waitFor(() => expect(api.receber).toHaveBeenCalledTimes(2));
+    const ids = vi.mocked(api.receber).mock.calls.map((c) => c[0]);
+    expect(ids[1]).toBe(ids[0]);
   });
 });

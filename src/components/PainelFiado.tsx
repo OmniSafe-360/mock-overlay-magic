@@ -112,7 +112,8 @@ function DetalheConta({ c, comercioId, comercioNome, api, agora, onMudou, onVolt
   c: ContaFiado; comercioId: string; comercioNome: string; api: ApiFiado; agora: number; onMudou: () => Promise<unknown>; onVoltar: () => void; onClose: () => void;
 }) {
   const [modo, setModo] = useState<"ver" | "receber" | "editar">("ver");
-  const [id] = useState(newUid);
+  /** Um código por pagamento: novo a cada "Recebeu"; o mesmo se reenviar depois de falhar (não conta duas vezes). */
+  const [id, setId] = useState(newUid);
   const [valor, setValor] = useState(c.deve);
   const [forma, setForma] = useState<"dinheiro" | "pix" | "cartao">("dinheiro");
   const [obs, setObs] = useState("");
@@ -141,7 +142,7 @@ function DetalheConta({ c, comercioId, comercioNome, api, agora, onMudou, onVolt
 
         {modo === "ver" && (
           <div className="grid grid-cols-1 gap-2">
-            {c.deve > 0 && <button type="button" onClick={() => { setModo("receber"); setValor(c.deve); setPronto(""); }} className={`flex items-center justify-center gap-2 ${btnPrimary(true)}`}><HandCoins size={20} /> Recebeu</button>}
+            {c.deve > 0 && <button type="button" onClick={() => { setModo("receber"); setValor(c.deve); setObs(""); setId(newUid()); setPronto(""); }} className={`flex items-center justify-center gap-2 ${btnPrimary(true)}`}><HandCoins size={20} /> Recebeu</button>}
             {c.deve > 0 && c.telefone && (
               <a href={linkWhats(c.telefone, mensagemCobranca(c, comercioNome))} target="_blank" rel="noopener noreferrer" className={`flex items-center justify-center gap-2 ${btnGhost}`}><MessageCircle size={18} /> Cobrar pelo WhatsApp</a>
             )}

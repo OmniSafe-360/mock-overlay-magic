@@ -6,7 +6,7 @@ Fora desta lista, a pedido do dono: caixa no computador (Omni Conector) e "Esque
 Conferido e **sem problema**: os 59 comandos que o app manda ao banco existem com os nomes certos; todas as tabelas e colunas lidas existem; nenhum teste desligado; sem erros no banco nas últimas 24 h.
 
 ## Prioridade 1 — perde dinheiro ou estoque errado
-- [ ] 1. **Fiado:** o 2º pagamento do mesmo cliente diz "Recebido", mas não é salvo (`PainelFiado.tsx`, código do pagamento repetido).
+- [x] 1. (corrigido em 11/10/2026: código novo a cada "Recebeu", o mesmo ao reenviar depois de falhar; nenhum pagamento real tinha se perdido) **Fiado:** o 2º pagamento do mesmo cliente diz "Recebido", mas não é salvo (`PainelFiado.tsx`, código do pagamento repetido).
 - [ ] 2. **Conferir depósito:** se a internet falhar e o funcionário tocar "Confirmar" de novo, o mesmo número conta como 2ª contagem e o estoque muda sem recontagem de verdade (`funcionario_conferencia_contar` sem rodada).
 - [ ] 3. **Pedido cancelado continua como "Conta a pagar"** (e vira "Conta atrasada" no Atenção hoje) (`cancelar_pedido`).
 - [ ] 4. **Mercadoria recebida some quando o depósito nunca foi contado**; contar depois soma de novo (fica em dobro) (`_entrar_no_deposito` não marca a contagem).
