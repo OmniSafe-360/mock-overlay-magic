@@ -2,7 +2,7 @@
 
 Plano de execução pedido pelo dono em **11/10/2026**. As regras continuam em [FONTE_DA_VERDADE.md](FONTE_DA_VERDADE.md); este arquivo detalha suas etapas. O histórico permanece em [CLAUDE.md](../CLAUDE.md). Não há uma segunda fonte de regras.
 
-**Próxima tarefa independente: E2.1 — conta e comércio.** R01–R05 corrigidos no código; publicação e teste do dono pendentes. **E1 não está validada por completo:** reabertura offline de R05 exige aparelho real, junto de E6/item antigo 29. R02 já aplicada no banco oficial, sem alterar dados de comércio/estoque. [Registro de R01](reposicao-retomada-2026-10-11.md), [R02](pedido-conferencia-banco-2026-10-11.md), [R03](fiado-consulta-2026-10-11.md), [R04](recebimento-rascunho-2026-10-11.md) e [R05](caixa-reabertura-offline-2026-10-11.md). O teste geral continua adiado conforme decisão do dono; avançar nas verificações independentes não encerra os aceites pendentes.
+**Próxima tarefa independente: continuar E2.1 — cadastro/edição de comércio e retorno das telas.** Isolamento da conta corrigido nesta etapa; falta publicação/teste do dono. [Registro de E2.1](conta-isolamento-2026-10-11.md). R01–R05 corrigidos no código; publicação e teste do dono pendentes. **E1 não está validada por completo:** reabertura offline de R05 exige aparelho real, junto de E6/item antigo 29. R02 já aplicada no banco oficial, sem alterar dados de comércio/estoque. [Registro de R01](reposicao-retomada-2026-10-11.md), [R02](pedido-conferencia-banco-2026-10-11.md), [R03](fiado-consulta-2026-10-11.md), [R04](recebimento-rascunho-2026-10-11.md) e [R05](caixa-reabertura-offline-2026-10-11.md). O teste geral continua adiado conforme decisão do dono; avançar nas verificações independentes não encerra os aceites pendentes.
 
 ## Ponto de partida e limites da análise
 
@@ -37,7 +37,7 @@ Ao encerrar uma tarefa, registrar: ID, problema e cenário, PR/commit, testes ex
 | Etapa | Objetivo | Situação em 11/10/2026 |
 |---|---|---|
 | E1 | Fechar as pendências de confiabilidade identificadas nesta revisão | R01–R05 corrigidos; falta publicação/teste do dono, incluindo R05 em aparelhos |
-| E2 | Validar a jornada do dono, dos cadastros às compras e pagamentos | Implementada em grande parte; validação completa pendente |
+| E2 | Validar a jornada do dono, dos cadastros às compras e pagamentos | E2.1: isolamento da conta corrigido; demais cenários e validação completa pendentes |
 | E3 | Validar recebimento, estoque, reposição, perdas e diferenças juntos | Implementada; teste completo pendente |
 | E4 | Validar vendas, caixa, fiado e integração usada no piloto | Implementada; teste real pendente |
 | E5 | Completar acesso, recuperação e preparação para lançamento | Configurações e validações pendentes |
@@ -84,6 +84,9 @@ E2–E4 verificam o que já existe; não reconstroem os módulos. E5 inclui pend
 ## E2 — jornada do dono, cadastro e pedidos
 
 - [ ] **E2.1 Conta e comércio:** entrar, sair, criar conta, e-mail repetido, editar nome/foto, cadastrar e editar comércio, CEP válido/inválido/sem conexão. Conferir isolamento ao trocar comércio ou usuário; voltar da ficha/cadastro para a mesma aba/pedido.
+
+**Entrega parcial de E2.1 em 11/10/2026:** isolamento ao entrar/sair/trocar conta corrigido após cinco falhas reproduzidas no main anterior. Consultas antigas não substituem a entrada atual; perfil/lista confirmados juntos, filtro por dono e aviso/nova tentativa em falha de leitura. Entrada repetida mantém a edição. **20 testes novos; tipos e 924 testes em 78 arquivos duas vezes**, build e oito roteiros de Chromium de produção em 320/1280 px com Auth/Supabase simulados aprovados. Sem SQL/dados reais alterados. **Pronto, falta Publicar → Atualizar e o teste do dono**; E2.1 continua `[ ]`, incluindo demais cenários de cadastro/edição de comércio e retornos ainda a verificar nesta rodada. Itens antigos 15, 23 e 24 preservados. [Registro e roteiro](conta-isolamento-2026-10-11.md). Entrega no [PR #105](https://github.com/OmniSafe-360/mock-overlay-magic/pull/105), correção `cb572a3`. Próxima tarefa: continuar E2.1; não marcar E2/E1 como concluídas.
+
 - [ ] **E2.2 Produtos nos seis tipos:** testar ao menos um cadastro completo de Mercado, Farmácia, Roupas, Construção, Pet e Autopeças. Nomes/unidades corretos; exigências próprias de validade/tarja/tamanho/cor; preço e prejuízo; embalagem e código; limites e locais; salvar, editar, desistir, duplicidade e envio sem resposta. Não reusar dados reais como massa de teste.
 - [ ] **E2.3 Estoque inicial e ficha:** área não contada permanece “não contado”; contagem inicial não soma novamente uma entrada anterior. Lista, ficha, locais e avisos concordam com `saldos`; quantidade, validade e unidade corretas. Impressão A4/térmica e leitura da etiqueta devem corresponder ao produto/variação.
 - [ ] **E2.4 Fornecedor e compra:** criar/editar fornecedor; montar pedido pelo depósito; custo por embalagem/unidade e total arredondado iguais antes/depois de salvar, incluindo o caso 12 × R$ 0,83333333 = R$ 10,00. Enviar link, fornecedor aceitar/recusar/ajustar, entrega parcial, recebido, cancelamento e histórico coerentes.

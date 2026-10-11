@@ -485,47 +485,88 @@ function Index() {
   const [okMsg, setOkMsg] = useState("");
   const [recovery, setRecovery] = useState(false);
   const recoveryRef = useRef(false);
-  const loadingRef = useRef(false);
-  const phaseRef = useRef(phase);
-  phaseRef.current = phase;
+  const encerrarRef = useRef<() => void>(() => {});
   const fetchRef = useRef<(animate: boolean) => Promise<void>>(async () => {});
   useEffect(() => {
+    let ativo = true;
+    let versao = 0;
+    let consulta = 0;
+    let usuarioAtual: string | null = null;
+    let eventoRecebido = false;
+    const timers = new Set<ReturnType<typeof setTimeout>>();
+    const agendar = (acao: () => void, tempo: number) => {
+      const timer = setTimeout(() => { timers.delete(timer); acao(); }, tempo);
+      timers.add(timer);
+    };
+    const limpar = () => {
+      versao++; consulta++; usuarioAtual = null;
+      for (const timer of timers) clearTimeout(timer);
+      timers.clear();
+      fetchRef.current = lerSessao;
+      setStores([]); setAccount({ id: "", nome: "", email: "", foto: null }); setPhase("auth");
+    };
+    encerrarRef.current = limpar;
     if (window.location.hash.includes("type=recovery")) { recoveryRef.current = true; setRecovery(true); }
-    const fetchStores = async (animate: boolean) => {
+    type Usuario = { id: string; email?: string; user_metadata?: Record<string, unknown> };
+    const buscar = async (user: Usuario, revisao: number, animate: boolean) => {
+      if (!ativo || versao !== revisao || usuarioAtual !== user.id) return;
+      const pedido = ++consulta;
+      const atual = () => ativo && versao === revisao && usuarioAtual === user.id && consulta === pedido;
       const t0 = Date.now();
-      let list: StoreData[] | null = null;
       try {
-        const { data: rows, error } = await supabase.from("comercios").select("id,tipo,nome,cidade,uf,rua,numero,sem_numero,bairro").eq("ativo", true).order("created_at", { ascending: true });
-        if (!error) list = (rows ?? []).map((r) => ({ id: r.id, tipo: TIPO_FROM_DB[r.tipo] ?? r.tipo, nome: r.nome, cidade: r.cidade, uf: r.uf, rua: r.rua, numero: r.sem_numero ? "s/n" : (r.numero ?? ""), bairro: r.bairro }));
-      } catch { list = null; }
-      const wait = animate ? Math.max(0, 1000 - (Date.now() - t0)) : 0;
-      setTimeout(() => {
-        if (!loadingRef.current) return;
-        if (!list) { setPhase("error"); return; }
-        setStores(list);
-        setPhase(list.length ? "home" : "store");
-      }, wait);
+        const { data: perfil, error: erroPerfil } = await supabase.from("profiles").select("nome,avatar_url").eq("id", user.id).maybeSingle();
+        if (!atual()) return;
+        if (erroPerfil) throw erroPerfil;
+        const { data: rows, error } = await supabase.from("comercios").select("id,tipo,nome,cidade,uf,rua,numero,sem_numero,bairro").eq("dono_id", user.id).eq("ativo", true).order("created_at", { ascending: true });
+        if (!atual()) return;
+        if (error) throw error;
+        const list = (rows ?? []).map((r) => ({ id: r.id, tipo: TIPO_FROM_DB[r.tipo] ?? r.tipo, nome: r.nome, cidade: r.cidade, uf: r.uf, rua: r.rua, numero: r.sem_numero ? "s/n" : (r.numero ?? ""), bairro: r.bairro }));
+        const nome = String(perfil?.nome ?? user.user_metadata?.["full_name"] ?? user.user_metadata?.["name"] ?? "").trim();
+        agendar(() => {
+          if (!atual()) return;
+          setAccount({ id: user.id, nome, email: user.email ?? "", foto: fotoDoPerfil(perfil?.avatar_url) });
+          setStores(list); setPhase(list.length ? "home" : "store");
+        }, animate ? Math.max(0, 1000 - (Date.now() - t0)) : 0);
+      } catch { if (atual()) setPhase("error"); }
     };
-    fetchRef.current = fetchStores;
-    const load = async (user: { id: string; email?: string; user_metadata?: Record<string, unknown> } | null | undefined, animate: boolean) => {
-      if (!user || recoveryRef.current) return;
-      if (loadingRef.current) return;
-      loadingRef.current = true;
-      if (phaseRef.current === "auth") setPhase("loading");
-      const { data } = await supabase.from("profiles").select("nome,avatar_url").eq("id", user.id).maybeSingle();
-      const nome = String(data?.nome ?? user.user_metadata?.["full_name"] ?? user.user_metadata?.["name"] ?? "").trim();
-      setAccount({ id: user.id, nome, email: user.email ?? "", foto: fotoDoPerfil(data?.avatar_url) });
-      await fetchStores(animate);
+    const load = (user: Usuario | null | undefined, animate: boolean) => {
+      if (!ativo || recoveryRef.current) return;
+      if (!user) { limpar(); return; }
+      if (usuarioAtual === user.id) return;
+      limpar(); usuarioAtual = user.id;
+      const revisao = versao;
+      setPhase("loading");
+      fetchRef.current = (animar) => buscar(user, revisao, animar);
+      // A consulta começa fora do callback de autenticação; a saída já invalida este agendamento.
+      agendar(() => { if (ativo && versao === revisao) void buscar(user, revisao, animate); }, 0);
     };
-    supabase.auth.getSession().then(({ data }) => load(data.session?.user, false));
+    async function lerSessao() {
+      const revisao = versao;
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (!ativo || versao !== revisao || eventoRecebido) return;
+        if (error) throw error;
+        load(data.session?.user, false);
+      } catch { if (ativo && versao === revisao && !eventoRecebido) setPhase("error"); }
+    }
+    fetchRef.current = lerSessao;
+    void lerSessao();
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY") { recoveryRef.current = true; setRecovery(true); setPhase("auth"); return; }
-      if (event === "SIGNED_IN") setTimeout(() => load(session?.user, true), 0);
-      if (event === "SIGNED_OUT") { loadingRef.current = false; setPhase("auth"); setStores([]); setAccount({ id: "", nome: "", email: "", foto: null }); }
+      if (!ativo) return;
+      if (event === "INITIAL_SESSION" && eventoRecebido) return;
+      eventoRecebido = true;
+      if (event === "PASSWORD_RECOVERY") { limpar(); recoveryRef.current = true; setRecovery(true); return; }
+      if (event === "SIGNED_OUT") { limpar(); return; }
+      load(session?.user, event === "SIGNED_IN");
     });
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      ativo = false; versao++; consulta++;
+      for (const timer of timers) clearTimeout(timer);
+      encerrarRef.current = () => {}; fetchRef.current = async () => {};
+      sub.subscription.unsubscribe();
+    };
   }, []);
-  const logout = () => { loadingRef.current = false; void supabase.auth.signOut(); setStores([]); setPhase("auth"); setView("entrar"); };
+  const logout = () => { encerrarRef.current(); void supabase.auth.signOut(); setView("entrar"); };
   // Celular do funcionário (app instalado abre aqui): vai direto para o Omni Operação. "/?dono" fica na entrada do dono.
   useEffect(() => {
     if (phase === "auth" && !recovery && lerChave() && !/[?&]dono\b|access_token|error/.test(window.location.search + window.location.hash)) window.location.replace("/funcionario");
@@ -536,7 +577,7 @@ function Index() {
       <div className="relative flex h-app flex-col items-center justify-center gap-5 overflow-hidden bg-app px-6 text-center">
         <div className="pointer-events-none absolute inset-0 bg-dots" />
         <LogoMark size={56} />
-        <p className="relative max-w-xs text-base text-foreground">Não foi possível carregar seus comércios. Verifique sua internet.</p>
+        <p className="relative max-w-xs text-base text-foreground">Não foi possível carregar sua conta e seus comércios. Verifique sua internet.</p>
         <button type="button" onClick={() => { setPhase("loading"); void fetchRef.current(true); }}
           className="relative h-12 rounded-2xl bg-primary px-6 font-semibold text-primary-foreground">Tentar de novo</button>
       </div>
