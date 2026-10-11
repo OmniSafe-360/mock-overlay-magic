@@ -7,7 +7,7 @@ Conferido e **sem problema**: os 59 comandos que o app manda ao banco existem co
 
 ## Prioridade 1 — perde dinheiro ou estoque errado
 - [x] 1. (corrigido em 11/10/2026: código novo a cada "Recebeu", o mesmo ao reenviar depois de falhar; nenhum pagamento real tinha se perdido) **Fiado:** o 2º pagamento do mesmo cliente diz "Recebido", mas não é salvo (`PainelFiado.tsx`, código do pagamento repetido).
-- [ ] 2. **Conferir depósito:** se a internet falhar e o funcionário tocar "Confirmar" de novo, o mesmo número conta como 2ª contagem e o estoque muda sem recontagem de verdade (`funcionario_conferencia_contar` sem rodada).
+- [x] 2. (corrigido em 11/10/2026, migração `20261011061907_conferencia_rodada.sql`: o celular manda a rodada; reenvio da mesma não conta de novo; a lista diz em que contagem uma conferência começada parou. **Pendente:** apagar a versão antiga sem rodada depois que o dono publicar o app) **Conferir depósito:** se a internet falhar e o funcionário tocar "Confirmar" de novo, o mesmo número conta como 2ª contagem e o estoque muda sem recontagem de verdade (`funcionario_conferencia_contar` sem rodada).
 - [ ] 3. **Pedido cancelado continua como "Conta a pagar"** (e vira "Conta atrasada" no Atenção hoje) (`cancelar_pedido`).
 - [ ] 4. **Mercadoria recebida some quando o depósito nunca foi contado**; contar depois soma de novo (fica em dobro) (`_entrar_no_deposito` não marca a contagem).
 - [ ] 5. **Repor gôndola:** se o celular travar (5 min) depois de "Busque no depósito X", a reposição fica perdida; ao refazer, a gôndola sobe e o depósito não desce.

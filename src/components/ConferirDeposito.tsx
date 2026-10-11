@@ -23,6 +23,8 @@ const MSG: [string, string][] = [
   ["acesso_encerrado", "Este celular saiu do app. Entre de novo com o código do dono."],
   ["pin_necessario", "Por segurança, o app travou. Volte ao início e digite seu PIN."],
   ["variacao_obrigatoria", "Escolha o tamanho e a cor para contar."],
+  ["rodada_desatualizada", "Esta contagem mudou em outro celular. Volte à lista e abra o produto de novo."],
+  ["operacao_repetida_com_outros_dados", "Esta contagem já foi enviada com outro número. Volte à lista e abra o produto de novo."],
 ];
 const erroTexto = (e: unknown) => {
   const m = String((e as { message?: string } | null)?.message ?? e ?? "");
@@ -94,7 +96,7 @@ export function ConferirDeposito({ chave, onVoltar, api: apiDada }: { chave: str
       <ul className="space-y-3">
         {dados?.produtos.map((p) => (
           <li key={`${p.produtoId}:${p.variacaoId ?? "_"}`}>
-            <button type="button" onClick={() => { setAviso(null); setTela({ t: "contar", item: p, id: p.conferenciaId ?? newUid(), rodada: 1 }); }}
+            <button type="button" onClick={() => { setAviso(null); setTela({ t: "contar", item: p, id: p.conferenciaId ?? newUid(), rodada: p.conferenciaId ? p.rodada ?? 1 : 1 }); }}
               className="flex w-full items-center gap-3 rounded-3xl border-2 border-primary/40 bg-primary/5 p-4 text-left transition active:scale-[0.99]">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary"><ClipboardCheck size={24} /></span>
               <span className="min-w-0 flex-1">
@@ -128,7 +130,7 @@ function Contar({ item, id, rodada, chave, api, t, onVoltar, onFim, mercado }: {
   const plural = unPlural(item.unidade).toLowerCase();
   const enviar = async (q: number) => {
     setEnviando(true); setErro("");
-    try { onFim(await api.contar(chave, id, item.produtoId, item.variacaoId, q)); }
+    try { onFim(await api.contar(chave, id, item.produtoId, item.variacaoId, q, rodada)); }
     catch (e) { setErro(erroTexto(e)); setEnviando(false); }
   };
   const conferir = async (codigo: string) => {

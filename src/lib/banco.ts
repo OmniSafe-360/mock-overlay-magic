@@ -481,19 +481,20 @@ export async function sairFuncionario(chave: string) {
 }
 
 /* ---------- fechar a conta no app do funcionário (Fase 4.2) ---------- */
-export type ItemConferencia = ProdutoFunc & { local: string | null; conferenciaId: string | null };
+export type ItemConferencia = ProdutoFunc & { local: string | null; conferenciaId: string | null; /** Contagem em que uma conferência começada parou (2 ou 3). */ rodada?: number | undefined };
 /** Produtos para conferir hoje no depósito (sem quantidades). */
 export async function listaConferencia(chave: string): Promise<{ tipo: string; feitosHoje: number; meta: number; produtos: ItemConferencia[] }> {
   const { data, error } = await rpc("funcionario_conferencia_lista", { _chave: chave });
   if (error) throw error;
   return {
     tipo: data?.tipo ?? "", feitosHoje: Number(data?.feitos_hoje ?? 0), meta: Number(data?.meta ?? 5),
-    produtos: (data?.produtos ?? []).map((x: any) => ({ ...produtoFunc(x), local: x.local ?? null, conferenciaId: x.conferencia_id ?? null })),
+    produtos: (data?.produtos ?? []).map((x: any) => ({ ...produtoFunc(x), local: x.local ?? null, conferenciaId: x.conferencia_id ?? null, ...(x.rodada ? { rodada: Number(x.rodada) } : {}) })),
   };
 }
 /** Uma contagem cega do depósito: "recontar", "concluida" ou "inconsistente" (nunca quanto o sistema tinha). */
-export async function contarConferencia(chave: string, id: string, produtoId: string, variacaoId: string | null, contado: number): Promise<{ situacao: "recontar" | "concluida" | "inconsistente"; rodada?: number }> {
-  const { data, error } = await rpc("funcionario_conferencia_contar", { _chave: chave, _id: id, _produto: produtoId, _variacao: variacaoId, _contado: contado });
+/** `rodada` = qual contagem é esta (1, 2 ou 3): reenviar a mesma depois de a internet cair não conta duas vezes. */
+export async function contarConferencia(chave: string, id: string, produtoId: string, variacaoId: string | null, contado: number, rodada: number): Promise<{ situacao: "recontar" | "concluida" | "inconsistente"; rodada?: number }> {
+  const { data, error } = await rpc("funcionario_conferencia_contar", { _chave: chave, _id: id, _produto: produtoId, _variacao: variacaoId, _contado: contado, _rodada: rodada });
   if (error) throw error;
   return { situacao: data.situacao, ...(data.rodada ? { rodada: Number(data.rodada) } : {}) };
 }
