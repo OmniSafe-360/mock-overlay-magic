@@ -135,6 +135,27 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
   }, [api, chave]);
   useEffect(() => { void carregar(); }, [carregar]);
   useEffect(() => { if (escopo) guardarRascunho(escopo, { carrinho, pags, cliente }); }, [escopo, carrinho, pags, cliente]);
+  // Preços e produtos novos do dono chegam com o caixa aberto: a cada 2 min, ao voltar ao app e quando a internet volta.
+  // Não mexe na tela atual nem no carrinho; sem internet, continua com a lista guardada.
+  useEffect(() => {
+    if (!escopo || (fase !== "vender" && fase !== "receber")) return;
+    let vivo = true;
+    const atualizar = async () => {
+      try {
+        const prods = await api.produtos(chave);
+        if (!vivo) return;
+        setProdutos(prods);
+        const c = lerCache(escopo);
+        if (c) gravarCache(escopo, { ...c, produtos: prods });
+      } catch { /* sem internet: mantém a lista atual */ }
+    };
+    const t = setInterval(() => { void atualizar(); }, 120000);
+    const voltou = () => { if (document.visibilityState === "visible") void atualizar(); };
+    const online = () => { void atualizar(); };
+    document.addEventListener("visibilitychange", voltou);
+    window.addEventListener("online", online);
+    return () => { vivo = false; clearInterval(t); document.removeEventListener("visibilitychange", voltou); window.removeEventListener("online", online); };
+  }, [escopo, fase, api, chave]);
   // Vendas guardadas: tenta de novo de tempos em tempos e quando a internet volta.
   useEffect(() => {
     if (!guardadas.some((g) => !g.problema)) return;
