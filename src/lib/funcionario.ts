@@ -79,6 +79,7 @@ export function mensagemEntrada(e: unknown): string {
   const n = m.match(/(muitas_tentativas|pin_errado):(\d+)/);
   if (n?.[1] === "muitas_tentativas") return `Muitas tentativas erradas. Espere ${n[2]} ${n[2] === "1" ? "minuto" : "minutos"} e tente de novo.`;
   if (n?.[1] === "pin_errado") return n[2] === "1" ? "PIN errado. Falta 1 tentativa antes de travar por 15 minutos." : `PIN errado. Você ainda tem ${n[2]} tentativas.`;
+  if (m.includes("acesso_encerrado")) return "Este celular saiu do app. Peça o código ao dono para entrar de novo.";
   if (m.includes("codigo_expirado")) return "Este código venceu. Peça um código novo para o dono.";
   if (m.includes("codigo_invalido")) return "Código não encontrado. Confira os 6 números com o dono.";
   if (m.includes("pin_facil")) return "Esse PIN é fácil de adivinhar. Escolha outro (sem repetir números e sem sequência).";

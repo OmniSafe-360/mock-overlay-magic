@@ -73,6 +73,11 @@ describe("regras do caixa", () => {
     expect(erroCaixa(rede, "O caixa não foi aberto")).toBe("Sem internet. O caixa não foi aberto: confira a conexão e toque em tentar de novo.");
     expect(erroPinDono(rede, "O caixa não foi fechado")).toMatch(/^Sem internet. O caixa não foi fechado:/);
     expect(erroPinDono(rede, "O dinheiro tirado não foi registrado")).not.toMatch(/venda/);
+    // Recusas definitivas (venda guardada que o Omni não aceitou) dizem o que fazer, sem "tente de novo".
+    for (const c of ["item_invalido", "venda_invalida", "venda_sem_itens", "data_invalida", "produto_de_outro_comercio", "variacao_invalida", "embalagem_invalida",
+      "turno_invalido", "turno_ja_fechado", "cliente_invalido", "fiado_sem_cliente", "pagamento_invalido", "troco_invalido", "id_obrigatorio"])
+      expect(erroCaixa(new Error(c)), c).not.toMatch(/Tente de novo/i);
+    expect(erroCaixa(new Error("turno_invalido"))).toBe("Este caixa já foi fechado. Volte ao início e abra o caixa de novo.");
   });
   it("acha o produto pelo código, também com UPC de 12 números e pela embalagem", () => {
     expect(variantesCodigo("012345678905")).toContain("0012345678905");

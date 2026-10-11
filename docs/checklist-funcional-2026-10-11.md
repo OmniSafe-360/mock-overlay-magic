@@ -34,7 +34,7 @@ Conferido e **sem problema**: os 59 comandos que o app manda ao banco existem co
 - [x] 22. (corrigido em 11/10/2026: o preço por unidade passou a ser guardado com 8 casas — migração `20261011131114` — e o app não arredonda mais o centavo antes de salvar; caixa de R$ 10,00 com 12 fica R$ 10,00, não R$ 9,96) Total do pedido salvo difere alguns centavos do mostrado na montagem.
 - [x] 23. (corrigido em 11/10/2026: ao digitar um CEP novo, o endereço do anterior sai; CEP não encontrado ou busca sem internet pede o endereço em branco e "Continuar" só libera com o endereço novo) Mudar o CEP do comércio para um que falha mantém o endereço antigo.
 - [x] 24. (corrigido em 11/10/2026: e-mail já cadastrado mostra "Este e-mail já está cadastrado. Tente entrar." e não vai para "Confirme seu e-mail"; falta o teste do dono com um e-mail real) Criar conta com e-mail que já existe diz "Confirme seu e-mail" em vez de "já cadastrado".
-- [ ] 25. Algumas recusas mostram "tente de novo" quando tentar de novo nunca vai dar certo.
+- [x] 25. (corrigido em 11/10/2026: comparadas as recusas de todas as funções do banco com as mensagens do app; 31 recusas do app do dono/equipe e 14 do caixa ganharam mensagem própria, dizendo o que fazer, sem "tente de novo"; a entrada da equipe também explica "Este celular saiu do app") Algumas recusas mostram "tente de novo" quando tentar de novo nunca vai dar certo.
 
 ## Dados para arrumar (com autorização do dono)
 - [ ] 26. Comércios de teste ("Supermercado bom preço", "Mercado bom preço", "Molines", "Mercado são judas").
