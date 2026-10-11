@@ -1,6 +1,6 @@
 /* Fiado no app do dono (C4): quem deve, quanto e desde quando; "Recebeu" para dar baixa; cobrar pelo WhatsApp.
  * As compras no fiado vêm do caixa do celular; pagamento e venda cancelada descontam da conta. */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BookUser, ChevronRight, HandCoins, MessageCircle, Pencil, Search } from "lucide-react";
 import { Sheet } from "@/components/parts/Sheet";
 import { btnGhost, btnPrimary } from "@/components/StoreSetup";
@@ -29,21 +29,46 @@ const erroTexto = (e: unknown) => {
 };
 const dataTxt = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
 
-/** Quadro do fiado na aba Vendas. Só aparece quando o comércio tem cliente no fiado.
+/** Quadro do fiado na aba Vendas. Sem clientes, só aparece enquanto consulta ou se a leitura falhar.
  * `atualizadoEm` muda a cada atualização da aba Vendas (sozinha, botão, venda cancelada): o fiado lê de novo junto. */
-export function PainelFiado({ comercioId, comercioNome, api = API_PADRAO, agora = Date.now(), atualizadoEm }: {
+type PropsFiado = {
   comercioId: string; comercioNome: string; api?: ApiFiado; agora?: number; atualizadoEm?: number | undefined;
-}) {
+};
+export function PainelFiado(props: PropsFiado) {
+  // Trocar comércio descarta a leitura e o formulário anteriores antes de renderizar a nova conta.
+  return <FiadoDoComercio key={props.comercioId} {...props} />;
+}
+function FiadoDoComercio({ comercioId, comercioNome, api = API_PADRAO, agora = Date.now(), atualizadoEm }: PropsFiado) {
   const [dados, setDados] = useState<{ clientes: ClienteFiado[]; movimentos: MovimentoFiado[] } | null>(null);
   const [aberto, setAberto] = useState(false);
-  const recarregar = useCallback(() => api.carregar(comercioId).then(setDados, () => {}), [api, comercioId]);
-  useEffect(() => { void recarregar(); }, [recarregar, atualizadoEm]);
+  const [erro, setErro] = useState(false);
+  const [consultando, setConsultando] = useState(true);
+  const consulta = useRef(0);
+  const recarregar = useCallback(async () => {
+    const atual = ++consulta.current;
+    setConsultando(true);
+    try {
+      const novos = await api.carregar(comercioId);
+      if (atual !== consulta.current) return;
+      setDados(novos); setErro(false);
+    } catch {
+      if (atual === consulta.current) setErro(true);
+    } finally {
+      if (atual === consulta.current) setConsultando(false);
+    }
+  }, [api, comercioId]);
+  useEffect(() => {
+    void recarregar();
+    return () => { consulta.current++; };
+  }, [recarregar, atualizadoEm]);
   const contas = useMemo(() => (dados ? contasFiado(dados.clientes, dados.movimentos) : []), [dados]);
   const r = resumoFiado(contas, agora);
-  if (!dados || !dados.clientes.length) return null;
+  if (dados && !dados.clientes.length && !erro) return null;
+  const aviso = <AvisoConsultaFiado erro={erro} consultando={consultando} temDados={!!dados} onTentar={recarregar} />;
   return (
     <section aria-label="Fiado" className="space-y-2">
-      <button type="button" onClick={() => setAberto(true)}
+      {!aberto && aviso}
+      {!!dados?.clientes.length && <button type="button" onClick={() => setAberto(true)}
         className={`flex w-full items-center gap-3 rounded-3xl border p-4 text-left transition hover:border-primary ${r.antigos ? "border-warning/60 bg-warning/10" : "border-border bg-secondary/50"}`}>
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary"><BookUser size={22} /></span>
         <span className="min-w-0 flex-1">
@@ -55,14 +80,32 @@ export function PainelFiado({ comercioId, comercioNome, api = API_PADRAO, agora 
           </span>
         </span>
         <ChevronRight size={20} className="shrink-0 text-muted-foreground" />
-      </button>
-      {aberto && <ContasFiado contas={contas} comercioId={comercioId} comercioNome={comercioNome} api={api} agora={agora} onMudou={recarregar} onClose={() => setAberto(false)} />}
+      </button>}
+      {aberto && <ContasFiado contas={contas} comercioId={comercioId} comercioNome={comercioNome} api={api} agora={agora} aviso={aviso} onMudou={recarregar} onClose={() => setAberto(false)} />}
     </section>
   );
 }
 
-function ContasFiado({ contas, comercioId, comercioNome, api, agora, onMudou, onClose }: {
-  contas: ContaFiado[]; comercioId: string; comercioNome: string; api: ApiFiado; agora: number; onMudou: () => Promise<unknown>; onClose: () => void;
+function AvisoConsultaFiado({ erro, consultando, temDados, onTentar }: {
+  erro: boolean; consultando: boolean; temDados: boolean; onTentar: () => Promise<unknown>;
+}) {
+  if (erro) return (
+    <div role="alert" className="space-y-2 rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">
+      <p className="font-semibold">Não foi possível consultar o fiado agora.</p>
+      <p>{temDados ? "Os dados são da última consulta; podem ter mudado." : "Confira a conexão e tente de novo."}</p>
+      <button type="button" disabled={consultando} onClick={() => void onTentar()} className="min-h-11 font-semibold text-primary disabled:opacity-50">
+        {consultando ? "Consultando…" : "Tentar de novo"}
+      </button>
+    </div>
+  );
+  if (consultando) return <p role="status" className="rounded-2xl border border-border p-3 text-sm text-muted-foreground">
+    {temDados ? "Atualizando o fiado… Os dados são da última consulta." : "Consultando o fiado…"}
+  </p>;
+  return null;
+}
+
+function ContasFiado({ contas, comercioId, comercioNome, api, agora, aviso, onMudou, onClose }: {
+  contas: ContaFiado[]; comercioId: string; comercioNome: string; api: ApiFiado; agora: number; aviso: ReactNode; onMudou: () => Promise<unknown>; onClose: () => void;
 }) {
   const [q, setQ] = useState("");
   const [sel, setSel] = useState<string | null>(null);
@@ -70,10 +113,11 @@ function ContasFiado({ contas, comercioId, comercioNome, api, agora, onMudou, on
   const devendo = achadas.filter((c) => c.deve > 0);
   const emDia = achadas.filter((c) => c.deve === 0);
   const conta = contas.find((c) => c.id === sel);
-  if (conta) return <DetalheConta c={conta} comercioId={comercioId} comercioNome={comercioNome} api={api} agora={agora} onMudou={onMudou} onVoltar={() => setSel(null)} onClose={onClose} />;
+  if (conta) return <DetalheConta c={conta} comercioId={comercioId} comercioNome={comercioNome} api={api} agora={agora} aviso={aviso} onMudou={onMudou} onVoltar={() => setSel(null)} onClose={onClose} />;
   return (
     <Sheet title="Fiado" onClose={onClose}>
       <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3">
+        {aviso}
         <label className="relative block">
           <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Procurar pelo nome ou telefone" aria-label="Procurar cliente"
@@ -111,8 +155,8 @@ function ContasFiado({ contas, comercioId, comercioNome, api, agora, onMudou, on
   );
 }
 
-function DetalheConta({ c, comercioId, comercioNome, api, agora, onMudou, onVoltar, onClose }: {
-  c: ContaFiado; comercioId: string; comercioNome: string; api: ApiFiado; agora: number; onMudou: () => Promise<unknown>; onVoltar: () => void; onClose: () => void;
+function DetalheConta({ c, comercioId, comercioNome, api, agora, aviso, onMudou, onVoltar, onClose }: {
+  c: ContaFiado; comercioId: string; comercioNome: string; api: ApiFiado; agora: number; aviso: ReactNode; onMudou: () => Promise<unknown>; onVoltar: () => void; onClose: () => void;
 }) {
   const [modo, setModo] = useState<"ver" | "receber" | "editar">("ver");
   /** Um código por pagamento: novo a cada "Recebeu"; o mesmo se reenviar depois de falhar (não conta duas vezes). */
@@ -135,6 +179,7 @@ function DetalheConta({ c, comercioId, comercioNome, api, agora, onMudou, onVolt
     <Sheet title={c.nome} onClose={onClose}>
       <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3">
         <button type="button" onClick={onVoltar} className="text-sm font-semibold text-primary">← Todas as contas</button>
+        {aviso}
         {pronto && <p role="status" className="rounded-2xl bg-accent/10 p-3 text-sm font-semibold text-accent">{pronto}</p>}
         <div className="rounded-3xl border border-border bg-secondary/40 p-4">
           <p className="text-sm text-muted-foreground">{c.deve > 0 ? "Deve" : "Conta em dia"}</p>

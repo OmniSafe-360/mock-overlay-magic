@@ -121,6 +121,7 @@ function Resumo({ p, feito, onAlterar }: { p: PedidoPublico; feito: boolean; onA
       )}
       {p.situacao === "cancelado" && <p className="rounded-2xl border border-border bg-secondary/60 p-3 text-sm">Este pedido foi <b>cancelado</b> por {p.comercio.nome}. Não precisa mandar nada.</p>}
       {(p.situacao === "recebido" || p.situacao === "recebido_parcial") && <p className="rounded-2xl border border-border bg-secondary/60 p-3 text-sm">Este pedido já foi <b>recebido</b>. Obrigado!</p>}
+      {p.emConferencia && <p role="status" className="rounded-2xl border border-primary/50 bg-primary/10 p-3 text-sm">A loja está conferindo esta entrega. A resposta do pedido não pode ser alterada durante a conferência.</p>}
 
       {r && (
         <section aria-label="Sua resposta" className={`rounded-3xl border p-4 ${recusado ? "border-destructive/50 bg-destructive/10" : "border-accent/50 bg-accent/10"}`}>

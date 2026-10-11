@@ -1,17 +1,17 @@
 # OMNI SAFE 360 — FONTE DA VERDADE
 
-Versão 2.0, de 10/10/2026. Substitui a versão 1.0 de 08/10/2026, cujo conteúdo foi mantido e atualizado aqui.
+Versão 3.0, de 11/10/2026. Atualiza a versão 2.0 com o plano ponta a ponta pedido pelo dono; regras e histórico anteriores permanecem válidos.
 
 Este documento é a referência oficial do sistema. Se qualquer instrução, código ou conversa contradisser este documento, vale este documento. A exceção é quando o dono disser o contrário por escrito; nesse caso, o documento é atualizado.
 
-> **Para o Claude:** este documento é consultado em **toda ação**, não só no começo. A seção 0 é a lista de conferência obrigatória. As seções 1 a 3 são regras. A seção 13 diz em que etapa estamos. O banco real (Supabase) é a verdade sobre as tabelas, e o `CLAUDE.md` guarda o registro detalhado de cada entrega.
+> **Para qualquer IA (Codex, Claude e outras):** este documento é consultado em **toda ação**, não só no começo. A seção 0 é a lista de conferência obrigatória. As seções 1 a 3 são regras. A seção 13 diz em que etapa estamos. O [checklist ponta a ponta](CHECKLIST_PONTA_A_PONTA.md) detalha tarefas e critérios de conclusão. O banco real (Supabase) é a verdade sobre as tabelas, e o `CLAUDE.md` guarda o registro detalhado de cada entrega.
 
 ---
 
 ## 0. LISTA DE CONFERÊNCIA — EM TODA AÇÃO
 
 ### Antes de começar
-1. **Ler a etapa atual** (seção 13). Conferir se o pedido do dono cabe nela e se não falta uma decisão dele (seção 14). Faltando, perguntar antes de construir.
+1. **Ler, nesta ordem:** este documento (principalmente seção 0), histórico recente no `CLAUDE.md`, [checklist ponta a ponta](CHECKLIST_PONTA_A_PONTA.md) e [checklist original](checklist-funcional-2026-10-11.md) quando relacionado. Consultar a etapa atual (seção 13) antes de cada tarefa. Conferir se o pedido do dono cabe nela e se falta uma decisão necessária dele (seção 14); pedir somente o dado ou autorização que ainda falta.
 2. **Conferir se o `main` mudou** (alguém pode ter gravado direto, como o Codex em 09/10). Se mudou, revisar antes de seguir.
 3. **Tabela nova ou mudança de desenho?** Só com o desenho aprovado pelo dono (regra 5).
 4. **Decidir o lugar certo** na tela, pelo mapa da seção 3.2. Se não houver lugar coerente, propor ao dono antes.
@@ -22,15 +22,15 @@ Este documento é a referência oficial do sistema. Se qualquer instrução, có
 7. **No banco:** RLS ligada, gravação só por funções seguras e uma `operacoes` em toda mudança de estoque, na mesma transação. Funções sem login só funcionam com chave ou link secreto.
 
 ### Antes de publicar
-8. `npx tsc --noEmit` sem erros.
-9. `npx vitest run` passando, duas vezes. O `scanner.test.tsx` às vezes falha junto com os outros; sozinho passa.
-10. **Simular no banco** com `begin … rollback`, incluindo o que deve ser recusado: outro dono, sem login, gravação direta. O texto não pode conter a palavra "delete".
+8. `npx tsc --noEmit` sem erros, **duas vezes**.
+9. `npx vitest run` passando, **duas vezes**. Há registro histórico de sensibilidade de tempo no scanner; qualquer falha atual deve ser investigada, não ignorada.
+10. **Se mudar o banco:** comparar a função real com a do arquivo, salvar a migração em `supabase/migrations` e simular com `begin … rollback`, incluindo recusas: outro dono, sem login, gravação direta. O SQL de simulação não pode conter a palavra "delete".
 11. **Reler a mudança** procurando erro, texto confuso, plural errado ou tela que não cabe no celular (320 px).
 12. Conferir os **avisos do Supabase** (segurança e velocidade) depois de mudar o banco.
 
 ### Depois
-13. Mesclar no `main`, avisar o dono para **Publicar → Atualizar** no Lovable e dizer **o que ele deve testar**.
-14. Registrar no `CLAUDE.md` e, se mudou etapa, regra ou decisão, **atualizar este documento**.
+13. Mesclar pelo PR no `main`, informar se precisa **Publicar → Atualizar** no Lovable e dizer **o que deve ser testado**. Mudança somente de documentação não exige atualizar o app. Separar correção no código, publicação e teste do dono; não assumir publicação após o merge.
+14. Registrar no `CLAUDE.md` e no item do checklist ponta a ponta; atualizar o checklist original quando relacionado. Se mudou etapa, regra ou decisão, **atualizar este documento**. Item só encerra a validação com evidência; teste real adiado permanece pendente.
 
 ### De tempos em tempos (auditoria, regra 9)
 - Testes, tipos e os avisos do Supabase.
@@ -93,6 +93,7 @@ Este documento é a referência oficial do sistema. Se qualquer instrução, có
 | **App do funcionário — Omni Operação** (`/funcionario`) | Código + PIN; botões grandes **Receber mercadoria**, **Repor gôndola** e **Conferir depósito** (para todos), e o botão **Registrar perda** (Fase 4.2) |
 | **Página do fornecedor** (`/pedido/<link>`) | O fornecedor vê e responde um pedido, sem login |
 | **Omni Conector** (`/conector`) | Página no computador do caixa que lê a pasta das notas e envia as vendas finalizadas ao Omni |
+| **Caixa no celular** (`/caixa`) | Turno, produtos, venda/pagamento, fiado, retirada de dinheiro, cancelamento e fechamento com PIN |
 
 Regra: **coisa nova entra no lugar do mapa.** Se não couber em nenhum, o mapa é discutido com o dono antes.
 
@@ -192,18 +193,17 @@ FORNECEDOR ──(receber, cego)──▶ DEPÓSITO ──(repor, cego)──▶
 - Avisos de 30, 60 ou 90 dias.
 - Produto vencido na área de venda gera alerta vermelho.
 
-### 7.6 Vendas — ligação com o caixa do mercado (proposta de 10/10/2026, aguardando o dono)
+### 7.6 Vendas — Omni Conector e Caixa no celular (desenho aprovado e implementado; validação real pendente)
 - O dono pediu que o Omni **se ligue ao sistema de caixa que o mercado já usa**, com vários caixas por loja (5, 6 ou mais), e que **cada venda desconte da gôndola na hora**.
 - **Regra do dono (10/10/2026): só desconta quando a venda é FINALIZADA no caixa** (pagamento aprovado e venda fechada). Bipar não desconta nada; venda desistida antes de fechar não desconta; venda cancelada depois devolve.
-- Cada marca de caixa é diferente, mas **toda venda finalizada gera a nota fiscal do cupom (NFC-e)** — a nota só existe depois que a venda fecha, o que garante a regra acima: um arquivo com produto, código de barras, quantidade, hora e número do caixa.
+- Cada marca de caixa é diferente. O caminho implementado do Conector lê XML compatível de NFC-e/SAT com venda finalizada: produto, código, quantidade, hora e caixa. Validar com o PDV real do piloto; não presumir que toda venda ou marca disponibiliza esses arquivos.
 - **Caminho principal — Omni Conector:**
   - uma página do Omni instalada como app no computador do caixa;
   - acompanha a pasta das notas e envia cada venda em menos de 1 minuto;
-  - a ligação usa um código de 6 números, que vira a chave daquele caixa, e o dono pode desligar qualquer caixa;
+  - a ligação usa um código de **8 números**, que vira a chave daquele caixa, e o dono pode desligar qualquer caixa;
   - um conector no computador central pode servir a todos os caixas.
-- **Reservas:**
-  - (B) chave para o fornecedor do sistema de caixa mandar as vendas direto;
-  - (C) caixa próprio do Omni, para quem não tem sistema.
+- **Caixa no celular já implementado** (`/caixa`): turno, venda, pagamento, troco, fiado, retirada de dinheiro, cancelamento, fila local e fechamento com PIN. Falta teste completo no aparelho e no piloto. Vendas também chegam por esse caminho.
+- **Futuro, a combinar:** chave para o fornecedor do sistema de caixa enviar diretamente e eventual caixa adicional no computador. Não confundir esses projetos com o Caixa no celular existente.
 - **Regras:**
   - cada nota só conta uma vez (número único de 44 dígitos);
   - sem internet, as vendas esperam e vão depois;
@@ -215,7 +215,7 @@ FORNECEDOR ──(receber, cego)──▶ DEPÓSITO ──(repor, cego)──▶
   - gôndola que ficaria negativa gera aviso amarelo;
   - cada venda grava uma `operacoes`.
 - **Situação de cada caixa:** verde enviando, amarelo parado há 30 minutos com a loja aberta, vermelho desligado.
-- **Fechamento do dinheiro:** é feito pelo sistema do caixa do mercado. O Omni mostra as vendas de cada caixa em tempo real.
+- **Fechamento do dinheiro:** para caixa externo ligado ao Conector, continua no sistema do mercado; no Caixa no celular, o turno e seu fechamento são feitos no Omni. Conferir o caminho usado pelo piloto.
 
 ### 7.7 Perdas e diferenças (Fase 4)
 - **Registrar perda:**
@@ -259,7 +259,7 @@ FORNECEDOR ──(receber, cego)──▶ DEPÓSITO ──(repor, cego)──▶
   - **Botões e campos:** botões de pelo menos 48 px e campos com fonte de pelo menos 16 px.
   - **iPhone:** respeitar as áreas seguras.
   - **Textos:** linguagem simples, ajudas curtas e erros claros em português.
-- **Apps instaláveis:** "Omni Safe 360" (dono) e "Omni Operação" (funcionário, escopo `/funcionario`), cada um com o próprio manifesto.
+- **Apps instaláveis:** "Omni Safe 360" (dono), "Omni Operação" (`/funcionario`) e Caixa (`/caixa`), com manifestos próprios. Instalação, retomada e funcionamento offline aplicável precisam de prova nos aparelhos (E6 do checklist).
 
 ## 9. ONDE ESTÁ O CÓDIGO
 
@@ -267,6 +267,8 @@ FORNECEDOR ──(receber, cego)──▶ DEPÓSITO ──(repor, cego)──▶
 - **Rotas:**
   - `src/routes/index.tsx` — entrada e app do dono;
   - `src/routes/funcionario.tsx` — Omni Operação;
+  - `src/routes/caixa.tsx` — Caixa no celular;
+  - `src/routes/conector.tsx` — Omni Conector;
   - `src/routes/pedido/$token.tsx` — página do fornecedor.
 - **Telas** (`src/components/`):
   - `OwnerHome` (barra de baixo), `StoreSpace` (abas do comércio), `ProductArea` (cadastro);
@@ -284,7 +286,7 @@ FORNECEDOR ──(receber, cego)──▶ DEPÓSITO ──(repor, cego)──▶
 
 ## 10. BANCO DE DADOS (SUPABASE)
 
-Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Postgres 17. **29 tabelas, todas com RLS ligada.**
+Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Postgres 17. **RLS obrigatória em todas as tabelas.** O mapa abaixo inclui os módulos atuais; contagem e configuração reais devem ser conferidas no banco quando a tarefa exigir, sem tratar um número histórico de tabelas como inventário atualizado.
 
 | Grupo | Tabelas | Quem grava |
 |---|---|---|
@@ -296,6 +298,7 @@ Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Pos
 | Equipe | `funcionarios` (PIN embaralhado, ilegível até para o dono), `funcionario_aparelhos` (só o resumo da chave do celular) | só funções |
 | Operação | `recebimentos`, `recebimento_itens`, `reposicoes` | só funções do app do funcionário (com a chave do celular e o PIN em dia) |
 | Vendas | `caixas`, `vendas`, `venda_itens`, `codigos_pdv` | só funções do computador do caixa (com a chave do caixa) e do dono |
+| Caixa no celular e fiado | `caixa_turnos`, `caixa_sangrias`, `clientes_fiado`, `fiado_movimentos`, `dono_pin` | funções do caixa/equipe e dono; PIN e chaves conforme acesso |
 | Catálogo de produtos | `catalogo_produtos` (código de barras → nome, marca, tamanho, foto; fonte Open Food Facts, licença ODbL: dar o crédito e manter aberta) | ninguém lê direto; o dono logado consulta um código por vez (`buscar_catalogo`); a importação (`_catalogo_importar`, extensão `http` no esquema fechado `importador`) é só interna |
 | Fechar a conta | `perdas`, `conferencias`, `diferencas` | só funções do app do funcionário e do dono |
 
@@ -303,8 +306,8 @@ Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Pos
 - **Funções sem login, de propósito** (o aviso do Supabase sobre elas é esperado): a página do fornecedor (`pedido_publico`, `responder_pedido`, que exigem o link secreto) e o app do funcionário (exigem o código e o PIN, ou a chave do celular).
 - **Autenticação:**
   - Google e e-mail/senha;
-  - o envio de e-mail do Supabase tem limite baixo, por isso o "Esqueci minha senha" falhou; precisa de serviço de e-mail próprio;
-  - a "proteção contra senhas vazadas" está **desligada**: o dono liga no painel do Supabase.
+  - a interface de recuperação de senha existe; houve falha por limite de envio. Serviço de e-mail próprio e teste real de confirmação/recuperação continuam na preparação do lançamento; configuração atual ainda precisa ser conferida;
+  - a "proteção contra senhas vazadas" foi relatada como **desligada** na revisão de 11/10/2026 às 07h57 UTC: o dono confere/liga no painel do Supabase (E5).
 - **Vendas (Fase 3, desde 10/10/2026):** `caixas` (código de 8 números para ligar, chave do computador do caixa guardada só como resumo), `vendas` (uma por nota, chave de 44 números única), `venda_itens` (cada item com quanto saiu da gôndola, quanto "faltou" e de quais saldos saiu) e `codigos_pdv` (código do caixa ligado a um produto, ou "não controlar"). O computador do caixa usa `conector_ligar`, `conector_estado`, `conector_enviar_venda` e `conector_cancelar_venda`; o dono, `criar_caixa`, `renomear_caixa`, `novo_codigo_caixa`, `desligar_caixa` e `resolver_item_venda`.
 - **Fechar a conta (Fase 4, desde 10/10/2026):** `perdas` (sai do estoque na hora; o dono confirma ou recusa), `conferencias` (contagem cega do depósito, até 3 vezes) e `diferencas` (o que o sistema tinha × o que foi contado, com o valor em reais; o dono explica o motivo). Funcionário: `funcionario_registrar_perda`, `funcionario_conferencia_lista`, `funcionario_conferencia_contar`; dono: `registrar_perda`, `decidir_perda`, `explicar_diferenca`, `resolver_conferencia` (escolher a contagem certa), `definir_limite_faltas` (coluna `comercios.limite_faltas_mes`). Antifurto: `_produtos_visados` (usada pela lista da conferência). A reposição gera diferença na gôndola quando o comércio tem um caixa ligado.
 
@@ -312,13 +315,17 @@ Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Pos
 
 - **Supabase:** `omnisafe-360-oficial`. O projeto antigo `omnisafe-360` **não deve ser usado**.
 - **Publicação:** `https://mock-overlay-magic.lovable.app`. Para aparecer: **Publicar → Atualizar** no Lovable.
-- **GitHub:** `OmniSafe-360/mock-overlay-magic`, **público por decisão do dono** (08/10/2026). Trabalho no branch `claude/system-analysis-5lb6d6`, com pull request mesclado no `main`.
-- **Google Cloud:** projeto próprio do Omni (OAuth "Aplicativo da Web"), em modo teste.
-- **Acessos do Claude:** GitHub, Supabase e Lovable. O endereço publicado não abre a partir do ambiente do Claude.
+- **GitHub:** `OmniSafe-360/mock-overlay-magic`, **público por decisão do dono** (08/10/2026). `main` é a versão oficial; cada tarefa usa branch próprio e PR mesclado sem reescrever histórico.
+- **Google Cloud:** projeto próprio do Omni (OAuth "Aplicativo da Web"); último registro informa modo de teste. Conferir estado e redirecionamentos antes de abertura pública (E5).
+- **Acessos de cada ambiente:** verificar a disponibilidade na tarefa atual. Ter acesso ao GitHub não comprova acesso administrativo ao Supabase ou ao app publicado; não declarar teste que não foi executado.
 
 ---
 
-## 12. ESTADO ATUAL (10/10/2026)
+## 12. ESTADO ATUAL (11/10/2026)
+
+Revisão ponta a ponta sobre o `main` no commit `a8f05ad` (PR #98): **itens 1–25 do checklist original corrigidos**. Restam 26–28 (dados autorizados pelo dono) e 29–30 (aparelhos reais). Não voltar ao item 12 por causa de registro antigo no histórico.
+
+O [checklist ponta a ponta](CHECKLIST_PONTA_A_PONTA.md) registra limitações adicionais e critérios de validação conjunta. Nesta revisão, tipos e **828 testes em 73 arquivos passaram duas vezes**; o build também passou. Isso comprova o código testado, não todas as funções/dados atuais do banco ou os fluxos no app publicado. Publicação e aceite geral do dono **não confirmados nesta revisão**.
 
 ### 12.1 Pronto e testado pelo dono
 - Entrada, criar conta, cadastro do comércio e comércios no banco (Etapa B1).
@@ -326,6 +333,22 @@ Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Pos
 - Primeiro acesso do funcionário (código, QR e PIN), que levou à correção do PIN ao abrir.
 
 ### 12.2 Pronto, falta o teste do dono
+
+11/10/2026: **E2.1 — salvamento e confirmação do cadastro de comércio**: cinco falhas reproduzidas antes. Bloqueio de navegação/envio repetido enquanto salva, conferência da sessão do dono, ID confirmado obrigatório e mensagem “Cadastro salvo na sua conta.”. Dados enviados/mostrados concordam; erro mantém campos e libera controles; respostas de tela desmontada ignoradas. **13 testes novos; tipos e 937 testes em 79 arquivos duas vezes**, build e oito roteiros no Chromium de produção 320/1280 px com serviços simulados aprovados. Sem SQL/dados reais alterados. **Precisa Publicar → Atualizar; falta o teste do dono.** [Registro e roteiro](comercio-salvamento-2026-10-11.md). E2.1 permanece aberta: próxima tarefa é verificar perda de resposta e retomada do cadastro; duas abas e editor de comércio já salvo também pendentes. Editor novo requer desenho autorizado.
+
+11/10/2026: **E2.1 — isolamento da conta ao entrar/sair/trocar usuário**: cinco falhas reproduzidas no main anterior. Respostas e agendamentos antigos ignorados; perfil/lista confirmados juntos, comércios filtrados por dono e erro de leitura com Tentar de novo. Entrada repetida/renovação preserva a tela. **20 testes novos; tipos e 924 testes em 78 arquivos duas vezes**, build e oito roteiros no Chromium de produção 320/1280 px com Auth/Supabase simulados aprovados. Sem SQL/dados reais alterados. **Precisa Publicar → Atualizar; falta o teste do dono.** [Registro e roteiro](conta-isolamento-2026-10-11.md). E2.1 permanece aberta; o salvamento do cadastro tem entrega parcial própria acima. Serviços e aparelhos reais continuam pendentes.
+
+11/10/2026: **E1/R05 — Caixa reabre sem internet no cenário verificado**: falha reproduzida no Chromium com build de produção, PIN/turno guardados e navegador encerrado. Worker passa a guardar tela pública limpa e arquivos completos da mesma versão, incluindo imports tardios, em caches separados para Caixa/Operação; APIs, páginas privadas e HTML de convites fora do cache. Atualização espera fechar, preserva fila/PIN e recusa arquivos incompletos. **25 testes novos; tipos e 904 testes em 77 arquivos duas vezes**, build e Chromium 320/1280 px com Supabase simulado aprovados: reabertura offline/PIN, venda conservada após outro encerramento, um envio confirmado/zero novas aberturas de turno, troca de versão e falha de atualização. Sem SQL/dados reais alterados. **Precisa Publicar → Atualizar; falta o teste do dono em aparelho real**, junto de E6/item 29. [Registro e roteiro](caixa-reabertura-offline-2026-10-11.md). E1 continua sem aceite geral; próxima tarefa independente: E2.1, conta e comércio.
+
+11/10/2026: **E1/R04 — falha ao guardar contagem de recebimento visível**: armazenamento cheio/inacessível informa que as últimas alterações podem se perder, também na ficha; Tentar guardar de novo grava os números atuais somente no aparelho. Leitura validada distingue ausência de rascunho ilegível/inacessível, preservando os dados e a fila; tela que não recuperou a contagem não substitui dados não lidos. Reenvio sem resposta mantém recebimento, rodada e itens originais; separação por acesso/pedido/fornecedor e “Não sei” dos itens 9–10 preservada. Três falhas reproduzidas antes, 20 testes novos; **tipos e 879 testes em 76 arquivos duas vezes**, Chromium 320/1280 px com Supabase simulado aprovados. Sem SQL/dados reais alterados. **Precisa Publicar → Atualizar; falta o teste do dono no app publicado.** [Registro e roteiro](recebimento-rascunho-2026-10-11.md). Entrega de R04 preservada; próxima tarefa independente atual: E2.1. Teste físico de R05 continua pendente.
+
+11/10/2026: **E1/R03 — consulta do fiado com aviso de falha**: primeira leitura com erro não inventa saldo zero; dados anteriores ficam identificados na lista e conta aberta, com Tentar de novo. Resposta atrasada não substitui a recente; mudar comércio descarta o estado anterior. Pagamento confirmado continua confirmado se a leitura posterior falhar; nova tentativa consulta, sem repetir pagamento. **Tipos e 859 testes em 75 arquivos duas vezes**, build e Chromium 320/1280 px com serviços simulados aprovados. Sem alteração no banco. **Precisa Publicar → Atualizar; falta o teste do dono no app publicado.** [Registro e roteiro](fiado-consulta-2026-10-11.md). Entrega de R03 preservada; próxima tarefa independente atual: E2.1.
+
+11/10/2026: **E1/R02 — pedido protegido durante conferência**: falha reproduzida no banco local; cancelamento, reenvio, renovação de link e resposta do fornecedor recusados após bloquear o pedido na transação. Link informa contagem; reenvio só confirma após sucesso. Migração `20261011144500` simulada com rollback e aplicada no Supabase oficial; cinco funções iguais ao arquivo, três funções da equipe intactas, RLS/políticas/permissões preservadas. **851 testes/tipos duas vezes**, build, SQL local, 13 disputas reais entre conexões e Chromium 320/1280 px aprovados. Avisos automáticos não consultados: API HTTP 403 por falta de `advisors_read`; verificação de metadados feita diretamente. **Precisa Publicar → Atualizar; falta o teste do dono no app publicado.** [Registro e roteiro](pedido-conferencia-banco-2026-10-11.md). Entrega de R02 preservada; próxima tarefa independente atual: E2.1.
+
+11/10/2026: **E1/R01 — retomada da reposição após fechar o app**: produto, etapa, números e ID guardados no mesmo aparelho/acesso; envio sem resposta recupera os mesmos dados antes de qualquer novo envio, sem repetir a transferência. Cliques repetidos, aba antiga, resposta atrasada e falhas de armazenamento verificados. Tipos e **846 testes em 74 arquivos passaram duas vezes**, build e testes operacionais locais aprovados; Chromium em 320/1280 px com serviços simulados. Nenhuma alteração no banco. **Precisa Publicar → Atualizar no Lovable; falta o teste do dono no app publicado.** Ver [registro e roteiro](reposicao-retomada-2026-10-11.md). Entrega de R01 preservada; próxima tarefa independente atual: E2.1.
+
+11/10/2026: **itens 12–25 também mesclados no GitHub** por outro acesso, conforme checklist/histórico: fechamento antigo, atualização do fiado, avulso sem código, navegação, PIN, tela inicial da equipe, variações removidas, mensagens de roupa/caixa, total de compra, CEP, e-mail repetido e recusas claras. Não reaplicar suas correções. Os roteiros E2–E6 cobrem a validação conjunta; `[x]` na lista antiga não significa aceite geral no app.
 
 11/10/2026: **checklist item 11 — conferência da entrega visível no pedido**: a leitura inclui recebimentos em contagem; o dono vê quem está conferindo, sem controles de reenvio/cancelamento. Decisões e alertas do dono aguardam a conclusão. Atualização pelos caminhos existentes, sem migração; **falta o teste do dono no app publicado**. Ver [registro e roteiro](pedidos-conferencia-2026-10-11.md).
 
@@ -342,15 +365,23 @@ Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Pos
 - Aba **Diferenças** do comércio: confirmar perdas, explicar diferenças, escolher a contagem certa e registrar perda pelo dono (10/10/2026).
 - **Relatório antifurto** do comércio (aba Diferenças → Relatório), com alertas, produto visado conferido todo dia e limite do mês; quadro "Faltou este mês" e tela Antifurto de todos os comércios (10/10/2026).
 - Tela inicial com números reais ("Resumo de hoje" e situação de cada comércio), menus **Comércios** e **Alertas** (10/10/2026).
-- Aba **Vendas** do comércio: ligar caixas com código, situação de cada caixa e vendas do dia (10/10/2026; as vendas só chegam com o Omni Conector, Fase 3.3).
+- Aba **Vendas** do comércio: caixas, vendas, fechamento e fiado. Vendas chegam pelo Omni Conector ou pelo Caixa no celular; ambos existem, com validação real ainda pendente.
 
 ### 12.3 Ainda não existe ou está incompleto
-- "Esqueci minha senha", que falha por falta de e-mail próprio.
-- Código de barras do Arroz, que parece digitado errado (aguarda o número certo do dono).
+- **Conta e comércio (E2.1):** isolamento durante o carregamento corrigido; publicação/teste do dono e demais cenários da etapa ainda pendentes. Próxima verificação: cadastro/edição de comércio e retorno das telas. Não considerar entrada/e-mail/Google reais novamente validados pela simulação.
+- **Confiabilidade (E1):** R01–R05 corrigidos no código; publicação e teste do dono pendentes na seção 12.2. R05 ainda exige validar a reabertura do Caixa sem internet em aparelhos reais; E1 não está validada por completo.
+- **A validar em aparelho real:** R05, incluindo instalação pelo ícone, encerramento completo offline e atualização com venda pendente. A falha local de carregamento dos arquivos foi reproduzida/corrigida; o teste automatizado não substitui Android/iPhone.
+- **Validação completa:** jornadas do dono, operação, estoque, dinheiro/fiado, alertas e antifurto em conjunto; Android/iPhone/tablet/computador; piloto com conciliação física (E2–E4, E6 e E8).
+- **Lançamento:** e-mail próprio e teste real de recuperação, Google, proteção de senhas, Termos/Privacidade e procedimento de backup/recuperação (E5). Parte depende do dono/painéis/serviços; não foi reconsultada nesta revisão.
+- **Dados:** código físico do Arroz, situação da Dipirona, comércios de teste e recebimentos avulsos antigos (26–28/E7). Confirmar situação atual e autorização específica antes de alterar.
 
 ---
 
 ## 13. ROTEIRO — O PLANO
+
+**Plano ativo, pedido do dono em 11/10/2026:** [CHECKLIST_PONTA_A_PONTA.md](CHECKLIST_PONTA_A_PONTA.md). **Próxima tarefa independente: continuar E2.1 — verificar perda de resposta e retomada do cadastro de comércio.** Isolamento da conta e salvamento/confirmação do cadastro corrigidos no código; falta publicação/teste do dono. Editor de comércio já salvo não foi encontrado; requer desenho autorizado antes de função nova. E2.1 permanece aberta.  R01–R05 corrigidos no código, R02 aplicada no banco; falta publicação/teste do dono (seção 12.2). **E1 permanece sem aceite geral:** R05 foi corrigida após reprodução local, mas exige teste no app instalado em aparelhos reais, junto de E6/item antigo 29. O dono autorizou adiar o teste geral; avançar em E2 não encerra os itens pendentes. Depois seguem E2 dono/compras, E3 estoque/operação, E4 caixa/fiado, E5 lançamento/acesso, E6 aparelhos, E7 dados autorizados e E8 piloto. Consultar a indicação atual antes de cada tarefa, executar um item por PR e registrar resultado/limites. R02 verificou a concorrência e comparou as funções reais antes/depois do SQL; consulta automática de avisos continua pendente por falta de leitura no token disponível.
+
+As fases abaixo são o histórico de construção do produto. “Feita” indica implementação, com testes do dono ainda pendentes onde registrado; **não substitui o checklist ativo nem declara validação geral concluída**.
 
 10/10/2026: o dono pediu **nome e foto editáveis na Conta**. Implementação usa o perfil existente e atualiza a saudação, com confirmação do banco; nenhuma tabela ou regra de estoque nova. Registro e roteiro em [perfil-2026-10-10.md](perfil-2026-10-10.md). Falta o teste com a conta do dono no app publicado.
 
@@ -365,8 +396,8 @@ Cada fase termina com o roteiro de teste para o dono.
 | **3. Vendas pelo caixa** | 3.1 banco das vendas ✅ · 3.2 aba Vendas e caixas ✅ · 3.3 Omni Conector ✅ · 3.4 "Vendas hoje" e "Vendido sem cadastro" ✅ · piloto num mercado real junto com o teste geral | ✅ feita (falta o piloto) |
 | **4. Fechar a conta** | 4.1 banco (perdas, conferência do depósito, diferenças; reposição acusando diferença) ✅ · 4.2 app da equipe: Registrar perda e Conferir depósito ✅ · 4.3 aba Diferenças do dono ✅ | ✅ concluída em 10/10/2026 (falta o teste do dono) |
 | **5. Antifurto** | 5.1 relatório do comércio ✅ · 5.2 alertas e produto visado na conferência diária ✅ · 5.3 painel de todos os comércios na tela inicial ✅ | ✅ concluída em 10/10/2026 (falta o teste do dono) |
-| **6. Lançamento** | E-mail próprio ("Esqueci minha senha"), Termos e Privacidade, proteção de senhas, Google verificado, teste em computador, tablet, Android e iPhone | **▶ PRÓXIMA ETAPA** (antes de abrir ao público) |
-| **7. Depois** | Caixa próprio do Omni · chave para o fornecedor do caixa · gerente · balança do mercado · WhatsApp/e-mail automáticos | a combinar |
+| **6. Lançamento** | E-mail próprio ("Esqueci minha senha"), Termos e Privacidade, proteção de senhas, Google verificado, teste em computador, tablet, Android e iPhone | Pendente; detalhado em E5/E6 do plano ativo |
+| **7. Depois** | Eventual caixa adicional no computador · chave para o fornecedor do caixa · gerente · balança do mercado · WhatsApp/e-mail automáticos | A combinar; o Caixa no celular já existe |
 
 ## 14. DECISÕES ABERTAS (PERGUNTAR AO DONO)
 
@@ -379,6 +410,8 @@ Cada fase termina com o roteiro de teste para o dono.
 8. Número certo do código de barras do **Arroz**.
 
 ## 15. HISTÓRICO DAS PRINCIPAIS DECISÕES DO DONO
+
+- **11/10/2026 — plano ponta a ponta:** o dono pediu checklist por etapas no GitHub e consulta da fonte da verdade antes de cada etapa. Mantida esta referência central, ligado o checklist detalhado, preservados os 30 itens originais e separado corrigido/publicado/validado. Nenhuma nova função de negócio ou alteração de dados autorizada apenas por constar no plano.
 
 - **Escopo e login:**
   - sistema para qualquer comércio com depósito → reduzido aos 6 tipos;

@@ -3,6 +3,7 @@
 import { fmtQ, parseNum, qtdUn } from "@/lib/deposito";
 import { totalContado } from "@/lib/embalagem";
 import { fmtData, hojeEm, parseData } from "@/lib/validade";
+import { z } from "zod";
 
 /* ---------- funcionário ---------- */
 export type ProdutoFunc = {
@@ -97,13 +98,40 @@ export function resumoContagem(c: Contagem): string {
   return `${conta}${qtdUn(total, c.p.unidade)}`;
 }
 
-/* ---------- rascunho guardado no celular (a contagem não se perde se o app fechar) ---------- */
+/* ---------- rascunho no aparelho: a recuperação depende da gravação e leitura ---------- */
 const RASCUNHO = "omni.recebimento.";
 export type Rascunho = { id: string; pedidoId: string | null; fornecedorId: string | null; contagens: Record<string, Contagem>; estados: Record<string, EstadoItem>; rodada: number };
+export const ERRO_GUARDAR_RASCUNHO = "Não foi possível guardar a contagem neste aparelho. Ela está somente nesta tela: se você sair ou fechar o app, as últimas alterações podem se perder. Confira o armazenamento e tente guardar de novo.";
+export const ERRO_LER_RASCUNHO = "Não foi possível ler a contagem guardada neste aparelho. Confira o armazenamento do navegador e tente abrir a entrega novamente. Nenhum rascunho ou envio pendente foi descartado.";
+export const ERRO_RASCUNHO_ILEGIVEL = "A contagem guardada neste aparelho não pôde ser recuperada. Mantenha a mercadoria separada e fale com o dono. Nenhum rascunho ou envio pendente foi descartado.";
+const produtoRascunho = z.object({
+  produtoId: z.string().min(1), variacaoId: z.string().nullable(), embalagemId: z.string().nullable(), nome: z.string(), unidade: z.string(), codigo: z.string().nullable(),
+  variacao: z.string().nullable(), controlaValidade: z.boolean(), pedeLote: z.boolean(),
+  embalagens: z.array(z.object({ id: z.string(), tipo: z.string(), quantidade: z.number().finite().positive() })),
+});
+const formatoRascunho = z.object({
+  id: z.string().min(1), pedidoId: z.string().nullable(), fornecedorId: z.string().nullable(), rodada: z.number().int().nonnegative(),
+  contagens: z.record(z.object({ p: produtoRascunho, fechadas: z.record(z.string()), soltas: z.string(), naoVeio: z.boolean(), temAvaria: z.boolean(), avaria: z.string(),
+    partes: z.array(z.object({ quantidade: z.string(), vencimento: z.string(), lote: z.string() })) })),
+  estados: z.record(z.enum(["falta", "contado", "recontar", "conferido", "aguardando_dono", "recusado", "enviado"])),
+}).refine((r) => Object.entries(r.contagens).every(([k, c]) => k === chaveProduto(c.p)));
 export function lerRascunho(chaveRascunho: string): Rascunho | null {
-  try { const t = localStorage.getItem(RASCUNHO + chaveRascunho); return t ? (JSON.parse(t) as Rascunho) : null; } catch { return null; }
+  let t: string | null;
+  try { t = localStorage.getItem(RASCUNHO + chaveRascunho); } catch { throw new Error(ERRO_LER_RASCUNHO); }
+  if (t === null) return null;
+  try {
+    const r: unknown = JSON.parse(t);
+    if (!formatoRascunho.safeParse(r).success) throw new Error();
+    return r as Rascunho;
+  } catch { throw new Error(ERRO_RASCUNHO_ILEGIVEL); }
 }
-export function guardarRascunho(chaveRascunho: string, r: Rascunho) { try { localStorage.setItem(RASCUNHO + chaveRascunho, JSON.stringify(r)); } catch { /* sem armazenamento: segue sem rascunho */ } }
+export function guardarRascunho(chaveRascunho: string, r: Rascunho) {
+  try {
+    const texto = JSON.stringify(r);
+    localStorage.setItem(RASCUNHO + chaveRascunho, texto);
+    if (localStorage.getItem(RASCUNHO + chaveRascunho) !== texto) throw new Error();
+  } catch { throw new Error(ERRO_GUARDAR_RASCUNHO); }
+}
 export function apagarRascunho(chaveRascunho: string) { try { localStorage.removeItem(RASCUNHO + chaveRascunho); } catch { /* nada */ } }
 /** Rascunho por acesso, pedido ou fornecedor. O terceiro argumento omitido reconhece a chave antiga. */
 export const chaveRascunho = (pedidoId: string | null, escopo: string, fornecedorId?: string | null) =>

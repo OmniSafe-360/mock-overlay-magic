@@ -445,7 +445,15 @@ function EnviarSheet({ numero, fornecedor, texto, novo, onCanal, onClose }: {
   const [erro, setErro] = useState("");
   const wa = fornecedor ? linkWhatsApp(fornecedor.tel, texto) : "";
   const mail = fornecedor?.email ? `mailto:${fornecedor.email}?subject=${encodeURIComponent(`Pedido nº ${numero}`)}&body=${encodeURIComponent(texto)}` : "";
-  const marcar = (c: CanalPedido) => { setUsado(c); setErro(""); onCanal(c).catch(() => setErro("O pedido foi aberto, mas não conseguimos marcar como enviado. Tente de novo.")); };
+  const marcar = (c: CanalPedido) => {
+    setUsado(null); setErro("");
+    onCanal(c).then(() => setUsado(c)).catch((e) => {
+      const m = String(e?.message ?? "");
+      setErro(m.includes("recebimento_em_contagem") || m.includes("A equipe ainda está conferindo esta entrega.")
+        ? "A equipe está conferindo esta entrega. Espere terminar; este pedido não foi marcado como enviado."
+        : "O pedido foi aberto, mas não conseguimos marcar como enviado. Tente de novo.");
+    });
+  };
   return (
     <Sheet title={novo ? `Pedido nº ${numero} salvo` : `Enviar pedido nº ${numero}`} onClose={onClose}>
       <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3">

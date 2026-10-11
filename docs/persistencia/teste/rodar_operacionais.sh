@@ -86,6 +86,30 @@ SQL
     "${psql_teste[@]}" -d teste -f "$dir_teste/simular_item9.sql"
     echo 'OK: item 9 simulado antes da aplicação, com rollback das funções e dos dados.'
   fi
+  if [ "$(basename "$migracao")" = '20261011144500_pedido_em_conferencia.sql' ]; then
+    "${psql_teste[@]}" -d postgres -c 'create database r02_divergente template teste'
+    "${psql_teste[@]}" -d r02_divergente -c "do \$\$ begin
+      execute replace(pg_get_functiondef('public.pedido_publico(text)'::regprocedure),
+        E'\nbegin\n', E'\nbegin\n  -- Divergência local para verificar a recusa.\n');
+      end \$\$;"
+    consulta_r02="select md5(string_agg(prosrc, '|' order by proname)) from pg_proc where pronamespace='public'::regnamespace and proname in ('cancelar_pedido','marcar_pedido_enviado','novo_link_pedido','responder_pedido','pedido_publico')"
+    hash_r02_antes=$("${psql_teste[@]}" -d r02_divergente -Atc "$consulta_r02")
+    if "${psql_teste[@]}" -d r02_divergente -1 -f "$migracao" > "$dir_teste/r02_divergente.log" 2>&1; then
+      echo 'FALHOU: R02 substituiu função divergente.' >&2; exit 1
+    fi
+    rg -q 'funcao_diverge_do_arquivo: pedido_publico' "$dir_teste/r02_divergente.log"
+    [ "$("${psql_teste[@]}" -d r02_divergente -Atc "$consulta_r02")" = "$hash_r02_antes" ] || { echo 'FALHOU: R02 substituiu funções antes de recusar.' >&2; exit 1; }
+    echo 'OK: R02 recusou banco divergente sem substituir nenhuma das cinco funções.'
+    {
+      printf 'begin;\n'
+      cat "$migracao"
+      sed '/^begin;$/d; /^rollback;$/d' "$base_teste/013_pedido_em_conferencia.sql"
+      printf '\nrollback;\n'
+    } > "$dir_teste/simular_r02.sql"
+    if rg -qi '\bdelete\b' "$dir_teste/simular_r02.sql"; then echo 'FALHOU: palavra proibida na simulação R02.' >&2; exit 1; fi
+    "${psql_teste[@]}" -d teste -f "$dir_teste/simular_r02.sql"
+    echo 'OK: R02 simulado antes da aplicação, com rollback das funções e dos dados.'
+  fi
   "${psql_teste[@]}" -d teste -1 -f "$migracao"
 done
 "${psql_teste[@]}" -d teste -f "$base_teste/005_melhorias_operacionais.sql"
@@ -93,6 +117,8 @@ done
 "${psql_teste[@]}" -d teste -f "$base_teste/008_codigos_concorrencia.sql"
 "${psql_teste[@]}" -d teste -f "$base_teste/011_coerencia_recebimento.sql"
 "${psql_teste[@]}" -d teste -f "$base_teste/012_recebimento_variacao_removida.sql"
+"${psql_teste[@]}" -d teste -f "$base_teste/013_pedido_em_conferencia.sql"
+python3 "$base_teste/014_pedido_concorrencia.py" "$dir_teste" "$porta_teste"
 
 # Duas conexões reais, com pedidos distintos e códigos equivalentes.
 cat >"$dir_teste/tx1.sql" <<'SQL'
