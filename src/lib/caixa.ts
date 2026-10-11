@@ -152,6 +152,18 @@ export function erroCaixa(e: unknown, naoFeito = "A venda não foi enviada"): st
   if (m.includes("pagamento_maior_que_total")) return "Pix, cartão e fiado não podem passar do total. Só o dinheiro tem troco.";
   if (m.includes("telefone_cliente_invalido")) return "Telefone do cliente inválido: use DDD + número.";
   if (m.includes("nome_cliente_invalido")) return "Escreva o nome do cliente (pelo menos 2 letras).";
+  // Recusas que tentar de novo não resolve: dizem o que fazer (checklist item 25).
+  if (m.includes("turno_ja_fechado") || m.includes("turno_invalido") || m.includes("turno_fechado")) return "Este caixa já foi fechado. Volte ao início e abra o caixa de novo.";
+  if (m.includes("troco_invalido")) return "Confira o valor do troco da gaveta.";
+  if (m.includes("fiado_sem_cliente")) return "No fiado, escolha o cliente.";
+  if (m.includes("cliente_invalido")) return "Cliente do fiado não encontrado. Escolha o cliente de novo.";
+  if (m.includes("venda_sem_itens")) return "A venda está sem produtos.";
+  if (m.includes("data_invalida")) return "A data desta venda está errada (confira a data do celular). Mostre ao dono.";
+  if (m.includes("pagamento_invalido")) return "Forma de pagamento não aceita. Mostre ao dono.";
+  if (m.includes("produto_de_outro_comercio") || m.includes("variacao_invalida") || m.includes("embalagem_invalida") || m.includes("item_invalido"))
+    return "Um produto desta venda mudou no cadastro (foi apagado ou alterado). Mostre ao dono.";
+  if (m.includes("venda_invalida")) return "Esta venda não vale mais (já foi cancelada ou não é deste caixa). Mostre ao dono.";
+  if (m.includes("id_obrigatorio")) return "O app está desatualizado. Feche e abra de novo para atualizar.";
   if (/fetch|network|Failed to|Load failed/i.test(m)) return `Sem internet. ${naoFeito}: confira a conexão e toque em tentar de novo.`;
   return "Não foi possível concluir agora. Tente de novo.";
 }

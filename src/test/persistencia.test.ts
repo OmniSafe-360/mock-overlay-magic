@@ -71,3 +71,19 @@ it("erros do banco viram mensagens em português", () => {
   expect(mensagemErro({ message: "codigo_em_uso: 789" })).toBe("Este código de barras já está cadastrado neste comércio.");
   expect(mensagemErro(new TypeError("Failed to fetch"))).toMatch(/Sem conexão/);
 });
+
+describe("recusas que tentar de novo não resolve (checklist item 25)", () => {
+  const CODIGOS = ["sem_permissao", "sem_comercio", "app_desatualizado", "item_ja_resolvido", "nao_e_contagem_inconsistente", "contagem_invalida",
+    "recebimento_em_contagem", "recebimento_nao_encontrado", "recebimento_de_outro_comercio", "recebimento_vazio", "itens_obrigatorios",
+    "reposicao_nao_encontrada", "reposicao_de_outro_produto", "conferencia_de_outro_produto", "perda_de_outro_comercio", "motivo_invalido",
+    "area_invalida", "canal_invalido", "pedido_de_outro_comercio", "pedido_nao_encontrado", "preco_invalido", "codigos_internos_esgotados",
+    "historico_imutavel", "local_de_outro_comercio_ou_area", "variacao_de_outro_produto", "embalagem_removida", "vinculo_incompativel",
+    "nao_e_pendencia_aberta", "pendencia_de_outro_produto", "sem_partes", "saldo_insuficiente"];
+  it.each(CODIGOS)("%s tem mensagem própria, sem mandar tentar de novo", (c) => {
+    const msg = mensagemErro({ message: c });
+    expect(msg).not.toMatch(/Tente de novo|Escolha uma das opções da lista nos detalhes/);
+  });
+  it("preço inválido não vira a mensagem dos detalhes do produto", () => {
+    expect(mensagemErro({ message: "preco_invalido" })).toBe("Confira o preço: ele não pode ser negativo.");
+  });
+});
