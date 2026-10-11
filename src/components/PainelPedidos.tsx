@@ -9,6 +9,7 @@ import { type Product, type Supplier, type Variation } from "@/components/Produc
 import { linkWhatsApp } from "@/components/PainelFornecedores";
 import { btnGhost, btnPrimary, type StoreData } from "@/components/StoreSetup";
 import { aceitaFracao, fmtQ, qtdUn, unPlural, unSingular } from "@/lib/deposito";
+import { CampoQtd } from "@/components/CampoQtd";
 import { descricaoEmbalagem } from "@/lib/embalagem";
 import { estadoPagamento, ordemPagamento, resumoPagamentos, somaDias, textoPagamento, valorConta, type EstadoPagamento } from "@/lib/pagamento";
 import { hojeEm } from "@/lib/validade";
@@ -380,8 +381,7 @@ function EditorLinha({ l, onMudar, onRemover }: { l: LinhaPedido; onMudar: (l: L
       <div className="mt-2 flex items-center gap-3">
         <div className="flex shrink-0 items-center rounded-2xl border border-border">
           <button type="button" aria-label="Diminuir" onClick={() => mudarQtd(l.qtd - passo)} className="flex h-11 w-11 items-center justify-center text-primary"><Minus size={18} /></button>
-          <input aria-label={`Quantidade de ${nomeLinha(l)}`} inputMode={passo < 1 ? "decimal" : "numeric"} value={fmtQ(l.qtd)}
-            onChange={(e) => { const n = Number(e.target.value.replace(/\./g, "").replace(",", ".")); if (Number.isFinite(n) && n > 0) mudarQtd(l.embalagem ? Math.round(n) : n); }}
+          <CampoQtd aria-label={`Quantidade de ${nomeLinha(l)}`} inputMode={passo < 1 ? "decimal" : "numeric"} valor={l.qtd} inteiro={!!l.embalagem} minimo={0.001} onValor={mudarQtd}
             className="h-11 w-14 bg-transparent text-center text-base font-bold tabular-nums outline-none" />
           <button type="button" aria-label="Aumentar" onClick={() => mudarQtd(l.qtd + passo)} className="flex h-11 w-11 items-center justify-center text-primary"><Plus size={18} /></button>
         </div>
