@@ -54,13 +54,14 @@ describe("Conferir depósito (funcionário)", () => {
     fireEvent.change(screen.getByLabelText("Sem embalagem (unidades)"), { target: { value: "3" } });
     expect(screen.getByText("Total: 33 unidades")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Confirmar contagem/ }));
-    await waitFor(() => expect(contar).toHaveBeenCalledWith(CH, expect.any(String), "p-arroz", null, 33));
+    await waitFor(() => expect(contar).toHaveBeenCalledWith(CH, expect.any(String), "p-arroz", null, 33, 1));
     expect(await screen.findByText(/Contagem 2 de 3/)).toBeTruthy();
     expect((screen.getByLabelText("Sem embalagem (unidades)") as HTMLInputElement).value).toBe("");
     fireEvent.change(screen.getByLabelText("Sem embalagem (unidades)"), { target: { value: "33" } });
     fireEvent.click(screen.getByRole("button", { name: /Confirmar contagem/ }));
     await waitFor(() => expect(contar).toHaveBeenCalledTimes(2));
     expect(contar.mock.calls[1]![1]).toBe(contar.mock.calls[0]![1]);
+    expect(contar.mock.calls[1]![5]).toBe(2);
     expect(await screen.findByText(/Arroz 5 kg: conferido/)).toBeTruthy();
     expect(a.lista).toHaveBeenCalledTimes(2);
   });
@@ -69,8 +70,23 @@ describe("Conferir depósito (funcionário)", () => {
     render(<ConferirDeposito chave={CH} api={a} onVoltar={() => {}} />);
     fireEvent.click(await screen.findByRole("button", { name: /Tiss/ }));
     fireEvent.click(screen.getByRole("button", { name: /Não tem nenhum no depósito/ }));
-    await waitFor(() => expect(a.contar).toHaveBeenCalledWith(CH, expect.any(String), "p-tiss", null, 0));
+    await waitFor(() => expect(a.contar).toHaveBeenCalledWith(CH, expect.any(String), "p-tiss", null, 0, 1));
     expect(await screen.findByText(/não bateram. O dono vai conferir/)).toBeTruthy();
+  });
+  it("reenviar depois de falhar manda a mesma rodada; contagem começada continua na rodada certa", async () => {
+    const contar = vi.fn().mockRejectedValueOnce(new Error("Failed to fetch")).mockResolvedValueOnce({ situacao: "recontar", rodada: 3 });
+    const comecada = { ...itens[1]!, conferenciaId: "cf-1", rodada: 2 };
+    const a = apiC({ contar, lista: vi.fn(async () => ({ tipo: "mercado", feitosHoje: 0, meta: 5, produtos: [comecada] })) });
+    render(<ConferirDeposito chave={CH} api={a} onVoltar={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Tiss/ }));
+    expect(screen.getByText(/Contagem 2 de 3/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("No depósito (unidades)"), { target: { value: "7" } });
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar contagem/ }));
+    expect(await screen.findByText(/Sem conexão|Não foi possível enviar/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar contagem/ }));
+    await waitFor(() => expect(contar).toHaveBeenCalledTimes(2));
+    expect(contar.mock.calls.map((c) => [c[1], c[5]])).toEqual([["cf-1", 2], ["cf-1", 2]]);
+    expect(await screen.findByText(/Contagem 3 de 3/)).toBeTruthy();
   });
   it("lista vazia depois de conferir tudo", async () => {
     render(<ConferirDeposito chave={CH} api={apiC({ lista: vi.fn(async () => ({ tipo: "mercado", feitosHoje: 5, meta: 5, produtos: [] })) })} onVoltar={() => {}} />);

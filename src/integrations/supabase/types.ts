@@ -1477,7 +1477,7 @@ type FuncoesOperacionais = {
   novo_acesso_funcionario: { Args: { _id: string | null }; Returns: Json }
   sair_funcionario: { Args: { _chave: string | null }; Returns: undefined }
   funcionario_inicio: { Args: { _chave: string | null }; Returns: Json }
-  funcionario_conferencia_contar: { Args: { _chave: string | null; _id: string | null; _produto: string | null; _variacao: string | null; _contado: number | null }; Returns: Json }
+  funcionario_conferencia_contar: { Args: { _chave: string | null; _id: string | null; _produto: string | null; _variacao: string | null; _contado: number | null; _rodada: number | null }; Returns: Json }
   explicar_diferenca: { Args: { _id: string | null; _motivo: string | null; _observacao: string | null }; Returns: undefined }
   funcionario_conferencia_lista: { Args: { _chave: string | null }; Returns: Json }
   funcionario_enviar_recebimento: { Args: { _chave: string | null; _id: string | null; _rodada: number | null; _itens: Json | null }; Returns: Json }
