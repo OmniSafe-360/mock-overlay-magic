@@ -54,6 +54,10 @@ export function situacaoProduto(p: Product, tipo: string, hoje: string, opts: { 
   const add = (nivel: Alerta["nivel"], tipo: TipoAlerta, titulo: string, detalhe?: string) => alertas.push({ nivel, tipo, titulo, detalhe });
   const d = p.deposito, a = p.areaVenda;
   const porVar = p.variacoes.length > 0 && !!(d?.vars || a?.vars);
+  // B15: área que o produto não usa não deixa o total "não contado"; só a área usada e não contada fica desconhecida.
+  const efDep = (x: number | null) => (x == null && !d ? 0 : x);
+  const efVen = (x: number | null) => (x == null && !a ? 0 : x);
+  const totalEf = (dep: number | null, ven: number | null) => (!d && !a ? null : total(efDep(dep), efVen(ven)));
 
   /* ---------- quantidades ---------- */
   const variacoes: LinhaVariacao[] = porVar
@@ -61,7 +65,7 @@ export function situacaoProduto(p: Product, tipo: string, hoje: string, opts: { 
         const k = v.uid ?? "";
         const dv = d?.vars?.[k], av = a?.vars?.[k];
         const dep = dv?.qtd ?? null, ven = av?.qtd ?? null;
-        return { uid: k, nome: `${v.tam} · ${v.cor}`, dep, ven, total: total(dep, ven),
+        return { uid: k, nome: `${v.tam} · ${v.cor}`, dep, ven, total: totalEf(dep, ven),
           depMin: dv?.min ?? null, depMax: dv?.max ?? null, venMin: av?.min ?? null, venMax: av?.max ?? null };
       })
     : [];
@@ -70,7 +74,7 @@ export function situacaoProduto(p: Product, tipo: string, hoje: string, opts: { 
         depMin: null, depMax: null, venMin: null, venMax: null }
     : { dep: d && !d.vars ? d.qtd : null, ven: a && !a.vars ? a.qtd : null, total: null,
         depMin: d?.min ?? null, depMax: d?.max ?? null, venMin: a?.min ?? null, venMax: a?.max ?? null };
-  qtd.total = total(qtd.dep, qtd.ven);
+  qtd.total = totalEf(qtd.dep, qtd.ven);
 
   /* ---------- validade ---------- */
   const val = p.validade?.controla ? p.validade : undefined;
@@ -91,7 +95,7 @@ export function situacaoProduto(p: Product, tipo: string, hoje: string, opts: { 
   if (vencDep.length) add("urgente", "vencido", `Vencido no ${nomes.dep.toLowerCase()}: ${qtdUn(soma(vencDep), un)}`, "Separe para descarte ou troca com o fornecedor.");
   const linhasQtd: (Qtds & { prefixo: string })[] = porVar ? variacoes.map((x) => ({ ...x, prefixo: `${x.nome}: ` })) : [{ ...qtd, prefixo: "" }];
   for (const x of linhasQtd)
-    if (x.dep != null && x.ven != null && mil(x.dep) === 0 && mil(x.ven) === 0)
+    if (x.total != null && mil(x.total) === 0)
       add("urgente", "acabou", `${x.prefixo}acabou`.replace(/^a/, "A"), `Acabou no ${nomes.dep.toLowerCase()} e na ${nomes.ven.toLowerCase()}. Hora de comprar${opts.fornecedor ? ` de ${opts.fornecedor}` : ""}.`);
   if (p.compra > 0 && p.venda > 0 && p.venda < p.compra) add("urgente", "preco", "Vendendo com prejuízo", "O preço de venda está menor que o de compra.");
   const pmc = farm ? acimaPmcMsg(p.venda, pmcCentavos(p.detalhes)) : "";
@@ -101,7 +105,7 @@ export function situacaoProduto(p: Product, tipo: string, hoje: string, opts: { 
 
   /* ---------- atenção ---------- */
   for (const x of linhasQtd) {
-    const zerado = x.dep != null && x.ven != null && mil(x.dep) === 0 && mil(x.ven) === 0;
+    const zerado = x.total != null && mil(x.total) === 0;
     if (zerado) continue;
     if (x.ven != null && x.venMin != null && mil(x.ven) <= mil(x.venMin))
       add("atencao", "repor", `${x.prefixo}repor a ${nomes.ven.toLowerCase()}`.replace(/^r/, "R"),
