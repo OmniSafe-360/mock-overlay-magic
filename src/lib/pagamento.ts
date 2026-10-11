@@ -21,6 +21,8 @@ export function estadoPagamento(p: Pedido, hoje: string): { estado: EstadoPagame
   const pg = p.pagamento;
   if (!pg?.situacao) return null;
   if (pg.situacao === "pago") return { estado: "pago", dias: null };
+  // Pedido cancelado ou recusado não tem conta a pagar (o banco já limpa; isto protege dados antigos).
+  if (p.situacao === "cancelado" || p.situacao === "recusado") return null;
   if (!pg.vencimento) return { estado: "a_pagar", dias: null };
   const d = diasEntre(hoje, pg.vencimento);
   return { estado: d < 0 ? "atrasado" : d === 0 ? "hoje" : d <= 7 ? "em_breve" : "a_pagar", dias: d };
