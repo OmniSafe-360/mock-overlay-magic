@@ -4,6 +4,8 @@ Plano de execução pedido pelo dono em **11/10/2026**. As regras continuam em [
 
 **Próxima tarefa independente: continuar E2.1 — verificar perda de resposta e retomada do cadastro de comércio.** Isolamento da conta e salvamento/confirmação do cadastro corrigidos; falta publicação/teste do dono. [Isolamento da conta](conta-isolamento-2026-10-11.md) e [salvamento do comércio](comercio-salvamento-2026-10-11.md). R01–R05 corrigidos no código; publicação e teste do dono pendentes. **E1 não está validada por completo:** reabertura offline de R05 exige aparelho real, junto de E6/item antigo 29. R02 já aplicada no banco oficial, sem alterar dados de comércio/estoque. [Registro de R01](reposicao-retomada-2026-10-11.md), [R02](pedido-conferencia-banco-2026-10-11.md), [R03](fiado-consulta-2026-10-11.md), [R04](recebimento-rascunho-2026-10-11.md) e [R05](caixa-reabertura-offline-2026-10-11.md). O teste geral continua adiado conforme decisão do dono; avançar nas verificações independentes não encerra os aceites pendentes.
 
+**Análise 2 (11/10/2026, tarde):** uma nova análise ponta a ponta confirmou 31 defeitos em fluxos que já existem: 12 graves (trava, dinheiro ou estoque), 16 de números ou telas e 3 menores. A lista detalhada, com cenário e local no código, está em [checklist-funcional-2.md](checklist-funcional-2.md), com os itens A1 a C3. A12 já foi resolvido por R01 e B13 faz parte de E2.1. **Depois de terminar E2.1, corrigir os itens A1 → C3, um por vez**, antes das verificações de E2 a E8; marcar lá e registrar aqui na tabela de etapas.
+
 ## Ponto de partida e limites da análise
 
 - Código revisado: `main`, commit `a8f05ad2894a7c8862374033a9e52da21cf5925e` (PR #98, item 25). Se o GitHub avançar, revisar a diferença antes de seguir.
