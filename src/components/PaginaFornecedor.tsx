@@ -8,6 +8,7 @@ import { LogoMark } from "@/components/Logo";
 import { btnGhost, btnPrimary, digits } from "@/components/StoreSetup";
 import { carregarPedidoPublico, responderPedido, type ItemPublico, type PedidoPublico, type RespostaFornecedor } from "@/lib/banco";
 import { aceitaFracao, fmtQ } from "@/lib/deposito";
+import { CampoQtd } from "@/components/CampoQtd";
 import { mensagemErro } from "@/lib/persistencia";
 import { FORMA_TXT, dataEntregaTexto, formaTexto, hojeISO, qtdItemTexto, respostaItem, type FormaPagamento } from "@/lib/pedido";
 
@@ -317,8 +318,7 @@ function ItemResposta({ i, r, onMudar }: { i: ItemPublico; r: Resp; onMudar: (r:
         <div className="mt-2 flex items-center gap-3">
           <div className="flex shrink-0 items-center rounded-2xl border border-border">
             <button type="button" aria-label="Diminuir" onClick={() => mudarQtd(r.qtd - passo)} className="flex h-11 w-11 items-center justify-center text-primary"><Minus size={18} /></button>
-            <input aria-label={`Quantidade de ${nomeItem(i)} que vai mandar`} inputMode={passo < 1 ? "decimal" : "numeric"} value={fmtQ(r.qtd)}
-              onChange={(e) => { const n = Number(e.target.value.replace(/\./g, "").replace(",", ".")); if (Number.isFinite(n) && n >= 0) mudarQtd(i.embalagem ? Math.round(n) : n); }}
+            <CampoQtd aria-label={`Quantidade de ${nomeItem(i)} que vai mandar`} inputMode={passo < 1 ? "decimal" : "numeric"} valor={r.qtd} inteiro={!!i.embalagem} minimo={0} onValor={mudarQtd}
               className="h-11 w-14 bg-transparent text-center text-base font-bold tabular-nums outline-none" />
             <button type="button" aria-label="Aumentar" onClick={() => mudarQtd(r.qtd + passo)} className="flex h-11 w-11 items-center justify-center text-primary"><Plus size={18} /></button>
           </div>

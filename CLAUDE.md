@@ -179,3 +179,5 @@
 - 11/10/2026: **checklist 2, item B2 — pedido novo não sai sem o link**: `tokenDoPedido` (banco.ts) busca o link se a recarga falhar; `PainelPedidos` não abre o envio sem link. Sem mudança no banco. Precisa Publicar → Atualizar; falta o teste do dono.
 
 - 11/10/2026: **checklist 2, item B3 — novo link vale na hora**: `DetalhePedido` guarda o token devolvido por `novo_link_pedido`; `pedidoNovoLink` não falha se a recarga falhar. Sem mudança no banco. Precisa Publicar → Atualizar; falta o teste do dono.
+
+- 11/10/2026: **checklist 2, item B4 — vírgula na quantidade**: `src/components/CampoQtd.tsx` em `PaginaFornecedor` e `PainelPedidos`. Sem mudança no banco. Precisa Publicar → Atualizar; falta o teste do dono.
