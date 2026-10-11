@@ -23,7 +23,7 @@ Conferido e **sem problema**: os 59 comandos que o app manda ao banco existem co
 - [x] 13. (corrigido em 11/10/2026: o fiado lê de novo a cada atualização da aba Vendas — sozinha a cada minuto, no botão Atualizar e depois de cancelar venda; o primeiro cliente aparece sem sair da tela) **Painel do fiado não atualiza** (cancelamento, venda nova, primeiro cliente) até sair e voltar.
 - [x] 14. (corrigido em 11/10/2026, migração `20261011122600_caixa_sem_codigo_pelo_nome.sql`: a venda sem código usa o nome digitado como chave — "Sacola" junta todas num item só, e a decisão do dono vale para as próximas; nenhuma venda antiga precisou de conserto) **"Sem cadastro" sem código no caixa do celular:** cada venda vira um item separado para resolver (30 sacolas = 30 toques).
 - [x] 15. (corrigido em 11/10/2026: o cadastro de produto abre por cima da tela do comércio, e a ficha do produto por cima das abas, sem desmontar o que estava aberto; ao salvar, cancelar ou voltar, tudo continua onde estava — aba, ficha, pedido aberto) **Depois de salvar/editar produto** volta para o lugar errado (lista de Produtos ou até "Novo pedido").
-- [ ] 16. **PIN do dono na Equipe:** se a leitura falhar, o quadro fica sem botão.
+- [x] 16. (corrigido em 11/10/2026: se não der para conferir, aparece "Não foi possível conferir o seu PIN agora. Confira a internet." com "Tentar de novo"; enquanto confere, "Conferindo…") **PIN do dono na Equipe:** se a leitura falhar, o quadro fica sem botão.
 
 ## Prioridade 3 — texto ou detalhe errado
 - [x] 17. (corrigido junto com o item 6) "Tentar de novo" (sem internet) no Omni Operação entra **sem pedir o PIN**.

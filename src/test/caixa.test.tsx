@@ -392,6 +392,19 @@ describe("dono: PIN do caixa, fechamentos e cancelar venda do celular", () => {
     expect(definirPin).toHaveBeenCalledWith("2468");
   });
 
+  it("se não der para conferir o PIN, avisa e deixa tentar de novo", async () => {
+    const { PainelEquipe } = await import("@/components/PainelEquipe");
+    const lista = [{ id: "f1", nome: "Maria Souza", funcao: "repor" as const, caixa: true, codigo: "255392", codigoGeradoEm: new Date().toISOString(),
+      primeiroAcessoEm: new Date().toISOString(), bloqueadoEm: null, ultimoAcesso: null, travadoAte: null, celulares: 1 }];
+    const temPin = vi.fn().mockRejectedValueOnce(new Error("Failed to fetch")).mockResolvedValueOnce(true);
+    const api = { carregar: vi.fn(async () => lista), criar: vi.fn(), atualizar: vi.fn(), bloquear: vi.fn(), novoAcesso: vi.fn(), temPin, definirPin: vi.fn() };
+    render(<PainelEquipe comercioId="c1" comercioNome="Mercado" api={api as never} />);
+    expect(await screen.findByText(/Não foi possível conferir o seu PIN/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
+    expect(await screen.findByRole("button", { name: "Trocar o PIN" })).toBeTruthy();
+    expect(screen.queryByText(/Não foi possível conferir o seu PIN/)).toBeNull();
+  });
+
   it("Vendas mostra o fechamento com falta e o dono cancela uma venda do celular", async () => {
     const { PainelVendas } = await import("@/components/PainelVendas");
     const hoje = new Date().toISOString();
