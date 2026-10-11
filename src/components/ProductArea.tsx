@@ -350,7 +350,11 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
       const l = initVal![area][k]!.find((y) => y.id === o.id)!;
       return { ...o, msg: origemMsg(`${qtdUn(o.original, unidade)}`, `${qtdUn(o.atual, unidade)}`, l.data ? ` (vence ${fmtData(l.data)})` : l.lote ? ` (lote ${l.lote})` : "") };
     });
-    const err = cont == null ? (ls.length ? LINHAS_SEM_CONTAGEM : "")
+    /* Área ainda sem contagem ("Definir depois") pode já ter linhas vindas do banco (ex.: mercadoria recebida):
+       elas não bloqueiam a edição; só linhas novas exigem a contagem. */
+    const err = cont == null ? (ls.some((l) => !l.saved) ? LINHAS_SEM_CONTAGEM
+        : vs.some((x) => x.r.qErr || x.r.dErr || x.r.pErr) ? "Corrija as validades marcadas em vermelho."
+        : quebradas.length ? quebradas[0]!.msg : "")
       : vs.some((x) => x.r.qErr || x.r.dErr || x.r.pErr) ? "Corrija as validades marcadas em vermelho."
       : quebradas.length ? quebradas[0]!.msg : soma!.err;
     return { k, ls, cont, vs, soma, err, quebradas };
