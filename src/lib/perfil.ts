@@ -63,3 +63,8 @@ export async function prepararFoto(arquivo: File): Promise<string> {
     throw new Error("Esta foto ficou muito grande. Escolha outra imagem.");
   } finally { URL.revokeObjectURL(url); }
 }
+
+/** Criar conta com um e-mail que já existe: com a confirmação por e-mail ligada, o Supabase não devolve erro
+ * (para não revelar quem tem conta), mas o usuário volta sem nenhuma identidade. Não é conta nova. */
+export const emailJaCadastrado = (user: { identities?: unknown[] | null } | null | undefined) =>
+  !!user && Array.isArray(user.identities) && user.identities.length === 0;

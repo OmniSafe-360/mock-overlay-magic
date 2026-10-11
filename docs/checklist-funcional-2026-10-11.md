@@ -33,7 +33,7 @@ Conferido e **sem problema**: os 59 comandos que o app manda ao banco existem co
 - [x] 21. (corrigido em 11/10/2026: sem internet, cada mensagem diz o que não aconteceu — "O caixa não foi aberto", "O dinheiro tirado não foi registrado", "O caixa não foi fechado", "A venda não foi cancelada", "O caixa não carregou", "A lista de clientes não carregou") Mensagens do caixa dizem "A venda não foi enviada" ao abrir, sangria e fechar.
 - [x] 22. (corrigido em 11/10/2026: o preço por unidade passou a ser guardado com 8 casas — migração `20261011131114` — e o app não arredonda mais o centavo antes de salvar; caixa de R$ 10,00 com 12 fica R$ 10,00, não R$ 9,96) Total do pedido salvo difere alguns centavos do mostrado na montagem.
 - [x] 23. (corrigido em 11/10/2026: ao digitar um CEP novo, o endereço do anterior sai; CEP não encontrado ou busca sem internet pede o endereço em branco e "Continuar" só libera com o endereço novo) Mudar o CEP do comércio para um que falha mantém o endereço antigo.
-- [ ] 24. Criar conta com e-mail que já existe diz "Confirme seu e-mail" em vez de "já cadastrado".
+- [x] 24. (corrigido em 11/10/2026: e-mail já cadastrado mostra "Este e-mail já está cadastrado. Tente entrar." e não vai para "Confirme seu e-mail"; falta o teste do dono com um e-mail real) Criar conta com e-mail que já existe diz "Confirme seu e-mail" em vez de "já cadastrado".
 - [ ] 25. Algumas recusas mostram "tente de novo" quando tentar de novo nunca vai dar certo.
 
 ## Dados para arrumar (com autorização do dono)

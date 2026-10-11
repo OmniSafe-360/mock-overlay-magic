@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useState } from "react";
 import { ContaPerfil } from "@/components/ContaPerfil";
-import { fotoDoPerfil, prepararFoto, salvarPerfil, type Perfil } from "@/lib/perfil";
+import { emailJaCadastrado, fotoDoPerfil, prepararFoto, salvarPerfil, type Perfil } from "@/lib/perfil";
 
 const banco = vi.hoisted(() => ({ getUser: vi.fn(), from: vi.fn(), update: vi.fn(), eq: vi.fn(), select: vi.fn(), single: vi.fn() }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { auth: { getUser: banco.getUser }, from: banco.from } }));
@@ -123,5 +123,14 @@ describe("edição na tela Conta", () => {
     fireEvent.change(screen.getByLabelText("Nome"), { target: { value: " " } });
     t.enviar(); expect(screen.getByRole("alert")).toHaveTextContent("Informe seu nome.");
     expect(t.salvar).not.toHaveBeenCalled();
+  });
+});
+
+describe("criar conta com e-mail já cadastrado", () => {
+  it("usuário sem identidades é e-mail que já existe; conta nova não", () => {
+    expect(emailJaCadastrado({ identities: [] })).toBe(true);
+    expect(emailJaCadastrado({ identities: [{ provider: "email" }] })).toBe(false);
+    expect(emailJaCadastrado({})).toBe(false);
+    expect(emailJaCadastrado(null)).toBe(false);
   });
 });
