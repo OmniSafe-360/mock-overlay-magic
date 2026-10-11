@@ -170,7 +170,7 @@ Gerente com permissões novas, integração direta por API com marcas de PDV, ba
 |---|---|---|---|---|
 | E1 / R01 | Corrigido em 11/10/2026, [PR #100](https://github.com/OmniSafe-360/mock-overlay-magic/pull/100); 846 testes duas vezes, build e testes locais aprovados; [registro](reposicao-retomada-2026-10-11.md) | Banco sem mudança; publicação pendente | Pendente | Publicar → Atualizar e executar roteiro de fechamento/retomada |
 | E1 / R02 | Corrigido em 11/10/2026, [PR #101](https://github.com/OmniSafe-360/mock-overlay-magic/pull/101); 851 testes duas vezes, build, SQL e 13 disputas aprovados; [registro](pedido-conferencia-banco-2026-10-11.md) | Migração `20261011144500` aplicada/conferida; app e consulta de avisos pendentes | Pendente | Publicar → Atualizar e executar roteiro de abas antigas |
-| E1 / R03 | Corrigido em 11/10/2026; 859 testes duas vezes, build e Chromium aprovados; [registro](fiado-consulta-2026-10-11.md) | Banco sem mudança; publicação pendente | Pendente | Publicar → Atualizar e validar consulta/recuperação do fiado |
+| E1 / R03 | Corrigido em 11/10/2026, [PR #102](https://github.com/OmniSafe-360/mock-overlay-magic/pull/102); 859 testes duas vezes, build e Chromium aprovados; [registro](fiado-consulta-2026-10-11.md) | Banco sem mudança; publicação pendente | Pendente | Publicar → Atualizar e validar consulta/recuperação do fiado |
 | R04 | Pendente | Sem mudança preparada | Pendente | Tratar falha de rascunho local |
 | R05 | Teste real pendente | Sem mudança preparada | Pendente | Testar reabertura offline com E6 |
 | E2–E4 | Módulos existentes; validação conjunta pendente | Publicação atual não confirmada nesta revisão | Pendente | Executar roteiros após correções |

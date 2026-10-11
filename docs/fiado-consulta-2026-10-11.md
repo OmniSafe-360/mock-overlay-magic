@@ -1,6 +1,6 @@
 # E1/R03 — falha de consulta do fiado visível
 
-Correção autorizada em 11/10/2026 sobre o `main` `947feb2daca97a883dbc08cd8aafdd6afac0b95d` (PR #101). **Corrigido no código; falta Publicar → Atualizar no Lovable e o teste do dono no app publicado.** Próxima correção: R04, avisar quando o rascunho de recebimento não puder ser guardado.
+Entrega no [PR #102](https://github.com/OmniSafe-360/mock-overlay-magic/pull/102), correção `d6b0583`, branch `fix/r03-fiado-falha-consulta`. Correção autorizada em 11/10/2026 sobre o `main` `947feb2daca97a883dbc08cd8aafdd6afac0b95d` (PR #101). **Corrigido no código; falta Publicar → Atualizar no Lovable e o teste do dono no app publicado.** Próxima correção: R04, avisar quando o rascunho de recebimento não puder ser guardado.
 
 ## Problema comprovado e resultado
 
