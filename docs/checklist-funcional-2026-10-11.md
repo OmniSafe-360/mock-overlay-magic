@@ -3,7 +3,9 @@
 Análise ponta a ponta pedida pelo dono: só o que **já existe e não funciona direito**. Nada de função nova.
 Fora desta lista, a pedido do dono: caixa no computador (Omni Conector) e "Esqueci minha senha".
 
-Conferido e **sem problema**: os 59 comandos que o app manda ao banco existem com os nomes certos; todas as tabelas e colunas lidas existem; nenhum teste desligado; sem erros no banco nas últimas 24 h.
+**Continuidade em 11/10/2026:** itens **1–25 corrigidos no código**; 26–28 dependem de dados/autorização do dono e 29–30 de aparelhos reais. O plano ativo é o [checklist ponta a ponta](CHECKLIST_PONTA_A_PONTA.md), sob as regras da [fonte da verdade](FONTE_DA_VERDADE.md). Ele inclui limitações adicionais e preparação de lançamento sem alterar o escopo histórico desta lista. A próxima tarefa do plano é **R01 — retomada da reposição após fechar o app**, não o item 12. Marcação `[x]` aqui não comprova publicação/aceite geral do dono.
+
+**Conferência histórica na criação desta lista:** os 59 comandos consultados existiam com os nomes certos, tabelas/colunas conferidas, nenhum teste desligado e sem erros do banco nas 24 h então analisadas. Não é monitoramento permanente nem prova atual de que todos os fluxos estão sem problema.
 
 ## Prioridade 1 — perde dinheiro ou estoque errado
 - [x] 1. (corrigido em 11/10/2026: código novo a cada "Recebeu", o mesmo ao reenviar depois de falhar; nenhum pagamento real tinha se perdido) **Fiado:** o 2º pagamento do mesmo cliente diz "Recebido", mas não é salvo (`PainelFiado.tsx`, código do pagamento repetido).
