@@ -32,7 +32,7 @@ Fora desta lista, a pedido do dono: Omni Conector (caixa no computador) e "Esque
   - O acerto usa o saldo da hora de "Coloquei", e não o da hora da contagem. Exemplo: contou 5, vendeu 2 no caixa, a gôndola fica com 2 a mais.
   - Com o caixa ligado, também cria uma diferença falsa.
   - Onde: `funcionario_reposicao_concluir`.
-- [ ] A4. **Recebimento que nunca termina.** O conflito de lote/validade e o produto que venceu antes de concluir só aparecem no fim. A essa altura o item "Conferido" não pode mais ser corrigido pela equipe nem pelo dono (`_entrar_no_deposito`, `funcionario_enviar_recebimento`, `ReceberMercadoria.tsx:322-330`).
+- [x] A4. (11/10/2026: `funcionario_enviar_recebimento` mudada a partir da versão do banco; ao concluir, produto conferido com validade vencida, sem data, sem lote na farmácia ou com lote que já existe com outra data volta para "Conte de novo" (amarelo) em vez de travar a entrega; decisão do dono. Sem tabela nova) **Recebimento que nunca termina.** O conflito de lote/validade e o produto que venceu antes de concluir só aparecem no fim. A essa altura o item "Conferido" não pode mais ser corrigido pela equipe nem pelo dono (`_entrar_no_deposito`, `funcionario_enviar_recebimento`, `ReceberMercadoria.tsx:322-330`).
 - [ ] A5. **Cancelar uma venda fiado que o cliente já pagou cria um crédito escondido.**
   - O saldo fica negativo e a tela mostra "Em dia".
   - As próximas compras fiado somem da conta, e receber é recusado.
