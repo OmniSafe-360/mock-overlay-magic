@@ -298,10 +298,11 @@ function GrupoFornecedor({ fornecedor, grupo, products, store, onSalvar, onEnvia
   const [adicionar, setAdicionar] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
+  const [semLink, setSemLink] = useState(false);
   const [salvo, setSalvo] = useState<{ id: string; numero: number; token?: string | undefined } | null>(null);
   const total = totalLinhas(grupo.linhas);
   const salvar = async () => {
-    if (salvando || !grupo.linhas.length) return;
+    if (salvando || semLink || !grupo.linhas.length) return;
     setSalvando(true); setErro("");
     try {
       const r = await onSalvar({ fornecedor, linhas: grupo.linhas, observacao: grupo.obs });
@@ -310,7 +311,7 @@ function GrupoFornecedor({ fornecedor, grupo, products, store, onSalvar, onEnvia
       else if (!r.token) {
         // B2: sem o link, a mensagem iria incompleta e o pedido ficaria como enviado.
         setErro(`O pedido nº ${r.numero} foi salvo, mas o link para o fornecedor não carregou. Abra o pedido na lista para enviar.`);
-        onConcluido();
+        setSemLink(true);
       } else setSalvo(r);
     }
     catch (e) { setErro(String((e as { message?: string })?.message ?? "Não foi possível salvar o pedido.")); }
@@ -345,7 +346,7 @@ function GrupoFornecedor({ fornecedor, grupo, products, store, onSalvar, onEnvia
       </label>
 
       {erro && <p role="alert" className="mt-2 text-sm font-semibold text-destructive">{erro}</p>}
-      <button type="button" disabled={!grupo.linhas.length || salvando} onClick={salvar} className={`mt-3 flex w-full items-center justify-center gap-2 ${btnPrimary(!!grupo.linhas.length && !salvando)}`}>
+      <button type="button" disabled={!grupo.linhas.length || salvando || semLink} onClick={salvar} className={`mt-3 flex w-full items-center justify-center gap-2 ${btnPrimary(!!grupo.linhas.length && !salvando && !semLink)}`}>
         <Send size={18} /> {salvando ? "Salvando…" : "Salvar e enviar"}
       </button>
       <p className="mt-1 text-center text-xs text-muted-foreground">Total estimado {brl(total)}, pelo último preço de compra.</p>

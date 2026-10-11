@@ -91,6 +91,16 @@ describe("aba Pedidos", () => {
     expect(screen.queryByRole("region", { name: "Distribuidora Sol" })).toBeNull();
     expect(screen.getByText(/1 pedido salvo/)).toBeTruthy();
   });
+  it("B2: pedido salvo sem o link não abre o envio nem marca como enviado", async () => {
+    const t = abrir({ onSalvar: vi.fn(async () => ({ id: "novo", numero: 8 })) });
+    fireEvent.click(screen.getByRole("button", { name: /Novo pedido/ }));
+    const g = within(screen.getByRole("region", { name: "Distribuidora Sol" }));
+    fireEvent.click(g.getByRole("button", { name: /Salvar e enviar/ }));
+    expect(await g.findByText(/pedido nº 8 foi salvo, mas o link/)).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(t.onEnviado).not.toHaveBeenCalled();
+    expect((g.getByRole("button", { name: /Salvar e enviar/ }) as HTMLButtonElement).disabled).toBe(true);
+  });
   it("fornecedor sem WhatsApp avisa e oferece copiar o texto", async () => {
     const t = abrir();
     fireEvent.click(screen.getByRole("button", { name: /Novo pedido/ }));
