@@ -5,7 +5,7 @@ import { AppFuncionario } from "@/components/AppFuncionario";
 import { aceitarLeitura } from "@/components/LeitorContinuo";
 import type { EstadoCaixa, InicioFuncionario, TurnoCaixa } from "@/lib/banco";
 import {
-  acharPorCodigo, adicionar, atalhosDinheiro, enviarFila, notaNaoAceitas, erroPinDono, filaCaixa, textoDiferencaCaixa, centavosDigitados, itemDoProduto, lerQuantidade, montarVenda, situacaoPagamento, totalCarrinho, variantesCodigo,
+  acharPorCodigo, adicionar, atalhosDinheiro, enviarFila, erroCaixa, notaNaoAceitas, erroPinDono, filaCaixa, textoDiferencaCaixa, centavosDigitados, itemDoProduto, lerQuantidade, montarVenda, situacaoPagamento, totalCarrinho, variantesCodigo,
   type ProdutoCaixa,
 } from "@/lib/caixa";
 
@@ -67,6 +67,12 @@ describe("regras do caixa", () => {
     expect(erroPinDono(new Error("pin_errado:1"))).toMatch(/Falta 1 tentativa/);
     expect(erroPinDono(new Error("muitas_tentativas:15"))).toMatch(/Espere 15 minutos/);
     expect(erroPinDono(new Error("dono_sem_pin"))).toMatch(/ainda não criou o PIN/);
+    // Sem internet: a mensagem diz o que não aconteceu (não fala em venda ao abrir, tirar dinheiro ou fechar).
+    const rede = new TypeError("Failed to fetch");
+    expect(erroCaixa(rede)).toBe("Sem internet. A venda não foi enviada: confira a conexão e toque em tentar de novo.");
+    expect(erroCaixa(rede, "O caixa não foi aberto")).toBe("Sem internet. O caixa não foi aberto: confira a conexão e toque em tentar de novo.");
+    expect(erroPinDono(rede, "O caixa não foi fechado")).toMatch(/^Sem internet. O caixa não foi fechado:/);
+    expect(erroPinDono(rede, "O dinheiro tirado não foi registrado")).not.toMatch(/venda/);
   });
   it("acha o produto pelo código, também com UPC de 12 números e pela embalagem", () => {
     expect(variantesCodigo("012345678905")).toContain("0012345678905");
@@ -153,6 +159,15 @@ describe("caixa no celular", () => {
     fireEvent.click(screen.getByRole("button", { name: /Abrir caixa/ }));
     await screen.findByText("Caixa aberto");
     expect(api.abrir).toHaveBeenCalledWith(CH, expect.any(String), 15000);
+  });
+
+  it("sem internet ao abrir o caixa não fala em venda", async () => {
+    const api = apiCaixa({ estado: vi.fn(async () => estado(false)), abrir: vi.fn(async () => { throw new TypeError("Failed to fetch"); }) });
+    render(<CaixaCelular chave={CH} api={api} onSair={() => {}} />);
+    fireEvent.change(await screen.findByLabelText("Quanto tem de troco na gaveta?"), { target: { value: "15000" } });
+    fireEvent.click(screen.getByRole("button", { name: /Abrir caixa/ }));
+    expect(await screen.findByText(/O caixa não foi aberto/)).toBeTruthy();
+    expect(screen.queryByText(/A venda não foi enviada/)).toBeNull();
   });
 
   it("bipa, recebe em dinheiro com troco e finaliza", async () => {

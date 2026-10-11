@@ -131,7 +131,7 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
       }
       setEstado(est); setProdutos(prods);
       setFase(est.turno ? "vender" : "abrir");
-    } catch (e) { setErroCarga(erroCaixa(e)); setFase("erro"); }
+    } catch (e) { setErroCarga(erroCaixa(e, "O caixa não carregou")); setFase("erro"); }
   }, [api, chave]);
   useEffect(() => { void carregar(); }, [carregar]);
   useEffect(() => { if (escopo) guardarRascunho(escopo, { carrinho, pags, cliente }); }, [escopo, carrinho, pags, cliente]);
@@ -240,7 +240,7 @@ function AbrirCaixa({ nome, chave, api, onAberto, onSair }: { nome: string; chav
   const [erro, setErro] = useState("");
   const abrir = () => {
     setAbrindo(true); setErro("");
-    api.abrir(chave, id, troco).then(onAberto, (e) => { setErro(erroCaixa(e)); setAbrindo(false); });
+    api.abrir(chave, id, troco).then(onAberto, (e) => { setErro(erroCaixa(e, "O caixa não foi aberto")); setAbrindo(false); });
   };
   return (
     <Tela>
@@ -654,7 +654,7 @@ function Fiado({ chave, escopo, api, valor, onEscolher, onClose }: { chave: stri
   // Sem internet, usa a última lista guardada no celular.
   useEffect(() => {
     api.clientes(chave).then((l) => { setLista(l); gravarCache(escopo, { clientes: l }); },
-      (e) => { const c = lerCache(escopo)?.clientes; if (c) setLista(c); else { setErro(erroCaixa(e)); setLista([]); } });
+      (e) => { const c = lerCache(escopo)?.clientes; if (c) setLista(c); else { setErro(erroCaixa(e, "A lista de clientes não carregou")); setLista([]); } });
   }, [api, chave, escopo]);
   const achados = (lista ?? []).filter((c) => c.nome.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").includes(q.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim()));
   const telOk = !tel || /^\d{10,11}$/.test(digits(tel));
@@ -819,7 +819,7 @@ function VendasDoCaixa({ estado, guardadas, chave, api, offline, onClose, onMudo
     (api.cancelar ?? banco.caixaCancelarVenda)(chave, aberta.id, pin, motivo.trim()).then(() => {
       setPronto(`Venda ${aberta.numero ? `nº ${aberta.numero} ` : ""}cancelada. Os produtos voltaram para a gôndola.`);
       setAberta(null); setCancelar(false); setPin(""); setMotivo(""); onMudou();
-    }, (e) => { setErro(erroPinDono(e)); setPin(""); }).finally(() => setOcupado(false));
+    }, (e) => { setErro(erroPinDono(e, "A venda não foi cancelada")); setPin(""); }).finally(() => setOcupado(false));
   };
   if (aberta) return (
     <Sheet title={`Venda ${aberta.numero ? `nº ${aberta.numero}` : ""} · ${horaTxt(aberta.feitaEm)}`} onClose={onClose}>
@@ -908,7 +908,7 @@ function Sangria({ turno, chave, api, onFeito, onClose }: { turno: banco.TurnoCa
   const tirar = () => {
     if (!ok) return;
     setOcupado(true); setErro("");
-    (api.sangria ?? banco.caixaSangria)(chave, id, turno.id, valor, motivo.trim(), pin).then(onFeito, (e) => { setErro(erroPinDono(e)); setPin(""); setOcupado(false); });
+    (api.sangria ?? banco.caixaSangria)(chave, id, turno.id, valor, motivo.trim(), pin).then(onFeito, (e) => { setErro(erroPinDono(e, "O dinheiro tirado não foi registrado")); setPin(""); setOcupado(false); });
   };
   return (
     <Sheet title="Tirar dinheiro da gaveta" onClose={onClose}>
@@ -939,7 +939,7 @@ function FecharCaixa({ turno, guardadas, naoAceitas, chave, api, onEnviar, onVol
     setOcupado(true); setErro("");
     // Vendas não aceitas vão primeiro na anotação (o dono vê no fechamento por que pode sobrar dinheiro).
     const anotacao = [notaNaoAceitas(naoAceitas), obs.trim()].filter(Boolean).join(" ");
-    (api.fechar ?? banco.caixaFechar)(chave, turno.id, contado, anotacao).then(setFim, (e) => { setErro(erroPinDono(e)); setOcupado(false); });
+    (api.fechar ?? banco.caixaFechar)(chave, turno.id, contado, anotacao).then(setFim, (e) => { setErro(erroPinDono(e, "O caixa não foi fechado")); setOcupado(false); });
   };
   if (fim) {
     const d = textoDiferencaCaixa(fim.diferenca ?? 0);

@@ -141,8 +141,8 @@ export function montarVenda(id: string, turnoId: string, carrinho: ItemCarrinho[
   };
 }
 
-/** Mensagens do caixa em português. */
-export function erroCaixa(e: unknown): string {
+/** Mensagens do caixa em português. `naoFeito` diz o que não aconteceu quando falta internet. */
+export function erroCaixa(e: unknown, naoFeito = "A venda não foi enviada"): string {
   const m = String((e as { message?: string } | null)?.message ?? e ?? "");
   if (m.includes("pin_necessario")) return "Por segurança, o app travou. Volte ao início e digite seu PIN.";
   if (m.includes("acesso_encerrado")) return "Este celular saiu do app. Entre de novo com o código do dono.";
@@ -152,7 +152,7 @@ export function erroCaixa(e: unknown): string {
   if (m.includes("pagamento_maior_que_total")) return "Pix, cartão e fiado não podem passar do total. Só o dinheiro tem troco.";
   if (m.includes("telefone_cliente_invalido")) return "Telefone do cliente inválido: use DDD + número.";
   if (m.includes("nome_cliente_invalido")) return "Escreva o nome do cliente (pelo menos 2 letras).";
-  if (/fetch|network|Failed to|Load failed/i.test(m)) return "Sem internet. A venda não foi enviada: confira a conexão e toque em tentar de novo.";
+  if (/fetch|network|Failed to|Load failed/i.test(m)) return `Sem internet. ${naoFeito}: confira a conexão e toque em tentar de novo.`;
   return "Não foi possível concluir agora. Tente de novo.";
 }
 
@@ -174,7 +174,7 @@ export function bip() {
 /* ---------- C3: PIN do dono e vendas guardadas no celular (sem internet) ---------- */
 
 /** Mensagem do PIN do dono (cancelar venda e tirar dinheiro da gaveta). */
-export function erroPinDono(e: unknown): string {
+export function erroPinDono(e: unknown, naoFeito?: string): string {
   const m = String((e as { message?: string } | null)?.message ?? e ?? "");
   const n = m.match(/(muitas_tentativas|pin_errado):(\d+)/);
   if (n?.[1] === "muitas_tentativas") return `Muitas tentativas erradas. Espere ${n[2]} ${n[2] === "1" ? "minuto" : "minutos"} e tente de novo.`;
@@ -183,7 +183,7 @@ export function erroPinDono(e: unknown): string {
   if (m.includes("pin_formato")) return "O PIN do dono tem 4 números.";
   if (m.includes("turno_fechado")) return "Este caixa já foi fechado.";
   if (m.includes("valor_invalido")) return "Confira o valor.";
-  return erroCaixa(e);
+  return erroCaixa(e, naoFeito);
 }
 
 /** Erros que não se resolvem tentando de novo (a venda fica separada para o dono ver). Os outros: tenta de novo depois. */
