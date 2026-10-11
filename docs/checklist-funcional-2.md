@@ -2,6 +2,8 @@
 
 Pedido do dono: análise ponta a ponta do sistema inteiro para deixá-lo **100% funcional**, **sem inventar funções novas**: só arrumar o que já existe. Este arquivo é a **contraprova** usada em toda correção: antes de corrigir, ler o item; depois, marcar `[x]` com a data e o que foi feito, e anotar no `CLAUDE.md`.
 
+**Como este arquivo se liga ao plano:** o plano geral é o [checklist ponta a ponta](CHECKLIST_PONTA_A_PONTA.md), com as etapas E1 a E8, e as regras ficam na [fonte da verdade](FONTE_DA_VERDADE.md). Este arquivo é a lista detalhada dos defeitos achados na análise 2. Ordem combinada: terminar E2.1 e depois corrigir A1 → A11, B1 → B16 e C1 → C3, um por vez. Em seguida vêm os testes de E2 a E8. A análise foi conferida de novo depois de juntar o `main` até o PR #106.
+
 **Como foi feita a análise:** 5 frentes em paralelo leram o código e as funções do banco: cadastro e estoque; pedidos e fornecedores; app da equipe; caixa, vendas, fiado e diferenças; tela inicial, entrada e navegação. Cada achado foi conferido no código. Os mais graves também foram conferidos no banco oficial, só com leitura. O que não se confirmou foi descartado. Também foi conferido:
 - o banco está limpo: sem saldo negativo e sem nada pendente parado;
 - o app compila;
@@ -44,7 +46,7 @@ Fora desta lista, a pedido do dono: Omni Conector (caixa no computador) e "Esque
   - Onde: `persistencia.ts:36-41`, `:69`; `ProductArea.tsx:1116`, `:1122`; `validade.ts:146`.
 - [ ] A10. **Produto com validade que recebeu mercadoria com o depósito em "Definir depois" não pode mais ser editado**, nem o nome nem o preço. Aparece um erro "remova essas linhas" sem botão para remover (`ProductArea.tsx:327`, `:353`, `:549-556`, `:618`; `persistencia.ts:302-307`).
 - [ ] A11. **Perda recusada quando o sistema tinha 0 fica presa em "Diferenças para explicar".** Aparece "Explicação salva", mas nada é gravado, e o aviso nunca zera (`decidir_perda`, `PainelDiferencas.tsx:217`, `:307`).
-- [ ] A12. **Repor: a tela "Busque no depósito" não tem botão de voltar.** Com PIN vencido, acesso encerrado ou envio repetido, o funcionário fica preso e só sai fechando o app (`ReporGondola.tsx:200-249`).
+- [x] A12. (resolvido pela correção R01, [PR #100](https://github.com/OmniSafe-360/mock-overlay-magic/pull/100): a tela "Busque no depósito" ganhou o botão Início e a reposição é retomada ao reabrir) **Repor: a tela "Busque no depósito" não tem botão de voltar.** Com PIN vencido, acesso encerrado ou envio repetido, o funcionário fica preso e só sai fechando o app (`ReporGondola.tsx:200-249`).
 
 ## Etapa B — números errados ou telas que confundem
 
@@ -60,7 +62,7 @@ Fora desta lista, a pedido do dono: Omni Conector (caixa no computador) e "Esque
 - [ ] B10. **A tela inicial diz "Tudo certo!" com conta vencendo hoje ou alerta de antifurto** (`OwnerHome.tsx:549-555`).
 - [ ] B11. **Dentro do comércio, os avisos de Vendas e Diferenças não se atualizam.** Nem o botão Atualizar nem voltar ao app trazem perdas e vendas sem cadastro novas (`OwnerHome.tsx:184`, `:449`, `:457-459`).
 - [ ] B12. **A tela do comércio pode ficar presa em "Atualizando".** Se a atualização do resumo falhar depois de ligar uma venda ou resolver uma diferença, o botão fica girando e o cadastro de produto fica bloqueado (`OwnerHome.tsx:142-145`, `:176-177`, `:458`, `:460`).
-- [ ] B13. **Comércio salvo, mas a internet caiu na resposta: o dono fica travado.**
+- [ ] B13. (em andamento no plano ponta a ponta, etapa **E2.1**; o [PR #106](https://github.com/OmniSafe-360/mock-overlay-magic/pull/106) já bloqueou o envio duplo e a confirmação falsa; falta a perda de resposta e o 2º comércio aparecer sem recarregar) **Comércio salvo, mas a internet caiu na resposta: o dono fica travado.**
   - Ao tentar de novo: "já cadastrou um comércio com este CNPJ".
   - No primeiro cadastro não há como sair.
   - O 2º comércio só aparece depois de recarregar a página.
