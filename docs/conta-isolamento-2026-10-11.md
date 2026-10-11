@@ -1,6 +1,6 @@
 # E2.1 — isolamento da conta durante o carregamento
 
-Correção de **11/10/2026**, sobre `main` `d6ad326` (PR #104). Parte de E2.1 do [checklist ponta a ponta](CHECKLIST_PONTA_A_PONTA.md); regras em [FONTE_DA_VERDADE.md](FONTE_DA_VERDADE.md). **Pronto no código, falta publicação e o teste do dono.** E2.1 permanece aberta para os demais cenários.
+Correção de **11/10/2026**, sobre `main` `d6ad326` (PR #104). Entrega no [PR #105](https://github.com/OmniSafe-360/mock-overlay-magic/pull/105), correção `cb572a3`. Parte de E2.1 do [checklist ponta a ponta](CHECKLIST_PONTA_A_PONTA.md); regras em [FONTE_DA_VERDADE.md](FONTE_DA_VERDADE.md). **Pronto no código, falta publicação e o teste do dono.** E2.1 permanece aberta para os demais cenários.
 
 ## Falha comprovada
 
