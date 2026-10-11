@@ -58,6 +58,9 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO, modoCaixa = fa
   /** "Omni Caixa": depois do PIN, vai direto para o caixa (até a pessoa voltar ao início). */
   const irAoCaixa = useRef(modoCaixa);
   const ultimo = useRef<banco.InicioFuncionario | null>(null);
+  /** Trava por tempo fora da tela: o PIN aparece por cima e a tela de trabalho continua aberta embaixo
+   * (uma reposição, um recebimento ou o caixa pela metade não se perdem). */
+  const [trava, setTrava] = useState<banco.InicioFuncionario | null>(null);
   const telaRef = useRef(tela);
   telaRef.current = tela;
 
@@ -93,14 +96,14 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO, modoCaixa = fa
       const fora = saiu == null ? 0 : Date.now() - saiu;
       saiu = null;
       const t = telaRef.current.t;
-      if (fora >= MINUTOS_PARA_TRAVAR * 60_000 && ultimo.current && lerChave() && t !== "codigo" && t !== "pin" && t !== "travado") {
-        setTela({ t: "travado", dados: ultimo.current });
+      if (fora >= MINUTOS_PARA_TRAVAR * 60_000 && ultimo.current && lerChave() && t !== "codigo" && t !== "pin" && t !== "travado" && t !== "abrindo" && t !== "erro") {
+        setTrava(ultimo.current);
       }
     };
     document.addEventListener("visibilitychange", mudou);
     return () => document.removeEventListener("visibilitychange", mudou);
   }, []);
-  const sair = async () => { const c = lerChave(); apagarChave(); ultimo.current = null; if (c) await api.sair(c).catch(() => {}); setTela({ t: "codigo" }); };
+  const sair = async () => { const c = lerChave(); apagarChave(); ultimo.current = null; setTrava(null); if (c) await api.sair(c).catch(() => {}); setTela({ t: "codigo" }); };
 
   return (
     <div className="min-h-dvh bg-app text-foreground">
@@ -124,6 +127,11 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO, modoCaixa = fa
           <TelaTravado dados={tela.dados} api={api} onSair={sair}
             onDestravou={() => { const c = lerChave(); if (c) void abrirInicio(c); else setTela({ t: "codigo" }); }} />
         )}
+        {trava && (
+          <TelaTravado dados={trava} api={api} onSair={sair}
+            onDestravou={() => { setTrava(null); const c = lerChave(); if (telaRef.current.t === "inicio" && c) void abrirInicio(c); }} />
+        )}
+        <div hidden={!!trava} className={trava ? undefined : "contents"}>
         {tela.t === "receber" && (
           <ReceberMercadoria chave={lerChave() ?? ""} api={api.receber} mercado={ultimo.current?.comercio.tipo === "mercado"}
             onVoltar={() => { const c = lerChave(); if (c) void abrirInicio(c); else setTela({ t: "codigo" }); }} />
@@ -154,6 +162,7 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO, modoCaixa = fa
             onConferir={() => setTela({ t: "conferir" })} onPerda={(tipo) => setTela({ t: "perda", tipo })} onAtualizar={async () => { const c = lerChave(); if (c) await abrirInicio(c); }}
             onSair={sair} />
         )}
+        </div>
       </main>
     </div>
   );
