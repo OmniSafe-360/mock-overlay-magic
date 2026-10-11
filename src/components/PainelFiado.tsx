@@ -29,12 +29,15 @@ const erroTexto = (e: unknown) => {
 };
 const dataTxt = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
 
-/** Quadro do fiado na aba Vendas. Só aparece quando o comércio tem cliente no fiado. */
-export function PainelFiado({ comercioId, comercioNome, api = API_PADRAO, agora = Date.now() }: { comercioId: string; comercioNome: string; api?: ApiFiado; agora?: number }) {
+/** Quadro do fiado na aba Vendas. Só aparece quando o comércio tem cliente no fiado.
+ * `atualizadoEm` muda a cada atualização da aba Vendas (sozinha, botão, venda cancelada): o fiado lê de novo junto. */
+export function PainelFiado({ comercioId, comercioNome, api = API_PADRAO, agora = Date.now(), atualizadoEm }: {
+  comercioId: string; comercioNome: string; api?: ApiFiado; agora?: number; atualizadoEm?: number | undefined;
+}) {
   const [dados, setDados] = useState<{ clientes: ClienteFiado[]; movimentos: MovimentoFiado[] } | null>(null);
   const [aberto, setAberto] = useState(false);
   const recarregar = useCallback(() => api.carregar(comercioId).then(setDados, () => {}), [api, comercioId]);
-  useEffect(() => { void recarregar(); }, [recarregar]);
+  useEffect(() => { void recarregar(); }, [recarregar, atualizadoEm]);
   const contas = useMemo(() => (dados ? contasFiado(dados.clientes, dados.movimentos) : []), [dados]);
   const r = resumoFiado(contas, agora);
   if (!dados || !dados.clientes.length) return null;
