@@ -38,6 +38,8 @@ describe("regras das vendas", () => {
     expect(textoItemVenda(item(), "Unidade").texto).toBe("Saiu da gôndola: 3 unidades");
     expect(textoItemVenda(item({ qtdBaixada: 7, qtdFaltou: 13 }), "Unidade", "área de venda").texto).toBe("Saiu da área de venda: 7 unidades. Faltou 13 unidades (o sistema não tinha)");
     expect(textoItemVenda(item({ situacao: "sem_cadastro", produtoId: null }))).toEqual({ nivel: "urgente", texto: "Vendido sem cadastro: diga qual produto é" });
+    expect(textoItemVenda(item({ situacao: "conferir", motivo: "escolher_variacao" })).texto).toBe("Vendido sem tamanho/cor: diga qual saiu");
+    expect(textoItemVenda(item({ situacao: "conferir", motivo: "quantidade_quebrada" })).texto).toBe("Quantidade quebrada para este produto: confira");
   });
   it("resumo do dia: canceladas fora do total, por caixa, pendentes e faltas", () => {
     const vs = [
@@ -156,6 +158,18 @@ describe("aba Vendas", () => {
     fireEvent.click(dlg.getByRole("button", { name: "Sim, não controlar" }));
     await waitFor(() => expect(a.resolver).toHaveBeenCalledWith("i9", "ignorar", null, null, null));
     expect(await screen.findByText(/"SACOLA" não será controlado no estoque/)).toBeTruthy();
+  });
+  it("roupa vendida sem tamanho/cor não fala em quantidade quebrada", async () => {
+    const a = api({ pendentes: vi.fn(async () => [{ id: "r1", codigoPdv: "789100", codigoBarras: null, descricao: "Camiseta", qtdNota: 1, unidadeNota: null, valor: 4990,
+      situacao: "conferir" as const, motivo: "escolher_variacao", produtoId: "p-cam", vendidoEm: min(3) }]) });
+    render(<PainelVendas comercioId="c1" tipo="roupas" products={produtos} api={a} />);
+    const botao = await screen.findByRole("button", { name: /Camiseta/ });
+    expect(botao.textContent).toMatch(/Vendido sem tamanho\/cor: diga qual saiu/);
+    expect(botao.textContent).not.toMatch(/quebrada/);
+    fireEvent.click(botao);
+    const dlg = within(screen.getByRole("dialog", { name: "Qual produto é?" }));
+    expect(dlg.getByText(/Foi vendido sem dizer o tamanho\/cor/)).toBeTruthy();
+    expect(dlg.queryByText(/quantidade quebrada|Kg, metro ou litro/)).toBeNull();
   });
   it("vendas sem código do caixa no celular com o mesmo nome viram um item só", async () => {
     const sac = (id: string) => ({ id, codigoPdv: "avulso:sacola", codigoBarras: null, descricao: "Sacola", qtdNota: 1, unidadeNota: null, valor: 10,
