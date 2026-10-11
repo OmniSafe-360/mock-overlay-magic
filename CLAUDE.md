@@ -175,3 +175,5 @@
 - 11/10/2026: **checklist 2, item A11 — perda recusada com o sistema em 0 não fica presa**: `decidir_perda` (trecho trocado conferindo a versão em produção) recusa sem criar diferença quando `baixado = 0`; em `PainelDiferencas.tsx`, diferença de zero já existente é fechada (`explicar_diferenca` com erro de contagem) ao salvar. Precisa Publicar → Atualizar; falta o teste do dono.
 
 - 11/10/2026: **checklist 2, item B1 — valor do fornecedor separado da conta**: coluna `pedidos_compra.valor_fornecedor` (gravada por `responder_pedido`, mostrada por `pedido_publico`); `valor_total` fica só para a conta a pagar. App lê o novo campo. Precisa Publicar → Atualizar; falta o teste do dono.
+
+- 11/10/2026: **checklist 2, item B2 — pedido novo não sai sem o link**: `tokenDoPedido` (banco.ts) busca o link se a recarga falhar; `PainelPedidos` não abre o envio sem link. Sem mudança no banco. Precisa Publicar → Atualizar; falta o teste do dono.
