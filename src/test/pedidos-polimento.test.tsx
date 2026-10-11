@@ -219,10 +219,11 @@ describe("orientações sem mudar o fluxo do pedido", () => {
     const produtos = screen.getByRole("region", { name: "Produtos do pedido" });
     expect(rec.compareDocumentPosition(produtos) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Cancelar pedido" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Enviar de novo" })).toBeNull();
   });
 
   it("decisão do dono aparece antes da orientação de aguardar a entrega", () => {
-    abrir([{ ...pedido, situacao: "aceito", recebimento: { ...recebimento, itens: [{ ...recebimento.itens[0]!, situacao: "fora_do_pedido" }] } }]);
+    abrir([{ ...pedido, situacao: "recebido_parcial", recebimento: { ...recebimento, situacao: "concluido", concluidoEm: "2026-10-11T12:00:00Z", itens: [{ ...recebimento.itens[0]!, situacao: "fora_do_pedido" }] } }]);
     detalhe();
     expect(screen.getByRole("region", { name: "Situação do pedido" })).toHaveTextContent("decida sobre os produtos que ficaram separados");
   });

@@ -327,6 +327,8 @@ Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Pos
 
 ### 12.2 Pronto, falta o teste do dono
 
+11/10/2026: **checklist item 11 — conferência da entrega visível no pedido**: a leitura inclui recebimentos em contagem; o dono vê quem está conferindo, sem controles de reenvio/cancelamento. Decisões e alertas do dono aguardam a conclusão. Atualização pelos caminhos existentes, sem migração; **falta o teste do dono no app publicado**. Ver [registro e roteiro](pedidos-conferencia-2026-10-11.md).
+
 11/10/2026: **checklist item 10 — recebimento sem pedido**: rascunhos separados por acesso e fornecedor, incluindo "Não sei"; escolha de continuar ou descartar contagens ainda não enviadas. Envios sem resposta exigem confirmação e não podem ser descartados. Rascunhos antigos preservados para retomada no fornecedor correto. Sem migração; **falta o teste do dono no app publicado**. Ver [registro e roteiro](recebimento-sem-pedido-2026-10-11.md).
 
 11/10/2026: **checklist item 9 — variação de roupa removida depois do pedido**: correção testada e aplicada no Supabase oficial, migração `20261011120000` registrada e três funções conferidas. A equipe conclui a entrega deixando a variação removida para o dono; aceitar restaura antes de registrar peças boas, devolver não entra no estoque. RLS/permissões preservadas. Avisos do Supabase conferidos por outro acesso em 11/10/2026 às 07h57 UTC, conforme relato do dono, sem aviso novo causado pela correção. Item 9 marcado como feito por orientação do dono; **falta o teste do dono no app publicado**. Ver [registro e roteiro](recebimento-variacao-removida-2026-10-11.md).
