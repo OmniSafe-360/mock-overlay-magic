@@ -5,7 +5,7 @@ import { AppFuncionario } from "@/components/AppFuncionario";
 import { aceitarLeitura } from "@/components/LeitorContinuo";
 import type { EstadoCaixa, InicioFuncionario, TurnoCaixa } from "@/lib/banco";
 import {
-  acharPorCodigo, adicionar, atalhosDinheiro, enviarFila, erroPinDono, filaCaixa, textoDiferencaCaixa, centavosDigitados, itemDoProduto, lerQuantidade, montarVenda, situacaoPagamento, totalCarrinho, variantesCodigo,
+  acharPorCodigo, adicionar, atalhosDinheiro, enviarFila, notaNaoAceitas, erroPinDono, filaCaixa, textoDiferencaCaixa, centavosDigitados, itemDoProduto, lerQuantidade, montarVenda, situacaoPagamento, totalCarrinho, variantesCodigo,
   type ProdutoCaixa,
 } from "@/lib/caixa";
 
@@ -46,6 +46,19 @@ describe("regras do caixa", () => {
     await enviarFila(f, async (v) => { enviados.push(v.venda.id); });
     expect(enviados).toEqual(["a", "c"]);
     expect(f.ler().map((x) => x.venda.id)).toEqual(["b"]);
+    // "Tentar enviar de novo": a recusada volta para a fila e sobe se o banco aceitar.
+    expect(notaNaoAceitas(f.ler()).replace(/\s/g, " ")).toBe("1 venda não aceita pelo Omni: R$ 3,49.");
+    f.tentarDeNovo("b");
+    expect(f.ler()[0]!.problema).toBeUndefined();
+    await enviarFila(f, async (v) => { enviados.push(v.venda.id); });
+    expect(f.ler()).toEqual([]);
+  });
+  it("anotação das vendas não aceitas conta o dinheiro que ficou na gaveta", () => {
+    const v = (id: string, pags: { forma: "dinheiro" | "pix"; valor: number }[], total: number, troco: number) =>
+      ({ venda: montarVenda(id, "t1", [itemDoProduto("i", acharPorCodigo(PRODUTOS, "7896263503203")!, null)], pags, null), total, troco, formas: "", problema: "x" });
+    expect(notaNaoAceitas([v("a", [{ forma: "dinheiro", valor: 2000 }], 1500, 500), v("b", [{ forma: "pix", valor: 349 }], 349, 0)]).replace(/\s/g, " "))
+      .toBe("2 vendas não aceitas pelo Omni: R$ 18,49 (R$ 15,00 em dinheiro na gaveta).");
+    expect(notaNaoAceitas([])).toBe("");
   });
   it("textos do fechamento e do PIN do dono", () => {
     expect(textoDiferencaCaixa(0).texto).toBe("Bateu certinho");

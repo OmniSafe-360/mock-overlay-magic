@@ -218,6 +218,8 @@ export function filaCaixa(escopo: string, armazem: Armazem = localStorage) {
     por: (v: VendaGuardada) => { const l = ler(); if (!l.some((x) => x.venda.id === v.venda.id)) gravar([...l, v]); },
     tirar: (id: string) => gravar(ler().filter((x) => x.venda.id !== id)),
     marcarProblema: (id: string, problema: string) => gravar(ler().map((x) => (x.venda.id === id ? { ...x, problema } : x))),
+    /** "Tentar enviar de novo" uma venda que não foi aceita: volta para a fila. */
+    tentarDeNovo: (id: string) => gravar(ler().map((x) => { if (x.venda.id !== id) return x; const { problema: _p, ...resto } = x; return resto; })),
   };
 }
 
@@ -231,6 +233,14 @@ export async function enviarFila<R>(fila: ReturnType<typeof filaCaixa>, enviar: 
       throw e;
     }
   }
+}
+
+/** Vendas não aceitas pelo Omni, para o fechamento: entram na anotação que o dono vê (o dinheiro delas está na gaveta). */
+export function notaNaoAceitas(l: VendaGuardada[]): string {
+  if (!l.length) return "";
+  const total = l.reduce((t, v) => t + v.total, 0);
+  const din = l.reduce((t, v) => t + v.venda.pagamentos.filter((p) => p.forma === "dinheiro").reduce((s, p) => s + Math.round(p.valor * 100), 0) - v.troco, 0);
+  return `${l.length === 1 ? "1 venda não aceita" : `${l.length} vendas não aceitas`} pelo Omni: ${brl(total)}${din > 0 ? ` (${brl(din)} em dinheiro na gaveta)` : ""}.`;
 }
 
 /** Resultado do fechamento: "Bateu certinho" / "Faltaram R$ 6,28" / "Sobraram R$ 2,00". */

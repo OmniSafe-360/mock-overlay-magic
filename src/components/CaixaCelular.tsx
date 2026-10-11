@@ -14,7 +14,7 @@ import { btnGhost, btnPrimary } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";
 import {
   FORMA_TXT, acharPorCodigo, adicionar, atalhosDinheiro, bip, brl, buscarProdutos, centavosDigitados, contarItens, enviarFila, erroCaixa, erroPinDono, filaCaixa,
-  itemDoProduto, lerQuantidade, linkWhatsApp, mascaraDinheiro, montarVenda, qtdTexto, semInternet, situacaoPagamento, subtotal, textoComprovante, textoDiferencaCaixa, totalCarrinho,
+  itemDoProduto, lerQuantidade, linkWhatsApp, mascaraDinheiro, montarVenda, notaNaoAceitas, qtdTexto, semInternet, situacaoPagamento, subtotal, textoComprovante, textoDiferencaCaixa, totalCarrinho,
   type DadosComprovante,
   vendaGuardadaValida, type Achado, type FormaCaixa, type ItemCarrinho, type PagamentoCaixa, type ProdutoCaixa, type VendaGuardada,
 } from "@/lib/caixa";
@@ -192,7 +192,7 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
     onAberto={(t) => { const e = { ...estado, turno: t, vendas: [] }; setEstado(e); gravarCache(escopo, { estado: e }); setFase("vender"); }} />;
   if (fase === "feito" && feito) return <VendaFeita f={feito} onProxima={() => { setFeito(null); setFase("vender"); }} />;
   if (fase === "fechar" && estado.turno) return (
-    <FecharCaixa turno={estado.turno} guardadas={guardadas.filter((g) => !g.problema).length} chave={chave} api={api} onEnviar={sincronizar}
+    <FecharCaixa turno={estado.turno} guardadas={guardadas.filter((g) => !g.problema).length} naoAceitas={guardadas.filter((g) => g.problema && g.venda.turno_id === estado.turno?.id)} chave={chave} api={api} onEnviar={sincronizar}
       onVoltar={() => setFase("vender")} onFechado={() => { apagarCache(escopo); onSair(); }} />
   );
   if (fase === "receber") return (
@@ -202,6 +202,7 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
   return (
     <Vender estado={estado} produtos={produtos} mercado={mercado} carrinho={carrinho} onCarrinho={setCarrinho} onSair={onSair}
       guardadas={guardadas} offline={offline} erroFila={erroFila} onEnviarGuardadas={() => void sincronizar()}
+      onTentarDeNovo={(id) => { if (!fila.current) return; fila.current.tentarDeNovo(id); setGuardadas(fila.current.ler()); setErroFila(""); void sincronizar(); }}
       chave={chave} api={api} onEstado={(e) => { setEstado(e); gravarCache(escopo, { estado: e }); }} onAtualizar={atualizarEstado}
       onFechar={() => setFase("fechar")} onInstalar={onInstalar}
       onReceber={() => { setErroVenda(""); setFase("receber"); }}
@@ -278,11 +279,11 @@ type Janela =
   | { j: "sangria" }
   | null;
 
-function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onReceber, onLimpar, guardadas, offline, erroFila, onEnviarGuardadas,
+function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onReceber, onLimpar, guardadas, offline, erroFila, onEnviarGuardadas, onTentarDeNovo,
   chave, api, onEstado, onAtualizar, onFechar, onInstalar }: {
   estado: banco.EstadoCaixa; produtos: ProdutoCaixa[]; mercado: boolean; carrinho: ItemCarrinho[]; onCarrinho: (f: (c: ItemCarrinho[]) => ItemCarrinho[]) => void;
   onSair: () => void; onReceber: () => void; onLimpar: () => void;
-  guardadas: VendaGuardada[]; offline: boolean; erroFila: string; onEnviarGuardadas: () => void;
+  guardadas: VendaGuardada[]; offline: boolean; erroFila: string; onEnviarGuardadas: () => void; onTentarDeNovo: (id: string) => void;
   chave: string; api: ApiCaixa; onEstado: (e: banco.EstadoCaixa) => void; onAtualizar: () => void; onFechar: () => void; onInstalar?: (() => void) | undefined;
 }) {
   const [camera, setCamera] = useState(true);
@@ -455,7 +456,7 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
           onFechar={() => { setJanela(null); onFechar(); }} onInicio={() => { setJanela(null); onSair(); }} />
       )}
       {janela?.j === "vendas" && (
-        <VendasDoCaixa estado={estado} guardadas={guardadas} chave={chave} api={api} offline={offline} onClose={() => setJanela(null)} onMudou={onAtualizar} />
+        <VendasDoCaixa estado={estado} guardadas={guardadas} chave={chave} api={api} offline={offline} onClose={() => setJanela(null)} onMudou={onAtualizar} onTentarDeNovo={onTentarDeNovo} />
       )}
       {janela?.j === "sangria" && estado.turno && (
         <Sangria turno={estado.turno} chave={chave} api={api} onClose={() => setJanela(null)}
@@ -801,8 +802,8 @@ function CampoPinDono({ valor, onMudar }: { valor: string; onMudar: (v: string) 
 
 const horaTxt = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
-function VendasDoCaixa({ estado, guardadas, chave, api, offline, onClose, onMudou }: {
-  estado: banco.EstadoCaixa; guardadas: VendaGuardada[]; chave: string; api: ApiCaixa; offline: boolean; onClose: () => void; onMudou: () => void;
+function VendasDoCaixa({ estado, guardadas, chave, api, offline, onClose, onMudou, onTentarDeNovo }: {
+  estado: banco.EstadoCaixa; guardadas: VendaGuardada[]; chave: string; api: ApiCaixa; offline: boolean; onClose: () => void; onMudou: () => void; onTentarDeNovo: (id: string) => void;
 }) {
   const [aberta, setAberta] = useState<banco.VendaDoCaixa | null>(null);
   const [cancelar, setCancelar] = useState(false);
@@ -867,6 +868,12 @@ function VendasDoCaixa({ estado, guardadas, chave, api, offline, onClose, onMudo
           <div key={g.venda.id} className={`rounded-2xl border p-3 text-sm ${g.problema ? "border-destructive/50 bg-destructive/5" : "border-warning/50 bg-warning/5"}`}>
             <p className="flex justify-between"><b>{horaTxt(g.venda.feita_em)} · {g.formas}</b><b>{brl(g.total)}</b></p>
             <p className={g.problema ? "font-semibold text-destructive" : "text-warning"}>{g.problema ? `Não foi aceita: ${g.problema}` : "Guardada no celular · esperando a internet"}</p>
+            {g.problema && (
+              <>
+                <button type="button" onClick={() => onTentarDeNovo(g.venda.id)} className={`mt-2 w-full ${btnGhost}`}>Tentar enviar de novo</button>
+                <p className="mt-1 text-xs text-muted-foreground">Se continuar sem ir, mostre ao dono. Ao fechar o caixa, ela aparece para ele no fechamento.</p>
+              </>
+            )}
           </div>
         ))}
         {!estado.vendas.length && !guardadas.length && <p className="py-6 text-center text-sm text-muted-foreground">Nenhuma venda neste caixa ainda.</p>}
@@ -919,8 +926,8 @@ function Sangria({ turno, chave, api, onFeito, onClose }: { turno: banco.TurnoCa
 }
 
 /** Fechar o caixa: o funcionário conta a gaveta SEM ver quanto deveria ter; depois o app mostra a conta. */
-function FecharCaixa({ turno, guardadas, chave, api, onEnviar, onVoltar, onFechado }: {
-  turno: banco.TurnoCaixa; guardadas: number; chave: string; api: ApiCaixa; onEnviar: () => Promise<void>; onVoltar: () => void; onFechado: () => void;
+function FecharCaixa({ turno, guardadas, naoAceitas, chave, api, onEnviar, onVoltar, onFechado }: {
+  turno: banco.TurnoCaixa; guardadas: number; naoAceitas: VendaGuardada[]; chave: string; api: ApiCaixa; onEnviar: () => Promise<void>; onVoltar: () => void; onFechado: () => void;
 }) {
   const [contado, setContado] = useState(0);
   const [obs, setObs] = useState("");
@@ -930,7 +937,9 @@ function FecharCaixa({ turno, guardadas, chave, api, onEnviar, onVoltar, onFecha
   const [fim, setFim] = useState<banco.TurnoCaixa | null>(null);
   const fechar = () => {
     setOcupado(true); setErro("");
-    (api.fechar ?? banco.caixaFechar)(chave, turno.id, contado, obs.trim()).then(setFim, (e) => { setErro(erroPinDono(e)); setOcupado(false); });
+    // Vendas não aceitas vão primeiro na anotação (o dono vê no fechamento por que pode sobrar dinheiro).
+    const anotacao = [notaNaoAceitas(naoAceitas), obs.trim()].filter(Boolean).join(" ");
+    (api.fechar ?? banco.caixaFechar)(chave, turno.id, contado, anotacao).then(setFim, (e) => { setErro(erroPinDono(e)); setOcupado(false); });
   };
   if (fim) {
     const d = textoDiferencaCaixa(fim.diferenca ?? 0);
@@ -945,6 +954,7 @@ function FecharCaixa({ turno, guardadas, chave, api, onEnviar, onVoltar, onFecha
             <p className="mt-2 text-2xl font-bold">Caixa fechado</p>
             <p className={`text-xl font-bold ${d.nivel === "ok" ? "text-accent" : d.nivel === "falta" ? "text-destructive" : "text-warning"}`}>{d.texto}</p>
             {d.nivel !== "ok" && <p className="text-sm text-muted-foreground">O dono vai ver esta diferença no app dele.</p>}
+            {naoAceitas.length > 0 && <p className="mt-1 text-sm font-semibold text-warning">{notaNaoAceitas(naoAceitas)} O dono foi avisado no fechamento.</p>}
           </div>
           <div className="divide-y divide-border rounded-3xl border border-border px-4 py-2 text-sm">
             {linha(`Vendas (${fim.vendas})`, brl(fim.total), true)}
@@ -972,6 +982,11 @@ function FecharCaixa({ turno, guardadas, chave, api, onEnviar, onVoltar, onFecha
           <h1 className="mt-2 text-2xl font-bold">Fechar o caixa</h1>
           <p className="text-sm text-muted-foreground">Conte todo o dinheiro da gaveta (notas e moedas) e digite o total.</p>
         </div>
+        {naoAceitas.length > 0 && (
+          <p role="alert" className="rounded-2xl border border-destructive/50 bg-destructive/10 p-3 text-sm">
+            <b>{notaNaoAceitas(naoAceitas)}</b> O dinheiro delas está na gaveta, mas elas não entram na conta do Omni. O dono vai ver isso no fechamento.
+          </p>
+        )}
         {guardadas > 0 ? (
           <div role="alert" className="space-y-2 rounded-2xl border border-warning/60 bg-warning/10 p-3 text-sm">
             <p><b>{guardadas === 1 ? "1 venda ainda está guardada" : `${guardadas} vendas ainda estão guardadas`}</b> no celular. Para fechar, elas precisam chegar ao Omni (precisa de internet).</p>
