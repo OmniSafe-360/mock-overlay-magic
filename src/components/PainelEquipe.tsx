@@ -298,7 +298,10 @@ function PinDono({ temPin, definirPin }: { temPin: () => Promise<boolean>; defin
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
   const [pronto, setPronto] = useState(false);
-  useEffect(() => { temPin().then(setTem, () => setTem(null)); }, [temPin]);
+  /** A leitura falhou (internet ruim): avisa e deixa tentar de novo, em vez de ficar sem botão. */
+  const [falhou, setFalhou] = useState(false);
+  const conferir = useCallback(() => { setFalhou(false); temPin().then(setTem, () => { setTem(null); setFalhou(true); }); }, [temPin]);
+  useEffect(() => { conferir(); }, [conferir]);
   const erroPin = pin.length === 4 && pinFacil(pin) ? "Esse PIN é fácil de adivinhar. Escolha outro (sem repetir números e sem sequência)." : rep.length === 4 && rep !== pin ? "Os dois PINs não são iguais." : "";
   const ok = pin.length === 4 && rep === pin && !erroPin && !salvando;
   const campo = (rotulo: string, v: string, set: (x: string) => void) => (
@@ -324,7 +327,13 @@ function PinDono({ temPin, definirPin }: { temPin: () => Promise<boolean>; defin
       </div>
       {pronto && !editar && <p role="status" className="text-sm font-semibold text-accent">PIN salvo. Não conte para ninguém da equipe.</p>}
       {!editar ? (
-        tem !== null && <button type="button" onClick={() => { setEditar(true); setPronto(false); }} className={`w-full ${tem ? btnGhost : btnPrimary(true)}`}>{tem ? "Trocar o PIN" : "Criar o PIN"}</button>
+        tem !== null ? <button type="button" onClick={() => { setEditar(true); setPronto(false); }} className={`w-full ${tem ? btnGhost : btnPrimary(true)}`}>{tem ? "Trocar o PIN" : "Criar o PIN"}</button>
+        : falhou ? (
+          <div role="alert" className="space-y-2 rounded-2xl border border-warning/60 bg-warning/10 p-3 text-sm">
+            <p>Não foi possível conferir o seu PIN agora. Confira a internet.</p>
+            <button type="button" onClick={conferir} className={`w-full ${btnGhost}`}>Tentar de novo</button>
+          </div>
+        ) : <p className="text-sm text-muted-foreground">Conferindo…</p>
       ) : (
         <div className="space-y-3">
           {campo("Novo PIN (4 números)", pin, setPin)}
