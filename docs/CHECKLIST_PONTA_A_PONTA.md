@@ -2,7 +2,7 @@
 
 Plano de execução pedido pelo dono em **11/10/2026**. As regras continuam em [FONTE_DA_VERDADE.md](FONTE_DA_VERDADE.md); este arquivo detalha suas etapas. O histórico permanece em [CLAUDE.md](../CLAUDE.md). Não há uma segunda fonte de regras.
 
-**Etapa atual: E1 — confiabilidade. Próxima correção: R03, mostrar falha de consulta do fiado.** R01 e R02 corrigidos; publicação e teste do dono pendentes. R02 já aplicada no banco oficial, sem alterar dados de comércio/estoque. [Registro de R01](reposicao-retomada-2026-10-11.md) e [registro de R02](pedido-conferencia-banco-2026-10-11.md).
+**Etapa atual: E1 — confiabilidade. Próxima correção: R04, avisar falha ao guardar rascunho de recebimento.** R01, R02 e R03 corrigidos; publicação e teste do dono pendentes. R02 já aplicada no banco oficial, sem alterar dados de comércio/estoque. [Registro de R01](reposicao-retomada-2026-10-11.md) e [registro de R02](pedido-conferencia-banco-2026-10-11.md). [Registro de R03](fiado-consulta-2026-10-11.md).
 
 ## Ponto de partida e limites da análise
 
@@ -36,7 +36,7 @@ Ao encerrar uma tarefa, registrar: ID, problema e cenário, PR/commit, testes ex
 
 | Etapa | Objetivo | Situação em 11/10/2026 |
 |---|---|---|
-| E1 | Fechar as pendências de confiabilidade identificadas nesta revisão | Em andamento; R01/R02 corrigidos, falta publicação/teste; R03 próximo |
+| E1 | Fechar as pendências de confiabilidade identificadas nesta revisão | Em andamento; R01/R02/R03 corrigidos, falta publicação/teste; R04 próximo |
 | E2 | Validar a jornada do dono, dos cadastros às compras e pagamentos | Implementada em grande parte; validação completa pendente |
 | E3 | Validar recebimento, estoque, reposição, perdas e diferenças juntos | Implementada; teste completo pendente |
 | E4 | Validar vendas, caixa, fiado e integração usada no piloto | Implementada; teste real pendente |
@@ -63,9 +63,9 @@ E2–E4 verificam o que já existe; não reconstroem os módulos. E5 inclui pend
 
 ### R03 — mostrar falha de consulta do fiado
 
-- [ ] **Corrigir e validar.** Em `PainelFiado.tsx`, a falha de `api.carregar` é ignorada; sem dados, o quadro desaparece. Consulta que falhou pode parecer ausência de fiado; atualização posterior pode deixar valor antigo sem aviso.
+- [ ] **Pronto, falta publicação e o teste do dono.** A falha de leitura agora aparece com Tentar de novo; dados anteriores são identificados também na lista/conta aberta. Respostas antigas são ignoradas, e trocar comércio descarta dados e formulário do anterior. [Registro e roteiro](fiado-consulta-2026-10-11.md).
 - Critério: diferenciar “não há clientes” de “não foi possível consultar”; oferecer nova tentativa e identificar dados anteriores. Testar primeira consulta, atualização, surgimento do primeiro cliente, pagamento e cancelamento; resposta antiga não substitui consulta mais recente nem dados de outro comércio.
-- Estado: **pendente de correção**. O item 13 corrigiu a frequência da leitura; não encerrou esta falha de comunicação.
+- Estado: **corrigido no código em 11/10/2026**, sem SQL. Três falhas reproduzidas antes; oito testes novos, incluindo pagamento confirmado com consulta posterior falha, nova leitura sem repetir pagamento e cancelamento. Tipos e 859 testes em 75 arquivos duas vezes, build e Chromium 320/1280 px aprovados. O item 13 mantém a frequência da leitura. Precisa **Publicar → Atualizar**; `[ ]` aberto até a validação do dono.
 
 ### R04 — não esconder falha ao guardar rascunho de recebimento
 
@@ -170,7 +170,7 @@ Gerente com permissões novas, integração direta por API com marcas de PDV, ba
 |---|---|---|---|---|
 | E1 / R01 | Corrigido em 11/10/2026, [PR #100](https://github.com/OmniSafe-360/mock-overlay-magic/pull/100); 846 testes duas vezes, build e testes locais aprovados; [registro](reposicao-retomada-2026-10-11.md) | Banco sem mudança; publicação pendente | Pendente | Publicar → Atualizar e executar roteiro de fechamento/retomada |
 | E1 / R02 | Corrigido em 11/10/2026, [PR #101](https://github.com/OmniSafe-360/mock-overlay-magic/pull/101); 851 testes duas vezes, build, SQL e 13 disputas aprovados; [registro](pedido-conferencia-banco-2026-10-11.md) | Migração `20261011144500` aplicada/conferida; app e consulta de avisos pendentes | Pendente | Publicar → Atualizar e executar roteiro de abas antigas |
-| R03 | Pendente | Sem mudança preparada | Pendente | Explicar falha de consulta do fiado |
+| E1 / R03 | Corrigido em 11/10/2026, [PR #102](https://github.com/OmniSafe-360/mock-overlay-magic/pull/102); 859 testes duas vezes, build e Chromium aprovados; [registro](fiado-consulta-2026-10-11.md) | Banco sem mudança; publicação pendente | Pendente | Publicar → Atualizar e validar consulta/recuperação do fiado |
 | R04 | Pendente | Sem mudança preparada | Pendente | Tratar falha de rascunho local |
 | R05 | Teste real pendente | Sem mudança preparada | Pendente | Testar reabertura offline com E6 |
 | E2–E4 | Módulos existentes; validação conjunta pendente | Publicação atual não confirmada nesta revisão | Pendente | Executar roteiros após correções |
