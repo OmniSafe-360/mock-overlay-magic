@@ -44,7 +44,7 @@ describe("primeiros passos", () => {
   it("tudo feito: o quadro some; esconder também some", async () => {
     banco.carregarProdutos.mockResolvedValue({ produtos: [arroz], locais: { deposito: ["Estante A"], venda: ["Gôndola 1"] } });
     banco.carregarFornecedores.mockResolvedValue([{ id: "f1", nome: "Atacadão" }]);
-    banco.carregarFuncionarios.mockResolvedValue([{ id: "x" }]); banco.carregarCaixas.mockResolvedValue([{ id: "k" }]);
+    banco.carregarFuncionarios.mockResolvedValue([{ id: "x" }]); banco.carregarCaixas.mockResolvedValue([{ id: "k", ligadoEm: "2026-10-10T10:00:00Z", desligadoEm: null }]);
     const { unmount } = render(<OwnerApp userId="u1" owner="Monica" initial={[loja]} />);
     await waitFor(() => expect(banco.carregarCaixas).toHaveBeenCalled());
     await screen.findByText("Tudo certo");
