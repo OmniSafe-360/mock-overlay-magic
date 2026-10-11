@@ -38,7 +38,7 @@ Fora desta lista, a pedido do dono: Omni Conector (caixa no computador) e "Esque
   - As próximas compras fiado somem da conta, e receber é recusado.
   - Onde: `_cancelar_venda_celular`, `src/lib/fiado.ts:31`.
 - [x] A6. (11/10/2026: número reservado com trava no mesmo comando e índice único por comércio) **Dois caixas podem gerar o mesmo número de venda.** O número é lido sem trava e não há índice único. Conferido no banco oficial (`caixa_registrar_venda`).
-- [ ] A7. **Venda entra num caixa já fechado sem mudar a conta da gaveta.** O banco não confere se o turno está aberto, e o fechamento fica com números que não batem (`caixa_registrar_venda`).
+- [x] A7 (11/10/2026: `caixa_registrar_venda` trava o turno e recusa com `turno_fechado` se já foi fechado; o app já mostra "Este caixa já foi fechado"). **Venda entra num caixa já fechado sem mudar a conta da gaveta.** O banco não confere se o turno está aberto, e o fechamento fica com números que não batem (`caixa_registrar_venda`).
 - [ ] A8. **Preços e produtos do caixa não se atualizam com o caixa aberto.** O dono muda o preço e o celular continua vendendo pelo antigo; produto novo aparece como "sem cadastro" (`CaixaCelular.tsx:125`, `:132`).
 - [ ] A9. **Ligar a validade num produto já contado perde as datas.**
   - O app pede as datas e diz que salvou, mas não grava.
