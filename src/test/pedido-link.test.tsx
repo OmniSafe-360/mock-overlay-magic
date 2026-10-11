@@ -69,6 +69,15 @@ describe("página do fornecedor (link)", () => {
     expect(screen.getByText("2 caixas com 12 (24 frascos)")).toBeTruthy();
     expect(document.body.textContent).not.toMatch(/R\$\s?\d/);
   });
+  it("B7: boleto sem prazo não envia e pede o prazo", async () => {
+    const { responder } = abrirPagina(publico());
+    await screen.findByText("Farmácia Vida");
+    fireEvent.change(screen.getByLabelText("Data prevista de entrega"), { target: { value: amanha } });
+    fireEvent.click(screen.getByRole("button", { name: "Boleto" }));
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar pedido/ }));
+    expect((await screen.findAllByText("Informe em quantos dias vence o pagamento.")).length).toBeGreaterThan(0);
+    expect(responder).not.toHaveBeenCalled();
+  });
   it("confirmar: pede a data, ajusta um item, forma e prazo; envia tudo", async () => {
     const { responder } = abrirPagina(publico());
     await screen.findByText("Farmácia Vida");
