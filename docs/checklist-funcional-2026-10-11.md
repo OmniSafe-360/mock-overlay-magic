@@ -27,7 +27,7 @@ Conferido e **sem problema**: os 59 comandos que o app manda ao banco existem co
 
 ## Prioridade 3 — texto ou detalhe errado
 - [x] 17. (corrigido junto com o item 6) "Tentar de novo" (sem internet) no Omni Operação entra **sem pedir o PIN**.
-- [ ] 18. Atualização de 1 em 1 minuto falhando joga o funcionário para "Sem conexão".
+- [x] 18. (corrigido em 11/10/2026: a tela inicial continua aberta com os números de antes e mostra "Sem conexão com o Omni agora… o app tenta de novo sozinho"; resposta atrasada não tira o funcionário de outra tela) Atualização de 1 em 1 minuto falhando joga o funcionário para "Sem conexão".
 - [ ] 19. Tela inicial do funcionário conta "repor" de variação apagada (não bate com a lista).
 - [ ] 20. Roupa vendida sem tamanho/cor mostra texto de "quantidade quebrada / Kg".
 - [ ] 21. Mensagens do caixa dizem "A venda não foi enviada" ao abrir, sangria e fechar.

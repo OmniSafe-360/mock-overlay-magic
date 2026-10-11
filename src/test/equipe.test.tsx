@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { PainelEquipe, type ApiEquipe } from "@/components/PainelEquipe";
 import { AppFuncionario, type ApiFuncionario } from "@/components/AppFuncionario";
 import {
@@ -184,6 +184,32 @@ describe("app do funcionário (Omni Operação)", () => {
     expect(screen.getByText("Farmácia Vida")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Receber mercadoria/ })).toBeNull();
     expect(screen.getByRole("button", { name: /Repor área de venda/ }).textContent).toMatch(/Tudo abastecido/);
+  });
+  it("atualização da tela inicial que falha não joga para Sem conexão nem tira de outra tela", async () => {
+    localStorage.setItem("omni.funcionario.chave", CHAVE);
+    const inicioApi = vi.fn(async (_c: string): Promise<InicioFuncionario | null> => inicio());
+    const api = apiFunc({ inicio: inicioApi });
+    render(<AppFuncionario api={api} />);
+    await screen.findByText("Digite seu PIN");
+    digitar("2580");
+    await screen.findByRole("button", { name: /Receber mercadoria/ });
+    inicioApi.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    fireEvent.click(screen.getByRole("button", { name: "Atualizar" }));
+    expect(await screen.findByText(/Sem conexão com o Omni agora/)).toBeTruthy();
+    expect(screen.queryByText("Sem conexão")).toBeNull();
+    expect(screen.getByRole("button", { name: /Repor gôndola/ }).textContent).toMatch(/5 produtos/);
+    inicioApi.mockResolvedValueOnce(inicio({ avisos: { entregas: 0, entregasHoje: 0, repor: 2 } }));
+    fireEvent.click(screen.getByRole("button", { name: "Atualizar" }));
+    await waitFor(() => expect(screen.queryByText(/Sem conexão com o Omni agora/)).toBeNull());
+    expect(screen.getByRole("button", { name: /Repor gôndola/ }).textContent).toMatch(/2 produtos/);
+    // Resposta atrasada depois de abrir outra tela: fica na tela aberta.
+    let responder!: (d: InicioFuncionario) => void;
+    inicioApi.mockReturnValueOnce(new Promise((r) => { responder = r; }));
+    fireEvent.click(screen.getByRole("button", { name: "Atualizar" }));
+    fireEvent.click(screen.getByRole("button", { name: /Repor gôndola/ }));
+    expect(await screen.findByText("Tudo abastecido!")).toBeTruthy();
+    await act(async () => { responder(inicio()); });
+    expect(screen.getByText("Tudo abastecido!")).toBeTruthy();
   });
   it("PIN errado não abre; esqueci o PIN explica o que pedir ao dono", async () => {
     localStorage.setItem("omni.funcionario.chave", CHAVE);
