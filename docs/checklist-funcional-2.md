@@ -52,7 +52,7 @@ Fora desta lista, a pedido do dono: Omni Conector (caixa no computador) e "Esque
 
 - [x] B1. (11/10/2026, ver registro no fim) **"Valor informado pelo fornecedor" mostra o valor que o dono digitou.** A resposta e o pagamento usam a mesma coluna `valor_total` (`banco.ts:136-138`, `PainelPedidos.tsx:509`, `PaginaFornecedor.tsx:134`).
 - [x] B2. (11/10/2026, ver registro no fim) **Pedido novo pode ser enviado sem o link do fornecedor.** Se a recarga logo depois de salvar falha, a mensagem sai sem link e o pedido é marcado como enviado (`OwnerHome.tsx:311-312`, `PainelPedidos.tsx:358`).
-- [ ] B3. **"Gerar novo link" pode deixar na tela o link antigo, que não vale mais** (`PainelPedidos.tsx:493`, `:593`).
+- [x] B3. (11/10/2026, ver registro no fim) **"Gerar novo link" pode deixar na tela o link antigo, que não vale mais** (`PainelPedidos.tsx:493`, `:593`).
 - [ ] B4. **Não dá para digitar quantidade quebrada (ex.: 2,5 kg).** A vírgula some ao digitar, tanto na página do fornecedor quanto na montagem do pedido (`PaginaFornecedor.tsx:313-314`, `PainelPedidos.tsx:384-385`).
 - [ ] B5. **Trocar a embalagem na montagem do pedido muda muito a quantidade sem avisar.** Exemplo: 2 caixas de 12 viram 2 unidades (`PainelPedidos.tsx:393`).
 - [ ] B6. **A conta estimada soma itens que o fornecedor disse que não tem.** Acontece quando ele aceita com ajustes e não informa o valor (`pagamento.ts:190-193`, `pedido.ts:176`).
@@ -89,3 +89,5 @@ Fora desta lista, a pedido do dono: Omni Conector (caixa no computador) e "Esque
 - 11/10/2026: **B1 feito** — nova coluna `pedidos_compra.valor_fornecedor` guarda só o que o fornecedor informou (`responder_pedido` grava; recusa limpa; `pedido_publico` mostra esse valor). `valor_total` continua sendo o valor da conta a pagar. Pedidos já respondidos copiaram o valor atual. App lê `valor_fornecedor` na resposta. Precisa Publicar → Atualizar; falta o teste do dono.
 
 - 11/10/2026: **B2 feito** — se a recarga depois de salvar falha, o app busca o link direto do pedido (`tokenDoPedido`); sem link, não abre o envio nem marca como enviado: avisa "O pedido nº X foi salvo, mas o link não carregou. Abra o pedido na lista para enviar." Sem mudança no banco. Precisa Publicar → Atualizar; falta o teste do dono.
+
+- 11/10/2026: **B3 feito** — depois de "Confirmar novo link", o detalhe usa na hora o link devolvido pelo banco (copiar e enviar), mesmo se a recarga da lista falhar; falha da recarga não vira erro. Sem mudança no banco. Precisa Publicar → Atualizar; falta o teste do dono.
