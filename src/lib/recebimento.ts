@@ -105,8 +105,9 @@ export function lerRascunho(chaveRascunho: string): Rascunho | null {
 }
 export function guardarRascunho(chaveRascunho: string, r: Rascunho) { try { localStorage.setItem(RASCUNHO + chaveRascunho, JSON.stringify(r)); } catch { /* sem armazenamento: segue sem rascunho */ } }
 export function apagarRascunho(chaveRascunho: string) { try { localStorage.removeItem(RASCUNHO + chaveRascunho); } catch { /* nada */ } }
-/** Rascunho por acesso e entrega. Nunca reutiliza a contagem de outro funcionário/comércio. */
-export const chaveRascunho = (pedidoId: string | null, escopo: string) => `${escopo}:${pedidoId ?? "sem-pedido"}`;
+/** Rascunho por acesso, pedido ou fornecedor. O terceiro argumento omitido reconhece a chave antiga. */
+export const chaveRascunho = (pedidoId: string | null, escopo: string, fornecedorId?: string | null) =>
+  `${escopo}:${pedidoId ?? (fornecedorId === undefined ? "sem-pedido" : `sem-pedido:${fornecedorId ?? "nao-informado"}`)}`;
 
 /* ---------- dono ---------- */
 export type SituacaoItemRecebido = "recontar" | "aceito" | "inconsistente" | "fora_do_pedido" | "recusado";
