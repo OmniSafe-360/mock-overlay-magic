@@ -1,6 +1,6 @@
 # E1/R05 — reabrir o Caixa sem internet
 
-Correção autorizada em 11/10/2026 sobre o `main` `388f0fb5a60993994e22bcde246a03379a86aa78` (PR #103), branch `fix/r05-caixa-reabrir-offline`. **Pronto, falta Publicar → Atualizar no Lovable e o teste do dono em aparelho real.** Próxima tarefa independente: **E2.1 — conta e comércio**. E1 continua sem aceite geral; teste físico de R05 permanece em E6/item antigo 29.
+Entrega no [PR #104](https://github.com/OmniSafe-360/mock-overlay-magic/pull/104), correção `811a4d064df1c40a86ed62f6e0c4e3efc63430c5`. Correção autorizada em 11/10/2026 sobre o `main` `388f0fb5a60993994e22bcde246a03379a86aa78` (PR #103), branch `fix/r05-caixa-reabrir-offline`. **Pronto, falta Publicar → Atualizar no Lovable e o teste do dono em aparelho real.** Próxima tarefa independente: **E2.1 — conta e comércio**. E1 continua sem aceite geral; teste físico de R05 permanece em E6/item antigo 29.
 
 ## Falha comprovada e mudança
 
