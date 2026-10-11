@@ -184,3 +184,4 @@
 - 11/10/2026: **checklist 2, item B5 — trocar embalagem mantém o total**: `trocarEmbalagem` (pedido.ts) converte pelo total em unidades; arredondamento avisa na linha. Sem mudança no banco. Precisa Publicar → Atualizar; falta o teste do dono.
 - 11/10/2026: **checklist 2, item B6 — conta estimada sem itens que o fornecedor não tem**: `totalConfirmado` (pedido.ts) em `valorConta`. Sem mudança no banco. Precisa Publicar → Atualizar; falta o teste do dono.
 - 11/10/2026: **checklist 2, item B7 — boleto/a prazo exige o prazo** na página do fornecedor (`PaginaFornecedor.tsx`). Sem mudança no banco. Precisa Publicar → Atualizar; falta o teste do dono.
+- 11/10/2026: **checklist 2, item B8 — segundo funcionário não perde a contagem**: `ReceberMercadoria.tsx` mantém as contagens ainda não recebidas pelo servidor quando a rodada mudou e mostra aviso. Sem mudança no banco. Precisa Publicar → Atualizar; falta o teste do dono.
