@@ -575,7 +575,7 @@ function DetalhePedido({ pedido, products, store, fornecedor, hoje, onEnviado, o
           )}
         </div>
       )}
-      {confirmar && <p className="text-sm text-muted-foreground">Avise o fornecedor que o pedido foi cancelado.</p>}
+      {confirmar && <p className="text-sm text-muted-foreground">Avise o fornecedor que o pedido foi cancelado.{pedido.pagamento?.situacao === "a_pagar" ? " A conta a pagar deste pedido também sai." : ""}</p>}
 
       {!pedidoFechado(pedido) && !pedido.recebimento && (
         <section aria-label="Link do fornecedor" className="rounded-3xl border border-border p-4">

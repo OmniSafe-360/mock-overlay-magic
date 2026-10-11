@@ -33,6 +33,12 @@ describe("regras do pagamento", () => {
     expect(textoPagamento(conta("a", "a_pagar", "2026-11-20", 1), HOJE)).toBe("Vence em 20/11");
     expect(textoPagamento(conta("a", "pago", "2026-10-06", 1, "2026-10-05"), HOJE)).toBe("Pago em 05/10");
   });
+  it("pedido cancelado não é conta a pagar (o que já foi pago continua)", () => {
+    const aPagar = conta("a", "a_pagar", "2026-10-06", 1);
+    expect(estadoPagamento({ ...aPagar, situacao: "cancelado" }, HOJE)).toBeNull();
+    expect(resumoPagamentos([{ ...aPagar, situacao: "cancelado" }], HOJE).atrasados.n).toBe(0);
+    expect(estadoPagamento({ ...conta("a", "pago", "2026-10-06", 1, "2026-10-05"), situacao: "cancelado" }, HOJE)?.estado).toBe("pago");
+  });
   it("valor: o informado; sem ele, o estimado", () => {
     expect(valorConta(conta("a", "a_pagar", HOJE, 12000))).toEqual({ valor: 12000, estimado: false });
     expect(valorConta(conta("a", "a_pagar", HOJE, null))).toEqual({ valor: 5000, estimado: true });
