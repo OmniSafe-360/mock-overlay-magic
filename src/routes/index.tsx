@@ -172,7 +172,7 @@ const authMsg = (err: unknown): string => {
 };
 
 async function googleLogin() {
-  const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: OAUTH_REDIRECT } });
+  const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: OAUTH_REDIRECT, queryParams: { prompt: "select_account" } } });
   if (error) throw error;
 }
 
@@ -569,6 +569,19 @@ function Index() {
     };
   }, []);
   const logout = () => { encerrarRef.current(); void supabase.auth.signOut(); setView("entrar"); };
+  const sairDoCadastro = async () => {
+    // A entrada do dono continua acessível mesmo se este celular guardar acesso da equipe.
+    const url = new URL(window.location.href);
+    url.searchParams.set("dono", "");
+    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+    const { error } = await supabase.auth.signOut({ scope: "local" });
+    if (error) {
+      // O SDK pode encerrar a sessão local mesmo se o servidor não responder ao logout.
+      const { data, error: erroSessao } = await supabase.auth.getSession();
+      if (erroSessao || data.session) throw error;
+    }
+    encerrarRef.current(); setView("entrar");
+  };
   // Celular do funcionário (app instalado abre aqui): vai direto para o Omni Operação. "/?dono" fica na entrada do dono.
   useEffect(() => {
     if (phase === "auth" && semSessao && !recovery && lerChave() && !/[?&]dono\b|access_token|error/.test(window.location.search + window.location.hash)) window.location.replace("/funcionario");
@@ -586,7 +599,7 @@ function Index() {
           className="relative min-h-12 px-4 text-sm font-semibold text-muted-foreground underline">Sair da conta</button>
       </div>
     );
-  if (phase === "store") return <StoreSetup key={account.id} userId={account.id} onFinish={(s) => { setStores([s]); setPhase("home"); }} />;
+  if (phase === "store") return <StoreSetup key={account.id} userId={account.id} onExit={sairDoCadastro} onFinish={(s) => { setStores([s]); setPhase("home"); }} />;
   if (phase === "home") return <OwnerApp key={account.id} userId={account.id} owner={owner} fullName={account.nome} email={account.email} avatarUrl={account.foto}
     onPerfilSalvo={(perfil) => setAccount((atual) => atual.id === account.id ? { ...atual, nome: perfil.nome, foto: perfil.foto } : atual)} onLogout={logout} initial={stores} />;
   return (

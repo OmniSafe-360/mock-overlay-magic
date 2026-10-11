@@ -14,8 +14,8 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 function pendente<T>() { let resolve!: (v: T) => void; const promise = new Promise<T>((r) => { resolve = r; }); return { promise, resolve }; }
-async function conferir(mode: "first" | "add" = "add") {
-  const onFinish = vi.fn(), onCancel = vi.fn(); const tela = render(<StoreSetup mode={mode} userId="dono-a" onFinish={onFinish} onCancel={onCancel} />);
+async function conferir(mode: "first" | "add" = "add", onExit?: () => Promise<void>) {
+  const onFinish = vi.fn(), onCancel = vi.fn(); const tela = render(<StoreSetup mode={mode} userId="dono-a" onFinish={onFinish} onCancel={onCancel} {...(onExit ? { onExit } : {})} />);
   fireEvent.click(screen.getByRole("button", { name: "Mercado" })); fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
   fireEvent.change(screen.getByLabelText("Nome do comércio"), { target: { value: "Mercado Conferido" } });
   fireEvent.click(screen.getByRole("radio", { name: "CPF" })); fireEvent.change(screen.getByLabelText("Documento"), { target: { value: "52998224725" } });
@@ -148,4 +148,31 @@ it("id vazio e dados ausentes não passam pela confirmação do primeiro comérc
   banco.single.mockResolvedValue({ data: null, error: null }); tela.enviar();
   await waitFor(() => expect(screen.getByRole("button", { name: "Cadastrar meu comércio" })).toBeEnabled());
   expect(tela.onFinish).not.toHaveBeenCalled(); expect(screen.queryByText("Tudo certo! Seu comércio está pronto")).not.toBeInTheDocument();
+});
+
+it("primeiro cadastro bloqueia sair enquanto está salvando", async () => {
+  const espera = pendente<unknown>(); banco.single.mockReturnValue(espera.promise); const onExit = vi.fn(async () => {});
+  const tela = await conferir("first", onExit); tela.enviar();
+  await waitFor(() => expect(banco.insert).toHaveBeenCalledTimes(1));
+  expect(screen.getByRole("button", { name: "Sair da conta" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Sair da conta" })); expect(onExit).not.toHaveBeenCalled();
+  await act(async () => espera.resolve({ data: { id }, error: null }));
+  expect(screen.getByText("Cadastro salvo na sua conta.")).toBeInTheDocument();
+});
+
+it("na revisão, sair bloqueia navegação e cadastro até receber a resposta", async () => {
+  const espera = pendente<void>(); const onExit = vi.fn(() => espera.promise);
+  const tela = await conferir("first", onExit); fireEvent.click(screen.getByRole("button", { name: "Sair da conta" }));
+  expect(screen.getByRole("button", { name: "Voltar" })).toBeDisabled();
+  for (const b of screen.getAllByRole("button", { name: "Editar" })) expect(b).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Cadastrar meu comércio" })).toBeDisabled(); tela.enviar();
+  expect(banco.insert).not.toHaveBeenCalled();
+  await act(async () => espera.resolve());
+});
+
+it("cancelar comércio adicional continua sem sair da conta", async () => {
+  const onExit = vi.fn(async () => {}); const tela = await conferir("add", onExit);
+  expect(screen.queryByRole("button", { name: "Sair da conta" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+  expect(tela.onCancel).toHaveBeenCalledTimes(1); expect(onExit).not.toHaveBeenCalled(); expect(banco.insert).not.toHaveBeenCalled();
 });
