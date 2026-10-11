@@ -149,7 +149,7 @@ export function PainelVendas({ comercioId, comercioNome = "", tipo, products, ap
 
       {pronto && <p role="status" className="flex items-center gap-2 rounded-2xl border border-accent/50 bg-accent/10 p-3 text-sm font-semibold text-accent"><Check size={18} /> {pronto}</p>}
 
-      {api.fiado && <PainelFiado comercioId={comercioId} comercioNome={comercioNome} api={api.fiado} />}
+      {api.fiado && <PainelFiado comercioId={comercioId} comercioNome={comercioNome} api={api.fiado} atualizadoEm={agora} />}
 
       <Fechamentos lista={fechamentos.filter((f) => !f.fechadoEm || diaSP(Date.parse(f.abertoEm)) === diaSel || (f.diferenca && !f.conferidoEm))}
         vendas={vendas ?? []} vendasDesde={Date.parse(`${diaSP(agora - 86_400_000)}T00:00:00-03:00`)} onVisto={async (id) => { await (api.conferirFechamento ?? banco.conferirFechamentoCaixa)(id); await recarregar(); }} />

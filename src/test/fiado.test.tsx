@@ -75,6 +75,18 @@ describe("Fiado no app do dono", () => {
     expect(ids[1]).not.toBe(ids[0]);
   });
 
+  it("atualiza junto com a aba Vendas: primeiro cliente aparece e a dívida muda sem sair da tela", async () => {
+    let dados = { clientes: [] as typeof CLIENTES, movimentos: [] as typeof MOVS };
+    const api: ApiFiado = { carregar: vi.fn(async () => dados), receber: vi.fn(), salvarCliente: vi.fn() };
+    const { rerender } = render(<PainelFiado comercioId="c1" comercioNome="Mercado" api={api} agora={AGORA} atualizadoEm={1} />);
+    await waitFor(() => expect(api.carregar).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText(/Fiado · a receber/)).toBeNull();
+    dados = { clientes: CLIENTES, movimentos: MOVS };
+    rerender(<PainelFiado comercioId="c1" comercioNome="Mercado" api={api} agora={AGORA} atualizadoEm={2} />);
+    expect(await screen.findByText(/Fiado · a receber/)).toBeTruthy();
+    expect(api.carregar).toHaveBeenCalledTimes(2);
+  });
+
   it("reenviar depois de falhar usa o mesmo código (não conta duas vezes)", async () => {
     const api: ApiFiado = {
       carregar: vi.fn(async () => ({ clientes: CLIENTES, movimentos: MOVS })),
