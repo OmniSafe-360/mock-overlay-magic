@@ -554,7 +554,7 @@ function ResolverPendente({ g, products, area, onResolver, onClose }: {
             <button type="button" disabled={!ok} onClick={() => enviar("ligar")} className={btnPrimary(ok)}>
               {salvando ? "Ligando…" : sel ? `Ligar a ${sel.nome} e tirar da ${area}` : "Escolha o produto"}
             </button>
-            <p className="text-center text-xs text-muted-foreground">Vale para {g.vendas === 1 ? "esta venda" : `as ${g.vendas} vendas`} e para as próximas deste código.</p>
+            <p className="text-center text-xs text-muted-foreground">Vale para {g.vendas === 1 ? "esta venda" : `as ${g.vendas} vendas`} e para as próximas {g.codigo.startsWith("avulso:") ? `vendas de "${g.descricao}" sem código` : "deste código"}.</p>
             <button type="button" onClick={() => setIgnorar(true)} className="min-h-11 w-full text-sm font-semibold text-muted-foreground">Não é produto do estoque (ex.: sacola, serviço)</button>
           </>
         ) : (
