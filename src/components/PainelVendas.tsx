@@ -171,7 +171,7 @@ export function PainelVendas({ comercioId, comercioNome = "", tipo, products, ap
                     <span className="block text-xs text-muted-foreground">
                       {g.codigoBarras ? `Código ${g.codigoBarras}` : codigoVisivel(g.codigo) === g.codigo ? `Código ${g.codigo}` : "Sem código"} · {g.vendas === 1 ? "1 venda" : `${g.vendas} vendas`}{g.ultimaEm ? ` · última ${haQuanto(g.ultimaEm, agora)}` : ""}
                     </span>
-                    {g.conferir && <span className="block text-xs font-semibold text-warning">Vendido em quantidade quebrada: confira o produto</span>}
+                    {g.conferir && <span className="block text-xs font-semibold text-warning">{g.motivo === "escolher_variacao" ? "Vendido sem tamanho/cor: diga qual saiu" : "Vendido em quantidade quebrada: confira o produto"}</span>}
                   </span>
                   <span className="shrink-0 text-sm font-semibold text-primary">Resolver</span>
                 </button>
@@ -502,7 +502,9 @@ function ResolverPendente({ g, products, area, onResolver, onClose }: {
           <p className="text-xs text-muted-foreground">No caixa aparece como</p>
           <p className="text-base font-bold">{g.descricao}</p>
           <p className="text-xs text-muted-foreground">{codigoVisivel(g.codigo) === g.codigo ? `Código ${g.codigo}` : "Sem código"}{g.codigoBarras && g.codigoBarras !== g.codigo ? ` · barras ${g.codigoBarras}` : ""} · {g.vendas === 1 ? "1 venda" : `${g.vendas} vendas`} · {String(g.qtd).replace(".", ",")} {g.unidadeNota ?? ""}</p>
-          {g.conferir && <p className="mt-1 text-xs font-semibold text-warning">Foi vendido em quantidade quebrada, mas o produto ligado é contado inteiro. Escolha um produto vendido por Kg, metro ou litro, ou marque para não controlar.</p>}
+          {g.conferir && <p className="mt-1 text-xs font-semibold text-warning">{g.motivo === "escolher_variacao"
+            ? "Foi vendido sem dizer o tamanho/cor. Escolha o produto e o tamanho/cor que saiu, ou marque para não controlar."
+            : "Foi vendido em quantidade quebrada, mas o produto ligado é contado inteiro. Escolha um produto vendido por Kg, metro ou litro, ou marque para não controlar."}</p>}
         </div>
 
         {!ignorar ? (

@@ -139,7 +139,8 @@ export function textoItemVenda(i: ItemVenda, unidadeProduto?: string, area = "g�
         ? { nivel: "atencao", texto: `Saiu da ${area}: ${qtdUn(i.qtdBaixada, un)}. Faltou ${qtdUn(i.qtdFaltou, un)} (o sistema não tinha)` }
         : { nivel: "ok", texto: `Saiu da ${area}: ${qtdUn(i.qtdBaixada, un)}` };
     case "sem_cadastro": return { nivel: "urgente", texto: "Vendido sem cadastro: diga qual produto é" };
-    case "conferir": return { nivel: "urgente", texto: i.motivo === "quantidade_quebrada" ? "Quantidade quebrada para este produto: confira" : "Confira este item" };
+    case "conferir": return { nivel: "urgente", texto: i.motivo === "escolher_variacao" ? "Vendido sem tamanho/cor: diga qual saiu"
+      : i.motivo === "quantidade_quebrada" ? "Quantidade quebrada para este produto: confira" : "Confira este item" };
     case "ignorado": return { nivel: "info", texto: "Não controlado no estoque" };
     case "cancelado": return { nivel: "info", texto: `Venda cancelada: voltou para a ${area}` };
   }
