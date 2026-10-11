@@ -329,7 +329,7 @@ Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Pos
 
 11/10/2026: **organização da tela de Pedidos**, com entrega e pagamento separados, orientação sobre o que fazer e pendências de recebimento antes dos produtos. Fluxo e regras preservados; nenhuma alteração no banco. Ver [registro e roteiro](pedidos-organizacao-2026-10-11.md).
 
-10/10/2026: correção da **coerência do recebimento e da reposição**, autorizada após os prints do Kapo: envio parcial, conferência e conclusão aparecem separados; avisos atuais; sem falso sucesso quando não há transferência. A proteção de todas as recontagens pendentes e os motivos detalhados de indisponibilidade estão na migração `20261010183000_coerencia_recebimento.sql`, **preparada e testada, ainda não aplicada ao Supabase por falta de vínculo administrativo neste ambiente**. Critério de aceite existente preservado. Ver [registro e roteiro](coerencia-recebimento-2026-10-10.md).
+10/10/2026: correção da **coerência do recebimento e da reposição**, autorizada após os prints do Kapo: envio parcial, conferência e conclusão aparecem separados; avisos atuais; sem falso sucesso quando não há transferência. A proteção de todas as recontagens pendentes e os motivos detalhados de indisponibilidade estão na migração `20261010183000_coerencia_recebimento.sql`, **preparada e testada; em 11/10/2026 o Claude conferiu que as 4 funções no banco já estão idênticas ao arquivo (aplicada antes, sem registro) e registrou a versão `20261010183000` no histórico do banco, junto com `20261010161000` (caixa no celular)**. Critério de aceite existente preservado. Ver [registro e roteiro](coerencia-recebimento-2026-10-10.md).
 - Ver o estoque: ficha, lista, Depósito, Gôndolas e "Atenção hoje".
 - Fornecedores (aba), pedido de compra, link do fornecedor e contas a pagar.
 - Equipe (QR, bloquear, novo acesso) e app Omni Operação: instalar, PIN ao abrir, receber mercadoria, repor gôndola, conferir depósito e registrar perda (10/10/2026).
@@ -364,7 +364,7 @@ Cada fase termina com o roteiro de teste para o dono.
 
 ## 14. DECISÕES ABERTAS (PERGUNTAR AO DONO)
 
-**Entrega de manutenção autorizada em 10/10/2026:** melhorias de confiabilidade, organização do código e clareza das telas, sem novos módulos nem alteração dos passos. Registro em [melhorias-base-2026-10-10.md](melhorias-base-2026-10-10.md). Correção SQL de reposição e reenvios preparada e testada localmente; aplicação no Supabase oficial ainda pendente. A Fase 6 não foi iniciada nesta entrega.
+**Entrega de manutenção autorizada em 10/10/2026:** melhorias de confiabilidade, organização do código e clareza das telas, sem novos módulos nem alteração dos passos. Registro em [melhorias-base-2026-10-10.md](melhorias-base-2026-10-10.md). Correção SQL de reposição e reenvios aplicada em produção em 10/10/2026 (versão `20261010150241`). A Fase 6 não foi iniciada nesta entrega.
 
 1. ~~Vendas: caminho da seção 7.6~~ — aprovado em 10/10/2026. Para o piloto no fim: um mercado real, o arquivo `.xml` de uma nota e se o computador do caixa tem Chrome.
 5. ~~Perdas~~ — decidido em 10/10/2026: sai do estoque na hora e o dono confirma (recusar vira diferença).
