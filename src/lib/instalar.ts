@@ -62,7 +62,8 @@ export function prepararInstalacaoFuncionario(app: "operacao" | "caixa" = "opera
     if (!ic) { ic = document.createElement("link"); ic.rel = "apple-touch-icon"; document.head.appendChild(ic); }
     ic.href = "/apple-touch-icon-caixa.png";
   }
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw-funcionario.js", { scope: caixa ? "/caixa" : "/funcionario" }).catch(() => { /* sem instalação automática: o menu do navegador ainda funciona */ });
+  // O cache contém uma versão de produção completa, nunca arquivos de desenvolvimento/HMR.
+  if (import.meta.env.PROD && "serviceWorker" in navigator) navigator.serviceWorker.register("/sw-funcionario.js", { scope: caixa ? "/caixa" : "/funcionario", updateViaCache: "none" }).catch(() => { /* sem instalação automática: o menu do navegador ainda funciona */ });
 }
 
 /** Aberto dentro do app do dono instalado (Omni Safe 360): para instalar o do funcionário, precisa abrir no navegador. */

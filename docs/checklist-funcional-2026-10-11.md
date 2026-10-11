@@ -44,5 +44,5 @@ Fora desta lista, a pedido do dono: caixa no computador (Omni Conector) e "Esque
 - [ ] 28. 2 contagens de recebimento "sem pedido" abandonadas (Estilo e cia, Supermercado União).
 
 ## Teste em aparelho real (depois das correções)
-- [ ] 29. Caixa no celular: câmera bipando, sem internet, fechar o caixa.
+- [ ] 29. Caixa no celular: câmera bipando, sem internet, fechar o caixa. **R05 preparada em 11/10/2026:** corrigido carregamento dos arquivos para reabrir offline; build/904 testes duas vezes e Chromium de produção aprovados. Falta Publicar → Atualizar e testar pelo ícone em Android/iPhone, incluindo PIN, venda pendente, reconexão, câmera e fechamento financeiro. [Registro e roteiro](caixa-reabertura-offline-2026-10-11.md). O teste no navegador local não fecha este item.
 - [ ] 30. Omni Operação no Android e no iPhone: receber, repor, conferir, perda.
