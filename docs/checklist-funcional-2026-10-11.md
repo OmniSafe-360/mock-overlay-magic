@@ -15,7 +15,7 @@ Conferido e **sem problema**: os 59 comandos que o app manda ao banco existem co
 - [x] 7. (corrigido em 11/10/2026: botão "Tentar enviar de novo" em cada venda não aceita; o relógio do celular adiantado não recusa mais a venda — migração `20261011065323`; ao fechar o caixa, as não aceitas aparecem na tela e vão na anotação que o dono vê, com o dinheiro que ficou na gaveta) **Venda guardada recusada pelo banco** fica presa para sempre e fica fora do fechamento ("Sobraram R$ X" falso).
 
 ## Prioridade 2 — fluxo trava ou some
-- [ ] 8. **Conferência do depósito começada pode sumir da lista** e nunca fechar; ao voltar, conta contagens de dias antigos.
+- [x] 8. (corrigido em 11/10/2026, migração `20261011070050_conferencia_aberta_primeiro.sql`: a começada hoje aparece sempre, mesmo com a meta do dia batida; a de outro dia é deixada de lado e o produto é contado do zero; a rodada certa já vinha do item 2) **Conferência do depósito começada pode sumir da lista** e nunca fechar; ao voltar, conta contagens de dias antigos.
 - [ ] 9. **Recebimento não termina** se uma variação de roupa foi apagada depois do pedido.
 - [ ] 10. **"Chegou sem pedido"** reabre a contagem abandonada de outro fornecedor, sem como descartar.
 - [ ] 11. **"Conferência em andamento" nunca aparece para o dono**; enquanto a equipe conta, ainda aparecem "Enviar de novo" e "Cancelar pedido".
