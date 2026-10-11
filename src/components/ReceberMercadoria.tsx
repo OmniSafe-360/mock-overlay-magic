@@ -269,8 +269,14 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
     let erroLeitura = "";
     try { r = lerRascunho(kr); } catch (e) { erroLeitura = erroTexto(e); }
     const mesmo = r && r.id === aberto.id && r.rodada === aberto.rodada ? r : null;
+    // B8: outro celular enviou esta entrega antes. Guarda o que este celular contou e o servidor ainda não recebeu.
+    const outraRodada = r && r.id === aberto.id && r.rodada !== aberto.rodada ? r : null;
+    const jaNoServidor = new Set(aberto.itens.map((i) => chaveProduto(i)));
+    const mantidas = outraRodada ? Object.fromEntries(Object.entries(outraRodada.contagens).filter(([k]) => !jaNoServidor.has(k))) : {};
+    const perdidas = outraRodada ? Object.keys(outraRodada.contagens).length - Object.keys(mantidas).length : 0;
+    const avisoOutro = outraRodada ? `Outra pessoa enviou contagens desta entrega enquanto você contava. ${Object.keys(mantidas).length ? "Guardamos o que só você contou." : ""}${perdidas ? ` ${perdidas === 1 ? "1 produto já tinha" : `${perdidas} produtos já tinham`} contagem dela e ${perdidas === 1 ? "segue" : "seguem"} a situação da lista.` : ""}`.trim() : "";
     const estados: Record<string, EstadoItem> = {};
-    const contagens: Record<string, Contagem> = { ...(mesmo?.contagens ?? {}) };
+    const contagens: Record<string, Contagem> = { ...(mesmo?.contagens ?? mantidas) };
     for (const p of aberto.produtos) estados[chaveProduto(p)] = "falta";
     for (const [k, c] of Object.entries(contagens)) if (!(k in estados) || estados[k] === "falta") estados[k] = erroContagem(c) ? "falta" : "contado";
     for (const i of aberto.itens) {
@@ -281,7 +287,7 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
     }
     const motivos: Record<string, MotivoInfo> = {};
     for (const [k, m] of Object.entries(mesmo?.motivos ?? {})) if (estados[k] === "recontar" && m.motivo) motivos[k] = m;
-    return { estados, contagens, rodada: aberto.rodada, erroLeitura, motivos };
+    return { estados, contagens, rodada: aberto.rodada, erroLeitura, motivos, avisoOutro };
   }, [aberto, kr]);
   const [estados, setEstados] = useState(inicial.estados);
   const [contagens, setContagens] = useState(inicial.contagens);
