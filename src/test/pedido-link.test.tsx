@@ -163,7 +163,9 @@ describe("pedido do dono com a resposta do fornecedor", () => {
     abrirDono([respondido]);
     const card = screen.getByRole("button", { name: /Pedido nº 3/ });
     expect(card.textContent).toMatch(/Aceito com ajustes/);
-    expect(card.textContent).toMatch(/Entrega terça, 13\/10 · R\$\s120,00 · Boleto 30 dias/);
+    expect(card.textContent).toMatch(/Prevista para terça, 13\/10/);
+    expect(card.textContent).toMatch(/Valor do fornecedorR\$\s120,00/);
+    expect(card.textContent).toMatch(/Boleto 30 dias/);
     fireEvent.click(card);
     const r = within(screen.getByRole("region", { name: "Resposta do fornecedor" }));
     expect(r.getByText("Aceito, com mudanças nos produtos")).toBeTruthy();

@@ -327,6 +327,8 @@ Projeto **`omnisafe-360-oficial`** (ref `bvwjprxfthhreuhovgbk`), São Paulo, Pos
 
 ### 12.2 Pronto, falta o teste do dono
 
+11/10/2026: **organização da tela de Pedidos**, com entrega e pagamento separados, orientação sobre o que fazer e pendências de recebimento antes dos produtos. Fluxo e regras preservados; nenhuma alteração no banco. Ver [registro e roteiro](pedidos-organizacao-2026-10-11.md).
+
 10/10/2026: correção da **coerência do recebimento e da reposição**, autorizada após os prints do Kapo: envio parcial, conferência e conclusão aparecem separados; avisos atuais; sem falso sucesso quando não há transferência. A proteção de todas as recontagens pendentes e os motivos detalhados de indisponibilidade estão na migração `20261010183000_coerencia_recebimento.sql`, **preparada e testada, ainda não aplicada ao Supabase por falta de vínculo administrativo neste ambiente**. Critério de aceite existente preservado. Ver [registro e roteiro](coerencia-recebimento-2026-10-10.md).
 - Ver o estoque: ficha, lista, Depósito, Gôndolas e "Atenção hoje".
 - Fornecedores (aba), pedido de compra, link do fornecedor e contas a pagar.

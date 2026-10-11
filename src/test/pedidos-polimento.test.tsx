@@ -174,3 +174,65 @@ describe("quantidades registradas no pedido", () => {
     expect(valorItemPedido({ ...pedido.itens[0]!, precoEstimado: null })).toBeNull();
   });
 });
+
+describe("orientações sem mudar o fluxo do pedido", () => {
+  it.each([
+    ["rascunho", "Pedido salvo. Envie ao fornecedor"],
+    ["enviado", "Aguarde a resposta do fornecedor"],
+    ["aceito", "Acompanhe a entrega"],
+    ["aceito_ajustes", "Confira as mudanças na resposta"],
+    ["recebido_parcial", "acompanhe o que ainda falta chegar"],
+    ["recebido", "Confira os produtos e os dados do pagamento"],
+    ["recusado", "O fornecedor não pode atender"],
+    ["cancelado", "Pedido cancelado"],
+  ] as const)("explica %s na lista e no detalhe sem executar ações", (situacao, orientacao) => {
+    const props = abrir([{ ...pedido, situacao }]);
+    const card = screen.getByRole("button", { name: /Pedido nº 1\b/ });
+    expect(card.textContent).toContain(orientacao);
+    detalhe();
+    const resumo = screen.getByRole("region", { name: "Situação do pedido" });
+    expect(resumo).toHaveTextContent(orientacao);
+    expect(within(resumo).getByText("Entrega", { selector: "dt" })).toBeTruthy();
+    expect(within(resumo).getByText("Pagamento", { selector: "dt" })).toBeTruthy();
+    expect(props.onSalvar).not.toHaveBeenCalled();
+    expect(props.onEnviado).not.toHaveBeenCalled();
+    expect(props.onCancelar).not.toHaveBeenCalled();
+    expect(props.onPagamento).not.toHaveBeenCalled();
+  });
+
+  const recebimento: NonNullable<Pedido["recebimento"]> = {
+    id: "rec-1", pedidoId: pedido.id, fornecedorId: "f-1", funcionario: "Maria Souza", concluidoEm: null, situacao: "contando",
+    itens: [{ id: "ri-1", produtoId: "p-1", variacaoId: null, noPedido: true, esperado: 50, quantidadeAceita: 50,
+      situacao: "aceito", avaria: 0, entrouEstoque: 0, tentativas: [{ total: 50, avaria: 0, partes: [] }] }],
+  };
+
+  it("conferência em andamento não aparece como entrega concluída", () => {
+    abrir([{ ...pedido, situacao: "aceito", recebimento }]);
+    const card = screen.getByRole("button", { name: /Pedido nº 1\b/ });
+    expect(card).toHaveTextContent("Conferência em andamento por Maria");
+    expect(card).not.toHaveTextContent("Recebido por");
+    expect(card).not.toHaveTextContent("tudo certo");
+    detalhe();
+    const rec = screen.getByRole("region", { name: "Recebimento" });
+    expect(rec).toHaveTextContent("Conferência da mercadoria");
+    expect(rec).toHaveTextContent("aguardam a conclusão para entrar no estoque");
+    const produtos = screen.getByRole("region", { name: "Produtos do pedido" });
+    expect(rec.compareDocumentPosition(produtos) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Cancelar pedido" })).toBeNull();
+  });
+
+  it("decisão do dono aparece antes da orientação de aguardar a entrega", () => {
+    abrir([{ ...pedido, situacao: "aceito", recebimento: { ...recebimento, itens: [{ ...recebimento.itens[0]!, situacao: "fora_do_pedido" }] } }]);
+    detalhe();
+    expect(screen.getByRole("region", { name: "Situação do pedido" })).toHaveTextContent("decida sobre os produtos que ficaram separados");
+  });
+
+  it.each(["a_pagar", "pago"] as const)("recebido mantém o pagamento %s separado da entrega", (situacao) => {
+    abrir([{ ...pedido, situacao: "recebido", pagamento: { situacao, vencimento: null, pagoEm: null } }]);
+    detalhe();
+    const resumo = screen.getByRole("region", { name: "Situação do pedido" });
+    expect(resumo).toHaveTextContent(situacao === "a_pagar" ? "registre o pagamento quando pagar" : "pagamento registrado");
+    const pagamento = within(screen.getByRole("region", { name: "Pagamento" }));
+    expect(pagamento.getByRole("button", { name: situacao === "a_pagar" ? "Marcar como pago" : "Marquei por engano: desfazer pagamento" })).toBeTruthy();
+  });
+});
