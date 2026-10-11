@@ -343,8 +343,8 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
     setSuppliers((l) => l.map((x) => (x.id === s.id ? novo : x)));
   };
 
-  if (wizard && cur && sid)
-    return (
+  // O cadastro abre por cima: a tela do comércio continua montada (escondida) e, ao salvar ou cancelar, volta onde estava.
+  const telaCadastro = wizard && cur && sid ? (
       <ProductWizard store={cur} products={list} initial={wizard.initial} suppliers={suppliers} saving={saving} erro={saveErro} locaisCadastrados={locais[sid]}
         onGerarCodigo={() => gerarCodigoInterno(sid)}
         onBuscarCatalogo={buscarCatalogo}
@@ -371,10 +371,12 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
           if (res === "anterior_gravado") setToast("O envio anterior já tinha sido salvo. Abra o produto para conferir.");
           else { setSaved(!wizard.initial); if (wizard.initial) setToast("Produto atualizado!"); }
         }} />
-    );
+    ) : null;
 
   return (
-    <div className="relative min-h-dvh bg-app text-foreground">
+    <>
+    {telaCadastro}
+    <div hidden={!!telaCadastro} className="relative min-h-dvh bg-app text-foreground">
       <Backdrop />
 
       {/* menu lateral (tablet/computador) */}
@@ -514,6 +516,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
         </div>
       )}
     </div>
+    </>
   );
 }
 

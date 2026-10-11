@@ -22,7 +22,7 @@ Conferido e **sem problema**: os 59 comandos que o app manda ao banco existem co
 - [x] 12. (corrigido em 11/10/2026: o app busca também os fechamentos com falta ou sobra que o dono ainda não viu, de qualquer dia; nos antigos, o total de vendas não aparece para não mostrar "R$ 0,00" falso; nenhuma falta real estava escondida) **Fechamento de caixa com falta de 2+ dias atrás some** da aba Vendas sem o dono ver.
 - [x] 13. (corrigido em 11/10/2026: o fiado lê de novo a cada atualização da aba Vendas — sozinha a cada minuto, no botão Atualizar e depois de cancelar venda; o primeiro cliente aparece sem sair da tela) **Painel do fiado não atualiza** (cancelamento, venda nova, primeiro cliente) até sair e voltar.
 - [x] 14. (corrigido em 11/10/2026, migração `20261011122600_caixa_sem_codigo_pelo_nome.sql`: a venda sem código usa o nome digitado como chave — "Sacola" junta todas num item só, e a decisão do dono vale para as próximas; nenhuma venda antiga precisou de conserto) **"Sem cadastro" sem código no caixa do celular:** cada venda vira um item separado para resolver (30 sacolas = 30 toques).
-- [ ] 15. **Depois de salvar/editar produto** volta para o lugar errado (lista de Produtos ou até "Novo pedido").
+- [x] 15. (corrigido em 11/10/2026: o cadastro de produto abre por cima da tela do comércio, e a ficha do produto por cima das abas, sem desmontar o que estava aberto; ao salvar, cancelar ou voltar, tudo continua onde estava — aba, ficha, pedido aberto) **Depois de salvar/editar produto** volta para o lugar errado (lista de Produtos ou até "Novo pedido").
 - [ ] 16. **PIN do dono na Equipe:** se a leitura falhar, o quadro fica sem botão.
 
 ## Prioridade 3 — texto ou detalhe errado

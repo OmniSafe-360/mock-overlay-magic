@@ -91,3 +91,15 @@ it("um carregamento antigo de A não esconde a falha do comércio B", async () =
   expect(screen.queryByText("Qual é o código do produto?")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /Arroz de A/ })).not.toBeInTheDocument();
 });
+
+it("editar pela ficha aberta no Depósito e cancelar volta para a ficha e depois para o Depósito", async () => {
+  await abrir();
+  fireEvent.click(screen.getByRole("button", { name: /^Depósito/ }));
+  fireEvent.click(await screen.findByRole("button", { name: /Arroz atual/ }));
+  fireEvent.click(await screen.findByRole("button", { name: "Editar" }));
+  expect(await screen.findByText(/Editar produto · Mercado A/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+  expect(await screen.findByRole("button", { name: "Editar" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /^Produtos$/ }));
+  expect(await screen.findByRole("button", { name: /^Depósito/, current: "page" })).toBeInTheDocument();
+});

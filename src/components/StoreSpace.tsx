@@ -101,11 +101,11 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
   useEffect(() => { window.addEventListener("resize", medir); return () => window.removeEventListener("resize", medir); }, [medir]);
   const current = view ? products.find((p) => p.id === view.id) ?? null : null;
 
-  if (current)
-    return <ProductDetail p={current} tipo={store.tipo} suppliers={suppliers} onBack={() => setView(null)} onEdit={() => onEdit(current)} />;
-
+  // A ficha abre por cima: as abas continuam montadas (escondidas) e, ao voltar, tudo está onde estava (ex.: o pedido aberto).
   return (
-    <div className="space-y-5 animate-in fade-in slide-in-from-right-8 duration-300">
+    <>
+    {current && <ProductDetail p={current} tipo={store.tipo} suppliers={suppliers} onBack={() => setView(null)} onEdit={() => onEdit(current)} />}
+    <div hidden={!!current} className="space-y-5 animate-in fade-in slide-in-from-right-8 duration-300">
       <header className="flex items-center gap-3">
         <button type="button" onClick={onBack} aria-label="Voltar" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-secondary/60 text-foreground hover:border-primary"><ArrowLeft size={20} /></button>
         <div className="min-w-0 flex-1">
@@ -169,6 +169,7 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
         </div>
       )}
     </div>
+    </>
   );
 }
 
