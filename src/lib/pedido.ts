@@ -184,3 +184,13 @@ export function trocarEmbalagem(l: LinhaPedido, emb: Embalagem | null): { linha:
   const depois = unidadesDaLinha(linha);
   return { linha, antes, depois, mudou: Math.abs(depois - antes) > 1e-9 };
 }
+
+/** B6: total estimado do que o fornecedor vai mandar. Com resposta, usa a quantidade confirmada (em embalagens);
+ * item que ele não tem conta zero. Sem resposta, igual a `totalPedido`. */
+export function totalConfirmado(pedido: Pedido): number {
+  return pedido.itens.reduce((s, i) => {
+    const v = valorItemPedido(i); if (v == null) return s;
+    if (i.qtdConfirmada == null || !i.qtdEmbalagens) return s + v;
+    return s + Math.round(v * (i.qtdConfirmada / i.qtdEmbalagens));
+  }, 0);
+}
