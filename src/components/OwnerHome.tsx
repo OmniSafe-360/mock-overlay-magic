@@ -189,6 +189,14 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
     document.addEventListener("visibilitychange", atualizar);
     return () => { window.removeEventListener("online", atualizar); document.removeEventListener("visibilitychange", atualizar); };
   }, [telaGeral, idsLojas, carregarGeral, hojeGeral]);
+  // B11: com um comércio aberto, os avisos de Vendas e Diferenças também se atualizam ao voltar ao app ou à internet.
+  useEffect(() => {
+    if (!open || !idsLojas) return;
+    const atualizar = () => { if (document.visibilityState === "visible") void carregarGeral(idsLojas.split(",")); };
+    window.addEventListener("online", atualizar);
+    document.addEventListener("visibilitychange", atualizar);
+    return () => { window.removeEventListener("online", atualizar); document.removeEventListener("visibilitychange", atualizar); };
+  }, [open, idsLojas, carregarGeral]);
   const visao: VisaoGeral = useMemo(() => {
     const resumos: Record<string, ResumoComercio> = {};
     const alertas: Record<string, AlertasAntifurto> = {};
@@ -448,7 +456,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
               pedidosProntos={carga === "ok" && cargaPedidos === "ok" && !pendentes.length && !registroErro && !conferindo}
               pedidosCarregados={!!sid && sid in pedidos}
               atualizando={carga === "carregando" || cargaPedidos === "carregando" || conferindo}
-              onAtualizar={() => { if (sid) void recarregar(sid); }}
+              onAtualizar={() => { if (sid) { void recarregar(sid); if (idsLojas) void carregarGeral(idsLojas.split(",")); } }}
               onSalvarPedido={sid ? salvarPedidoNovo(sid) : async () => { throw new Error(NO_ID); }}
               onPedidoEnviado={sid ? pedidoEnviado(sid) : async () => {}} onCancelarPedido={sid ? pedidoCancelado(sid) : async () => {}}
               onNovoLinkPedido={sid ? pedidoNovoLink(sid) : async () => { throw new Error(NO_ID); }}
