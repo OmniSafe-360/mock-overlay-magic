@@ -157,4 +157,15 @@ describe("aba Vendas", () => {
     await waitFor(() => expect(a.resolver).toHaveBeenCalledWith("i9", "ignorar", null, null, null));
     expect(await screen.findByText(/"SACOLA" não será controlado no estoque/)).toBeTruthy();
   });
+  it("vendas sem código do caixa no celular com o mesmo nome viram um item só", async () => {
+    const sac = (id: string) => ({ id, codigoPdv: "avulso:sacola", codigoBarras: null, descricao: "Sacola", qtdNota: 1, unidadeNota: null, valor: 10,
+      situacao: "sem_cadastro" as const, motivo: null, produtoId: null, vendidoEm: min(3) });
+    const a = api({ pendentes: vi.fn(async () => [sac("s1"), sac("s2"), sac("s3")]) });
+    render(<PainelVendas comercioId="c1" tipo="mercado" products={produtos} api={a} />);
+    const botoes = await screen.findAllByRole("button", { name: /Sacola/ });
+    expect(botoes).toHaveLength(1);
+    expect(botoes[0]!.textContent).toMatch(/3 vendas/);
+    fireEvent.click(botoes[0]!);
+    expect(screen.getByText(/as 3 vendas e para as próximas vendas de "Sacola" sem código/)).toBeTruthy();
+  });
 });
