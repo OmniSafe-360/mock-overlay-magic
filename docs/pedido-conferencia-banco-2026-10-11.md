@@ -1,6 +1,6 @@
 # E1/R02 — pedido protegido durante a conferência
 
-Correção autorizada em 11/10/2026 sobre o `main` `51232f2069a85b2dcf2bf561d8c6ccfef0bf425f` (PR #100). **Corrigido no código e aplicado no Supabase oficial; falta Publicar → Atualizar no Lovable e o teste do dono no app publicado.** Próxima correção: R03, mostrar falha de consulta do fiado.
+Entrega no [PR #101](https://github.com/OmniSafe-360/mock-overlay-magic/pull/101), correção `d8e2e27`, branch `fix/r02-pedido-em-conferencia`. Correção autorizada em 11/10/2026 sobre o `main` `51232f2069a85b2dcf2bf561d8c6ccfef0bf425f` (PR #100). **Corrigido no código e aplicado no Supabase oficial; falta Publicar → Atualizar no Lovable e o teste do dono no app publicado.** Próxima correção: R03, mostrar falha de consulta do fiado.
 
 ## Problema comprovado e resultado
 
