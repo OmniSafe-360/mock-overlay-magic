@@ -3,7 +3,7 @@ import { useHoje } from "@/hooks/useHoje";
 import type { EntityId } from "@/lib/identidade";
 /* Aba Pedidos (D2a): montar o pedido sozinho por fornecedor, enviar pelo WhatsApp ou e-mail com um toque e acompanhar. */
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Banknote, PackageCheck, CalendarClock, Check, CheckCircle2, ClipboardList, Copy, Link2, Mail, MessageCircle, Minus, Plus, RefreshCw, Search, Send, Trash2, Truck, X, XCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Banknote, PackageCheck, CalendarClock, Check, CheckCircle2, ClipboardList, Copy, Link2, Mail, MessageCircle, Minus, Plus, RefreshCw, Search, Send, Trash2, Truck, X, XCircle } from "lucide-react";
 import { Sheet } from "@/components/parts/Sheet";
 import { type Product, type Supplier, type Variation } from "@/components/ProductArea";
 import { linkWhatsApp } from "@/components/PainelFornecedores";
@@ -14,7 +14,7 @@ import { estadoPagamento, ordemPagamento, resumoPagamentos, somaDias, textoPagam
 import { hojeEm } from "@/lib/validade";
 import { precisaDecidir, resultadoItem, resumoRecebimento, type ItemRecebido, type Recebimento, type TipoResultado } from "@/lib/recebimento";
 import {
-  CANAL_TXT, SITUACAO_TXT, chaveLinha, dataEntregaTexto, formaTexto, linkPedido, respostaItem, resumoResposta, linhaManual, linhasDoPedido, nomeLinha, pedidoAberto, pedidoFechado, quantidadeTexto,
+  CANAL_TXT, SITUACAO_TXT, chaveLinha, dataEntregaTexto, formaTexto, linkPedido, respostaItem, linhaManual, linhasDoPedido, nomeLinha, pedidoAberto, pedidoFechado, quantidadeTexto,
   sugerirPedido, textoPedido, totalLinha, totalLinhas, totalPedido, unidadesDaLinha, embalagensTexto, valorItemPedido, type CanalPedido, type LinhaPedido, type Pedido, type SituacaoPedido,
 } from "@/lib/pedido";
 
@@ -33,6 +33,57 @@ type FiltroPedidos = "todos" | "andamento" | "historico" | "pagar";
 const normalizarBusca = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").trim();
 const rotuloEstimativa = (p: Pedido) => p.itens.some((i) => i.precoEstimado == null) && p.itens.some((i) => i.precoEstimado != null) ? "Estimativa parcial" : "Total estimado";
 const valorEstimativa = (p: Pedido) => p.itens.some((i) => i.precoEstimado != null) ? brl(totalPedido(p)) : "Não informado";
+
+/** Orientação da tela do dono, sem alterar situação ou regras do pedido. */
+function orientacaoPedido(p: Pedido): string {
+  if (p.situacao === "cancelado") return "Pedido cancelado. Consulte os dados no histórico.";
+  if (p.situacao === "recusado") return "O fornecedor não pode atender. Você pode cancelar e pedir a outro fornecedor.";
+  if (p.recebimento?.itens.some(precisaDecidir)) return "Confira o recebimento e decida sobre os produtos que ficaram separados.";
+  if (p.recebimento?.situacao === "contando") return "A equipe está conferindo a mercadoria. Aguarde a conclusão da contagem.";
+  switch (p.situacao) {
+    case "rascunho": return "Pedido salvo. Envie ao fornecedor para ele confirmar.";
+    case "enviado": return "Aguarde a resposta do fornecedor pelo link enviado.";
+    case "aceito": return "Acompanhe a entrega. A equipe registra a chegada em Receber mercadoria.";
+    case "aceito_ajustes": return "Confira as mudanças na resposta do fornecedor e acompanhe a entrega.";
+    case "recebido_parcial": return "Confira o recebimento e acompanhe o que ainda falta chegar.";
+    case "recebido": return p.pagamento?.situacao === "a_pagar"
+      ? "Mercadoria recebida. Confira o vencimento e registre o pagamento quando pagar."
+      : p.pagamento?.situacao === "pago" ? "Mercadoria recebida e pagamento registrado. Consulte os detalhes do pedido."
+      : "Mercadoria recebida. Confira os produtos e os dados do pagamento.";
+  }
+}
+
+function entregaPedido(p: Pedido): { texto: string; cor: string } {
+  const rec = p.recebimento;
+  if (rec?.situacao === "contando") return { texto: `Conferência em andamento por ${rec.funcionario.split(" ")[0]}`, cor: "text-warning" };
+  if (rec) {
+    const rr = resumoRecebimento(rec);
+    return { texto: rr.texto, cor: rr.alerta === "decidir" ? "text-destructive" : rr.alerta ? "text-warning" : "text-accent" };
+  }
+  if (p.situacao === "recebido") return { texto: "Mercadoria recebida", cor: "text-accent" };
+  if (p.situacao === "recebido_parcial") return { texto: "Recebido em parte", cor: "text-warning" };
+  if (p.situacao === "cancelado" || p.situacao === "recusado") return { texto: "Sem recebimento registrado", cor: "text-muted-foreground" };
+  return { texto: p.resposta?.previsaoEntrega ? `Prevista para ${dataEntregaTexto(p.resposta.previsaoEntrega)}` : "Ainda sem recebimento registrado", cor: "text-muted-foreground" };
+}
+
+function SituacaoPedidoResumo({ pedido, hoje }: { pedido: Pedido; hoje: string }) {
+  const entrega = entregaPedido(pedido);
+  const pg = estadoPagamento(pedido, hoje);
+  return (
+    <section aria-label="Situação do pedido" className="rounded-3xl border border-primary/30 bg-primary/5 p-4">
+      <h3 className="text-base font-bold">Acompanhe este pedido</h3>
+      <dl className="mt-3 space-y-3 text-sm">
+        <Dado t="Pedido" v={SITUACAO_TXT[pedido.situacao]} />
+        <div><dt className="text-muted-foreground">Entrega</dt><dd className={`mt-0.5 break-words font-semibold ${entrega.cor}`}>{entrega.texto}</dd></div>
+        <div><dt className="text-muted-foreground">Pagamento</dt><dd className={`mt-0.5 font-semibold ${pg ? COR_PAGAMENTO[pg.estado] : "text-muted-foreground"}`}>{pg ? textoPagamento(pedido, hoje) : "Ainda sem conta registrada"}</dd></div>
+      </dl>
+      <div className="mt-4 border-t border-primary/20 pt-3">
+        <p className="text-xs font-semibold text-primary">O que fazer agora</p>
+        <p className="mt-1 text-sm leading-relaxed">{orientacaoPedido(pedido)}</p>
+      </div>
+    </section>
+  );
+}
 export type SalvarPedido = (a: { fornecedor: Supplier; linhas: LinhaPedido[]; observacao: string }) => Promise<{ id: string; numero: number; token?: string | undefined; recuperado?: boolean }>;
 
 export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora = false, soAPagar = false, onSalvar, onEnviado, onCancelar, onNovoLink, onPagamento, onOpenProduto, onResolverRecebimento, onCarregarSemPedido }: {
@@ -62,23 +113,12 @@ export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora
   const lista = (filtro === "pagar" ? filtrados.sort(ordemPagamento) : filtrados).filter((p) => !termo || normalizarBusca(`Pedido nº ${p.numero} ${fornecedorDe(p.fornecedorId)?.nome ?? ""}`).includes(termo));
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
+      <header>
+        <h2 className="text-xl font-bold">Seus pedidos</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Compra, entrega e pagamento.</p>
+        {pedidos.length > 0 && <p className="mt-1 text-sm text-muted-foreground">{abertos.length === 0 ? "Nenhum pedido em andamento." : abertos.length === 1 ? "1 pedido em andamento." : `${abertos.length} pedidos em andamento.`}</p>}
+      </header>
       <button type="button" onClick={() => setView({ t: "montar" })} className={`flex w-full items-center justify-center gap-2 ${btnPrimary(true)}`}><Plus size={20} /> Novo pedido</button>
-      {pedidos.length > 0 && (
-        <p className="text-sm text-muted-foreground">{abertos.length === 0 ? "Nenhum pedido em andamento." : abertos.length === 1 ? "1 pedido em andamento." : `${abertos.length} pedidos em andamento.`}</p>
-      )}
-      {contas.aPagar.n > 0 && (
-        <section aria-label="Contas a pagar" className="rounded-3xl border border-border bg-secondary/60 p-4">
-          <p className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><Banknote size={18} className="text-primary" /> Contas a pagar</p>
-          <p className="mt-1 text-3xl font-bold tabular-nums">{brl(contas.aPagar.total)}</p>
-          <p className="text-sm text-muted-foreground">{contas.aPagar.n === 1 ? "1 pedido" : `${contas.aPagar.n} pedidos`}{contas.esteMes.n && contas.esteMes.total !== contas.aPagar.total ? ` · ${brl(contas.esteMes.total)} este mês` : ""}</p>
-          <ul className="mt-2 space-y-1 text-sm font-semibold">
-            {contas.atrasados.n > 0 && <li className="text-destructive">{contas.atrasados.n === 1 ? "1 atrasado" : `${contas.atrasados.n} atrasados`} · {brl(contas.atrasados.total)}</li>}
-            {contas.hoje.n > 0 && <li className="text-warning">{contas.hoje.n === 1 ? "1 vence hoje" : `${contas.hoje.n} vencem hoje`} · {brl(contas.hoje.total)}</li>}
-            {contas.semana.n > 0 && <li className="text-warning">{contas.semana.n === 1 ? "1 vence nos próximos 7 dias" : `${contas.semana.n} vencem nos próximos 7 dias`} · {brl(contas.semana.total)}</li>}
-          </ul>
-          {contas.pagoEsteMes.n > 0 && <p className="mt-2 text-xs text-muted-foreground">Pago este mês: {brl(contas.pagoEsteMes.total)}</p>}
-        </section>
-      )}
       {pedidos.length > 0 && (
         <div className="space-y-3">
           <div role="group" aria-label="Mostrar pedidos" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -93,10 +133,27 @@ export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora
             <input type="search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Número do pedido ou fornecedor"
               className="h-12 w-full rounded-2xl border border-border bg-background-deep/60 pl-11 pr-4 text-base text-foreground outline-none focus-visible:border-primary" />
           </label>
+          <p className="text-xs text-muted-foreground">{filtro === "pagar" ? "Pedidos com pagamento pendente, mesmo que a mercadoria já tenha chegado." : filtro === "historico" ? "Pedidos recebidos, cancelados ou recusados. O pagamento é acompanhado separadamente." : filtro === "andamento" ? "Pedidos ainda não enviados, aguardando resposta ou entrega." : "Toque em um pedido para ver os detalhes e as ações disponíveis."}</p>
           {!lista.length && <p role="status" className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
             {termo ? "Nenhum pedido encontrado. Confira a busca ou escolha outro filtro." : "Nenhum pedido neste filtro."}
           </p>}
         </div>
+      )}
+      {contas.aPagar.n > 0 && (
+        <section aria-label="Contas a pagar" className="rounded-3xl border border-border bg-secondary/60 p-4">
+          <p className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><Banknote size={18} className="text-primary" /> Contas a pagar</p>
+          <div className="mt-1 flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-2xl font-bold tabular-nums">{brl(contas.aPagar.total)}</p>
+            <p className="text-sm text-muted-foreground">{contas.aPagar.n === 1 ? "1 pedido a pagar" : `${contas.aPagar.n} pedidos a pagar`}</p>
+          </div>
+          <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold">
+            {contas.atrasados.n > 0 && <li className="text-destructive">{contas.atrasados.n === 1 ? "1 atrasado" : `${contas.atrasados.n} atrasados`} · {brl(contas.atrasados.total)}</li>}
+            {contas.hoje.n > 0 && <li className="text-warning">{contas.hoje.n === 1 ? "1 vence hoje" : `${contas.hoje.n} vencem hoje`} · {brl(contas.hoje.total)}</li>}
+            {contas.semana.n > 0 && <li className="text-warning">{contas.semana.n === 1 ? "1 vence nos próximos 7 dias" : `${contas.semana.n} vencem nos próximos 7 dias`} · {brl(contas.semana.total)}</li>}
+          </ul>
+          {contas.esteMes.n > 0 && contas.esteMes.total !== contas.aPagar.total && <p className="mt-2 text-xs text-muted-foreground">A pagar este mês: {brl(contas.esteMes.total)}</p>}
+          {contas.pagoEsteMes.n > 0 && <p className="mt-2 text-xs text-muted-foreground">Pago este mês: {brl(contas.pagoEsteMes.total)}</p>}
+        </section>
       )}
       {!pedidos.length && (
         <div className="flex flex-col items-center gap-2 rounded-3xl border border-dashed border-border px-4 py-10 text-center">
@@ -109,14 +166,19 @@ export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora
         {lista.map((p) => {
           const f = fornecedorDe(p.fornecedorId);
           const pg = estadoPagamento(p, hoje);
+          const entrega = entregaPedido(p);
+          const prazo = textoPagamento(p, hoje);
+          const pagamento = !pg ? "Ainda sem conta registrada" : pg.estado === "pago" ? prazo
+            : `A pagar ${brl(valorConta(p).valor)}${prazo === "A pagar" ? "" : ` · ${prazo}`}`;
+          const forma = p.resposta ? formaTexto(p.resposta.forma, p.resposta.prazoDias) : "";
           return (
             <li key={p.id}>
               <button type="button" onClick={() => setView({ t: "detalhe", id: p.id })}
-                className="flex w-full flex-col gap-2 rounded-3xl border border-border bg-secondary/60 p-4 text-left transition hover:border-primary">
+                className="flex h-full w-full flex-col gap-3 rounded-3xl border border-border bg-secondary/60 p-4 text-left transition hover:border-primary focus-visible:outline-2 focus-visible:outline-primary">
                 <span className="flex flex-wrap items-start justify-between gap-2">
                   <span className="min-w-0">
-                    <span className="block text-base font-bold">Pedido nº {p.numero}</span>
-                    <span className="block break-words text-sm text-muted-foreground">{f?.nome ?? "Fornecedor"}</span>
+                    <span className="block text-xs text-muted-foreground">Pedido nº {p.numero}</span>
+                    <span className="mt-1 block break-words text-base font-bold">{f?.nome ?? "Fornecedor"}</span>
                   </span>
                   <Etiqueta s={p.situacao} />
                 </span>
@@ -124,23 +186,36 @@ export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora
                   {p.enviadoEm ? `Enviado em ${dataCurta(p.enviadoEm)}${p.canal ? ` ${CANAL_TXT[p.canal]}` : ""}` : `Criado em ${dataCurta(p.criadoEm)}`}
                   {` · ${p.itens.length === 1 ? "1 produto" : `${p.itens.length} produtos`}`}
                 </span>
-                <span className="flex flex-wrap items-baseline justify-between gap-2 rounded-2xl bg-background-deep/40 px-3 py-2">
-                  <span className="text-xs text-muted-foreground">{rotuloEstimativa(p)}</span>
-                  <span className="text-lg font-bold tabular-nums">{valorEstimativa(p)}</span>
-                </span>
-                {p.resposta && ["aceito", "aceito_ajustes", "recebido_parcial", "recebido"].includes(p.situacao) && resumoResposta(p.resposta, brl) && (
-                  <span className="flex items-start gap-1.5 text-sm font-semibold text-accent"><CheckCircle2 size={16} className="mt-0.5 shrink-0" /> Resposta do fornecedor: {resumoResposta(p.resposta, brl)}</span>
-                )}
-                {p.situacao === "recusado" && <span className="flex items-start gap-1.5 text-sm font-semibold text-destructive"><XCircle size={16} className="mt-0.5 shrink-0" /> O fornecedor não pode atender</span>}
-                {p.recebimento && (() => { const rr = resumoRecebimento(p.recebimento); return (
-                  <span className={`flex items-start gap-1.5 text-sm font-semibold ${rr.alerta === "decidir" ? "text-destructive" : rr.alerta ? "text-warning" : "text-accent"}`}>
-                    <PackageCheck size={16} className="mt-0.5 shrink-0" /> {rr.texto}
-                  </span>); })()}
-                {pg && (
-                  <span className={`flex items-start gap-1.5 text-sm font-semibold ${COR_PAGAMENTO[pg.estado]}`}>
-                    <Banknote size={16} className="mt-0.5 shrink-0" /> {pg.estado === "pago" ? "" : `A pagar ${brl(valorConta(p).valor)} · `}{textoPagamento(p, hoje)}
+                <span className="space-y-2 rounded-2xl bg-background-deep/40 px-3 py-2">
+                  <span className="flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="text-xs text-muted-foreground">{rotuloEstimativa(p)}</span>
+                    <span className="text-lg font-bold tabular-nums">{valorEstimativa(p)}</span>
                   </span>
-                )}
+                  {p.resposta?.valorTotal != null && (
+                    <span className="flex flex-wrap items-baseline justify-between gap-2 border-t border-border pt-2">
+                      <span className="text-xs text-muted-foreground">Valor do fornecedor</span>
+                      <span className="font-semibold tabular-nums">{brl(p.resposta.valorTotal)}</span>
+                    </span>
+                  )}
+                </span>
+                <span className="space-y-2 border-t border-border pt-3 text-sm">
+                  <span className="flex items-start gap-2">
+                    <Truck size={16} className="mt-0.5 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0">
+                      <span className="block text-xs text-muted-foreground">Entrega</span>
+                      <span className={`block break-words font-semibold ${entrega.cor}`}>{entrega.texto}</span>
+                    </span>
+                  </span>
+                  <span className="flex items-start gap-2">
+                    <Banknote size={16} className="mt-0.5 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0">
+                      <span className="block text-xs text-muted-foreground">Pagamento</span>
+                      <span className={`block font-semibold ${pg ? COR_PAGAMENTO[pg.estado] : "text-muted-foreground"}`}>{pagamento}</span>
+                      {forma && <span className="mt-0.5 block text-xs text-muted-foreground">{forma}</span>}
+                    </span>
+                  </span>
+                </span>
+                <span className="mt-auto flex items-start justify-between gap-3 border-t border-border pt-3 text-sm"><span className="text-muted-foreground">{orientacaoPedido(p)}</span><ArrowRight size={18} className="mt-0.5 shrink-0 text-primary" /></span>
               </button>
             </li>
           );
@@ -425,6 +500,29 @@ function DetalhePedido({ pedido, products, store, fornecedor, hoje, onEnviado, o
         <Etiqueta s={pedido.situacao} />
       </header>
 
+      <SituacaoPedidoResumo pedido={pedido} hoje={hoje} />
+
+      {r && (aceito || recusado) && (
+        <section aria-label="Resposta do fornecedor" className={`rounded-3xl border p-4 ${recusado ? "border-destructive/50 bg-destructive/10" : "border-accent/50 bg-accent/10"}`}>
+          <p className={`flex items-center gap-2 text-base font-bold ${recusado ? "text-destructive" : "text-accent"}`}>
+            {recusado ? <XCircle size={20} /> : <CheckCircle2 size={20} />}
+            {recusado ? "O fornecedor não pode atender" : pedido.situacao === "aceito_ajustes" ? "Aceito, com mudanças nos produtos" : "O fornecedor aceitou o pedido"}
+          </p>
+          <p className="text-xs text-muted-foreground">Respondido em {new Date(r.em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</p>
+          {aceito && (
+            <dl className="mt-3 space-y-1.5 text-sm">
+              {r.previsaoEntrega && <Dado t="Entrega prevista" v={dataEntregaTexto(r.previsaoEntrega)} />}
+              <Dado t="Valor informado pelo fornecedor" v={r.valorTotal != null ? brl(r.valorTotal) : "Não informado"} />
+              <Dado t="Pagamento" v={formaTexto(r.forma, r.prazoDias) || "Não informado"} />
+            </dl>
+          )}
+          {r.recado && <p className="mt-2 text-sm"><span className="block text-xs text-muted-foreground">Recado do fornecedor</span>{r.recado}</p>}
+          {recusado && !pedidoFechado(pedido) && <p className="mt-2 text-sm text-muted-foreground">Você pode cancelar este pedido e pedir para outro fornecedor.</p>}
+        </section>
+      )}
+
+      {pedido.recebimento && <RecebimentoPedido rec={pedido.recebimento} products={products} onResolver={onResolver} />}
+
       <section aria-label="Produtos do pedido" className="rounded-3xl border border-border bg-secondary/60 p-4">
         <h3 className="mb-3 flex items-center gap-2 text-base font-bold"><ClipboardList size={20} className="text-primary" /> O que foi pedido</h3>
         <ul className="space-y-3">
@@ -464,30 +562,7 @@ function DetalhePedido({ pedido, products, store, fornecedor, hoje, onEnviado, o
         {pedido.observacao && <p className="mt-3 break-words text-sm text-muted-foreground">Seu recado: {pedido.observacao}</p>}
       </section>
 
-      {r && (aceito || recusado) && (
-        <section aria-label="Resposta do fornecedor" className={`rounded-3xl border p-4 ${recusado ? "border-destructive/50 bg-destructive/10" : "border-accent/50 bg-accent/10"}`}>
-          <p className={`flex items-center gap-2 text-base font-bold ${recusado ? "text-destructive" : "text-accent"}`}>
-            {recusado ? <XCircle size={20} /> : <CheckCircle2 size={20} />}
-            {recusado ? "O fornecedor não pode atender" : pedido.situacao === "aceito_ajustes" ? "Aceito, com mudanças nos produtos" : "O fornecedor aceitou o pedido"}
-          </p>
-          <p className="text-xs text-muted-foreground">Respondido em {new Date(r.em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</p>
-          {aceito && (
-            <dl className="mt-3 space-y-1.5 text-sm">
-              {r.previsaoEntrega && <Dado t="Entrega prevista" v={dataEntregaTexto(r.previsaoEntrega)} />}
-              <Dado t="Valor informado pelo fornecedor" v={r.valorTotal != null ? brl(r.valorTotal) : "Não informado"} />
-              <Dado t="Pagamento" v={formaTexto(r.forma, r.prazoDias) || "Não informado"} />
-            </dl>
-          )}
-          {r.recado && <p className="mt-2 text-sm"><span className="block text-xs text-muted-foreground">Recado do fornecedor</span>{r.recado}</p>}
-          {recusado && !pedidoFechado(pedido) && <p className="mt-2 text-sm text-muted-foreground">Você pode cancelar este pedido e pedir para outro fornecedor.</p>}
-        </section>
-      )}
-
-      {pedido.recebimento && <RecebimentoPedido rec={pedido.recebimento} products={products} onResolver={onResolver} />}
-
       <PagamentoPedido pedido={pedido} hoje={hoje} onPagamento={(d) => onPagamento(pedido.id, d)} />
-
-      {pedido.situacao === "enviado" && <p className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">Aguardando a resposta do fornecedor. Ele responde pelo link que foi junto na mensagem, e a resposta aparece aqui.</p>}
 
       {!pedidoFechado(pedido) && !pedido.recebimento && (
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
@@ -682,8 +757,9 @@ function RecebimentoPedido({ rec, products, onResolver }: {
   const decidir = rec.itens.filter(precisaDecidir).length;
   return (
     <section aria-label="Recebimento" className={`rounded-3xl border p-4 ${decidir ? "border-destructive/50 bg-destructive/5" : "border-border bg-secondary/40"}`}>
-      <p className="flex items-center gap-2 text-base font-bold"><PackageCheck size={20} className="text-primary" /> Mercadoria recebida</p>
-      <p className="text-xs text-muted-foreground">Conferida por {rec.funcionario}{rec.concluidoEm ? ` em ${dataHoraCurta(rec.concluidoEm)}` : ""} · contagem cega</p>
+      <p className="flex items-center gap-2 text-base font-bold"><PackageCheck size={20} className="text-primary" /> {rec.situacao === "contando" ? "Conferência da mercadoria" : "Mercadoria recebida"}</p>
+      <p className="text-xs text-muted-foreground">{rec.situacao === "contando" ? "Em contagem por" : "Conferida por"} {rec.funcionario}{rec.concluidoEm ? ` em ${dataHoraCurta(rec.concluidoEm)}` : ""} · contagem cega</p>
+      {rec.situacao === "contando" && <p className="mt-2 text-sm text-warning">A equipe ainda não concluiu a entrega. Os produtos aceitos nesta conferência aguardam a conclusão para entrar no estoque.</p>}
       {decidir > 0 && <p className="mt-2 text-sm font-semibold text-destructive">{decidir === 1 ? "1 produto precisa" : `${decidir} produtos precisam`} da sua decisão.</p>}
       <ul className="mt-2 divide-y divide-border">
         {rec.itens.map((i) => <LinhaRecebida key={i.id} i={i} products={products} onResolver={onResolver} />)}
