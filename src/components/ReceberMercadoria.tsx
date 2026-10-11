@@ -16,7 +16,7 @@ import { ERRO_REGISTRO } from "@/lib/envios";
 import {
   apagarRascunho, chaveProduto, chaveRascunho, erroContagem, guardarRascunho, itemParaEnvio, lerRascunho, nomeProdutoFunc, novaContagem, resumoContagem,
   totalDaContagem, estadoRecebido, textoEstado, type Contagem, type EstadoItem, type ProdutoFunc, type Rascunho,
-  ERRO_GUARDAR_RASCUNHO, ERRO_LER_RASCUNHO, ERRO_RASCUNHO_ILEGIVEL,
+  ERRO_GUARDAR_RASCUNHO, ERRO_LER_RASCUNHO, ERRO_RASCUNHO_ILEGIVEL, textoMotivo, type MotivoInfo,
 } from "@/lib/recebimento";
 
 export type ApiReceber = {
@@ -279,7 +279,9 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
       if (i.situacao === "recontar" && contagens[k] && mesmo?.estados[k] !== "contado") delete contagens[k];
       if (i.situacao === "recontar" && mesmo?.estados[k] === "contado" && contagens[k]) estados[k] = "contado";
     }
-    return { estados, contagens, rodada: aberto.rodada, erroLeitura };
+    const motivos: Record<string, MotivoInfo> = {};
+    for (const [k, m] of Object.entries(mesmo?.motivos ?? {})) if (estados[k] === "recontar" && m.motivo) motivos[k] = m;
+    return { estados, contagens, rodada: aberto.rodada, erroLeitura, motivos };
   }, [aberto, kr]);
   const [estados, setEstados] = useState(inicial.estados);
   const [contagens, setContagens] = useState(inicial.contagens);
@@ -290,6 +292,7 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
     return m;
   });
   const [rodada, setRodada] = useState(inicial.rodada);
+  const [motivos, setMotivos] = useState<Record<string, MotivoInfo>>(inicial.motivos);
   const [recontagens, setRecontagens] = useState(() => new Set(aberto.itens.filter((i) => i.situacao === "recontar").map(chaveProduto)));
   const [aberta, setAberta] = useState<string | null>(null);
   const [scan, setScan] = useState(false);
@@ -311,7 +314,7 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
       const atual = lerRascunho(kr);
       // Uma tela antiga não pode recriar o rascunho descartado nem substituir a entrega nova.
       if (!aberto.pedidoId && atual?.id !== aberto.id) throw new Error("rascunho_atualizado");
-      guardarRascunho(kr, { id: aberto.id, pedidoId: aberto.pedidoId, fornecedorId, contagens, estados, rodada });
+      guardarRascunho(kr, { id: aberto.id, pedidoId: aberto.pedidoId, fornecedorId, contagens, estados, rodada, ...(Object.keys(motivos).length ? { motivos } : {}) });
       setErroRascunho("");
     } catch (e) {
       const mensagem = erroTexto(e);
@@ -321,7 +324,7 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
   };
   useEffect(() => {
     tentarGuardar();
-  }, [kr, aberto.id, aberto.pedidoId, fornecedorId, contagens, estados, rodada]);
+  }, [kr, aberto.id, aberto.pedidoId, fornecedorId, contagens, estados, rodada, motivos]);
 
   const chaves = Object.keys(produtos);
   const ordem = (k: string) => ({ recontar: 0, falta: 1, contado: 2, aguardando_dono: 3, enviado: 4, recusado: 5, conferido: 6 })[estados[k] ?? "falta"];
@@ -392,6 +395,7 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
         return n;
       });
       setRecontagens(recontar);
+      setMotivos(() => { const n: Record<string, MotivoInfo> = {}; for (const x of r.recontar) if (x.motivo) n[chaveProduto(x)] = { motivo: x.motivo, ...(x.lote ? { lote: x.lote } : {}), ...(x.loteData ? { loteData: x.loteData } : {}) }; return n; });
       // Recontagem cega: a contagem anterior some da tela.
       setContagens((m) => { const n = { ...m }; for (const k of recontar) delete n[k]; return n; });
       setRodada(r.rodada);
@@ -438,6 +442,7 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
                   <span className={`block text-sm ${e === "recontar" || e === "aguardando_dono" ? "font-semibold text-warning" : e === "conferido" ? "text-accent" : "text-muted-foreground"}`}>
                     {e === "contado" ? `${recontagens.has(k) ? "Nova contagem pronta para enviar" : textoEstado[e]}${c ? ` · ${resumoContagem(c)}` : ""}` : textoEstado[e]}
                   </span>
+                  {e === "recontar" && textoMotivo(motivos[k]) && <span className="mt-1 block text-sm leading-snug text-foreground">{textoMotivo(motivos[k])}</span>}
                   {fora && e !== "conferido" && <span className="block text-xs font-semibold text-warning">Não está no pedido — deixe separado</span>}
                 </span>
                 {e === "conferido" ? <Check size={22} className="shrink-0 text-accent" /> : e === "recontar" || e === "aguardando_dono" ? <AlertTriangle size={22} className="shrink-0 text-warning" /> : null}
@@ -464,7 +469,7 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
         onCode={(c) => { setScan(false); void lerCodigo(c); }} />}
       {busca && <BuscarProduto chave={chave} api={api} onClose={() => setBusca(false)} onEscolher={(p) => { setBusca(false); escolher(p); }} />}
       {sel && aberta && contagens[aberta] && (
-        <ContarProduto c={contagens[aberta]!} recontagem={estados[aberta] === "recontar"} noPedido={!aberto.pedidoId || noPedido.has(aberta)} temPedido={!!aberto.pedidoId}
+        <ContarProduto c={contagens[aberta]!} recontagem={estados[aberta] === "recontar"} motivo={estados[aberta] === "recontar" ? textoMotivo(motivos[aberta]) : ""} noPedido={!aberto.pedidoId || noPedido.has(aberta)} temPedido={!!aberto.pedidoId}
           erroRascunho={erroRascunho}
           onClose={() => setAberta(null)}
           onSalvar={(c) => { setContagens((m) => ({ ...m, [aberta]: c })); setEstados((m) => ({ ...m, [aberta]: "contado" })); setAviso(""); setAberta(null); }}
@@ -519,8 +524,8 @@ function BuscarProduto({ chave, api, onClose, onEscolher }: { chave: string; api
 }
 
 export { Contador } from "@/components/parts/Contador";
-function ContarProduto({ c: inicial, recontagem, noPedido, temPedido, erroRascunho, onClose, onSalvar, onTirar }: {
-  c: Contagem; recontagem: boolean; noPedido: boolean; temPedido: boolean; onClose: () => void; onSalvar: (c: Contagem) => void; onTirar?: (() => void) | undefined;
+function ContarProduto({ c: inicial, recontagem, motivo, noPedido, temPedido, erroRascunho, onClose, onSalvar, onTirar }: {
+  c: Contagem; recontagem: boolean; motivo: string; noPedido: boolean; temPedido: boolean; onClose: () => void; onSalvar: (c: Contagem) => void; onTirar?: (() => void) | undefined;
   erroRascunho: string;
 }) {
   const [c, setC] = useState(inicial);
@@ -535,7 +540,7 @@ function ContarProduto({ c: inicial, recontagem, noPedido, temPedido, erroRascun
       <div className="min-h-0 space-y-4 overflow-y-auto px-5 py-3">
         {erroRascunho && <p role="alert" className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">{erroRascunho}</p>}
         {p.codigo && <p className="-mt-2 text-xs text-muted-foreground">Cód. {p.codigo}</p>}
-        {recontagem && <p className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">Conte de novo, com calma, tudo o que chegou deste produto.</p>}
+        {recontagem && <p className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">{motivo || "Conte de novo, com calma, tudo o que chegou deste produto."}</p>}
         {temPedido && !noPedido && <p className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">Este produto <b>não está no pedido</b>. Conte e deixe separado: o dono vai decidir.</p>}
 
         <section aria-label="Quanto chegou" className="space-y-3 rounded-2xl border border-border p-3">

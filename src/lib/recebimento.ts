@@ -100,7 +100,31 @@ export function resumoContagem(c: Contagem): string {
 
 /* ---------- rascunho no aparelho: a recuperação depende da gravação e leitura ---------- */
 const RASCUNHO = "omni.recebimento.";
-export type Rascunho = { id: string; pedidoId: string | null; fornecedorId: string | null; contagens: Record<string, Contagem>; estados: Record<string, EstadoItem>; rodada: number };
+export type MotivoRecontar = "vencido" | "sem_data" | "sem_lote" | "lote_outra_data";
+export type MotivoInfo = { motivo?: MotivoRecontar; lote?: string; loteData?: string };
+const MOTIVOS: MotivoRecontar[] = ["vencido", "sem_data", "sem_lote", "lote_outra_data"];
+/** Lê o motivo do "Conte de novo" devolvido pelo banco (sem motivo = recontagem comum). */
+export function motivoDoBanco(x: { motivo?: unknown; lote?: unknown; lote_data?: unknown }): MotivoInfo {
+  if (!MOTIVOS.includes(x.motivo as MotivoRecontar)) return {};
+  const m: MotivoInfo = { motivo: x.motivo as MotivoRecontar };
+  if (typeof x.lote === "string" && x.lote) m.lote = x.lote;
+  if (typeof x.lote_data === "string" && /^\d{4}-\d{2}-\d{2}$/.test(x.lote_data)) m.loteData = x.lote_data;
+  return m;
+}
+/** Texto que explica por que o produto voltou para recontar; vazio na recontagem comum. */
+export function textoMotivo(m: MotivoInfo | undefined): string {
+  switch (m?.motivo) {
+    case "vencido": return "Este produto está vencido. Se veio vencido, marque em 'Veio quebrado ou vencido'. Ele não entra como produto bom.";
+    case "sem_data": return "Falta a data de validade. Confira na caixa e informe.";
+    case "sem_lote": return "Falta o lote. Confira na caixa e informe.";
+    case "lote_outra_data": {
+      const d = m.loteData ? m.loteData.split("-").reverse().join("/") : "outra data";
+      return `O lote ${m.lote ?? ""} já está registrado com validade ${d}. Confira o lote e a data na caixa. Se a caixa estiver certa, avise o dono.`;
+    }
+    default: return "";
+  }
+}
+export type Rascunho = { id: string; pedidoId: string | null; fornecedorId: string | null; contagens: Record<string, Contagem>; estados: Record<string, EstadoItem>; rodada: number; motivos?: Record<string, MotivoInfo> };
 export const ERRO_GUARDAR_RASCUNHO = "Não foi possível guardar a contagem neste aparelho. Ela está somente nesta tela: se você sair ou fechar o app, as últimas alterações podem se perder. Confira o armazenamento e tente guardar de novo.";
 export const ERRO_LER_RASCUNHO = "Não foi possível ler a contagem guardada neste aparelho. Confira o armazenamento do navegador e tente abrir a entrega novamente. Nenhum rascunho ou envio pendente foi descartado.";
 export const ERRO_RASCUNHO_ILEGIVEL = "A contagem guardada neste aparelho não pôde ser recuperada. Mantenha a mercadoria separada e fale com o dono. Nenhum rascunho ou envio pendente foi descartado.";
@@ -114,6 +138,7 @@ const formatoRascunho = z.object({
   contagens: z.record(z.object({ p: produtoRascunho, fechadas: z.record(z.string()), soltas: z.string(), naoVeio: z.boolean(), temAvaria: z.boolean(), avaria: z.string(),
     partes: z.array(z.object({ quantidade: z.string(), vencimento: z.string(), lote: z.string() })) })),
   estados: z.record(z.enum(["falta", "contado", "recontar", "conferido", "aguardando_dono", "recusado", "enviado"])),
+  motivos: z.record(z.object({ motivo: z.enum(["vencido", "sem_data", "sem_lote", "lote_outra_data"]).optional(), lote: z.string().optional(), loteData: z.string().optional() })).optional(),
 }).refine((r) => Object.entries(r.contagens).every(([k, c]) => k === chaveProduto(c.p)));
 export function lerRascunho(chaveRascunho: string): Rascunho | null {
   let t: string | null;
