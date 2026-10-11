@@ -1286,6 +1286,7 @@ export type Database = {
           situacao: string
           token: string
           updated_at: string
+          valor_fornecedor: number | null
           valor_total: number | null
           vencimento: string | null
         }
@@ -1309,6 +1310,7 @@ export type Database = {
           situacao?: string
           token?: string
           updated_at?: string
+          valor_fornecedor?: number | null
           valor_total?: number | null
           vencimento?: string | null
         }
@@ -1332,6 +1334,7 @@ export type Database = {
           situacao?: string
           token?: string
           updated_at?: string
+          valor_fornecedor?: number | null
           valor_total?: number | null
           vencimento?: string | null
         }
