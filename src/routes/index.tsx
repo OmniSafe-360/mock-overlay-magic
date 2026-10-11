@@ -582,6 +582,8 @@ function Index() {
         <p className="relative max-w-xs text-base text-foreground">Não foi possível carregar sua conta e seus comércios. Verifique sua internet.</p>
         <button type="button" onClick={() => { setPhase("loading"); void fetchRef.current(true); }}
           className="relative h-12 rounded-2xl bg-primary px-6 font-semibold text-primary-foreground">Tentar de novo</button>
+        <button type="button" onClick={logout}
+          className="relative min-h-12 px-4 text-sm font-semibold text-muted-foreground underline">Sair da conta</button>
       </div>
     );
   if (phase === "store") return <StoreSetup key={account.id} userId={account.id} onFinish={(s) => { setStores([s]); setPhase("home"); }} />;

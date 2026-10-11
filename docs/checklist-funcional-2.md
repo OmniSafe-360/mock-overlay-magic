@@ -74,7 +74,7 @@ Fora desta lista, a pedido do dono: Omni Conector (caixa no computador) e "Esque
 ## Etapa C — menores
 
 - [x] C1. (11/10/2026: só conta caixa ligado — computador conectado ou celular — e não desligado; `caixaLigado` em primeirosPassos.ts. Falta o teste do dono.) **"Ligar o caixa" aparece como feito sem caixa ligado.** Conta caixas que só têm código gerado, ou que estão desligados (`OwnerHome.tsx:159`, `primeirosPassos.ts:26`).
-- [ ] C2. **A tela "Não foi possível carregar seus comércios" não tem como sair da conta** (`src/routes/index.tsx:534-543`).
+- [x] C2. (11/10/2026: botão "Sair da conta" na tela de erro, usando o mesmo sair do app. Falta o teste do dono.) **A tela "Não foi possível carregar seus comércios" não tem como sair da conta** (`src/routes/index.tsx:534-543`).
 - [ ] C3. **"Faltou este mês" da aba Diferenças diverge do Relatório no dia 31.** A aba lê só os últimos 30 dias (`PainelDiferencas.tsx:52`, `:70`, `:84`).
 
 ## Pendências do checklist 1 (continuam valendo)
