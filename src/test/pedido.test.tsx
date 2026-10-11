@@ -101,6 +101,17 @@ describe("aba Pedidos", () => {
     expect(t.onEnviado).not.toHaveBeenCalled();
     expect((g.getByRole("button", { name: /Salvar e enviar/ }) as HTMLButtonElement).disabled).toBe(true);
   });
+  it("B3: depois de gerar novo link, copiar e enviar usam o link novo mesmo sem a lista atualizar", async () => {
+    const escrito: string[] = [];
+    Object.assign(navigator, { clipboard: { writeText: vi.fn(async (x: string) => { escrito.push(x); }) } });
+    abrir({ pedidos: [pedidoEnviado], onNovoLink: vi.fn(async () => "n".repeat(64)) });
+    fireEvent.click(screen.getByText(/Pedido nº 3/));
+    fireEvent.click(await screen.findByRole("button", { name: /Gerar novo link/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar novo link/ }));
+    await screen.findByText(/Novo link criado/);
+    fireEvent.click(screen.getByRole("button", { name: /Copiar link/ }));
+    await waitFor(() => expect(escrito.at(-1)).toContain("n".repeat(64)));
+  });
   it("fornecedor sem WhatsApp avisa e oferece copiar o texto", async () => {
     const t = abrir();
     fireEvent.click(screen.getByRole("button", { name: /Novo pedido/ }));
