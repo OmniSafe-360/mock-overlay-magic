@@ -190,7 +190,7 @@ function Formulario({ p, onEnviar, onCancelar }: { p: PedidoPublico; onEnviar: (
   const qtdDe = (i: ItemPublico) => { const x = itens[i.id]!; return x.modo === "tenho" ? i.qtdEmbalagens : x.modo === "nao" ? 0 : x.qtd; };
   const algum = p.itens.some((i) => qtdDe(i) > 0);
   const comPrazo = forma === "boleto" || forma === "a_prazo";
-  const faltando = !previsao ? "Informe a data prevista de entrega." : !algum ? "Marque pelo menos um produto que você tem." : "";
+  const faltando = !previsao ? "Informe a data prevista de entrega." : !algum ? "Marque pelo menos um produto que você tem." : comPrazo && !(Number(prazo) > 0) ? "Informe em quantos dias vence o pagamento." : "";
 
   const enviar = async (aceito: boolean) => {
     if (enviando) return;
