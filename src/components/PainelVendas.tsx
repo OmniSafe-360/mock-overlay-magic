@@ -152,7 +152,7 @@ export function PainelVendas({ comercioId, comercioNome = "", tipo, products, ap
       {api.fiado && <PainelFiado comercioId={comercioId} comercioNome={comercioNome} api={api.fiado} />}
 
       <Fechamentos lista={fechamentos.filter((f) => !f.fechadoEm || diaSP(Date.parse(f.abertoEm)) === diaSel || (f.diferenca && !f.conferidoEm))}
-        vendas={vendas ?? []} onVisto={async (id) => { await (api.conferirFechamento ?? banco.conferirFechamentoCaixa)(id); await recarregar(); }} />
+        vendas={vendas ?? []} vendasDesde={Date.parse(`${diaSP(agora - 86_400_000)}T00:00:00-03:00`)} onVisto={async (id) => { await (api.conferirFechamento ?? banco.conferirFechamentoCaixa)(id); await recarregar(); }} />
 
       {/* vendido sem cadastro */}
       {grupos.length > 0 && (
@@ -571,7 +571,8 @@ function ResolverPendente({ g, products, area, onResolver, onClose }: {
 }
 
 /** Abertura e fechamento do caixa no celular, com a diferença do dinheiro na gaveta. */
-function Fechamentos({ lista, vendas, onVisto }: { lista: banco.FechamentoCaixa[]; vendas: Venda[]; onVisto: (id: string) => Promise<unknown> }) {
+/** `vendasDesde`: as vendas carregadas começam nesse instante; turno mais antigo não mostra total (seria zero falso). */
+function Fechamentos({ lista, vendas, vendasDesde, onVisto }: { lista: banco.FechamentoCaixa[]; vendas: Venda[]; vendasDesde: number; onVisto: (id: string) => Promise<unknown> }) {
   const [ocupado, setOcupado] = useState<string | null>(null);
   if (!lista.length) return null;
   const hora = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
@@ -592,7 +593,7 @@ function Fechamentos({ lista, vendas, onVisto }: { lista: banco.FechamentoCaixa[
                   <p className="text-base font-bold">{f.funcionario}</p>
                   <p className="text-xs text-muted-foreground">{f.fechadoEm ? `${dia(f.abertoEm)} · ${hora(f.abertoEm)} até ${hora(f.fechadoEm)}` : `Aberto desde ${hora(f.abertoEm)}`}</p>
                 </div>
-                <span className="shrink-0 text-right"><b className="block text-base">{brl(total)}</b><span className="text-xs text-muted-foreground">{doTurno.length === 1 ? "1 venda" : `${doTurno.length} vendas`}</span></span>
+                {Date.parse(f.abertoEm) >= vendasDesde && <span className="shrink-0 text-right"><b className="block text-base">{brl(total)}</b><span className="text-xs text-muted-foreground">{doTurno.length === 1 ? "1 venda" : `${doTurno.length} vendas`}</span></span>}
               </div>
               {f.fechadoEm && f.esperado != null && f.contado != null && (
                 <div className="mt-2 space-y-1">
