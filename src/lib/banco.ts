@@ -127,7 +127,7 @@ const centavosDe = (v: unknown) => (v == null ? null : Math.round(Number(v) * 10
 export async function carregarPedidos(comercioId: string): Promise<Pedido[]> {
   const doComercio = (q: any) => q.eq("comercio_id", comercioId);
   const [ped, itens, recs] = await Promise.all([
-    todos("pedidos_compra", "id,numero,fornecedor_id,situacao,canal,enviado_em,observacao,token,created_at,resposta_em,previsao_entrega,valor_total,forma_pagamento,prazo_dias,recado_fornecedor,pagamento_situacao,vencimento,pago_em",
+    todos("pedidos_compra", "id,numero,fornecedor_id,situacao,canal,enviado_em,observacao,token,created_at,resposta_em,previsao_entrega,valor_total,valor_fornecedor,forma_pagamento,prazo_dias,recado_fornecedor,pagamento_situacao,vencimento,pago_em",
       (q) => doComercio(q).order("created_at", { ascending: false })),
     todos("pedido_itens", "pedido_id,produto_id,variacao_id,embalagem_id,qtd_embalagens,qtd_unidades,preco_estimado,qtd_confirmada,qtd_recebida,created_at", (q) => doComercio(q).order("created_at")),
     carregarRecebimentos(comercioId, true),
@@ -135,7 +135,7 @@ export async function carregarPedidos(comercioId: string): Promise<Pedido[]> {
   return ped.map((r) => ({
     id: r.id, numero: Number(r.numero), fornecedorId: r.fornecedor_id, situacao: r.situacao, canal: r.canal ?? null,
     enviadoEm: r.enviado_em ?? null, observacao: r.observacao ?? "", token: r.token, criadoEm: r.created_at,
-    resposta: r.resposta_em ? { em: r.resposta_em, previsaoEntrega: r.previsao_entrega ?? null, valorTotal: centavosDe(r.valor_total), forma: r.forma_pagamento ?? null,
+    resposta: r.resposta_em ? { em: r.resposta_em, previsaoEntrega: r.previsao_entrega ?? null, valorTotal: centavosDe(r.valor_fornecedor), forma: r.forma_pagamento ?? null,
       prazoDias: r.prazo_dias ?? null, recado: r.recado_fornecedor ?? "" } : null,
     pagamento: { situacao: r.pagamento_situacao ?? null, vencimento: r.vencimento ?? null, pagoEm: r.pago_em ?? null, valor: centavosDe(r.valor_total) },
     itens: itens.filter((i) => i.pedido_id === r.id).map((i) => ({
