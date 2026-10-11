@@ -15,7 +15,7 @@ const db = supabase;
 
 /** Os nomes e parâmetros seguem as migrações tipadas. Cada endpoint abaixo decodifica seu JSON. */
 // Os tipos gerados não marcam argumentos opcionais/nulos das funções do banco; aceitamos null onde o banco aceita.
-type ArgsAceitandoNulo<T> = T extends Record<string, unknown> ? { [K in keyof T]: T[K] | null } : Record<string, never>;
+type ArgsAceitandoNulo<T> = [T] extends [never] ? Record<string, never> : T extends Record<string, unknown> ? { [K in keyof T]: T[K] | null } : Record<string, never>;
 async function rpc<N extends keyof Database["public"]["Functions"]>(nome: N, args: ArgsAceitandoNulo<Database["public"]["Functions"][N]["Args"]> | Record<string, never>) {
   const r = await supabase.rpc(nome, args as any);
   return { ...r, data: r.data as any };
