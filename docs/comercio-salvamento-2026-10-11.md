@@ -1,6 +1,6 @@
 # E2.1 — cadastro de comércio com confirmação coerente
 
-Correção de **11/10/2026**, sobre `main` `2b7cb57` (PR #105), branch `fix/e21-cadastro-confirmacao`. Parte de E2.1 do [checklist ponta a ponta](CHECKLIST_PONTA_A_PONTA.md); regras em [FONTE_DA_VERDADE.md](FONTE_DA_VERDADE.md). Publicação e teste do dono ainda pendentes. E2.1 continua aberta.
+Correção de **11/10/2026**, sobre `main` `2b7cb57` (PR #105), branch `fix/e21-cadastro-confirmacao`. Entrega no [PR #106](https://github.com/OmniSafe-360/mock-overlay-magic/pull/106), correção `9edf169`. Parte de E2.1 do [checklist ponta a ponta](CHECKLIST_PONTA_A_PONTA.md); regras em [FONTE_DA_VERDADE.md](FONTE_DA_VERDADE.md). Publicação e teste do dono ainda pendentes. E2.1 continua aberta.
 
 ## Falhas comprovadas
 
