@@ -554,7 +554,8 @@ function HomeContent({ stores, visao, fornecedores, locais, onPasso, onAdd, onOp
     { label: "Para comprar", n: t.comprar, Icon: ShoppingCart, cor: "atencao" as const },
     { label: t.vencendo === 1 ? "Vence em breve" : "Vencem em breve", n: t.vencendo, Icon: CalendarClock, cor: "atencao" as const },
   ];
-  const tudoCerto = pronto && !visao.carregando && !visao.erro && kpis.every((k) => k.n === 0);
+  // B10: "Tudo certo!" só quando também não há nada "de olho" (conta vencendo hoje, alerta de antifurto…)
+  const tudoCerto = pronto && !visao.carregando && !visao.erro && kpis.every((k) => k.n === 0) && deOlho(t) === 0;
   const [ocultos, setOcultos] = useState(passosOcultos);
   const passos = passosDaTela(stores, visao, fornecedores, locais, ocultos);
   const unico = stores.length === 1 ? stores[0]! : null;
