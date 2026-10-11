@@ -64,6 +64,8 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO, modoCaixa = fa
   /** Trava por tempo fora da tela: o PIN aparece por cima e a tela de trabalho continua aberta embaixo
    * (uma reposição, um recebimento ou o caixa pela metade não se perdem). */
   const [trava, setTrava] = useState<banco.InicioFuncionario | null>(null);
+  /** A última atualização da tela inicial não conseguiu falar com o Omni. */
+  const [falhaAtualizar, setFalhaAtualizar] = useState(false);
   const telaRef = useRef(tela);
   telaRef.current = tela;
 
@@ -76,12 +78,15 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO, modoCaixa = fa
   }, [api]);
   /** Abre a tela inicial; com `travar`, mostra antes a tela do PIN (ao abrir o app).
    * Sem internet, usa a última tela inicial guardada no celular: o PIN é conferido aqui e o app vai direto ao caixa. */
-  const abrirInicio = useCallback(async (chave: string, avisoSeDesligado = true, travar = false) => {
+  const abrirInicio = useCallback(async (chave: string, avisoSeDesligado = true, travar = false, atualizando = false) => {
     try {
       const d = await api.inicio(chave);
       if (d) {
         ultimo.current = d;
+        setFalhaAtualizar(false);
         void escopoAcesso(chave).then((e) => guardarInicio(e, d)).catch(() => {});
+        // Atualização da tela inicial que chegou depois de a pessoa abrir outra tela: não a tira de lá.
+        if (atualizando && telaRef.current.t !== "inicio") return;
         if (travar || d.pinNecessario) setTela({ t: "travado", dados: d });
         else {
           destravado.current = true;
@@ -94,6 +99,9 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO, modoCaixa = fa
       apagarChave();
       setTela({ t: "codigo", ...(avisoSeDesligado ? { aviso: "Este celular saiu do app (o dono bloqueou ou gerou um acesso novo). Peça o código ao dono." } : {}) });
     } catch (e) {
+      // Atualização da tela inicial falhou: continua com os números de antes e avisa (não joga para "Sem conexão").
+      if (atualizando && telaRef.current.t === "inicio") { setFalhaAtualizar(true); return; }
+      if (atualizando && telaRef.current.t !== "inicio") return;
       const guardado = semInternet(e) ? lerInicio(await escopoAcesso(chave).catch(() => "")) : null;
       if (!guardado?.caixa) { setTela({ t: "erro" }); return; }
       ultimo.current = guardado;
@@ -197,7 +205,7 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO, modoCaixa = fa
         )}
         {tela.t === "inicio" && (
           <TelaInicio dados={tela.dados} onCaixa={() => setTela({ t: "caixa" })} onReceber={() => setTela({ t: "receber" })} onRepor={() => setTela({ t: "repor" })}
-            onConferir={() => setTela({ t: "conferir" })} onPerda={(tipo) => setTela({ t: "perda", tipo })} onAtualizar={async () => { const c = lerChave(); if (c) await abrirInicio(c); }}
+            onConferir={() => setTela({ t: "conferir" })} onPerda={(tipo) => setTela({ t: "perda", tipo })} falhaAtualizar={falhaAtualizar} onAtualizar={async () => { const c = lerChave(); if (c) await abrirInicio(c, true, false, true); }}
             onSair={sair} />
         )}
         </div>
@@ -389,8 +397,8 @@ function TelaTravado({ dados, api, onDestravou, onSair, semInternet: offline = f
   );
 }
 
-function TelaInicio({ dados, onAtualizar, onSair, onCaixa, onReceber, onRepor, onConferir, onPerda }: {
-  dados: banco.InicioFuncionario; onCaixa: () => void; onAtualizar: () => Promise<void>; onSair: () => Promise<void>; onReceber: () => void; onRepor: () => void; onConferir: () => void; onPerda: (tipo: string) => void;
+function TelaInicio({ dados, falhaAtualizar = false, onAtualizar, onSair, onCaixa, onReceber, onRepor, onConferir, onPerda }: {
+  dados: banco.InicioFuncionario; falhaAtualizar?: boolean; onCaixa: () => void; onAtualizar: () => Promise<void>; onSair: () => Promise<void>; onReceber: () => void; onRepor: () => void; onConferir: () => void; onPerda: (tipo: string) => void;
 }) {
   const [sair, setSair] = useState(false);
   const [atualizando, setAtualizando] = useState(false);
@@ -416,6 +424,9 @@ function TelaInicio({ dados, onAtualizar, onSair, onCaixa, onReceber, onRepor, o
         </button>
       </header>
       <p className="text-2xl font-bold">Olá, {dados.nome.split(" ")[0]}!</p>
+      {falhaAtualizar && (
+        <p role="status" className="rounded-2xl border border-warning/60 bg-warning/10 p-3 text-sm">Sem conexão com o Omni agora. Os números são da última atualização; o app tenta de novo sozinho.</p>
+      )}
       <CartaoInstalar />
 
       <div className="grid flex-1 grid-cols-1 content-start gap-4">
