@@ -17,6 +17,7 @@ import { precisaDecidir, resultadoItem, resumoRecebimento, type ItemRecebido, ty
 import {
   CANAL_TXT, SITUACAO_TXT, chaveLinha, dataEntregaTexto, formaTexto, linkPedido, respostaItem, linhaManual, linhasDoPedido, nomeLinha, pedidoAberto, pedidoFechado, quantidadeTexto,
   sugerirPedido, textoPedido, totalLinha, totalLinhas, totalPedido, unidadesDaLinha, embalagensTexto, valorItemPedido, type CanalPedido, type LinhaPedido, type Pedido, type SituacaoPedido,
+  trocarEmbalagem,
 } from "@/lib/pedido";
 
 const dataCurta = (ts: string) => new Date(ts).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
@@ -368,6 +369,7 @@ function EditorLinha({ l, onMudar, onRemover }: { l: LinhaPedido; onMudar: (l: L
   const passo = l.embalagem ? 1 : aceitaFracao(l.p.unidade) ? 0.5 : 1;
   const embs = l.variacao ? [] : l.p.embalagens ?? [];
   const dep = l.variacao ? l.p.deposito?.vars?.[l.variacao.uid ?? ""] : l.p.deposito;
+  const [aviso, setAviso] = useState<string | null>(null);
   const mudarQtd = (q: number) => onMudar({ ...l, qtd: Math.max(passo, Math.round(q * 1000) / 1000) });
   return (
     <div className="rounded-2xl bg-background-deep/50 p-3">
@@ -389,12 +391,13 @@ function EditorLinha({ l, onMudar, onRemover }: { l: LinhaPedido; onMudar: (l: L
       </div>
       {embs.length > 0 && (
           <select aria-label={`Embalagem de ${nomeLinha(l)}`} value={l.embalagem?.uid ?? ""}
-            onChange={(e) => { const emb = embs.find((x) => x.uid === e.target.value) ?? null; onMudar({ ...l, embalagem: emb, qtd: emb ? Math.max(1, Math.round(l.qtd)) : l.qtd }); }}
+            onChange={(e) => { const emb = embs.find((x) => x.uid === e.target.value) ?? null; const r = trocarEmbalagem(l, emb); setAviso(r.mudou ? `O total passou de ${qtdUn(r.antes, l.p.unidade)} para ${qtdUn(r.depois, l.p.unidade)} para fechar a embalagem. Confira a quantidade.` : null); onMudar(r.linha); }}
             className="mt-2 h-11 w-full rounded-2xl border border-border bg-background-deep/60 px-3 text-sm text-foreground">
             {embs.map((e) => <option key={e.uid} value={e.uid}>{descricaoEmbalagem(e, l.p.unidade)}</option>)}
             <option value="">{`Por ${l.p.unidade === "Unidade" ? "unidade" : unPlural(l.p.unidade).replace(/s$/, "")} (avulso)`}</option>
           </select>
       )}
+      {aviso && <p role="status" className="mt-2 rounded-xl bg-warning/15 px-3 py-2 text-xs text-warning">{aviso}</p>}
     </div>
   );
 }

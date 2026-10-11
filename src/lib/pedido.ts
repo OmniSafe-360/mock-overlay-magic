@@ -174,3 +174,13 @@ export function linhasDoPedido(pedido: Pedido, products: Product[]): LinhaPedido
 /** Valor estimado guardado no item, em centavos. Ausente não é preço zero. */
 export const valorItemPedido = (i: ItemPedido): number | null => i.precoEstimado == null ? null : Math.round(i.precoEstimado * i.qtdUnidades);
 export const totalPedido = (pedido: Pedido) => pedido.itens.reduce((s, i) => s + (valorItemPedido(i) ?? 0), 0);
+
+/** B5: troca a embalagem mantendo o total em unidades de venda. Embalagem fechada arredonda para cima (mínimo 1).
+ * `mudou` = o total em unidades ficou diferente (o app avisa). */
+export function trocarEmbalagem(l: LinhaPedido, emb: Embalagem | null): { linha: LinhaPedido; antes: number; depois: number; mudou: boolean } {
+  const antes = unidadesDaLinha(l);
+  const qtd = emb ? Math.max(1, Math.ceil(antes / emb.qtd - 1e-9)) : Math.max(arredonda(antes, l.p.unidade), aceitaFracao(l.p.unidade) ? 0.001 : 1);
+  const linha = { ...l, embalagem: emb, qtd };
+  const depois = unidadesDaLinha(linha);
+  return { linha, antes, depois, mudou: Math.abs(depois - antes) > 1e-9 };
+}

@@ -181,3 +181,4 @@
 - 11/10/2026: **checklist 2, item B3 — novo link vale na hora**: `DetalhePedido` guarda o token devolvido por `novo_link_pedido`; `pedidoNovoLink` não falha se a recarga falhar. Sem mudança no banco. Precisa Publicar → Atualizar; falta o teste do dono.
 
 - 11/10/2026: **checklist 2, item B4 — vírgula na quantidade**: `src/components/CampoQtd.tsx` em `PaginaFornecedor` e `PainelPedidos`. Sem mudança no banco. Precisa Publicar → Atualizar; falta o teste do dono.
+- 11/10/2026: **checklist 2, item B5 — trocar embalagem mantém o total**: `trocarEmbalagem` (pedido.ts) converte pelo total em unidades; arredondamento avisa na linha. Sem mudança no banco. Precisa Publicar → Atualizar; falta o teste do dono.
