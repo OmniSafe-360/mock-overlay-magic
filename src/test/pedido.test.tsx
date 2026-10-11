@@ -87,7 +87,7 @@ describe("aba Pedidos", () => {
     expect(wa.getAttribute("href")).toMatch(/^https:\/\/wa\.me\/5511988887777\?text=Ol%C3%A1%2C%20Distribuidora%20Sol!%20Segue%20o%20pedido%20n%C2%BA%208/);
     fireEvent.click(wa);
     expect(t.onEnviado).toHaveBeenCalledWith("novo", "whatsapp");
-    fireEvent.click(dlg.getByRole("button", { name: "Pronto" }));
+    fireEvent.click(await dlg.findByRole("button", { name: "Pronto" }));
     expect(screen.queryByRole("region", { name: "Distribuidora Sol" })).toBeNull();
     expect(screen.getByText(/1 pedido salvo/)).toBeTruthy();
   });

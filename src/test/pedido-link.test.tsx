@@ -133,6 +133,23 @@ describe("página do fornecedor (link)", () => {
     expect(screen.getByText("cancelado")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Confirmar pedido|Responder|Alterar/ })).toBeNull();
   });
+  it("link em conferência explica o bloqueio sem oferecer uma nova resposta", async () => {
+    const { responder } = abrirPagina(publico({ podeResponder: false, emConferencia: true }));
+    expect((await screen.findByRole("status")).textContent).toMatch(/A loja está conferindo esta entrega/);
+    expect(screen.queryByRole("button", { name: /Confirmar pedido|Responder|Alterar/ })).toBeNull();
+    expect(screen.getByText("Dipirona 500 mg")).toBeTruthy();
+    expect(responder).not.toHaveBeenCalled();
+  });
+  it("formulário antigo recebe a recusa da conferência sem anunciar resposta salva", async () => {
+    const responder = vi.fn(async () => { throw { message: "recebimento_em_contagem", code: "23514" }; });
+    abrirPagina(publico(), responder);
+    await screen.findByText("Farmácia Vida");
+    fireEvent.click(screen.getByRole("button", { name: "Amanhã" }));
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar pedido/ }));
+    expect((await screen.findByRole("alert")).textContent).toMatch(/A equipe ainda está conferindo esta entrega/);
+    expect(screen.queryByText(/já recebeu sua resposta/)).toBeNull();
+    expect(responder).toHaveBeenCalledTimes(1);
+  });
 });
 
 /* ---------- lado do dono ---------- */
@@ -159,6 +176,26 @@ function abrirDono(pedidos: Pedido[], extra = {}) {
 }
 
 describe("pedido do dono com a resposta do fornecedor", () => {
+  it.each(["recebimento_em_contagem", "Não foi possível marcar o pedido como enviado. A equipe ainda está conferindo esta entrega. Espere terminar para decidir."])("reenvio recusado por conferência não anuncia enviado: %s", async (message) => {
+    const onEnviado = vi.fn(async () => { throw new Error(message); });
+    abrirDono([respondido], { onEnviado });
+    fireEvent.click(screen.getByRole("button", { name: /Pedido nº 3/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Enviar de novo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Copiar texto" }));
+    expect((await screen.findByRole("alert")).textContent).toMatch(/Espere terminar; este pedido não foi marcado como enviado/);
+    expect(screen.queryByText(/Marcado como enviado/)).toBeNull();
+    expect(onEnviado).toHaveBeenCalledWith(respondido.id, "copiado");
+  });
+  it("reenvio só anuncia enviado depois da confirmação", async () => {
+    let confirmar!: () => void;
+    abrirDono([respondido], { onEnviado: vi.fn(() => new Promise<void>((resolve) => { confirmar = resolve; })) });
+    fireEvent.click(screen.getByRole("button", { name: /Pedido nº 3/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Enviar de novo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Copiar texto" }));
+    expect(screen.queryByText(/Marcado como enviado/)).toBeNull();
+    confirmar();
+    expect(await screen.findByText(/Marcado como enviado/)).toBeTruthy();
+  });
   it("cartão mostra entrega, valor e pagamento; detalhe mostra o que vem e o que não vem", () => {
     abrirDono([respondido]);
     const card = screen.getByRole("button", { name: /Pedido nº 3/ });
