@@ -419,4 +419,19 @@ describe("dono: PIN do caixa, fechamentos e cancelar venda do celular", () => {
     await waitFor(() => expect(cancelarCelular).toHaveBeenCalledWith("v1", ""));
     expect(await screen.findByText(/Venda nº 3 cancelada/)).toBeTruthy();
   });
+  it("falta de um fechamento antigo que o dono não viu continua aparecendo, sem total de vendas falso", async () => {
+    const { PainelVendas } = await import("@/components/PainelVendas");
+    const antigo = new Date(Date.now() - 5 * 86_400_000).toISOString();
+    const api = {
+      caixas: vi.fn(async () => []), vendas: vi.fn(async () => []), criar: vi.fn(), renomear: vi.fn(), novoCodigo: vi.fn(), desligar: vi.fn(), pendentes: vi.fn(async () => []), resolver: vi.fn(),
+      fechamentos: vi.fn(async () => [{ id: "t9", caixaId: "cx", funcionario: "João", abertoEm: antigo, fechadoEm: antigo, trocoInicial: 5000, esperado: 20000, contado: 18000,
+        diferenca: -2000, observacao: null, conferidoEm: null, sangrias: 0 }]),
+      conferirFechamento: vi.fn(async () => {}), cancelarCelular: vi.fn(),
+    };
+    render(<PainelVendas comercioId="c1" tipo="mercado" products={[]} api={api as never} />);
+    expect(await screen.findByText("Faltaram R$ 20,00")).toBeTruthy();
+    const card = screen.getByText("João").closest("li")!;
+    expect(card.textContent).not.toMatch(/0 vendas/);
+    expect(within(card).getByRole("button", { name: /Já vi, tirar o alerta/ })).toBeTruthy();
+  });
 });

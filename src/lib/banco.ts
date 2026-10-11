@@ -719,7 +719,8 @@ export type FechamentoCaixa = {
 /** Turnos do caixa do celular abertos desde a data (ISO) e os que ainda estão abertos. */
 export async function carregarFechamentos(comercioId: string, desde: string): Promise<FechamentoCaixa[]> {
   const ts = await todos("caixa_turnos", "id,caixa_id,aberto_em,fechado_em,troco_inicial,dinheiro_esperado,dinheiro_contado,diferenca,observacao,conferido_em,situacao,funcionarios(nome)",
-    (q) => q.eq("comercio_id", comercioId).or(`aberto_em.gte.${desde},situacao.eq.aberto`));
+    // Também os fechamentos com falta ou sobra que o dono ainda não viu, de qualquer dia (não podem sumir sem ele ver).
+    (q) => q.eq("comercio_id", comercioId).or(`aberto_em.gte.${desde},situacao.eq.aberto,and(conferido_em.is.null,diferenca.neq.0)`));
   const ids = ts.map((t) => t.id);
   const sg = ids.length ? await todos("caixa_sangrias", "id,turno_id,valor", (q) => q.in("turno_id", ids)) : [];
   const ct = (v: unknown) => (v == null ? null : centavos(v));
