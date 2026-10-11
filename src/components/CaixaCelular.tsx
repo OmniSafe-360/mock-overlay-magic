@@ -606,7 +606,11 @@ function Receber({ total, pags, cliente, chave, escopo, api, erro, onPags, onCli
             ))}
           </ul>
         )}
-        {s.falta > 0 ? (
+        {s.passou > 0 ? (
+          <p role="alert" className="rounded-2xl border border-destructive/50 bg-destructive/10 p-3 text-center text-base font-semibold text-destructive">
+            O total da venda diminuiu. Pix, cartão e fiado não dão troco: tire o pagamento de cima (no X) e lance de novo com {brl(total)}.
+          </p>
+        ) : s.falta > 0 ? (
           <p className="rounded-2xl bg-warning/10 p-3 text-center text-lg font-bold text-warning">{pags.length ? "Ainda falta" : "A receber"} {brl(s.falta)}</p>
         ) : s.troco > 0 ? (
           <p className="rounded-2xl bg-accent/15 p-3 text-center text-accent"><span className="block text-sm font-semibold">Troco</span><span className="block text-4xl font-bold tabular-nums">{brl(s.troco)}</span></p>
