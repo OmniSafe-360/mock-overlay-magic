@@ -69,7 +69,7 @@ Fora desta lista, a pedido do dono: Omni Conector (caixa no computador) e "Esque
   - Onde: `StoreSetup.tsx:210-229`, `OwnerHome.tsx:62`.
 - [x] B14. (11/10/2026: "Conferir envio" não remonta mais a tela do comércio; a recarga traz os dados novos e o alerta de entrada não é reaplicado; sem mudança no banco) **Depois de "Conferir envio", a loja volta ao ponto de entrada do alerta.** Reabre "Fazer pedido" ou a ficha do produto, e o dono perde o que estava vendo (`OwnerHome.tsx:217`, `:261`, `:443`, `:456`).
 - [x] B15. (11/10/2026: área que o produto não usa conta como zero no total e no "Acabou"; área usada e não contada continua desconhecida; `situacao.ts`, teste `situacao-uma-area`; sem mudança no banco) **Produto contado só numa área aparece como "não contado" e nunca entra em "Acabaram".** Ao mesmo tempo, a aba da área de venda mostra "acabou": as telas se contradizem (`situacao.ts:35`, `:94`; `ListaProdutos.tsx:117-123`).
-- [ ] B16. **Caixa: diminuir a venda depois de escolher o pagamento deixa a tela Receber confusa.** Mostra "Troco" no Pix e "Finalizar venda" fica desligado sem explicar (`caixa.ts:100-105`, `CaixaCelular.tsx:588-613`).
+- [x] B16. (11/10/2026: Pix/cartão/fiado acima do total não viram troco; aviso vermelho explica tirar e lançar de novo — `situacaoPagamento.passou`. Falta o teste do dono.) **Caixa: diminuir a venda depois de escolher o pagamento deixa a tela Receber confusa.** Mostra "Troco" no Pix e "Finalizar venda" fica desligado sem explicar (`caixa.ts:100-105`, `CaixaCelular.tsx:588-613`).
 
 ## Etapa C — menores
 

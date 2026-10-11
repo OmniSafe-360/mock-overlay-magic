@@ -100,7 +100,7 @@ describe("regras do caixa", () => {
     expect(totalCarrinho(c)).toBe(698 + 5880 + 1397 + 798);
   });
   it("pagamento: só o dinheiro tem troco; Pix acima do total não fecha", () => {
-    expect(situacaoPagamento(6578, [{ forma: "dinheiro", valor: 10000 }])).toEqual({ pago: 10000, falta: 0, troco: 3422, pronto: true });
+    expect(situacaoPagamento(6578, [{ forma: "dinheiro", valor: 10000 }])).toMatchObject({ pago: 10000, falta: 0, troco: 3422, pronto: true });
     expect(situacaoPagamento(6578, [{ forma: "pix", valor: 7000 }]).pronto).toBe(false);
     expect(situacaoPagamento(6578, [{ forma: "dinheiro", valor: 2000 }]).falta).toBe(4578);
     expect(situacaoPagamento(0, []).pronto).toBe(false);

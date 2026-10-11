@@ -95,14 +95,16 @@ export const subtotal = (i: Pick<ItemCarrinho, "qtd" | "preco">) => Math.floor((
 export const totalCarrinho = (c: ItemCarrinho[]) => c.reduce((t, i) => t + subtotal(i), 0);
 export const contarItens = (c: ItemCarrinho[]) => c.reduce((t, i) => t + (i.fracionado ? 1 : i.qtd), 0);
 
-export type SituacaoPagamento = { pago: number; falta: number; troco: number; pronto: boolean };
+export type SituacaoPagamento = { pago: number; falta: number; troco: number; pronto: boolean; passou: number };
 /** Quanto falta, o troco (só o dinheiro pode passar do total) e se já dá para finalizar. */
 export function situacaoPagamento(total: number, pags: PagamentoCaixa[]): SituacaoPagamento {
   const pago = pags.reduce((t, p) => t + p.valor, 0);
   const outros = pags.filter((p) => p.forma !== "dinheiro").reduce((t, p) => t + p.valor, 0);
   const falta = Math.max(0, total - pago);
-  const troco = Math.max(0, pago - total);
-  return { pago, falta, troco, pronto: total > 0 && pago >= total && outros <= total };
+  // Pix/cartão/fiado não dão troco: se passam do total (a venda diminuiu depois), é preciso corrigir.
+  const passou = Math.max(0, outros - total);
+  const troco = passou > 0 ? 0 : Math.max(0, pago - total);
+  return { pago, falta, troco, pronto: total > 0 && pago >= total && passou === 0, passou };
 }
 
 /** Atalhos do "Quanto o cliente deu?": o valor exato e as notas que passam dele. */
