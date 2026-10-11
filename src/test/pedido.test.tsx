@@ -58,7 +58,7 @@ const pedidoEnviado: Pedido = { id: "ped-1", numero: 3, fornecedorId: "f-sol", s
 
 function abrir(extra: Partial<Parameters<typeof PainelPedidos>[0]> = {}) {
   const props = { products: [arroz, cafe, ok, semForn, doLua], store: comercio, suppliers: [sol, lua], pedidos: [] as Pedido[],
-    onSalvar: vi.fn(async () => ({ id: "novo", numero: 8 })), onEnviado: vi.fn(async () => {}), onCancelar: vi.fn(async () => {}), onNovoLink: vi.fn(async () => "n".repeat(64)), onPagamento: vi.fn(async () => {}), onOpenProduto: vi.fn(), ...extra };
+    onSalvar: vi.fn(async () => ({ id: "novo", numero: 8, token: "t".repeat(64) })), onEnviado: vi.fn(async () => {}), onCancelar: vi.fn(async () => {}), onNovoLink: vi.fn(async () => "n".repeat(64)), onPagamento: vi.fn(async () => {}), onOpenProduto: vi.fn(), ...extra };
   render(<PainelPedidos {...props} />);
   return props;
 }
@@ -90,6 +90,16 @@ describe("aba Pedidos", () => {
     fireEvent.click(await dlg.findByRole("button", { name: "Pronto" }));
     expect(screen.queryByRole("region", { name: "Distribuidora Sol" })).toBeNull();
     expect(screen.getByText(/1 pedido salvo/)).toBeTruthy();
+  });
+  it("B2: pedido salvo sem o link não abre o envio nem marca como enviado", async () => {
+    const t = abrir({ onSalvar: vi.fn(async () => ({ id: "novo", numero: 8 })) });
+    fireEvent.click(screen.getByRole("button", { name: /Novo pedido/ }));
+    const g = within(screen.getByRole("region", { name: "Distribuidora Sol" }));
+    fireEvent.click(g.getByRole("button", { name: /Salvar e enviar/ }));
+    expect(await g.findByText(/pedido nº 8 foi salvo, mas o link/)).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(t.onEnviado).not.toHaveBeenCalled();
+    expect((g.getByRole("button", { name: /Salvar e enviar/ }) as HTMLButtonElement).disabled).toBe(true);
   });
   it("fornecedor sem WhatsApp avisa e oferece copiar o texto", async () => {
     const t = abrir();

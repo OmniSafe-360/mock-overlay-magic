@@ -147,6 +147,13 @@ export async function carregarPedidos(comercioId: string): Promise<Pedido[]> {
   }));
 }
 
+/** Link secreto de um pedido salvo (B2): lido direto, sem depender da recarga da lista. */
+export async function tokenDoPedido(id: string): Promise<string | undefined> {
+  const { data, error } = await supabase.from("pedidos_compra").select("token").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data?.token ?? undefined;
+}
+
 /* ---------- recebimento (E2) ---------- */
 const numOuNull = (v: unknown) => (v == null ? null : Number(v));
 /** Pedidos mostram também a conferência em andamento; entregas avulsas mostram só as concluídas. */
