@@ -281,7 +281,7 @@ export async function carregarPedidoPublico(token: string): Promise<PedidoPublic
     podeResponder: !!data.pode_responder, emConferencia: !!data.em_contagem,
     comercio: { nome: data.comercio?.nome ?? "", rua: data.comercio?.rua ?? "", numero: data.comercio?.numero ?? "", bairro: data.comercio?.bairro ?? "",
       cidade: data.comercio?.cidade ?? "", uf: data.comercio?.uf ?? "", complemento: data.comercio?.complemento ?? "", telefone: data.comercio?.telefone ?? "" },
-    resposta: r ? { em: r.em, previsaoEntrega: r.previsao_entrega ?? null, valorTotal: centavosDe(r.valor_fornecedor), forma: r.forma_pagamento ?? null, prazoDias: r.prazo_dias ?? null, recado: r.recado ?? "" } : null,
+    resposta: r ? { em: r.em, previsaoEntrega: r.previsao_entrega ?? null, valorTotal: centavosDe(r.valor_total), forma: r.forma_pagamento ?? null, prazoDias: r.prazo_dias ?? null, recado: r.recado ?? "" } : null,
     itens: (data.itens ?? []).map((i: any) => ({
       id: i.id, produto: i.produto, codigo: i.codigo ?? null, unidade: i.unidade, variacao: i.variacao ?? null, embalagem: i.embalagem ?? null,
       porEmbalagem: i.por_embalagem == null ? null : Number(i.por_embalagem), qtdEmbalagens: Number(i.qtd_embalagens), qtdUnidades: Number(i.qtd_unidades),
