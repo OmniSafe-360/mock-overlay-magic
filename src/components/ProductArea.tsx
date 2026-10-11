@@ -241,7 +241,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const [avisos, setAvisos] = useState<number[]>(initVal?.avisos ?? ini.validade?.avisos ?? (initial ? [] : avisosPadrao(tipo)));
   const [valMsg, setValMsg] = useState("");
   const [lin, setLin] = useState<Record<string, LinhaEd[]>>(() => linhasIniciais(initVal, isFarm));
-  const desligarBloq = temQtdValidade(initVal);
+  const desligarBloq = !!initVal?.controla && temQtdValidade(initVal);
 
   const mercado = tipo === "mercado";
   const used = useMemo(() => usedCodes(products, initial?.id, mercado), [products, initial?.id, mercado]);
