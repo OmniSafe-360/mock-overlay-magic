@@ -135,6 +135,9 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
     if (d.length !== 8 || d === lastCep.current) return;
     lastCep.current = d;
     setCepState("loading");
+    // CEP novo: o endereço do CEP anterior sai (não pode continuar com a rua de outro CEP).
+    setAddr(null);
+    setAddrMode(null);
     let alive = true;
     type R = { kind: "ok"; a: Addr } | { kind: "notfound" } | { kind: "fail" };
     const viacep = async (): Promise<R> => {
@@ -167,11 +170,11 @@ export function StoreSetup({ mode = "first", onFinish, onCancel }: { mode?: "fir
       } else if (res.kind === "fail") {
         setCepState("idle");
         setAddrMode("manual");
-        setAddr((a) => a ?? { rua: "", bairro: "", cidade: "", uf: "" });
+        setAddr({ rua: "", bairro: "", cidade: "", uf: "" });
       } else {
         setCepState("error");
         setAddrMode(null);
-        setAddr((a) => a ?? { rua: "", bairro: "", cidade: "", uf: "" });
+        setAddr({ rua: "", bairro: "", cidade: "", uf: "" });
         setSheet(true);
       }
     })();
