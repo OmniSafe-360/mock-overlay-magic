@@ -2,7 +2,7 @@
 
 Plano de execução pedido pelo dono em **11/10/2026**. As regras continuam em [FONTE_DA_VERDADE.md](FONTE_DA_VERDADE.md); este arquivo detalha suas etapas. O histórico permanece em [CLAUDE.md](../CLAUDE.md). Não há uma segunda fonte de regras.
 
-**Etapa atual: E1 — confiabilidade. Próxima tarefa: R01, retomada da reposição após fechar o app.** Esta entrega organiza o trabalho; não aplica as correções abaixo nem altera dados reais.
+**Etapa atual: E1 — confiabilidade. Próxima correção: R02, concorrência entre pedido e recebimento em conferência.** R01 foi corrigido no código em 11/10/2026; falta publicar e o teste do dono. [Registro e roteiro de R01](reposicao-retomada-2026-10-11.md). Nenhum dado real foi alterado nesta entrega.
 
 ## Ponto de partida e limites da análise
 
@@ -36,7 +36,7 @@ Ao encerrar uma tarefa, registrar: ID, problema e cenário, PR/commit, testes ex
 
 | Etapa | Objetivo | Situação em 11/10/2026 |
 |---|---|---|
-| E1 | Fechar as pendências de confiabilidade identificadas nesta revisão | Próxima; R01 primeiro |
+| E1 | Fechar as pendências de confiabilidade identificadas nesta revisão | Em andamento; R01 corrigido, falta publicação/teste; R02 próximo |
 | E2 | Validar a jornada do dono, dos cadastros às compras e pagamentos | Implementada em grande parte; validação completa pendente |
 | E3 | Validar recebimento, estoque, reposição, perdas e diferenças juntos | Implementada; teste completo pendente |
 | E4 | Validar vendas, caixa, fiado e integração usada no piloto | Implementada; teste real pendente |
@@ -51,9 +51,9 @@ E2–E4 verificam o que já existe; não reconstroem os módulos. E5 inclui pend
 
 ### R01 — retomar reposição depois de fechar o app
 
-- [ ] **Corrigir e validar.** Limitação confirmada no código e no item antigo 5: o PIN por cima preserva a tela, mas fechar o app perde a etapa da reposição. `ReporGondola.tsx` mantém a tela/ID em estado de memória e cria novo ID ao iniciar outra vez.
+- [ ] **Pronto, falta publicação e o teste do dono.** A limitação do item antigo 5 foi reproduzida e corrigida: fechar o app perdia a etapa/ID em memória. Agora recupera produto, etapa, número digitado e envio anterior no mesmo aparelho/acesso. [Registro e roteiro](reposicao-retomada-2026-10-11.md).
 - Critério: fechar/reabrir antes de contar, depois de contar e depois de levar a mercadoria retoma a operação correta. Envio sem resposta recupera os mesmos dados e ID antes de começar outro. Dois cliques, duas abas e resposta atrasada não transferem em dobro. Conferir depósito, área de venda e `operacoes` na mesma transação.
-- Estado: **pendente de correção**. Próxima entrega; a persistência existente deve ser reaproveitada, sem criar tabela sem aprovação.
+- Estado: **corrigido no código em 11/10/2026**. Tipos e 846 testes em 74 arquivos aprovados duas vezes; build e testes operacionais locais aprovados; recarga, PIN e duas abas verificados no Chromium com serviços simulados em 320/1280 px. Banco sem mudança. Precisa **Publicar → Atualizar** no Lovable; fechamento real em Android/iPhone continua pendente. O `[ ]` fica aberto até a validação do dono.
 
 ### R02 — proteger pedido em conferência também no banco
 
@@ -168,7 +168,7 @@ Gerente com permissões novas, integração direta por API com marcas de PDV, ba
 
 | ID | Código/testes | Banco/publicação | Teste do dono | Próximo passo |
 |---|---|---|---|---|
-| E1 / R01 | Pendente | Não alterados nesta revisão | Pendente | Reproduzir fechamento e implementar retomada |
+| E1 / R01 | Corrigido em 11/10/2026; 846 testes duas vezes, build e testes locais aprovados; [registro](reposicao-retomada-2026-10-11.md) | Banco sem mudança; publicação pendente | Pendente | Publicar → Atualizar e executar roteiro de fechamento/retomada |
 | R02 | Cenário a verificar | Comparação atual pendente antes de mudar SQL | Pendente | Testar corrida entre pedido e conferência |
 | R03 | Pendente | Sem mudança preparada | Pendente | Explicar falha de consulta do fiado |
 | R04 | Pendente | Sem mudança preparada | Pendente | Tratar falha de rascunho local |

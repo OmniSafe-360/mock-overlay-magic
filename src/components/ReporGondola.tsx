@@ -1,6 +1,6 @@
 /* Repor gôndola no app do funcionário (E3). Primeiro ele conta a prateleira (sem ver quanto o sistema tem);
  * só depois o app diz quanto buscar no depósito, até encher (o máximo). Até o PDV existir, a contagem só acerta o estoque. */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, ArrowLeft, Camera, Check, CheckCircle2, MapPin, PackageSearch, Search, ShoppingBasket, Warehouse } from "lucide-react";
 import { Scanner } from "@/components/Scanner";
 import { Sheet } from "@/components/parts/Sheet";
@@ -9,8 +9,11 @@ import { TIPO_FROM_DB, btnGhost, btnPrimary } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";
 import { aceitaFracao, newUid, parseNum, qtdUn, unPlural } from "@/lib/deposito";
 import { textoDoTipo } from "@/lib/exemplos";
-import { mensagemErro } from "@/lib/persistencia";
+import { ehIncerto, mensagemErro } from "@/lib/persistencia";
 import { nomeProdutoFunc, type ProdutoFunc } from "@/lib/recebimento";
+import { escopoAcesso } from "@/lib/operacaoLocal";
+import { registroReposicao, type ItemReposicaoLocal, type ReposicaoLocal } from "@/lib/reposicaoLocal";
+import { ERRO_REGISTRO } from "@/lib/envios";
 
 export type ApiRepor = {
   lista: typeof banco.listaReposicao;
@@ -33,6 +36,7 @@ const MSG_REPOR: [string, string][] = [
 ];
 const erroTexto = (e: unknown) => {
   const m = String((e as { message?: string } | null)?.message ?? e ?? "");
+  if (m === ERRO_REGISTRO || m.startsWith("Esta reposição foi atualizada em outra aba.")) return m;
   return MSG_REPOR.find(([k]) => m.includes(k))?.[1] ?? mensagemErro(e).replace("Seus dados continuam no formulário. ", "").replace("Não foi possível salvar agora. ", "Não foi possível enviar agora. ");
 };
 /** Ordem de caminho: Gôndola 3 antes de Gôndola 10; sem local por último. */
@@ -45,41 +49,123 @@ const motivoSemEstoque = (motivo?: banco.MotivoSemReposicao | null) =>
     : motivo === "deposito_nao_contado" ? "O estoque do depósito ainda não foi contado. Avise o dono para conferir."
     : "Sem estoque disponível para reposição. Avise o dono para conferir o depósito.";
 
-type Item = ProdutoFunc & { local: string | null; localDeposito: string | null };
-type Tela =
-  | { t: "lista" }
-  | { t: "ir"; item: Item; id: string }
-  | { t: "contar"; item: Item; id: string }
-  | { t: "buscar"; item: Item; id: string; r: banco.RespostaContagemPrateleira };
+type Item = ItemReposicaoLocal;
 
 export function ReporGondola({ chave, onVoltar, api: apiDada }: { chave: string; onVoltar: () => void; api?: ApiRepor | undefined }) {
+  return <Reposicao key={chave} chave={chave} onVoltar={onVoltar} apiDada={apiDada} />;
+}
+
+function Reposicao({ chave, onVoltar, apiDada }: { chave: string; onVoltar: () => void; apiDada: ApiRepor | undefined }) {
   const api = apiDada ?? API_PADRAO;
-  const [tela, setTela] = useState<Tela>({ t: "lista" });
+  const [tela, setTela] = useState<ReposicaoLocal | null>(null);
+  const registro = useRef<ReturnType<typeof registroReposicao> | null>(null);
+  const [pronto, setPronto] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const ocupado = useRef(false);
+  const montado = useRef(true);
+  const [retomada, setRetomada] = useState(false);
+  const [erroEnvio, setErroEnvio] = useState("");
   const [dados, setDados] = useState<{ tipo: string; produtos: banco.ItemReposicao[] } | null>(null);
   const [erro, setErro] = useState("");
   const [feito, setFeito] = useState<{ texto: string; reposto: boolean } | null>(null);
   const [outro, setOutro] = useState(false);
   const carregar = useCallback(() => { setErro(""); api.lista(chave).then((d) => setDados({ ...d, produtos: [...d.produtos].sort(porLocal) })).catch((e) => setErro(erroTexto(e))); }, [api, chave]);
   useEffect(carregar, [carregar]);
-  const tipo = TIPO_FROM_DB[dados?.tipo ?? ""] ?? "mercado";
+  useEffect(() => {
+    let ativo = true;
+    montado.current = true;
+    void escopoAcesso(chave).then((escopo) => {
+      if (!ativo) return;
+      registro.current = registroReposicao(escopo);
+      const anterior = registro.current.atual();
+      setTela(anterior); setRetomada(!!anterior); setPronto(true);
+    }).catch((e) => { if (ativo) setErroEnvio(erroTexto(e)); });
+    return () => { ativo = false; montado.current = false; };
+  }, [chave]);
+  const tipo = TIPO_FROM_DB[tela?.tipo ?? dados?.tipo ?? ""] ?? "mercado";
   const t = textoDoTipo(tipo);
   const prateleira = tipo === "mercado" || tipo === "pet" ? "gôndola" : "área de venda";
   const titulo = tipo === "mercado" || tipo === "pet" ? "Repor gôndola" : "Repor área de venda";
-  const comecar = (item: Item) => { setFeito(null); setTela({ t: "ir", item, id: newUid() }); };
+  const guardar = (proxima: ReposicaoLocal | null) => {
+    if (!registro.current) throw new Error("Não foi possível abrir a reposição neste aparelho. Volte ao início e tente novamente.");
+    registro.current.guardar(proxima);
+    if (montado.current) setTela(proxima);
+  };
+  const mudar = (proxima: ReposicaoLocal | null) => {
+    if (ocupado.current) return;
+    if (registro.current?.atual() !== tela) return;
+    try { guardar(proxima); setErroEnvio(""); } catch (e) { setErroEnvio(erroTexto(e)); }
+  };
+  const comecar = (p: Item) => {
+    const { produtoId, variacaoId, nome, unidade, codigo, variacao, local, localDeposito } = p;
+    mudar({ t: "ir", item: { produtoId, variacaoId, nome, unidade, codigo, variacao, local, localDeposito }, id: newUid(), tipo: dados?.tipo ?? "mercado", valor: "" });
+    setFeito(null); setRetomada(false);
+  };
   const terminou = (item: Item, levado: number, r: banco.RespostaContagemPrateleira) => {
     setFeito({ reposto: levado > 0, texto: levado > 0
       ? `Reposição concluída: ${nomeProdutoFunc(item)} · colocado na ${prateleira}: ${qtdUn(levado, item.unidade)}.`
       : `${nomeProdutoFunc(item)}: contagem registrada. Reposição não realizada. ${r.cheio ? "A quantidade contada já atende ao limite da área de venda." : r.sugerido > 0 ? "Nenhuma quantidade foi colocada." : t(motivoSemEstoque(r.motivoSemReposicao))}` });
-    setTela({ t: "lista" }); carregar();
+    setRetomada(false); carregar();
+  };
+  const enviar = async (q: number) => {
+    if (ocupado.current || !registro.current) return;
+    if (registro.current.atual() !== tela) return;
+    ocupado.current = true; setEnviando(true); setErroEnvio("");
+    const reg = registro.current;
+    try {
+      await reg.exclusivo(async () => {
+        const atual = reg.atual();
+        if (!atual || atual.t === "ir") return;
+        const envio: ReposicaoLocal = atual.t === "contar"
+          ? { ...atual, contado: atual.contado ?? q, valor: atual.contado === null ? String(q).replace(".", ",") : atual.valor }
+          : { ...atual, levado: atual.levado ?? q };
+        // Gravação síncrona e comparação entre abas antes de qualquer chamada ao banco.
+        guardar(envio);
+        try {
+          if (envio.t === "contar") {
+            const r = await api.contar(chave, envio.id, envio.item.produtoId, envio.item.variacaoId, envio.contado!);
+            if (r.situacao === "concluido") {
+              guardar(null);
+              if (montado.current) { setFeito({ reposto: false, texto: "Esta reposição já foi registrada. Nenhuma nova transferência foi feita. Atualize a lista antes de continuar." }); carregar(); }
+            } else {
+              guardar({ t: "buscar", item: envio.item, id: envio.id, tipo: envio.tipo, r,
+                valor: r.sugerido > 0 ? String(r.sugerido).replace(".", ",") : "", levado: null });
+            }
+          } else if (envio.t === "buscar") {
+            await api.concluir(chave, envio.id, envio.levado!);
+            guardar(null);
+            if (montado.current) terminou(envio.item, envio.levado!, envio.r);
+          }
+        } catch (e) {
+          // Uma recusa explícita permite corrigir o número. Falta de resposta mantém os dados congelados.
+          if (!ehIncerto(e)) guardar(envio.t === "contar" ? { ...envio, contado: null } : { ...envio, levado: null });
+          throw e;
+        }
+      });
+    } catch (e) { if (montado.current) setErroEnvio(erroTexto(e)); }
+    finally { ocupado.current = false; if (montado.current) setEnviando(false); }
   };
 
-  if (tela.t === "ir")
-    return <Ir mercado={tipo === "mercado"} item={tela.item} prateleira={prateleira} chave={chave} api={api} onVoltar={() => setTela({ t: "lista" })} onCheguei={() => setTela({ t: "contar", item: tela.item, id: tela.id })} />;
-  if (tela.t === "contar")
-    return <ContarPrateleira item={tela.item} id={tela.id} prateleira={prateleira} chave={chave} api={api} onVoltar={() => setTela({ t: "ir", item: tela.item, id: tela.id })}
-      onContou={(r) => setTela({ t: "buscar", item: tela.item, id: tela.id, r })} />;
-  if (tela.t === "buscar")
-    return <Buscar item={tela.item} id={tela.id} r={tela.r} prateleira={prateleira} t={t} chave={chave} api={api} onPronto={(lev) => terminou(tela.item, lev, tela.r)} />;
+  if (!pronto) return <div className="space-y-4">
+    <button type="button" onClick={onVoltar} className={btnGhost}>Início</button>
+    {erroEnvio ? <p role="alert" className="text-destructive">{erroEnvio}</p> : <p className="py-8 text-center text-muted-foreground">Abrindo reposição…</p>}
+  </div>;
+  if (tela) {
+    const pendente = tela.t === "contar" ? tela.contado !== null : tela.t === "buscar" && tela.levado !== null;
+    return <>
+      {retomada && <p className="mb-3 rounded-2xl border border-primary/50 p-3 text-sm">Reposição retomada. Continue do ponto em que parou.</p>}
+      {erroEnvio && <p role="alert" className="mb-3 rounded-2xl border border-destructive/50 bg-destructive/10 p-3 text-sm font-semibold text-destructive">{erroEnvio}</p>}
+      {pendente && <p className="mb-3 rounded-2xl border border-warning/50 p-3 text-sm">Há um envio sem confirmação. Confirme o envio anterior; não conte nem leve produtos novamente.</p>}
+      {tela.t === "buscar" && <button type="button" onClick={onVoltar} className="mb-3 flex min-h-12 items-center gap-2 text-base font-semibold text-primary"><ArrowLeft size={18} /> Início</button>}
+      {tela.t === "ir" && <Ir mercado={tipo === "mercado"} item={tela.item} prateleira={prateleira} chave={chave} api={api}
+        onVoltar={() => mudar(null)} onCheguei={() => mudar({ ...tela, t: "contar", contado: null })} />}
+      {tela.t === "contar" && <ContarPrateleira item={tela.item} prateleira={prateleira} valor={tela.valor}
+        onMudar={(valor) => { if (!pendente) mudar({ ...tela, valor }); }} travado={enviando || pendente} enviando={enviando} pendente={pendente}
+        onVoltar={() => { if (pendente) onVoltar(); else mudar({ t: "ir", item: tela.item, id: tela.id, tipo: tela.tipo, valor: tela.valor }); }} onEnviar={(q) => void enviar(q)} />}
+      {tela.t === "buscar" && <Buscar item={tela.item} r={tela.r} prateleira={prateleira} t={t} valor={tela.valor}
+        onMudar={(valor) => { if (!pendente) mudar({ ...tela, valor }); }} travado={enviando || pendente} enviando={enviando} pendente={pendente} onEnviar={(q) => void enviar(q)} />}
+    </>;
+  }
 
   return (
     <div className="space-y-4">
@@ -92,6 +178,7 @@ export function ReporGondola({ chave, onVoltar, api: apiDada }: { chave: string;
         {feito.reposto ? <CheckCircle2 size={18} className="mt-0.5 shrink-0" /> : <AlertTriangle size={18} className="mt-0.5 shrink-0" />} {feito.texto}
       </p>}
       {erro && <p role="alert" className="rounded-2xl border border-destructive/50 bg-destructive/10 p-3 text-sm font-semibold text-destructive">{erro}</p>}
+      {erroEnvio && <p role="alert" className="rounded-2xl border border-destructive/50 bg-destructive/10 p-3 text-sm font-semibold text-destructive">{erroEnvio}</p>}
       {!dados && !erro && <p className="py-8 text-center text-muted-foreground">Carregando…</p>}
       {dados && !dados.produtos.length && (
         <div className="flex flex-col items-center gap-2 rounded-3xl border border-dashed border-border px-4 py-8 text-center">
@@ -164,53 +251,38 @@ function Ir({ item, prateleira, chave, api, onVoltar, onCheguei, mercado }: {
   );
 }
 
-function ContarPrateleira({ item, id, prateleira, chave, api, onVoltar, onContou }: {
-  item: Item; id: string; prateleira: string; chave: string; api: ApiRepor; onVoltar: () => void; onContou: (r: banco.RespostaContagemPrateleira) => void;
+function ContarPrateleira({ item, prateleira, valor, onMudar, onVoltar, onEnviar, travado, enviando, pendente }: {
+  item: Item; prateleira: string; valor: string; onMudar: (valor: string) => void; onVoltar: () => void; onEnviar: (q: number) => void;
+  travado: boolean; enviando: boolean; pendente: boolean;
 }) {
-  const [valor, setValor] = useState("");
-  const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState("");
   const n = parseNum(valor, item.unidade, false);
   const plural = unPlural(item.unidade).toLowerCase();
-  const enviar = async (q: number) => {
-    setEnviando(true); setErro("");
-    try { onContou(await api.contar(chave, id, item.produtoId, item.variacaoId, q)); }
-    catch (e) { setErro(erroTexto(e)); setEnviando(false); }
-  };
   return (
     <div className="flex flex-1 flex-col gap-4">
-      <Cabecalho item={item} onVoltar={onVoltar} voltar="Voltar" />
+      <Cabecalho item={item} onVoltar={onVoltar} voltar={pendente ? "Início" : "Voltar"} />
       <div className="space-y-3 rounded-3xl border border-border p-4">
-        <p className="text-xl font-bold">Quanto tem na {prateleira} agora?</p>
-        <p className="text-sm text-muted-foreground">Conte tudo deste produto na {prateleira}, inclusive atrás e embaixo.</p>
-        <Contador rotulo={`Na ${prateleira} (${plural})`} valor={valor} fracao={aceitaFracao(item.unidade)} onMudar={setValor} />
+        <p className="text-xl font-bold">{pendente ? `Contagem enviada da ${prateleira}` : `Quanto tem na ${prateleira} agora?`}</p>
+        <p className="text-sm text-muted-foreground">{pendente ? "Confirme o envio anterior com a quantidade abaixo." : `Conte tudo deste produto na ${prateleira}, inclusive atrás e embaixo.`}</p>
+        <fieldset disabled={travado}><Contador rotulo={`Na ${prateleira} (${plural})`} valor={valor} fracao={aceitaFracao(item.unidade)} onMudar={onMudar} /></fieldset>
         {valor && n.err && <p role="alert" className="text-sm font-semibold text-destructive">{n.err}</p>}
       </div>
-      {erro && <p role="alert" className="rounded-2xl border border-destructive/50 bg-destructive/10 p-3 text-sm font-semibold text-destructive">{erro}</p>}
       <div className="mt-auto space-y-2">
-        <button type="button" disabled={enviando || n.v == null} onClick={() => n.v != null && void enviar(n.v)} className={`flex items-center justify-center gap-2 ${btnPrimary(!enviando && n.v != null)}`}>
-          <Check size={20} /> {enviando ? "Enviando…" : "Confirmar contagem"}
+        <button type="button" disabled={enviando || (!pendente && n.v == null)} onClick={() => onEnviar(n.v ?? 0)} className={`flex items-center justify-center gap-2 ${btnPrimary(!enviando && (pendente || n.v != null))}`}>
+          <Check size={20} /> {enviando ? "Enviando…" : pendente ? "Confirmar envio anterior" : "Confirmar contagem"}
         </button>
-        <button type="button" disabled={enviando} onClick={() => void enviar(0)} className={`w-full ${btnGhost}`}>Está vazia (nenhum)</button>
+        <button type="button" disabled={travado} onClick={() => onEnviar(0)} className={`w-full ${btnGhost}`}>Está vazia (nenhum)</button>
       </div>
     </div>
   );
 }
 
-function Buscar({ item, id, r, prateleira, t, chave, api, onPronto }: {
-  item: Item; id: string; r: banco.RespostaContagemPrateleira; prateleira: string; t: (s: string) => string; chave: string; api: ApiRepor; onPronto: (levado: number) => void;
+function Buscar({ item, r, prateleira, t, valor, onMudar, onEnviar, travado, enviando, pendente }: {
+  item: Item; r: banco.RespostaContagemPrateleira; prateleira: string; t: (s: string) => string; valor: string;
+  onMudar: (valor: string) => void; onEnviar: (q: number) => void; travado: boolean; enviando: boolean; pendente: boolean;
 }) {
-  const [valor, setValor] = useState(r.sugerido > 0 ? String(r.sugerido).replace(".", ",") : "");
-  const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState("");
   const n = parseNum(valor, item.unidade, true);
   const lev = n.v ?? 0;
   const acima = lev > r.sugerido;
-  const concluir = async (q: number) => {
-    setEnviando(true); setErro("");
-    try { await api.concluir(chave, id, q); onPronto(q); }
-    catch (e) { setErro(erroTexto(e)); setEnviando(false); }
-  };
   if (r.cheio || r.depositoVazio || r.sugerido <= 0)
     return (
       <div className="flex flex-1 flex-col gap-4">
@@ -220,8 +292,7 @@ function Buscar({ item, id, r, prateleira, t, chave, api, onPronto }: {
           <p className="mt-1 text-sm">{r.cheio ? "Não precisa repor agora." : t(motivoSemEstoque(r.motivoSemReposicao))}</p>
           <p className="mt-2 text-sm text-muted-foreground">Ao tocar em Entendi, sua contagem será registrada, sem transferir produtos.</p>
         </div>
-        {erro && <p role="alert" className="text-sm font-semibold text-destructive">{erro}</p>}
-        <button type="button" disabled={enviando} onClick={() => void concluir(0)} className={`mt-auto ${btnPrimary(!enviando)}`}>{enviando ? "Enviando…" : "Entendi"}</button>
+        <button type="button" disabled={enviando} onClick={() => onEnviar(0)} className={`mt-auto ${btnPrimary(!enviando)}`}>{enviando ? "Enviando…" : pendente ? "Confirmar envio anterior" : "Entendi"}</button>
       </div>
     );
   return (
@@ -229,20 +300,19 @@ function Buscar({ item, id, r, prateleira, t, chave, api, onPronto }: {
       <div className="rounded-3xl border border-border bg-secondary/60 p-4"><p className="break-words text-xl font-bold">{nomeProdutoFunc(item)}</p></div>
       <div className="flex flex-col items-center gap-1 rounded-3xl border-2 border-primary/50 bg-primary/10 p-5 text-center">
         <Warehouse size={34} className="text-primary" />
-        <p className="text-sm text-muted-foreground">{t("Busque no depósito")}</p>
+        <p className="text-sm text-muted-foreground">{pendente ? "Quantidade indicada antes do envio" : t("Busque no depósito")}</p>
         <p className="text-3xl font-bold">{qtdUn(r.sugerido, item.unidade)}</p>
         {(r.localDeposito ?? item.localDeposito) && <p className="flex items-center gap-1 text-sm"><MapPin size={14} /> {r.localDeposito ?? item.localDeposito}</p>}
       </div>
       <div className="space-y-2 rounded-3xl border border-border p-4">
         <p className="text-base font-bold">Quanto você colocou na {prateleira}?</p>
-        <Contador rotulo={`Coloquei (${unPlural(item.unidade).toLowerCase()})`} valor={valor} fracao={aceitaFracao(item.unidade)} onMudar={setValor} />
+        <fieldset disabled={travado}><Contador rotulo={`Coloquei (${unPlural(item.unidade).toLowerCase()})`} valor={valor} fracao={aceitaFracao(item.unidade)} onMudar={onMudar} /></fieldset>
         <p className="text-xs text-muted-foreground">{t("Se o depósito tinha menos, diga quanto pegou.")}</p>
         {acima && <p role="alert" className="text-sm font-semibold text-destructive">No máximo {qtdUn(r.sugerido, item.unidade)}: confira a quantidade indicada para esta reposição.</p>}
         {n.err && <p role="alert" className="text-sm font-semibold text-destructive">{n.err}</p>}
       </div>
-      {erro && <p role="alert" className="rounded-2xl border border-destructive/50 bg-destructive/10 p-3 text-sm font-semibold text-destructive">{erro}</p>}
-      <button type="button" disabled={enviando || acima || !!n.err} onClick={() => void concluir(lev)} className={`mt-auto flex items-center justify-center gap-2 ${btnPrimary(!enviando && !acima && !n.err)}`}>
-        <Check size={20} /> {enviando ? "Enviando…" : `Coloquei na ${prateleira}`}
+      <button type="button" disabled={enviando || (!pendente && (acima || !!n.err))} onClick={() => onEnviar(lev)} className={`mt-auto flex items-center justify-center gap-2 ${btnPrimary(!enviando && (pendente || (!acima && !n.err)))}`}>
+        <Check size={20} /> {enviando ? "Enviando…" : pendente ? "Confirmar envio anterior" : `Coloquei na ${prateleira}`}
       </button>
     </div>
   );
