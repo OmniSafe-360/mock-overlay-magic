@@ -2,7 +2,7 @@
 
 Pedido do dono em 12/10/2026, após o print `72034.png`. A investigação encontrou uma venda de teste de 7 sobre saldo 5 sendo registrada pela função antiga, com baixa de 5 e falta de 2. Esse resultado foi reproduzido em banco privado e revertido. O print sozinho mostrava o carrinho; não provava uma venda finalizada nem autoriza corrigir os saldos reais da Bala de banana.
 
-**Situação:** corrigido no código e aplicado no banco oficial; falta **Publicar → Atualizar** no Lovable e o teste do dono. E3/E4 continuam abertas até a validação conjunta. PR: a registrar após criação. Migração oficial: `supabase/migrations/20261012055317_caixa_estoque_contagens.sql`.
+**Situação:** corrigido no código e aplicado no banco oficial; falta **Publicar → Atualizar** no Lovable e o teste do dono. E3/E4 continuam abertas até a validação conjunta. [PR #111](https://github.com/OmniSafe-360/mock-overlay-magic/pull/111), correção `c78ac23`. Migração oficial: `supabase/migrations/20261012055317_caixa_estoque_contagens.sql`.
 
 ## Comportamento entregue
 
