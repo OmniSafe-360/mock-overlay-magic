@@ -45,10 +45,11 @@ export async function fiadoExtrato(token: string, sessao: string): Promise<Extra
   return {
     cliente: data.cliente, comercio: data.comercio, telefoneComercio: data.telefone_comercio ?? "", whatsapp: !!data.whatsapp,
     deve: Number(data.deve ?? 0), desde: data.desde ?? null, limite: data.limite == null ? null : Number(data.limite), bloqueado: !!data.bloqueado,
-    movimentos: (data.movimentos ?? []).map((m: Record<string, unknown>) => ({
+    movimentos: (data.movimentos ?? []).map(// eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (m: any) => ({
       tipo: String(m.tipo), valor: Number(m.valor), forma: (m.forma as string) ?? null, criadoEm: String(m.criado_em),
       vendaNumero: (m.venda_numero as number) ?? null,
-      itens: ((m.itens as Record<string, unknown>[]) ?? []).map((i) => ({ descricao: String(i.descricao), qtd: Number(i.qtd), valor: Number(i.valor) })),
+      itens: ((m.itens ?? []) as any[]).map((i: any) => ({ descricao: String(i.descricao), qtd: Number(i.qtd), valor: Number(i.valor) })),
     })),
   };
 }
