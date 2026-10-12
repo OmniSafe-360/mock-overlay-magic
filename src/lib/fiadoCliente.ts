@@ -80,3 +80,22 @@ export async function linkClienteCaixa(chave: string, clienteId: string): Promis
   if (error) throw error;
   return String(data);
 }
+
+/** P4: avisos da página do cliente. `vistoEm` = última vez que ele abriu a conta neste aparelho (null = primeira vez). */
+export function avisosFiado(x: Pick<ExtratoFiado, "deve" | "desde" | "movimentos">, vistoEm: string | null, agora = Date.now()) {
+  const avisos: { tipo: "compra" | "pagamento" | "antiga"; texto: string }[] = [];
+  if (vistoEm) {
+    const novos = x.movimentos.filter((m) => Date.parse(m.criadoEm) > Date.parse(vistoEm));
+    const compras = novos.filter((m) => m.tipo === "compra");
+    const pags = novos.filter((m) => m.tipo === "pagamento");
+    const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    if (compras.length) avisos.push({ tipo: "compra", texto: `${compras.length === 1 ? "1 compra nova" : `${compras.length} compras novas`} desde a sua última visita: ${brl(compras.reduce((t, m) => t + m.valor, 0))}.` });
+    if (pags.length) avisos.push({ tipo: "pagamento", texto: `${pags.length === 1 ? "Pagamento recebido" : `${pags.length} pagamentos recebidos`}: ${brl(pags.reduce((t, m) => t + m.valor, 0))}. Obrigado!` });
+  }
+  if (x.deve > 0 && x.desde) {
+    const dias = Math.floor((agora - Date.parse(x.desde)) / 86400000);
+    if (dias > 30) avisos.push({ tipo: "antiga", texto: `Sua conta está aberta há ${dias} dias. Quando puder, passe no comércio para acertar.` });
+  }
+  return avisos;
+}
+export const chaveVisto = (token: string) => `omni.fiado.visto:${token.slice(0, 16)}`;
