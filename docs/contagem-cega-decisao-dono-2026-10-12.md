@@ -26,7 +26,7 @@ Migração **`20261012003349_contagem_cega_decisao_dono.sql`**, versão efetivam
 ## Evidências e limites
 
 - Nove testes novos de tela: recontagem vazia, ID/rodada, duas iguais e três diferentes, retomada, lista bloqueada de ambas as áreas, reposição legada e escolhas do dono. Três casos falharam antes da mudança.
-- Tipos e **988 testes em 93 arquivos**, ambos duas vezes após a última alteração; build aprovado.
+- Tipos e **990 testes em 94 arquivos**, ambos duas vezes após a última alteração; build aprovado.
 - **41 asserções/recusas SQL**: diferenças sem estoque automático, contorno/reenvio/rodada, outro dono conhecendo o ID, escolha inválida, decisão única, movimentos posteriores, transferência sem duplicação, legado, troca de dia, produto desativado e RLS/permissões. Regressões de validade e recebimento também aprovadas.
 - **Seis disputas entre conexões PostgreSQL reais**: dois IDs, reenvio da rodada, duas decisões, dois “Coloquei”, duas reposições ocupando a mesma gôndola e decisão versus nova contagem. Banco local descartável, só dados fictícios.
 - Chromium de produção em **320 e 1280 px**, seis roteiros de gôndola/depósito, contagem vazia/mesmo ID/rodada e bloqueio sem corte horizontal ou exceção. Respostas de API simuladas; imagens inspecionadas. Teste do dono no app publicado continua pendente.

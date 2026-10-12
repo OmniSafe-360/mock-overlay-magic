@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ReporGondola, type ApiRepor } from "@/components/ReporGondola";
 import { ConferirDeposito, type ApiConferir } from "@/components/ConferirDeposito";
 import { PainelDiferencas, type ApiDiferencas } from "@/components/PainelDiferencas";
-import { textoDiferenca, precisaEscolher, type Diferenca } from "@/lib/diferencas";
+import { textoDiferenca, origemTexto, precisaEscolher, type Diferenca } from "@/lib/diferencas";
 
 vi.mock("@/components/Scanner", () => ({ Scanner: () => null }));
 const produto = { produtoId: "p-cega", variacaoId: null, embalagemId: null, nome: "Produto cego", unidade: "Unidade", codigo: "789", variacao: null,
@@ -96,6 +96,7 @@ it("dono vê duas contagens confirmadas com diferença sem texto falso de três 
   const dif: Diferenca = { id: "d-cega", produtoId: "p-cega", variacaoId: null, area: "venda", origem: "conferencia_inconsistente", esperado: 0, contado: 3, diferenca: 3, valor: 600,
     funcionario: "Equipe", situacao: "aberta", motivo: null, observacao: null, tentativas: [3, 3], resolvida: false, contagemConfirmada: true, motivoInformado: null, criadaEm: new Date().toISOString() };
   expect(precisaEscolher(dif)).toBe(true); expect(textoDiferenca(dif,"Unidade","mercado")).toMatch(/Contagem com diferença.*aguardando sua decisão/);
+  expect(origemTexto(dif,"mercado")).toBe("Contagem na gôndola (contagem repetida com diferença)");
   const resolver = vi.fn(async () => ({ diferenca: 0, valor: 0 }));
   const api = { carregar: vi.fn(async () => ({ diferencas: [dif], perdas: [] })), resolver, explicar: vi.fn(), decidirPerda: vi.fn(), registrarPerda: vi.fn() } as unknown as ApiDiferencas;
   render(<PainelDiferencas comercioId="com-cega" tipo="mercado" products={[]} api={api} />);
