@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BookUser, ChevronRight, HandCoins, MessageCircle, Pencil, Search } from "lucide-react";
 import { Sheet } from "@/components/parts/Sheet";
+import { CompartilharFiado } from "@/components/CompartilharFiado";
+import { linkClienteDono } from "@/lib/fiadoCliente";
 import { btnGhost, btnPrimary } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";
 import { centavosDigitados, mascaraDinheiro } from "@/lib/caixa";
