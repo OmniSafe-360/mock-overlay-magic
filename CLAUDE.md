@@ -209,3 +209,4 @@
 - 12/10/2026: **fiado no caixa F4** — histórico do cliente no menu "Clientes do fiado" (função nova `caixa_cliente_fiado_historico`, só leitura). Precisa Publicar → Atualizar; falta o teste do dono. Próxima: F5 (aguarda aprovação).
 - 12/10/2026: **fiado no caixa F5** — cadastrar cliente no caixa sem vender (função nova `caixa_salvar_cliente_fiado`). Precisa Publicar → Atualizar; falta o teste do dono. Próxima: F6 (aguarda aprovação).
 - 12/10/2026: **fiado no caixa F6** — receber pagamento do fiado no caixa (função nova `caixa_receber_fiado`; dinheiro entra no esperado da gaveta via `_resumo_turno`). Precisa Publicar → Atualizar; falta o teste do dono. Próxima: F7.
+- 12/10/2026: **fiado no caixa F7** — fechamento mostra "Recebido do fiado" e "+ Dinheiro do fiado"; histórico do dono diz "no caixa (nome)". Sem banco. Precisa Publicar → Atualizar; falta o teste do dono. F8 só se o dono pedir.
