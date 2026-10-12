@@ -1,6 +1,6 @@
 /* Página que o cliente do fiado abre pelo link (P2): cria/digita o PIN e vê a própria conta. Só leitura. */
 import { useEffect, useState } from "react";
-import { AlertTriangle, MessageCircle, Phone } from "lucide-react";
+import { AlertTriangle, Bell, MessageCircle, Phone } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import { btnPrimary } from "@/components/StoreSetup";
 import { avisosFiado, chaveVisto, fiadoEntrar, fiadoEstado, fiadoExtrato, mensagemEntrarFiado, textoMov, type EstadoFiado, type ExtratoFiado } from "@/lib/fiadoCliente";
@@ -39,7 +39,7 @@ export function PaginaFiadoCliente({ token }: { token: string }) {
   return (
     <div className="min-h-dvh bg-app text-foreground">
       <main className="mx-auto max-w-[520px] space-y-4 px-4 pb-10 pt-5">
-        <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><LogoMark size={28} /> Omni Safe 360</div>
+        <div className="flex h-11 items-center gap-2 text-sm font-semibold text-muted-foreground"><LogoMark size={28} /> Omni Safe Cliente</div>
         {tela.t === "carregando" && <p className="py-16 text-center text-base text-muted-foreground">Abrindo sua conta…</p>}
         {tela.t === "invalido" && <Aviso titulo="Este link não vale mais" texto="Peça um link novo ao comércio." />}
         {tela.t === "erro" && (
@@ -127,16 +127,25 @@ function TelaPin({ token, e, onEntrou }: { token: string; e: Extract<EstadoFiado
 
 function Conta({ token, x, onSair }: { token: string; x: ExtratoFiado; onSair: () => void }) {
   const [avisos, setAvisos] = useState<ReturnType<typeof avisosFiado>>([]);
+  const [balao, setBalao] = useState(false);
   useEffect(() => {
     let visto: string | null = null;
     try { visto = localStorage.getItem(chaveVisto(token)); } catch { /* sem armazenamento */ }
-    setAvisos(avisosFiado(x, visto));
+    const a = avisosFiado(x, visto);
+    setAvisos(a);
+    setBalao(a.length > 0);
     try { localStorage.setItem(chaveVisto(token), new Date().toISOString()); } catch { /* sem armazenamento */ }
   }, [token, x]);
   const tel = x.telefoneComercio.replace(/\D/g, "");
   const podeComprar = x.limite != null ? Math.max(0, x.limite - x.deve) : null;
   return (
     <div className="space-y-4">
+      <div className="-mt-[60px] flex justify-end">
+        <button type="button" onClick={() => setBalao((b) => !b)} aria-label={`Notificações${avisos.length ? `: ${avisos.length}` : ""}`} className="relative flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card">
+          <Bell size={20} />
+          {avisos.length > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-xs font-bold text-destructive-foreground">{avisos.length}</span>}
+        </button>
+      </div>
       <div className="rounded-2xl border border-border bg-card p-5">
         <p className="text-sm text-muted-foreground">{x.comercio} · {x.cliente}</p>
         <p className="mt-3 text-base font-medium">{x.deve > 0 ? "Total que você deve" : "Você não deve nada"}</p>
@@ -146,12 +155,17 @@ function Conta({ token, x, onSair }: { token: string; x: ExtratoFiado; onSair: (
         {!x.bloqueado && podeComprar != null && <p className="mt-3 text-sm">Seu limite é {brl(x.limite!)}. Ainda pode comprar {brl(podeComprar)}.</p>}
       </div>
 
-      {avisos.length > 0 && (
-        <ul className="space-y-2" aria-label="Avisos">
-          {avisos.map((a, i) => (
-            <li key={i} className={`rounded-2xl border p-3 text-sm font-medium ${a.tipo === "pagamento" ? "border-primary/40 bg-primary/10" : a.tipo === "antiga" ? "border-destructive/40 bg-destructive/10" : "border-border bg-card"}`}>{a.texto}</li>
-          ))}
-        </ul>
+      {balao && (
+        <div className="relative rounded-2xl border border-border bg-card p-4 shadow-lg" aria-label="Notificações">
+          <div className="absolute -top-2 right-5 h-4 w-4 rotate-45 border-l border-t border-border bg-card" />
+          <p className="mb-2 text-sm font-bold">Notificações</p>
+          {avisos.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma novidade.</p>}
+          <ul className="space-y-2">
+            {avisos.map((a, i) => (
+              <li key={i} className={`rounded-xl border p-3 text-sm font-medium ${a.tipo === "pagamento" ? "border-primary/40 bg-primary/10" : a.tipo === "antiga" ? "border-destructive/40 bg-destructive/10" : "border-border bg-background/40"}`}>{a.texto}</li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {tel && (

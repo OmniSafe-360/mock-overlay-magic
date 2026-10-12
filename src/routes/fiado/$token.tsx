@@ -5,7 +5,7 @@ import { PaginaFiadoCliente } from "@/components/PaginaFiadoCliente";
 export const Route = createFileRoute("/fiado/$token")({
   head: () => ({
     meta: [
-      { title: "Minha conta no fiado — Omni Safe 360" },
+      { title: "Minha conta no fiado — Omni Safe Cliente" },
       { name: "description", content: "Veja quanto você deve no fiado, com suas compras e pagamentos." },
       { property: "og:title", content: "Minha conta no fiado" },
       { property: "og:description", content: "Veja quanto você deve no fiado." },
