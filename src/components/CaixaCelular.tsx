@@ -851,7 +851,7 @@ function NovoClienteCaixa({ chave, onSalvo }: { chave: string; onSalvo: (c: banc
 }
 
 /** F3: consulta de quem deve no fiado, dentro do caixa (só leitura). Sem internet, usa a última cópia com aviso. */
-function ClientesFiadoCaixa({ chave, api, turnoId, onClose }: { chave: string; api: ApiCaixa; turnoId: string | null; onClose: () => void }) {
+function ClientesFiadoCaixa({ chave, api, turnoId, comercioNome = "", onClose }: { chave: string; api: ApiCaixa; turnoId: string | null; comercioNome?: string; onClose: () => void }) {
   const [versao, setVersao] = useState(0);
   const [lista, setLista] = useState<banco.ClienteFiado[] | null>(null);
   const [daCopia, setDaCopia] = useState(false);
@@ -902,7 +902,7 @@ function ClientesFiadoCaixa({ chave, api, turnoId, onClose }: { chave: string; a
                 onPago={(deve) => { setLista((l) => (l ?? []).map((x) => x.id === c.id ? { ...x, deve, desde: deve > 0 ? (x.desde ?? null) : null } : x)); setVersao((n) => n + 1); }} />
             )}
             {!daCopia && (
-              <CompartilharFiado telefone={c.telefone ?? null} rotulo={(c.deve ?? 0) > 0 ? "Mandar a conta no WhatsApp" : "Mandar a conta no WhatsApp"}
+              <CompartilharFiado telefone={c.telefone ?? null} rotulo="Mandar a conta no WhatsApp"
                 montar={async (link) => {
                   const [token, movs] = await Promise.all([linkClienteCaixa(chave, c.id), banco.caixaClienteFiadoHistorico(chave, c.id).catch(() => [])]);
                   return mensagemFiadoCompleta({ nome: c.nome, deve: c.deve ?? 0, desde: c.desde ?? null }, comercioNome, movs, link(token));
