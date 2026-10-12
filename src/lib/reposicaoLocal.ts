@@ -7,7 +7,7 @@ import { ERRO_REGISTRO } from "@/lib/envios";
 export type ItemReposicaoLocal = Pick<ProdutoFunc, "produtoId" | "variacaoId" | "nome" | "unidade" | "codigo" | "variacao"> & {
   local: string | null; localDeposito: string | null;
 };
-type Base = { id: string; item: ItemReposicaoLocal; tipo: string; valor: string };
+type Base = { id: string; item: ItemReposicaoLocal; tipo: string; valor: string; rodada?: number };
 export type ReposicaoLocal =
   | (Base & { t: "ir" })
   | (Base & { t: "contar"; contado: number | null })
@@ -19,6 +19,7 @@ const opcional = (x: unknown) => x === null || typeof x === "string";
 const quantidade = (x: unknown): x is number => typeof x === "number" && Number.isFinite(x) && x >= 0 && x <= 1000000;
 function valido(x: unknown): x is ReposicaoLocal {
   if (!objeto(x) || !texto(x["id"]) || !texto(x["tipo"]) || typeof x["valor"] !== "string" || !objeto(x["item"])) return false;
+  if (x["rodada"] != null && (!Number.isInteger(x["rodada"]) || Number(x["rodada"]) < 1 || Number(x["rodada"]) > 3)) return false;
   const p = x["item"];
   if (!texto(p["produtoId"]) || !texto(p["nome"]) || !texto(p["unidade"])
     || !["variacaoId", "codigo", "variacao", "local", "localDeposito"].every((k) => opcional(p[k]))) return false;

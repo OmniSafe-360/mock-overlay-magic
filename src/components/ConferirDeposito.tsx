@@ -1,8 +1,7 @@
 /* Conferir o depósito no app do funcionário (Fase 4.2): até 5 produtos por dia, revezando.
- * A contagem é cega (o funcionário nunca vê quanto o sistema tem). Vale quando bate, ou quando ele repete o mesmo número;
- * 3 números diferentes ficam para o dono decidir. */
+ * A contagem é cega. Diferença confirmada por repetição e três números diferentes aguardam o dono, sem acerto automático. */
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Camera, Check, CheckCircle2, ClipboardCheck, MapPin, RotateCcw } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Camera, Check, CheckCircle2, ClipboardCheck, MapPin, RotateCcw } from "lucide-react";
 import { Scanner } from "@/components/Scanner";
 import { Contador } from "@/components/parts/Contador";
 import { TIPO_FROM_DB, btnGhost, btnPrimary } from "@/components/StoreSetup";
@@ -20,6 +19,8 @@ export type ApiConferir = {
 const API_PADRAO: ApiConferir = { lista: banco.listaConferencia, contar: banco.contarConferencia, buscar: banco.buscarProdutoFuncionario };
 
 const MSG: [string, string][] = [
+  ["contagem_em_andamento", "Já há uma contagem deste produto em andamento. Volte à lista e continue a contagem começada."],
+  ["contagem_exige_atualizacao", "Atualize o app para usar a contagem com até três tentativas."],
   ["acesso_encerrado", "Este celular saiu do app. Entre de novo com o código do dono."],
   ["pin_necessario", "Por segurança, o app travou. Volte ao início e digite seu PIN."],
   ["variacao_obrigatoria", "Escolha o tamanho e a cor para contar."],
@@ -60,7 +61,7 @@ export function ConferirDeposito({ chave, onVoltar, api: apiDada }: { chave: str
         if (r.situacao === "recontar") { setTela({ ...tela, rodada: r.rodada ?? tela.rodada + 1 }); return; }
         setAviso(r.situacao === "concluida"
           ? { ok: true, texto: `${nomeProdutoFunc(tela.item)}: conferido. Obrigado!` }
-          : { ok: false, texto: `${nomeProdutoFunc(tela.item)}: as contagens não bateram. O dono vai conferir.` });
+          : { ok: false, texto: r.situacao === "aguardando_dono" ? `${nomeProdutoFunc(tela.item)}: contagem com diferença. Bloqueada, aguardando o dono.` : `${nomeProdutoFunc(tela.item)}: as contagens não bateram. O dono vai conferir. Contagem bloqueada, aguardando o dono.` });
         setTela({ t: "lista" }); carregar();
       }} />;
 
@@ -75,13 +76,13 @@ export function ConferirDeposito({ chave, onVoltar, api: apiDada }: { chave: str
       </div>
       {dados && (
         <div className="rounded-3xl border border-border bg-secondary/40 p-4">
-          <p className="text-sm font-semibold">{Math.min(feitos, meta)} de {meta} conferidos hoje</p>
+          <p className="text-sm font-semibold">{Math.min(feitos, meta)} de {meta} {dados.produtos.some((p) => p.aguardandoDono) ? "contagens enviadas hoje" : "conferidos hoje"}</p>
           <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-background-deep/60"><div className="h-full rounded-full bg-accent transition-all" style={{ width: `${Math.min(100, (feitos / meta) * 100)}%` }} /></div>
         </div>
       )}
       {aviso && (
         <p role="status" className={`flex items-start gap-2 rounded-2xl border p-3 text-sm font-semibold ${aviso.ok ? "border-accent/50 bg-accent/10 text-accent" : "border-warning/50 bg-warning/10 text-warning"}`}>
-          <CheckCircle2 size={18} className="mt-0.5 shrink-0" /> {aviso.texto}
+          {aviso.ok ? <CheckCircle2 size={18} className="mt-0.5 shrink-0" /> : <AlertTriangle size={18} className="mt-0.5 shrink-0" />} {aviso.texto}
         </p>
       )}
       {erro && <p role="alert" className="rounded-2xl border border-destructive/50 bg-destructive/10 p-3 text-sm font-semibold text-destructive">{erro}</p>}
@@ -96,13 +97,13 @@ export function ConferirDeposito({ chave, onVoltar, api: apiDada }: { chave: str
       <ul className="space-y-3">
         {dados?.produtos.map((p) => (
           <li key={`${p.produtoId}:${p.variacaoId ?? "_"}`}>
-            <button type="button" onClick={() => { setAviso(null); setTela({ t: "contar", item: p, id: p.conferenciaId ?? newUid(), rodada: p.conferenciaId ? p.rodada ?? 1 : 1 }); }}
+            <button type="button" disabled={p.aguardandoDono} onClick={() => { setAviso(null); setTela({ t: "contar", item: p, id: p.conferenciaId ?? newUid(), rodada: p.conferenciaId ? p.rodada ?? 1 : 1 }); }}
               className="flex w-full items-center gap-3 rounded-3xl border-2 border-primary/40 bg-primary/5 p-4 text-left transition active:scale-[0.99]">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary"><ClipboardCheck size={24} /></span>
               <span className="min-w-0 flex-1">
                 <span className="block break-words text-lg font-bold leading-snug">{nomeProdutoFunc(p)}</span>
                 <span className="flex items-center gap-1 text-sm text-muted-foreground"><MapPin size={14} /> {p.local ?? t("Sem lugar no depósito")}</span>
-                {p.conferenciaId && <span className="block text-sm font-semibold text-warning">Contagem começada: termine</span>}
+                {p.aguardandoDono ? <span className="block text-sm font-semibold text-warning">Contagem bloqueada · Aguardando o dono</span> : p.conferenciaId && <span className="block text-sm font-semibold text-warning">Contagem começada: termine</span>}
               </span>
             </button>
           </li>

@@ -270,7 +270,7 @@ describe("R01 — retomar reposição no mesmo aparelho", () => {
   it("resposta de contagem já concluída não pede nova transferência", async () => {
     const a = api({ contar: vi.fn<ApiRepor["contar"]>(async () => ({ ...resposta, situacao: "concluido" })) });
     await ateContar(a); fireEvent.click(screen.getByRole("button", { name: /Está vazia/ }));
-    expect((await screen.findByRole("status")).textContent).toMatch(/já foi registrada/);
+    expect((await screen.findByRole("status")).textContent).toMatch(/já foi encerrada/);
     expect(screen.queryByText("Busque no depósito")).toBeNull();
     expect(a.concluir).not.toHaveBeenCalled(); expect(localStorage.length).toBe(0);
   });

@@ -31,9 +31,9 @@ select salvar_produto(jsonb_build_object('operacao_id',pg_temp.u('aud-inicial'),
  jsonb_build_object('quantidade',2,'vencimento',(now() at time zone 'America/Sao_Paulo')::date+30,'numero','DEPOIS')))))));
 select pg_temp.ok(_saldo_reponivel(pg_temp.u('aud-prod'),null)=7,'saldo reponível exclui vencidos e pendências; hoje vale');
 set local role anon;
-select pg_temp.ok((funcionario_reposicao_contar(repeat('a',64),pg_temp.u('aud-repor'),pg_temp.u('aud-prod'),null,2)->>'sugerido')::numeric=7,'sugestão considera apenas estoque elegível');
+select pg_temp.ok((funcionario_reposicao_contar(repeat('a',64),pg_temp.u('aud-repor'),pg_temp.u('aud-prod'),null,2,1)->>'sugerido')::numeric=7,'sugestão considera apenas estoque elegível');
 select pg_temp.recusa($q$select funcionario_reposicao_concluir(repeat('a',64),pg_temp.u('aud-repor'),8)$q$,'reposicao_acima_sugerido','23514');
-select pg_temp.recusa($q$select funcionario_reposicao_contar(repeat('a',64),pg_temp.u('aud-repor'),pg_temp.u('aud-prod'),null,3)$q$,'operacao_repetida_com_outros_dados','23514');
+select pg_temp.recusa($q$select funcionario_reposicao_contar(repeat('a',64),pg_temp.u('aud-repor'),pg_temp.u('aud-prod'),null,3,1)$q$,'operacao_repetida_com_outros_dados','23514');
 reset role;
 select pg_temp.ok(saldo_chave(pg_temp.u('aud-prod'),null,'deposito')=14,'recusa preserva estoque e não cria operação');
 update produto_areas set maximo=5 where produto_id=pg_temp.u('aud-prod') and area='venda';

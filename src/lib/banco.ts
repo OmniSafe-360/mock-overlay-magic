@@ -494,19 +494,19 @@ export async function sairFuncionario(chave: string) {
 }
 
 /* ---------- fechar a conta no app do funcionário (Fase 4.2) ---------- */
-export type ItemConferencia = ProdutoFunc & { local: string | null; conferenciaId: string | null; /** Contagem em que uma conferência começada parou (2 ou 3). */ rodada?: number | undefined };
+export type ItemConferencia = ProdutoFunc & { local: string | null; conferenciaId: string | null; /** Contagem em que uma conferência começada parou (2 ou 3). */ rodada?: number | undefined; aguardandoDono?: boolean };
 /** Produtos para conferir hoje no depósito (sem quantidades). */
 export async function listaConferencia(chave: string): Promise<{ tipo: string; feitosHoje: number; meta: number; produtos: ItemConferencia[] }> {
   const { data, error } = await rpc("funcionario_conferencia_lista", { _chave: chave });
   if (error) throw error;
   return {
     tipo: data?.tipo ?? "", feitosHoje: Number(data?.feitos_hoje ?? 0), meta: Number(data?.meta ?? 5),
-    produtos: (data?.produtos ?? []).map((x: any) => ({ ...produtoFunc(x), local: x.local ?? null, conferenciaId: x.conferencia_id ?? null, ...(x.rodada ? { rodada: Number(x.rodada) } : {}) })),
+    produtos: (data?.produtos ?? []).map((x: any) => ({ ...produtoFunc(x), local: x.local ?? null, conferenciaId: x.conferencia_id ?? null, aguardandoDono: !!x.aguardando_dono, ...(x.rodada ? { rodada: Number(x.rodada) } : {}) })),
   };
 }
 /** Uma contagem cega do depósito: "recontar", "concluida" ou "inconsistente" (nunca quanto o sistema tinha). */
 /** `rodada` = qual contagem é esta (1, 2 ou 3): reenviar a mesma depois de a internet cair não conta duas vezes. */
-export async function contarConferencia(chave: string, id: string, produtoId: string, variacaoId: string | null, contado: number, rodada: number): Promise<{ situacao: "recontar" | "concluida" | "inconsistente"; rodada?: number }> {
+export async function contarConferencia(chave: string, id: string, produtoId: string, variacaoId: string | null, contado: number, rodada: number): Promise<{ situacao: "recontar" | "concluida" | "inconsistente" | "aguardando_dono"; rodada?: number }> {
   const { data, error } = await rpc("funcionario_conferencia_contar", { _chave: chave, _id: id, _produto: produtoId, _variacao: variacaoId, _contado: contado, _rodada: rodada });
   if (error) throw error;
   return { situacao: data.situacao, ...(data.rodada ? { rodada: Number(data.rodada) } : {}) };
@@ -522,21 +522,21 @@ export async function registrarPerdaFuncionario(chave: string, p: NovaPerda) {
 
 /* ---------- reposição (E3) ---------- */
 export type MotivoSemReposicao = "recebimento_em_conferencia" | "estoque_nao_liberado" | "deposito_sem_estoque" | "deposito_nao_contado";
-export type ItemReposicao = ProdutoFunc & { local: string | null; localDeposito: string | null; depositoVazio: boolean; motivoSemReposicao?: MotivoSemReposicao | null };
+export type ItemReposicao = ProdutoFunc & { local: string | null; localDeposito: string | null; depositoVazio: boolean; motivoSemReposicao?: MotivoSemReposicao | null; conferenciaId?: string | null; rodada?: number; aguardandoDono?: boolean };
 export async function listaReposicao(chave: string): Promise<{ tipo: string; produtos: ItemReposicao[] }> {
   const { data, error } = await rpc("funcionario_reposicao_lista", { _chave: chave });
   if (error) throw error;
   return {
     tipo: data?.tipo ?? "",
-    produtos: (data?.produtos ?? []).map((x: any) => ({ ...produtoFunc(x), local: x.local ?? null, localDeposito: x.local_deposito ?? null, depositoVazio: !!x.deposito_vazio, motivoSemReposicao: x.motivo_sem_reposicao ?? null })),
+    produtos: (data?.produtos ?? []).map((x: any) => ({ ...produtoFunc(x), local: x.local ?? null, localDeposito: x.local_deposito ?? null, depositoVazio: !!x.deposito_vazio, motivoSemReposicao: x.motivo_sem_reposicao ?? null, conferenciaId: x.conferencia_id ?? null, ...(x.rodada ? { rodada: Number(x.rodada) } : {}), aguardandoDono: !!x.aguardando_dono })),
   };
 }
-export type RespostaContagemPrateleira = { sugerido: number; cheio: boolean; depositoVazio: boolean; localDeposito: string | null; situacao: "contado" | "concluido"; motivoSemReposicao?: MotivoSemReposicao | null };
+export type RespostaContagemPrateleira = { sugerido: number; cheio: boolean; depositoVazio: boolean; localDeposito: string | null; situacao: "contado" | "concluido" | "recontar" | "aguardando_dono" | "inconsistente"; motivoSemReposicao?: MotivoSemReposicao | null; rodada?: number };
 /** O funcionário contou a prateleira; o servidor devolve só quanto buscar no depósito. */
-export async function contarPrateleira(chave: string, id: string, produtoId: string, variacaoId: string | null, contado: number): Promise<RespostaContagemPrateleira> {
-  const { data, error } = await rpc("funcionario_reposicao_contar", { _chave: chave, _id: id, _produto: produtoId, _variacao: variacaoId, _contado: contado });
+export async function contarPrateleira(chave: string, id: string, produtoId: string, variacaoId: string | null, contado: number, rodada = 1): Promise<RespostaContagemPrateleira> {
+  const { data, error } = await rpc("funcionario_reposicao_contar", { _chave: chave, _id: id, _produto: produtoId, _variacao: variacaoId, _contado: contado, _rodada: rodada });
   if (error) throw error;
-  return { sugerido: Number(data.sugerido), cheio: !!data.cheio, depositoVazio: !!data.deposito_vazio, localDeposito: data.local_deposito ?? null, situacao: data.situacao, motivoSemReposicao: data.motivo_sem_reposicao ?? null };
+  return { sugerido: Number(data.sugerido ?? 0), cheio: !!data.cheio, depositoVazio: !!data.deposito_vazio, localDeposito: data.local_deposito ?? null, situacao: data.situacao, motivoSemReposicao: data.motivo_sem_reposicao ?? null, ...(data.rodada ? { rodada: Number(data.rodada) } : {}) };
 }
 export async function concluirReposicao(chave: string, id: string, levado: number) {
   const { error } = await rpc("funcionario_reposicao_concluir", { _chave: chave, _id: id, _levado: levado });
@@ -558,7 +558,7 @@ export async function carregarDiferencas(comercioId: string, desde: string): Pro
       id: r.id, produtoId: r.produto_id, variacaoId: r.variacao_id ?? null, area: r.area, origem: r.origem,
       esperado: Number(r.esperado), contado: Number(r.contado), diferenca: Number(r.diferenca), valor: centavos(r.valor),
       funcionario: nomeFunc(r), situacao: r.situacao, motivo: r.motivo ?? null, observacao: r.observacao ?? null,
-      tentativas: Array.isArray(r.detalhes?.tentativas) ? r.detalhes.tentativas.map(Number) : [], resolvida: !!r.detalhes?.resolvida,
+      tentativas: Array.isArray(r.detalhes?.tentativas) ? r.detalhes.tentativas.map(Number) : [], resolvida: !!r.detalhes?.resolvida, contagemConfirmada: !!r.detalhes?.contagem_confirmada,
       motivoInformado: r.detalhes?.motivo_informado ?? null, criadaEm: r.created_at,
     })),
     perdas: ps.map((r) => ({

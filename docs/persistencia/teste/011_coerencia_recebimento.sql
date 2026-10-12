@@ -67,7 +67,7 @@ select pg_temp.ok(_motivo_sem_reposicao(pg_temp.u('vencido'),null)='estoque_nao_
 select pg_temp.ok(_motivo_sem_reposicao(pg_temp.u('desconhecido'),null)='deposito_nao_contado','quantidade desconhecida não é zero');
 set local role anon;
 select funcionario_abrir_recebimento(repeat('a',64),pg_temp.u('recebimento-1'),pg_temp.u('pedido-1'),null);
-select pg_temp.ok((funcionario_reposicao_contar(repeat('a',64),pg_temp.u('repor-antes'),pg_temp.u('kapo'),null,0)->>'motivo_sem_reposicao')='recebimento_em_conferencia','entrega aberta não libera estoque');
+select pg_temp.ok((funcionario_reposicao_contar(repeat('a',64),pg_temp.u('repor-antes'),pg_temp.u('kapo'),null,0,1)->>'motivo_sem_reposicao')='recebimento_em_conferencia','entrega aberta não libera estoque');
 select funcionario_reposicao_concluir(repeat('a',64),pg_temp.u('repor-antes'),0);
 select pg_temp.ok((funcionario_enviar_recebimento(repeat('a',64),pg_temp.u('recebimento-1'),0,pg_temp.contagem('kapo',110))->'recontar')->0->>'produto_id'=pg_temp.u('kapo')::text,'110 exige recontagem');
 select pg_temp.ok((funcionario_enviar_recebimento(repeat('a',64),pg_temp.u('recebimento-1'),1,pg_temp.contagem('bicarbonato',5))->'recontar')->0->>'produto_id'=pg_temp.u('kapo')::text,'enviar somente bicarbonato não ignora recontagem anterior');
@@ -86,7 +86,7 @@ reset role;
 select pg_temp.ok(saldo_chave(pg_temp.u('kapo'),null,'deposito')=50 and saldo_chave(pg_temp.u('bicarbonato'),null,'deposito')=5,'conclusão entra uma única vez em unidades de venda');
 select pg_temp.ok((select count(*) from operacoes where produto_id=pg_temp.u('kapo') and tipo='recebimento')=1,'repetir conclusão não duplica entrada');
 set local role anon;
-select pg_temp.ok((funcionario_reposicao_contar(repeat('a',64),pg_temp.u('repor-depois'),pg_temp.u('kapo'),null,0)->>'sugerido')::numeric=50,'gôndola comporta 80; depósito limita sugestão a 50');
+select pg_temp.ok((funcionario_reposicao_contar(repeat('a',64),pg_temp.u('repor-depois'),pg_temp.u('kapo'),null,0,1)->>'sugerido')::numeric=50,'gôndola comporta 80; depósito limita sugestão a 50');
 select funcionario_reposicao_concluir(repeat('a',64),pg_temp.u('repor-depois'),50);
 select funcionario_reposicao_concluir(repeat('a',64),pg_temp.u('repor-depois'),50);
 reset role;
@@ -107,7 +107,7 @@ set local role anon;
 select pg_temp.ok((funcionario_enviar_recebimento(repeat('a',64),pg_temp.u('recebimento-2'),3,pg_temp.contagem('bicarbonato',0))->>'situacao')='recontar','Não veio pede conferência quando difere do esperado');
 select pg_temp.ok((funcionario_enviar_recebimento(repeat('a',64),pg_temp.u('recebimento-2'),4,pg_temp.contagem('bicarbonato',0))->>'situacao')='concluido','repetir zero aceita falta sem bloquear decisão do dono');
 select pg_temp.recusa($q$select funcionario_enviar_recebimento(repeat('b',64),pg_temp.u('recebimento-2'),4,pg_temp.contagem('bicarbonato',0))$q$,'recebimento_nao_encontrado','42501');
-select pg_temp.recusa($q$select funcionario_reposicao_contar(repeat('b',64),pg_temp.u('outro-repor'),pg_temp.u('kapo'),null,0)$q$,'produto_de_outro_comercio','42501');
+select pg_temp.recusa($q$select funcionario_reposicao_contar(repeat('b',64),pg_temp.u('outro-repor'),pg_temp.u('kapo'),null,0,1)$q$,'produto_de_outro_comercio','42501');
 reset role;
 select pg_temp.ok(saldo_chave(pg_temp.u('kapo'),null,'deposito')=0 and saldo_chave(pg_temp.u('kapo'),null,'venda')=50,'inconsistente não entra nem altera estoque anterior');
 select pg_temp.ok(not has_function_privilege('anon','public._motivo_sem_reposicao(uuid,uuid)','EXECUTE')
