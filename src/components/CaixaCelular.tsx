@@ -801,6 +801,50 @@ function AvisoGuardadas({ guardadas, erroFila, onEnviar }: { guardadas: VendaGua
   );
 }
 
+/** F5: cadastrar cliente do fiado sem vender. O id fica guardado até dar certo, então repetir não duplica. */
+function NovoClienteCaixa({ chave, onSalvo }: { chave: string; onSalvo: (c: banco.ClienteFiado) => void }) {
+  const [aberto, setAberto] = useState(false);
+  const [nome, setNome] = useState("");
+  const [tel, setTel] = useState("");
+  const [id, setId] = useState(() => crypto.randomUUID());
+  const [salvando, setSalvando] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [ok, setOk] = useState("");
+  const t = digits(tel);
+  const valido = nome.trim().length >= 2 && nome.trim().length <= 60 && (!t || t.length === 10 || t.length === 11);
+  const salvar = async () => {
+    if (!valido || salvando) return;
+    setSalvando(true); setMsg("");
+    try {
+      const c = await banco.caixaSalvarClienteFiado(chave, id, nome.trim(), t || null);
+      onSalvo(c); setOk(`${c.nome} cadastrado.`); setNome(""); setTel(""); setId(crypto.randomUUID()); setAberto(false);
+    } catch (e) { setMsg(erroCaixa(e, "O cliente não foi cadastrado")); }
+    finally { setSalvando(false); }
+  };
+  if (!aberto) return (
+    <div className="space-y-1">
+      <button type="button" onClick={() => { setAberto(true); setOk(""); }} className="flex min-h-12 w-full items-center justify-center rounded-2xl border border-primary/60 text-sm font-semibold text-primary">+ Cadastrar cliente</button>
+      {ok && <p role="status" className="text-center text-xs font-semibold text-accent">{ok}</p>}
+    </div>
+  );
+  return (
+    <div className="space-y-2 rounded-3xl border border-border bg-secondary/40 p-4">
+      <p className="text-sm font-semibold">Cadastrar cliente do fiado</p>
+      <input value={nome} onChange={(e) => setNome(e.target.value)} disabled={salvando} placeholder="Nome do cliente" aria-label="Nome do cliente" maxLength={60}
+        className="h-12 w-full rounded-2xl border border-border bg-background-deep/60 px-4 text-base text-foreground outline-none focus-visible:border-primary" />
+      <input value={maskPhone(tel)} onChange={(e) => setTel(digits(e.target.value).slice(0, 11))} disabled={salvando} inputMode="tel" placeholder="Telefone com DDD (opcional)" aria-label="Telefone do cliente"
+        className="h-12 w-full rounded-2xl border border-border bg-background-deep/60 px-4 text-base text-foreground outline-none focus-visible:border-primary" />
+      {t && t.length < 10 && <p className="text-xs text-warning">Telefone com DDD: 10 ou 11 números.</p>}
+      {msg && <p role="alert" className="text-sm font-semibold text-destructive">{msg}</p>}
+      <div className="flex gap-2">
+        <button type="button" disabled={salvando} onClick={() => { setAberto(false); setMsg(""); }} className="h-12 flex-1 rounded-2xl border border-border text-sm font-semibold">Cancelar</button>
+        <button type="button" disabled={!valido || salvando} onClick={() => void salvar()} className="h-12 flex-1 rounded-2xl bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-50">{salvando ? "Salvando…" : "Salvar cliente"}</button>
+      </div>
+      <p className="text-xs text-muted-foreground">Precisa de internet. Mudar nome ou telefone depois é com o dono.</p>
+    </div>
+  );
+}
+
 /** F3: consulta de quem deve no fiado, dentro do caixa (só leitura). Sem internet, usa a última cópia com aviso. */
 function ClientesFiadoCaixa({ chave, api, onClose }: { chave: string; api: ApiCaixa; onClose: () => void }) {
   const [lista, setLista] = useState<banco.ClienteFiado[] | null>(null);
