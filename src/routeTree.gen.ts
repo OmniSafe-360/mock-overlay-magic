@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as CaixaRouteImport } from './routes/caixa'
 import { Route as ConectorRouteImport } from './routes/conector'
 import { Route as FuncionarioRouteImport } from './routes/funcionario'
+import { Route as FiadoTokenRouteImport } from './routes/fiado/$token'
 import { Route as PedidoTokenRouteImport } from './routes/pedido/$token'
 
 const IndexRoute = IndexRouteImport.update({
@@ -35,6 +36,11 @@ const FuncionarioRoute = FuncionarioRouteImport.update({
   path: '/funcionario',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FiadoTokenRoute = FiadoTokenRouteImport.update({
+  id: '/fiado/$token',
+  path: '/fiado/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PedidoTokenRoute = PedidoTokenRouteImport.update({
   id: '/pedido/$token',
   path: '/pedido/$token',
@@ -46,6 +52,7 @@ export interface FileRoutesByFullPath {
   '/caixa': typeof CaixaRoute
   '/conector': typeof ConectorRoute
   '/funcionario': typeof FuncionarioRoute
+  '/fiado/$token': typeof FiadoTokenRoute
   '/pedido/$token': typeof PedidoTokenRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/caixa': typeof CaixaRoute
   '/conector': typeof ConectorRoute
   '/funcionario': typeof FuncionarioRoute
+  '/fiado/$token': typeof FiadoTokenRoute
   '/pedido/$token': typeof PedidoTokenRoute
 }
 export interface FileRoutesById {
@@ -61,19 +69,33 @@ export interface FileRoutesById {
   '/caixa': typeof CaixaRoute
   '/conector': typeof ConectorRoute
   '/funcionario': typeof FuncionarioRoute
+  '/fiado/$token': typeof FiadoTokenRoute
   '/pedido/$token': typeof PedidoTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/caixa' | '/conector' | '/funcionario' | '/pedido/$token'
+  fullPaths:
+    | '/'
+    | '/caixa'
+    | '/conector'
+    | '/funcionario'
+    | '/fiado/$token'
+    | '/pedido/$token'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/caixa' | '/conector' | '/funcionario' | '/pedido/$token'
+  to:
+    | '/'
+    | '/caixa'
+    | '/conector'
+    | '/funcionario'
+    | '/fiado/$token'
+    | '/pedido/$token'
   id:
     | '__root__'
     | '/'
     | '/caixa'
     | '/conector'
     | '/funcionario'
+    | '/fiado/$token'
     | '/pedido/$token'
   fileRoutesById: FileRoutesById
 }
@@ -82,6 +104,7 @@ export interface RootRouteChildren {
   CaixaRoute: typeof CaixaRoute
   ConectorRoute: typeof ConectorRoute
   FuncionarioRoute: typeof FuncionarioRoute
+  FiadoTokenRoute: typeof FiadoTokenRoute
   PedidoTokenRoute: typeof PedidoTokenRoute
 }
 
@@ -115,6 +138,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FuncionarioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/fiado/$token': {
+      id: '/fiado/$token'
+      path: '/fiado/$token'
+      fullPath: '/fiado/$token'
+      preLoaderRoute: typeof FiadoTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pedido/$token': {
       id: '/pedido/$token'
       path: '/pedido/$token'
@@ -130,6 +160,7 @@ const rootRouteChildren: RootRouteChildren = {
   CaixaRoute: CaixaRoute,
   ConectorRoute: ConectorRoute,
   FuncionarioRoute: FuncionarioRoute,
+  FiadoTokenRoute: FiadoTokenRoute,
   PedidoTokenRoute: PedidoTokenRoute,
 }
 export const routeTree = rootRouteImport
