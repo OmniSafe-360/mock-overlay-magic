@@ -894,7 +894,7 @@ function ClientesFiadoCaixa({ chave, api, turnoId, onClose }: { chave: string; a
             </div>
             {turnoId && (c.deve ?? 0) > 0 && !daCopia && (
               <ReceberFiadoCaixa key={c.id} chave={chave} turnoId={turnoId} cliente={c}
-                onPago={(deve) => { setLista((l) => (l ?? []).map((x) => x.id === c.id ? { ...x, deve, desde: deve > 0 ? x.desde : null } : x)); setVersao((n) => n + 1); }} />
+                onPago={(deve) => { setLista((l) => (l ?? []).map((x) => x.id === c.id ? { ...x, deve, desde: deve > 0 ? (x.desde ?? null) : null } : x)); setVersao((n) => n + 1); }} />
             )}
             <HistoricoFiado key={versao} chave={chave} clienteId={c.id} />
             <p className="text-xs text-muted-foreground">Para anotar uma compra, use Fiado na hora de receber.</p>
