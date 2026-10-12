@@ -1,6 +1,6 @@
 # C5 / E3 — contagem cega e decisão do dono
 
-Pedido autorizado pelo dono após o print `71840.png`. Banco atualizado; código pronto para publicação. Falta **Publicar → Atualizar** no Lovable e o teste do dono. E3 continua aberta para validação conjunta.
+Pedido autorizado pelo dono após o print `71840.png`. [PR #110](https://github.com/OmniSafe-360/mock-overlay-magic/pull/110), correção `aa6728c` e texto complementar `7a54665`; mudanças recentes do fiado preservadas por merge. Banco atualizado; código pronto para publicação. Falta **Publicar → Atualizar** no Lovable e o teste do dono. E3 continua aberta para validação conjunta.
 
 ## O que aconteceu com o Nescau
 
