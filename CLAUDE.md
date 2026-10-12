@@ -210,3 +210,4 @@
 - 12/10/2026: **fiado no caixa F5** — cadastrar cliente no caixa sem vender (função nova `caixa_salvar_cliente_fiado`). Precisa Publicar → Atualizar; falta o teste do dono. Próxima: F6 (aguarda aprovação).
 - 12/10/2026: **fiado no caixa F6** — receber pagamento do fiado no caixa (função nova `caixa_receber_fiado`; dinheiro entra no esperado da gaveta via `_resumo_turno`). Precisa Publicar → Atualizar; falta o teste do dono. Próxima: F7.
 - 12/10/2026: **fiado no caixa F7** — fechamento mostra "Recebido do fiado" e "+ Dinheiro do fiado"; histórico do dono diz "no caixa (nome)". Sem banco. Precisa Publicar → Atualizar; falta o teste do dono. F8 só se o dono pedir.
+- 12/10/2026: **fiado no caixa F8** — limite por cliente e cliente bloqueado (colunas novas em `clientes_fiado`, `definir_limite_fiado`, gatilho que recusa a compra). Precisa Publicar → Atualizar; falta o teste do dono. Frente F1–F8 concluída.
