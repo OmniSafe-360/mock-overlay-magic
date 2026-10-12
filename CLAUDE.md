@@ -213,3 +213,4 @@
 - 12/10/2026: **fiado no caixa F8** — limite por cliente e cliente bloqueado (colunas novas em `clientes_fiado`, `definir_limite_fiado`, gatilho que recusa a compra). Precisa Publicar → Atualizar; falta o teste do dono. Frente F1–F8 concluída.
 
 - 12/10/2026: **plano do fiado do cliente com PIN** (pedido do dono): [docs/FIADO_CLIENTE_FONTE_DA_VERDADE.md](docs/FIADO_CLIENTE_FONTE_DA_VERDADE.md), etapas P1–P5. Só documentação; não precisa Publicar. P1 cria tabela nova: aguarda aprovação.
+- 12/10/2026: **fiado do cliente P1** — tabela `fiado_acessos` (RLS sem leitura direta) e funções `fiado_cliente_link`, `fiado_novo_link`, `fiado_zerar_pin`, `fiado_acesso_info` (dono), `caixa_fiado_cliente_link` (caixa), `fiado_publico_estado/entrar/extrato` (cliente, sem login; PIN bcrypt, 5 erros travam 15 min, sessão de 12 h). Avisos do Supabase iguais ao padrão (funções públicas de propósito). Sem mudança na tela; não precisa Publicar. Próxima: P2.

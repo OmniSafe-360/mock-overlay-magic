@@ -729,6 +729,66 @@ export type Database = {
         }
         Relationships: []
       }
+      fiado_acessos: {
+        Row: {
+          cliente_id: string
+          comercio_id: string
+          created_at: string
+          id: string
+          pin_criado_em: string | null
+          pin_hash: string | null
+          sessao_ate: string | null
+          sessao_hash: string | null
+          tentativas: number
+          token: string
+          travado_ate: string | null
+          ultimo_acesso: string | null
+        }
+        Insert: {
+          cliente_id: string
+          comercio_id: string
+          created_at?: string
+          id?: string
+          pin_criado_em?: string | null
+          pin_hash?: string | null
+          sessao_ate?: string | null
+          sessao_hash?: string | null
+          tentativas?: number
+          token: string
+          travado_ate?: string | null
+          ultimo_acesso?: string | null
+        }
+        Update: {
+          cliente_id?: string
+          comercio_id?: string
+          created_at?: string
+          id?: string
+          pin_criado_em?: string | null
+          pin_hash?: string | null
+          sessao_ate?: string | null
+          sessao_hash?: string | null
+          tentativas?: number
+          token?: string
+          travado_ate?: string | null
+          ultimo_acesso?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiado_acessos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: true
+            referencedRelation: "clientes_fiado"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiado_acessos_comercio_id_fkey"
+            columns: ["comercio_id"]
+            isOneToOne: false
+            referencedRelation: "comercios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fiado_movimentos: {
         Row: {
           cliente_id: string
@@ -2337,6 +2397,11 @@ export type Database = {
         Returns: number
       }
       _fechar_pedido_recebido: { Args: { _pedido: string }; Returns: undefined }
+      _fiado_link: {
+        Args: { _cliente: string; _comercio: string }
+        Returns: string
+      }
+      _fiado_novo_token: { Args: never; Returns: string }
       _funcionario_caixa: {
         Args: { _chave: string }
         Returns: {
@@ -2636,6 +2701,10 @@ export type Database = {
         }
         Returns: Json
       }
+      caixa_fiado_cliente_link: {
+        Args: { _chave: string; _cliente: string }
+        Returns: string
+      }
       caixa_produtos: { Args: { _chave: string }; Returns: Json }
       caixa_receber_fiado: {
         Args: {
@@ -2726,6 +2795,19 @@ export type Database = {
         Args: { _id: string; _motivo: string; _observacao: string }
         Returns: undefined
       }
+      fiado_acesso_info: { Args: { _cliente: string }; Returns: Json }
+      fiado_cliente_link: { Args: { _cliente: string }; Returns: string }
+      fiado_novo_link: { Args: { _cliente: string }; Returns: string }
+      fiado_publico_entrar: {
+        Args: { _final_tel: string; _pin: string; _token: string }
+        Returns: Json
+      }
+      fiado_publico_estado: { Args: { _token: string }; Returns: Json }
+      fiado_publico_extrato: {
+        Args: { _sessao: string; _token: string }
+        Returns: Json
+      }
+      fiado_zerar_pin: { Args: { _cliente: string }; Returns: undefined }
       funcionario_abrir_recebimento: {
         Args: {
           _chave: string
