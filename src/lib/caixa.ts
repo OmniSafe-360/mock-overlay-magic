@@ -153,6 +153,8 @@ export function erroCaixa(e: unknown, naoFeito = "A venda não foi enviada"): st
   if (m.includes("pagamento_menor_que_total")) return "O pagamento não cobre o total da venda.";
   if (m.includes("pagamento_maior_que_total")) return "Pix, cartão e fiado não podem passar do total. Só o dinheiro tem troco.";
   if (m.includes("telefone_cliente_invalido")) return "Telefone do cliente inválido: use DDD + número.";
+  if (m.includes("cliente_fiado_bloqueado")) return "Este cliente está bloqueado pelo dono para o fiado.";
+  if (m.includes("limite_fiado_excedido")) return "Esta venda passa do limite de fiado do cliente.";
   if (m.includes("nome_cliente_invalido")) return "Escreva o nome do cliente (pelo menos 2 letras).";
   // Recusas que tentar de novo não resolve: dizem o que fazer (checklist item 25).
   if (m.includes("turno_ja_fechado") || m.includes("turno_invalido") || m.includes("turno_fechado")) return "Este caixa já foi fechado. Volte ao início e abra o caixa de novo.";

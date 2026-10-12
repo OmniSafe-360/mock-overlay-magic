@@ -666,13 +666,15 @@ export async function caixaProdutos(chave: string): Promise<import("@/lib/caixa"
   }));
 }
 /** `deve` em centavos (null = o banco não informou); `desde` só quando deve. */
-export type ClienteFiado = { id: string; nome: string; telefone: string | null; deve?: number | null; desde?: string | null };
+export type ClienteFiado = { id: string; nome: string; telefone: string | null; deve?: number | null; desde?: string | null;
+  /** F8: limite em centavos (null = sem limite) e bloqueio, definidos pelo dono. */ limite?: number | null; bloqueado?: boolean };
 export async function caixaClientesFiado(chave: string): Promise<ClienteFiado[]> {
   const { data, error } = await rpc("caixa_clientes_fiado", { _chave: chave });
   if (error) throw error;
   return (data ?? []).map((c: any) => ({
     id: c.id, nome: c.nome, telefone: c.telefone ?? null,
     deve: c.deve == null ? null : Math.round(Number(c.deve) * 100), desde: c.desde ?? null,
+    limite: c.limite == null ? null : Math.round(Number(c.limite) * 100), bloqueado: !!c.bloqueado,
   }));
 }
 /** F4: últimos movimentos (até 30) de um cliente do fiado, pela chave do caixa. Valores em centavos. */
@@ -775,15 +777,21 @@ export async function carregarFechamentos(comercioId: string, desde: string): Pr
 /* ---------- fiado no app do dono (C4) ---------- */
 export async function carregarFiado(comercioId: string): Promise<{ clientes: import("@/lib/fiado").ClienteFiado[]; movimentos: import("@/lib/fiado").MovimentoFiado[] }> {
   const [cs, ms] = await Promise.all([
-    todos("clientes_fiado", "id,nome,telefone,ativo,created_at", (q) => q.eq("comercio_id", comercioId)),
+    todos("clientes_fiado", "id,nome,telefone,ativo,created_at,limite,bloqueado", (q) => q.eq("comercio_id", comercioId)),
     todos("fiado_movimentos", "id,cliente_id,tipo,valor,forma,observacao,criado_em,funcionario_id,vendas(numero),funcionarios(nome)", (q) => q.eq("comercio_id", comercioId)),
   ]);
   return {
-    clientes: cs.map((c) => ({ id: c.id, nome: c.nome, telefone: c.telefone ?? null, ativo: !!c.ativo, criadoEm: c.created_at })),
+    clientes: cs.map((c) => ({ id: c.id, nome: c.nome, telefone: c.telefone ?? null, ativo: !!c.ativo, criadoEm: c.created_at,
+      limite: c.limite == null ? null : centavos(c.limite), bloqueado: !!c.bloqueado })),
     movimentos: ms.map((m) => ({ id: m.id, clienteId: m.cliente_id, tipo: m.tipo, valor: centavos(m.valor), vendaNumero: m.vendas?.numero ?? null,
       forma: m.forma ?? null, observacao: m.observacao ?? null, criadoEm: m.criado_em,
       ...(m.tipo === "pagamento" && m.funcionario_id ? { recebidoPor: m.funcionarios?.nome ?? "funcionário" } : {}) })),
   };
+}
+/** F8: o dono define o limite do fiado (centavos; null = sem limite) e se o cliente está bloqueado. */
+export async function definirLimiteFiado(clienteId: string, limiteCentavos: number | null, bloqueado: boolean) {
+  const { error } = await rpc("definir_limite_fiado" as any, { _cliente: clienteId, _limite: limiteCentavos == null ? null : limiteCentavos / 100, _bloqueado: bloqueado } as any);
+  if (error) throw error;
 }
 /** O cliente pagou (tudo ou parte). Não aceita mais do que deve. Repetir o mesmo id não paga duas vezes. */
 export async function receberFiado(id: string, clienteId: string, valorCentavos: number, forma: "dinheiro" | "pix" | "cartao", observacao: string) {

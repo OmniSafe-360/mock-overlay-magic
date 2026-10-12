@@ -19,6 +19,34 @@ export type ApiFiado = {
   receber: (id: string, clienteId: string, valorCentavos: number, forma: "dinheiro" | "pix" | "cartao", observacao: string) => Promise<unknown>;
   salvarCliente: (id: string, comercioId: string, nome: string, telefone: string | null) => Promise<unknown>;
 };
+/** F8: limite do fiado e bloqueio do cliente (só o dono). */
+function LimiteFiado({ cliente, onSalvo }: { cliente: { id: string; limite?: number | null | undefined; bloqueado?: boolean | undefined }; onSalvo: () => void }) {
+  const [limite, setLimite] = useState(cliente.limite != null ? (cliente.limite / 100).toFixed(2).replace(".", ",") : "");
+  const [bloq, setBloq] = useState(!!cliente.bloqueado);
+  const [salvando, setSalvando] = useState(false);
+  const [msg, setMsg] = useState("");
+  const salvar = async () => {
+    const t = limite.trim();
+    const cent = t ? Math.round(Number(t.replace(/\./g, "").replace(",", ".")) * 100) : null;
+    if (cent != null && (!Number.isFinite(cent) || cent < 0)) { setMsg("Confira o valor do limite."); return; }
+    setSalvando(true); setMsg("");
+    try { await banco.definirLimiteFiado(cliente.id, cent, bloq); cliente.limite = cent; cliente.bloqueado = bloq; onSalvo(); }
+    catch { setMsg("Não foi possível salvar agora. Confira a internet e tente de novo."); }
+    finally { setSalvando(false); }
+  };
+  return (
+    <div className="mt-2 space-y-2 rounded-2xl border border-border p-3 text-sm">
+      <p className="font-semibold">Limite do fiado</p>
+      <input value={limite} onChange={(e) => setLimite(e.target.value.replace(/[^0-9,.]/g, ""))} inputMode="decimal" placeholder="Sem limite" aria-label="Limite do fiado"
+        className="h-11 w-full rounded-xl border border-border bg-background-deep/60 px-3 text-base text-foreground outline-none focus-visible:border-primary" />
+      <label className="flex items-center gap-2"><input type="checkbox" checked={bloq} onChange={(e) => setBloq(e.target.checked)} /> Bloquear: não vender mais fiado para este cliente</label>
+      {msg && <p role="alert" className="text-destructive">{msg}</p>}
+      <button type="button" disabled={salvando} onClick={() => void salvar()} className="h-11 w-full rounded-xl border border-primary/60 font-semibold text-primary disabled:opacity-50">{salvando ? "Salvando…" : "Salvar limite"}</button>
+      <p className="text-xs text-muted-foreground">Vazio = sem limite. O caixa não deixa vender fiado acima do limite. Pagamentos continuam aceitos.</p>
+    </div>
+  );
+}
+
 const API_PADRAO: ApiFiado = { carregar: banco.carregarFiado, receber: banco.receberFiado, salvarCliente: banco.salvarClienteFiado };
 const erroTexto = (e: unknown) => {
   const m = String((e as { message?: string } | null)?.message ?? e ?? "");
@@ -195,6 +223,7 @@ function DetalheConta({ c, comercioId, comercioNome, api, agora, aviso, onMudou,
               <a href={linkWhats(c.telefone, mensagemCobranca(c, comercioNome))} target="_blank" rel="noopener noreferrer" className={`flex items-center justify-center gap-2 ${btnGhost}`}><MessageCircle size={18} /> Cobrar pelo WhatsApp</a>
             )}
             <button type="button" onClick={() => { setModo("editar"); setPronto(""); }} className="flex min-h-11 items-center justify-center gap-2 text-sm font-semibold text-muted-foreground"><Pencil size={16} /> Mudar nome ou telefone</button>
+            <LimiteFiado key={c.id} cliente={c} onSalvo={() => setPronto("Limite do fiado salvo.")} />
           </div>
         )}
 

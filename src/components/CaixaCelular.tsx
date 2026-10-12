@@ -21,7 +21,7 @@ import {
 import { newUid, unPlural, unSingular } from "@/lib/deposito";
 import { digits, maskPhone } from "@/lib/formatacao";
 import { escopoAcesso } from "@/lib/operacaoLocal";
-import { DIAS_ANTIGO, haQuantoTempo, textoMovimento } from "@/lib/fiado";
+import { DIAS_ANTIGO, haQuantoTempo, textoMovimento , bloqueioFiado } from "@/lib/fiado";
 
 export type ApiCaixa = {
   estado: typeof banco.caixaEstado;
@@ -704,13 +704,16 @@ function Fiado({ chave, escopo, api, valor, onEscolher, onClose }: { chave: stri
               {achados.map((c) => {
                 const temSaldo = typeof c.deve === "number";
                 const deve = c.deve ?? 0;
+                const barra = bloqueioFiado(c, valor);
                 return (
                 <li key={c.id}>
-                  <button type="button" onClick={() => onEscolher({ id: c.id, nome: c.nome, telefone: c.telefone, novo: false })}
-                    className="flex min-h-13 w-full items-center justify-between gap-3 rounded-2xl border border-border px-4 py-2 text-left">
+                  <button type="button" disabled={!!barra} onClick={() => onEscolher({ id: c.id, nome: c.nome, telefone: c.telefone, novo: false })}
+                    className={`flex min-h-13 w-full items-center justify-between gap-3 rounded-2xl border px-4 py-2 text-left ${barra ? "border-destructive/50 opacity-70" : "border-border"}`}>
                     <span className="min-w-0">
                       <span className="block text-base font-semibold">{c.nome}</span>
                       {c.telefone && <span className="block text-xs text-muted-foreground">{maskPhone(c.telefone)}</span>}
+                      {barra && <span className="block text-xs font-semibold text-destructive">{barra}</span>}
+                      {!barra && c.limite != null && <span className="block text-xs text-muted-foreground">Limite {brl(c.limite)}</span>}
                       {temSaldo && <span className="block text-xs text-muted-foreground">Com esta venda, vai ficar devendo <b className="text-foreground">{brl(deve + valor)}</b></span>}
                     </span>
                     {temSaldo && (deve > 0
