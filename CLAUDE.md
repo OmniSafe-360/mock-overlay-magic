@@ -207,3 +207,4 @@
 - 12/10/2026: **fiado no caixa F2** — janela Fiado mostra quanto cada cliente deve e quanto vai ficar devendo; aviso de cópia sem internet. Precisa Publicar → Atualizar; falta o teste do dono. Próxima: F3.
 - 12/10/2026: **fiado no caixa F3** — menu do caixa com "Clientes do fiado" (só consulta). Sem banco. Precisa Publicar → Atualizar; falta o teste do dono. Próxima: F4 (aguarda aprovação).
 - 12/10/2026: **fiado no caixa F4** — histórico do cliente no menu "Clientes do fiado" (função nova `caixa_cliente_fiado_historico`, só leitura). Precisa Publicar → Atualizar; falta o teste do dono. Próxima: F5 (aguarda aprovação).
+- 12/10/2026: **fiado no caixa F5** — cadastrar cliente no caixa sem vender (função nova `caixa_salvar_cliente_fiado`). Precisa Publicar → Atualizar; falta o teste do dono. Próxima: F6 (aguarda aprovação).

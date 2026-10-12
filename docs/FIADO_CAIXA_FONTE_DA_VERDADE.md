@@ -68,7 +68,7 @@ Regras do fluxo:
   Detalhe: saldo, desde quando, telefone. Reaproveitar `contasFiado`/`resumoFiado`/`haQuantoTempo`.
 - [x] **F4 — Histórico do cliente no caixa (banco + tela).** Precisa de **função nova** de leitura pela chave do
   caixa (`caixa_cliente_fiado_historico`) — **aguarda aprovação do dono**. Últimos movimentos sem mostrar dados de outros clientes.
-- [ ] **F5 — Cadastrar cliente no caixa sem vender.** Precisa de **função nova** `caixa_salvar_cliente_fiado`
+- [x] **F5 — Cadastrar cliente no caixa sem vender.** Precisa de **função nova** `caixa_salvar_cliente_fiado`
   (pela chave, função Caixa; mesmas validações de nome/telefone de `salvar_cliente_fiado`; repetir não duplica)
   — **aguarda aprovação do dono**. Editar nome/telefone continua só no dono (decisão a confirmar).
 - [ ] **F6 — Receber pagamento do fiado no caixa.** Precisa de **função nova** `caixa_receber_fiado`
@@ -93,3 +93,4 @@ Regras do fluxo:
 - 12/10/2026: **F2 feita** — na janela Fiado do "Receber", cada cliente mostra "Deve R$ X" ou "Em dia" e "Com esta venda, vai ficar devendo R$ Y"; sem internet usa a cópia com aviso "valores da última atualização". Venda, fila e regras iguais. Teste `src/test/caixa-fiado-saldo.test.ts`. Precisa Publicar → Atualizar; falta o teste do dono. Próxima: **F3**.
 - 12/10/2026: **F3 feita** — menu do caixa ganhou "Clientes do fiado": total a receber, lista de quem deve mais primeiro, busca por nome/telefone, amarelo acima de 30 dias, detalhe com saldo, desde quando e telefone. Só consulta; sem internet usa a cópia com aviso. Sem mudança no banco. Precisa Publicar → Atualizar; falta o teste do dono. Próxima: **F4** (aguarda aprovação: função nova de histórico).
 - 12/10/2026: **F4 feita** (aprovada pelo dono) — função nova `caixa_cliente_fiado_historico(_chave, _cliente)` (SECURITY DEFINER, mesma checagem `_funcionario_caixa`, só cliente do mesmo comércio, até 30 movimentos, sem dados de outros clientes). No detalhe de "Clientes do fiado": "Últimos movimentos" (Comprou/Pagou/Venda cancelada, data e valor). Precisa de internet. Precisa Publicar → Atualizar; falta o teste do dono. Próxima: **F5** (aguarda aprovação).
+- 12/10/2026: **F5 feita** (pedida pelo dono) — função nova `caixa_salvar_cliente_fiado(_chave, _id, _nome, _telefone)` (SECURITY DEFINER, `_funcionario_caixa`, mesmas validações de nome/telefone, grava `criado_por_funcionario`; repetir o mesmo id com os mesmos dados não duplica; com outros dados recusa; não edita cliente existente). Em "Clientes do fiado": botão "+ Cadastrar cliente" (nome e telefone opcional). Precisa de internet. Precisa Publicar → Atualizar; falta o teste do dono. Próxima: **F6** (aguarda aprovação).
