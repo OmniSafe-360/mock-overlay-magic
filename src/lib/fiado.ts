@@ -78,3 +78,30 @@ export const buscarConta = (contas: ContaFiado[], q: string) => {
   const t = normalizar(q);
   return t ? contas.filter((c) => normalizar(c.nome).includes(t) || (c.telefone ?? "").includes(t.replace(/\D/g, "") || "§")) : contas;
 };
+
+/** P3: link da página do cliente (com PIN). */
+export const linkFiadoCliente = (token: string, origem = typeof window !== "undefined" ? window.location.origin : "") => `${origem}/fiado/${token}`;
+
+type MovResumo = Pick<MovimentoFiado, "tipo" | "valor" | "forma" | "vendaNumero" | "criadoEm">;
+/** P3: mensagem completa para o WhatsApp: total, desde quando, últimas movimentações com data e hora, e o link. Valores em centavos. */
+export function mensagemFiadoCompleta(
+  c: { nome: string; deve: number; desde: string | null }, comercio: string, movimentos: MovResumo[], link: string,
+): string {
+  const dh = (iso: string) => new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }).replace(",", " às");
+  const linha = (m: MovResumo) =>
+    m.tipo === "compra" ? `• ${dh(m.criadoEm)} — Compra${m.vendaNumero ? ` nº ${m.vendaNumero}` : ""}: + ${brl(m.valor)}`
+    : m.tipo === "cancelamento" ? `• ${dh(m.criadoEm)} — Compra cancelada: − ${brl(m.valor)}`
+    : `• ${dh(m.criadoEm)} — Pagamento${m.forma ? ` (${FORMA_FIADO[m.forma].toLowerCase()})` : ""}: − ${brl(m.valor)}`;
+  const ultimos = [...movimentos].sort((a, b) => Date.parse(b.criadoEm) - Date.parse(a.criadoEm)).slice(0, 5);
+  const desde = c.desde && c.deve > 0 ? `\nDevendo desde ${new Date(c.desde).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}.` : "";
+  return [
+    `Olá, ${c.nome.split(" ")[0]}! Aqui é do *${comercio}*.`,
+    "",
+    c.deve > 0 ? `*Sua conta do fiado: ${brl(c.deve)}*${desde}` : "*Sua conta do fiado está em dia.* Obrigado!",
+    ...(ultimos.length ? ["", "Últimas movimentações:", ...ultimos.map(linha)] : []),
+    "",
+    "Veja tudo, com os produtos de cada compra, aqui:",
+    link,
+    "Na primeira vez, você cria uma senha de 4 números (PIN).",
+  ].join("\n");
+}
