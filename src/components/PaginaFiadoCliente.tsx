@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, MessageCircle, Phone } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import { btnPrimary } from "@/components/StoreSetup";
-import { fiadoEntrar, fiadoEstado, fiadoExtrato, mensagemEntrarFiado, textoMov, type EstadoFiado, type ExtratoFiado } from "@/lib/fiadoCliente";
+import { avisosFiado, chaveVisto, fiadoEntrar, fiadoEstado, fiadoExtrato, mensagemEntrarFiado, textoMov, type EstadoFiado, type ExtratoFiado } from "@/lib/fiadoCliente";
 
 const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const dataHora = (ts: string) => {
@@ -51,7 +51,7 @@ export function PaginaFiadoCliente({ token }: { token: string }) {
         {tela.t === "pin" && (
           <TelaPin token={token} e={tela.e} onEntrou={(s) => { gravarSessao(token, s); void abrir(); }} />
         )}
-        {tela.t === "conta" && <Conta x={tela.x} onSair={() => { gravarSessao(token, null); void abrir(); }} />}
+        {tela.t === "conta" && <Conta token={token} x={tela.x} onSair={() => { gravarSessao(token, null); void abrir(); }} />}
       </main>
     </div>
   );
@@ -125,7 +125,14 @@ function TelaPin({ token, e, onEntrou }: { token: string; e: Extract<EstadoFiado
   );
 }
 
-function Conta({ x, onSair }: { x: ExtratoFiado; onSair: () => void }) {
+function Conta({ token, x, onSair }: { token: string; x: ExtratoFiado; onSair: () => void }) {
+  const [avisos, setAvisos] = useState<ReturnType<typeof avisosFiado>>([]);
+  useEffect(() => {
+    let visto: string | null = null;
+    try { visto = localStorage.getItem(chaveVisto(token)); } catch { /* sem armazenamento */ }
+    setAvisos(avisosFiado(x, visto));
+    try { localStorage.setItem(chaveVisto(token), new Date().toISOString()); } catch { /* sem armazenamento */ }
+  }, [token, x]);
   const tel = x.telefoneComercio.replace(/\D/g, "");
   const podeComprar = x.limite != null ? Math.max(0, x.limite - x.deve) : null;
   return (
@@ -138,6 +145,14 @@ function Conta({ x, onSair }: { x: ExtratoFiado; onSair: () => void }) {
         {x.bloqueado && <p className="mt-3 rounded-xl bg-destructive/15 p-3 text-sm text-destructive">Compras no fiado estão pausadas. Fale com o comércio.</p>}
         {!x.bloqueado && podeComprar != null && <p className="mt-3 text-sm">Seu limite é {brl(x.limite!)}. Ainda pode comprar {brl(podeComprar)}.</p>}
       </div>
+
+      {avisos.length > 0 && (
+        <ul className="space-y-2" aria-label="Avisos">
+          {avisos.map((a, i) => (
+            <li key={i} className={`rounded-2xl border p-3 text-sm font-medium ${a.tipo === "pagamento" ? "border-primary/40 bg-primary/10" : a.tipo === "antiga" ? "border-destructive/40 bg-destructive/10" : "border-border bg-card"}`}>{a.texto}</li>
+          ))}
+        </ul>
+      )}
 
       {tel && (
         <div className="grid grid-cols-2 gap-2">
