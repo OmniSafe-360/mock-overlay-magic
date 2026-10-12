@@ -2635,6 +2635,10 @@ export type Database = {
         Args: { _chave: string; _venda: Json }
         Returns: Json
       }
+      caixa_salvar_cliente_fiado: {
+        Args: { _chave: string; _id: string; _nome: string; _telefone: string }
+        Returns: Json
+      }
       caixa_sangria: {
         Args: {
           _chave: string
