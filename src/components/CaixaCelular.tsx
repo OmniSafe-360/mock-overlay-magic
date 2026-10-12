@@ -67,7 +67,7 @@ function trazerVendaAntiga(escopo: string, fila: ReturnType<typeof filaCaixa>) {
 
 type Fase = "carregando" | "erro" | "abrir" | "vender" | "receber" | "feito" | "fechar";
 type Aviso = { ok: boolean; texto: string } | null;
-type Feito = { id: string; total: number; troco: number; numero: number | null; formas: string; guardada: boolean; comprovante: DadosComprovante; telefone: string | null };
+type Feito = { id: string; total: number; troco: number; numero: number | null; formas: string; guardada: boolean; comprovante: DadosComprovante; telefone: string | null; clienteFiado?: { id: string; nome: string } | null };
 /** Tempo entre as tentativas de enviar as vendas guardadas. */
 export const SEGUNDOS_REENVIO = 20;
 
@@ -193,7 +193,7 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
     setErroVenda("");
     setCarrinho([]); setPags([]); setCliente(null);
     setGuardadas(fila.current.ler());
-    setFeito({ id: v.venda.id, total: v.total, troco: v.troco, numero: null, formas: v.formas, guardada: true, telefone: cliente?.telefone ?? null,
+    setFeito({ id: v.venda.id, total: v.total, troco: v.troco, numero: null, formas: v.formas, guardada: true, telefone: cliente?.telefone ?? null, clienteFiado: cliente ? { id: cliente.id, nome: cliente.nome } : null,
       comprovante: { comercio: { nome: estado.comercio.nome, endereco: estado.comercio.endereco }, numero: null, feitaEm: v.venda.feita_em,
         itens: carrinho.map((i) => ({ descricao: i.detalhe ? `${i.nome} (${i.detalhe})` : i.nome, qtd: i.qtd, valor: subtotal(i) })),
         total, pagamentos: pags, troco: s.troco, cliente: cliente?.nome ?? null } });
@@ -214,7 +214,7 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
   );
   if (fase === "abrir") return <AbrirCaixa nome={estado.nome} api={api} chave={chave} onSair={onSair}
     onAberto={(t) => { const e = { ...estado, turno: t, vendas: [] }; setEstado(e); gravarCache(escopo, { estado: e }); setFase("vender"); }} />;
-  if (fase === "feito" && feito) return <VendaFeita f={feito} onProxima={() => { setFeito(null); setFase("vender"); }} />;
+  if (fase === "feito" && feito) return <VendaFeita f={feito} chave={chave} comercioNome={estado?.comercio.nome ?? ""} onProxima={() => { setFeito(null); setFase("vender"); }} />;
   if (fase === "fechar" && estado.turno) return (
     <FecharCaixa turno={estado.turno} guardadas={guardadas.filter((g) => !g.problema).length} naoAceitas={guardadas.filter((g) => g.problema && g.venda.turno_id === estado.turno?.id)} chave={chave} api={api} onEnviar={sincronizar}
       onVoltar={() => setFase("vender")} onFechado={() => { apagarCache(escopo); onSair(); }} />
@@ -750,7 +750,7 @@ function Fiado({ chave, escopo, api, valor, onEscolher, onClose }: { chave: stri
   );
 }
 
-function VendaFeita({ f, onProxima }: { f: Feito; onProxima: () => void }) {
+function VendaFeita({ f, chave, comercioNome, onProxima }: { f: Feito; chave: string; comercioNome: string; onProxima: () => void }) {
   const [comprovante, setComprovante] = useState(false);
   return (
     <Tela>
@@ -772,7 +772,21 @@ function VendaFeita({ f, onProxima }: { f: Feito; onProxima: () => void }) {
         )}
       </div>
       <div className="px-4">
-        <button type="button" onClick={() => setComprovante(true)} className={`mb-2 flex w-full items-center justify-center gap-2 ${btnGhost}`}><MessageCircle size={18} /> Mandar comprovante no WhatsApp</button>
+        {f.clienteFiado && f.numero ? (
+          <div className="mb-2">
+            <CompartilharFiado telefone={f.telefone} rotulo="Mandar a conta do fiado no WhatsApp"
+              montar={async (link) => {
+                const cf = f.clienteFiado!;
+                const [token, movs, lista] = await Promise.all([linkClienteCaixa(chave, cf.id), banco.caixaClienteFiadoHistorico(chave, cf.id).catch(() => []), banco.caixaClientesFiado(chave).catch(() => [])]);
+                const c = lista.find((x) => x.id === cf.id) as { deve?: number | null; desde?: string | null } | undefined;
+                return mensagemFiadoCompleta({ nome: cf.nome, deve: c?.deve ?? f.total, desde: c?.desde ?? null }, comercioNome, movs, link(token));
+              }} />
+          </div>
+        ) : f.clienteFiado ? (
+          <p className="mb-2 text-center text-xs text-muted-foreground">A conta do fiado para o WhatsApp aparece assim que a venda chegar ao Omni.</p>
+        ) : (
+          <button type="button" onClick={() => setComprovante(true)} className={`mb-2 flex w-full items-center justify-center gap-2 ${btnGhost}`}><MessageCircle size={18} /> Mandar comprovante no WhatsApp</button>
+        )}
         <button type="button" autoFocus onClick={onProxima} className={`flex items-center justify-center gap-2 ${btnPrimary(true)}`}><ShoppingCart size={20} /> Próxima venda</button>
       </div>
       {comprovante && <Comprovante dados={f.comprovante} telefone={f.telefone} onClose={() => setComprovante(false)} />}
