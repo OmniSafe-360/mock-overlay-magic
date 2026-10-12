@@ -60,7 +60,7 @@ Regras do fluxo:
 - [x] **F1 — Saldo na lista do fiado (banco, só leitura).** Alterar `caixa_clientes_fiado` (função existente,
   a partir de `pg_get_functiondef`) para devolver também `deve` e `desde`. Mesma chave/permissões; sem tabela nova.
   Testes: saldo = compras − pagamentos − cancelamentos, nunca negativo; outro comércio recusado.
-- [ ] **F2 — Mostrar o saldo ao vender fiado (tela).** Na janela Fiado do "Receber": cada cliente com
+- [x] **F2 — Mostrar o saldo ao vender fiado (tela).** Na janela Fiado do "Receber": cada cliente com
   "Deve R$ X" (ou "Em dia") e, ao escolher, "Vai ficar devendo R$ Y". Cópia sem internet guarda o saldo com aviso.
   Não muda a venda nem a fila.
 - [ ] **F3 — "Clientes do fiado" no menu do caixa (tela, só consulta).** Lista ordenada por quem deve mais,
@@ -90,3 +90,4 @@ Regras do fluxo:
 
 - 11/10/2026: análise e plano criados. Nenhum código ou banco alterado.
 - 12/10/2026: **F1 feita** — `caixa_clientes_fiado` (a partir da versão do banco) devolve também `deve` (compras − pagamentos − cancelamentos, nunca negativo) e `desde` (só quando deve). Mesma chave, SECURITY DEFINER, search_path e permissões conferidos depois. Campos antigos iguais: o app atual continua funcionando. Sem tela nova; não precisa Publicar. Não deu para simular com rollback antes (o ambiente aplica direto). Próxima: **F2**.
+- 12/10/2026: **F2 feita** — na janela Fiado do "Receber", cada cliente mostra "Deve R$ X" ou "Em dia" e "Com esta venda, vai ficar devendo R$ Y"; sem internet usa a cópia com aviso "valores da última atualização". Venda, fila e regras iguais. Teste `src/test/caixa-fiado-saldo.test.ts`. Precisa Publicar → Atualizar; falta o teste do dono. Próxima: **F3**.
