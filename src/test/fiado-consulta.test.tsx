@@ -2,6 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { PainelFiado, type ApiFiado } from "@/components/PainelFiado";
 
+// Isola o painel da consulta real feita pelo controle da página do cliente.
+vi.mock("@/lib/fiadoCliente", async (original) => ({
+  ...await original<typeof import("@/lib/fiadoCliente")>(),
+  acessoInfo: vi.fn().mockResolvedValue({ temLink: false, temPin: false, ultimoAcesso: null }),
+}));
+
 const cliente = { id: "cliente-a", nome: "Ana", telefone: null, ativo: true, criadoEm: "2026-10-10T12:00:00Z" };
 const compra = { id: "compra", clienteId: cliente.id, tipo: "compra" as const, valor: 10000, vendaNumero: 1, forma: null, observacao: null, criadoEm: "2026-10-11T12:00:00Z" };
 const dados = { clientes: [cliente], movimentos: [compra] };

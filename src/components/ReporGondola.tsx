@@ -215,6 +215,7 @@ function Reposicao({ chave, onVoltar, apiDada }: { chave: string; onVoltar: () =
               <span className="min-w-0 flex-1">
                 <span className="block break-words text-lg font-bold leading-snug">{nomeProdutoFunc(p)}</span>
                 <span className="flex items-center gap-1 text-sm text-muted-foreground"><MapPin size={14} /> {p.local ?? `Sem lugar na ${prateleira}`}</span>
+                {p.solicitadaCaixa && <span className="block text-sm font-semibold text-primary">Conferência solicitada pelo caixa</span>}
                 {p.aguardandoDono ? <span className="block text-sm font-semibold text-warning">Contagem bloqueada · Aguardando o dono</span> : p.conferenciaId ? <span className="block text-sm font-semibold text-warning">Contagem começada: termine</span> : p.depositoVazio && <span className="block text-sm font-semibold text-warning">{t(motivoSemEstoque(p.motivoSemReposicao))}</span>}
               </span>
             </button>

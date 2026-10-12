@@ -33,7 +33,7 @@ export const diaSP = (iso: string) => new Date(iso).toLocaleDateString("en-CA", 
 const noPeriodo = (iso: string, l: { de: string; ate: string }) => { const d = diaSP(iso); return d >= l.de && d < l.ate; };
 
 /** É uma falta que conta no antifurto. */
-export const ehFalta = (d: Diferenca) => d.diferenca < 0 && d.motivo !== "erro_contagem" && !precisaEscolher(d);
+export const ehFalta = (d: Diferenca) => d.diferenca < 0 && d.motivo !== "erro_contagem" && !precisaEscolher(d) && !d.revisaoCaixaPendente && !d.saldoTotalPreservado;
 
 export type Falta = Diferenca & { /** Contagem anterior do mesmo produto no mesmo lugar (começo do intervalo). */ desde: string | null };
 export type ItemRanking = { chave: string; titulo: string; sub: string; vezes: number; qtd: number; valor: number; produtos: number };

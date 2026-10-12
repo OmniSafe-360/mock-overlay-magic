@@ -74,7 +74,21 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO, modoCaixa = fa
   /** Envia as vendas do caixa guardadas no celular, mesmo com o caixa fechado na tela. */
   const enviarVendasGuardadas = useCallback(async (chave: string) => {
     const registrar = api.caixa?.registrar ?? banco.caixaRegistrarVenda;
-    try { await enviarFila(filaCaixa(await escopoAcesso(chave)), (v) => registrar(chave, v.venda)); } catch { /* tenta de novo depois */ }
+    try {
+      const fila = filaCaixa(await escopoAcesso(chave));
+      // A tela do caixa confirma seus envios novos e conserva o comprovante/carrinho.
+      // O envio do início continua cuidando apenas da fila legada.
+      await enviarFila({ ...fila, ler: () => fila.ler().filter((v) => !v.confirmacaoPendente) }, async (v) => {
+        const r = await registrar(chave, v.venda);
+        if (r.situacao === "bloqueada") {
+          const mensagem = banco.textoBloqueioCaixa(r);
+          fila.marcarProblema(v.venda.id, mensagem, true);
+          throw new Error(`estoque_bloqueado:${mensagem}`);
+        }
+        if (r.situacao !== "registrada" && r.situacao !== "repetida") throw new Error("resposta_venda_invalida");
+        return r;
+      });
+    } catch { /* tenta de novo depois; recusa legada continua para conciliação */ }
   }, [api]);
   /** Abre a tela inicial; com `travar`, mostra antes a tela do PIN (ao abrir o app).
    * Sem internet, usa a última tela inicial guardada no celular: o PIN é conferido aqui e o app vai direto ao caixa. */
@@ -92,7 +106,7 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO, modoCaixa = fa
           destravado.current = true;
           if (irAoCaixa.current && d.caixa) setTela({ t: "caixa" });
           else setTela({ t: "inicio", dados: d });
-          if (d.caixa) void enviarVendasGuardadas(chave);
+          if (d.caixa && !irAoCaixa.current) void enviarVendasGuardadas(chave);
         }
         return;
       }
@@ -135,7 +149,7 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO, modoCaixa = fa
   }, []);
   // A internet voltou: as vendas do caixa guardadas no celular sobem, mesmo fora da tela do caixa.
   useEffect(() => {
-    const voltou = () => { const c = lerChave(); if (c && destravado.current && ultimo.current?.caixa) void enviarVendasGuardadas(c); };
+    const voltou = () => { const c = lerChave(); if (c && destravado.current && ultimo.current?.caixa && telaRef.current.t !== "caixa") void enviarVendasGuardadas(c); };
     window.addEventListener("online", voltou);
     return () => window.removeEventListener("online", voltou);
   }, [enviarVendasGuardadas]);

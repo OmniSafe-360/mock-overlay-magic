@@ -171,7 +171,7 @@ export function PainelDiferencas({ comercioId, tipo, products, api = API_PADRAO,
         <section aria-label="Diferenças para explicar" className="space-y-3">
           <div>
             <h2 className="text-base font-bold">Diferenças para explicar ({abertas.length})</h2>
-            <p className="text-xs text-muted-foreground">Toque para dizer o que aconteceu. O estoque já está com o número contado.</p>
+            <p className="text-xs text-muted-foreground">Toque para conferir o que aconteceu. Contagens aguardando sua decisão ainda não alteraram o estoque.</p>
           </div>
           <ul className="space-y-2">
             {abertas.map((d) => (
@@ -314,7 +314,7 @@ function ExplicarDiferenca({ d, nome, unidade, tipo, precoCompra, onSalvar, onCl
   const opcoes = escolher ? [...new Set(d.tentativas)].map((n) => ({ n, txt: `Contagem da equipe: ${qtdUn(n, unidade)}` })).concat([{ n: d.esperado, txt: `Manter o número do sistema: ${qtdUn(d.esperado, unidade)}` }]) : [];
   const difFinal = escolher ? (contado == null ? null : contado - d.esperado) : d.diferenca;
   const precisaMotivo = difFinal != null && difFinal !== 0;
-  const ok = !salvando && (!escolher || contado != null) && (!precisaMotivo || (!!motivo && (motivo !== "outro" || obs.trim().length >= 3)));
+  const ok = !salvando && (!escolher || contado != null) && (!d.depositoPendente || contado === d.esperado) && (!precisaMotivo || (!!motivo && (motivo !== "outro" || obs.trim().length >= 3)));
   const salvar = () => {
     setSalvando(true); setErro("");
     onSalvar(escolher ? contado : null, precisaMotivo ? motivo : null, obs.trim()).catch((e) => { setErro(erroTexto(e)); setSalvando(false); });
@@ -325,6 +325,11 @@ function ExplicarDiferenca({ d, nome, unidade, tipo, precoCompra, onSalvar, onCl
         <div className="rounded-2xl border border-border p-3">
           <p className="text-base font-bold">{nome}</p>
           <p className="text-sm text-muted-foreground">{origemTexto(d, tipo)}{d.funcionario ? ` · ${d.funcionario}` : ""}</p>
+          {d.solicitacaoCaixa && <p className="mt-2 text-sm">Conferência solicitada pelo caixa.</p>}
+          {d.depositoPendente && <p role="status" className="mt-2 text-sm font-semibold text-warning">Aguarda a conferência do depósito. Resolva o depósito na lista antes de aceitar a diferença da gôndola.</p>}
+          {!d.depositoPendente && d.depositoContado != null && <p className="mt-2 text-sm">Depósito conferido: {qtdUn(d.depositoContado, unidade)}.</p>}
+          {d.saldoTotalPreservado && <p className="mt-2 text-sm">As conferências dos dois locais preservaram a quantidade total. Confira se houve reposição sem registro; isto não foi contado como falta total.</p>}
+
           {!escolher && (
             <>
               <p className="mt-2 text-sm">O sistema tinha <b>{qtdUn(d.esperado, unidade)}</b> {onde}; {d.origem === "perda_recusada" ? "a perda que você não confirmou deixou" : "contaram"} <b>{qtdUn(d.contado, unidade)}</b>.</p>
