@@ -219,9 +219,8 @@ function DetalheConta({ c, comercioId, comercioNome, api, agora, aviso, onMudou,
         {modo === "ver" && (
           <div className="grid grid-cols-1 gap-2">
             {c.deve > 0 && <button type="button" onClick={() => { setModo("receber"); setValor(c.deve); setObs(""); setId(newUid()); setPronto(""); }} className={`flex items-center justify-center gap-2 ${btnPrimary(true)}`}><HandCoins size={20} /> Recebeu</button>}
-            {c.deve > 0 && c.telefone && (
-              <a href={linkWhats(c.telefone, mensagemCobranca(c, comercioNome))} target="_blank" rel="noopener noreferrer" className={`flex items-center justify-center gap-2 ${btnGhost}`}><MessageCircle size={18} /> Cobrar pelo WhatsApp</a>
-            )}
+            <CompartilharFiado telefone={c.telefone} rotulo={c.deve > 0 ? "Cobrar pelo WhatsApp" : "Mandar a conta no WhatsApp"}
+              montar={async (link) => mensagemFiadoCompleta(c, comercioNome, c.movimentos, link(await linkClienteDono(c.id)))} />
             <button type="button" onClick={() => { setModo("editar"); setPronto(""); }} className="flex min-h-11 items-center justify-center gap-2 text-sm font-semibold text-muted-foreground"><Pencil size={16} /> Mudar nome ou telefone</button>
             <LimiteFiado key={c.id} cliente={c} onSalvo={() => setPronto("Limite do fiado salvo.")} />
           </div>
