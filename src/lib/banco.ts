@@ -663,11 +663,15 @@ export async function caixaProdutos(chave: string): Promise<import("@/lib/caixa"
     embalagens: (p.embalagens ?? []).map((e: any) => ({ id: e.id, tipo: e.tipo, quantidade: Number(e.quantidade) })),
   }));
 }
-export type ClienteFiado = { id: string; nome: string; telefone: string | null };
+/** `deve` em centavos (null = o banco não informou); `desde` só quando deve. */
+export type ClienteFiado = { id: string; nome: string; telefone: string | null; deve?: number | null; desde?: string | null };
 export async function caixaClientesFiado(chave: string): Promise<ClienteFiado[]> {
   const { data, error } = await rpc("caixa_clientes_fiado", { _chave: chave });
   if (error) throw error;
-  return (data ?? []).map((c: any) => ({ id: c.id, nome: c.nome, telefone: c.telefone ?? null }));
+  return (data ?? []).map((c: any) => ({
+    id: c.id, nome: c.nome, telefone: c.telefone ?? null,
+    deve: c.deve == null ? null : Math.round(Number(c.deve) * 100), desde: c.desde ?? null,
+  }));
 }
 /** Abre o caixa com o troco da gaveta (em centavos). Se já estava aberto, devolve o mesmo. */
 export async function caixaAbrir(chave: string, id: string, trocoCentavos: number): Promise<TurnoCaixa> {

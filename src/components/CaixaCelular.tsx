@@ -677,9 +677,10 @@ function Fiado({ chave, escopo, api, valor, onEscolher, onClose }: { chave: stri
   const [nome, setNome] = useState("");
   const [tel, setTel] = useState("");
   // Sem internet, usa a última lista guardada no celular.
+  const [daCopia, setDaCopia] = useState(false);
   useEffect(() => {
-    api.clientes(chave).then((l) => { setLista(l); gravarCache(escopo, { clientes: l }); },
-      (e) => { const c = lerCache(escopo)?.clientes; if (c) setLista(c); else { setErro(erroCaixa(e, "A lista de clientes não carregou")); setLista([]); } });
+    api.clientes(chave).then((l) => { setLista(l); setDaCopia(false); gravarCache(escopo, { clientes: l }); },
+      (e) => { const c = lerCache(escopo)?.clientes; if (c) { setLista(c); setDaCopia(true); } else { setErro(erroCaixa(e, "A lista de clientes não carregou")); setLista([]); } });
   }, [api, chave, escopo]);
   const achados = (lista ?? []).filter((c) => c.nome.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").includes(q.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim()));
   const telOk = !tel || /^\d{10,11}$/.test(digits(tel));
@@ -694,17 +695,29 @@ function Fiado({ chave, escopo, api, valor, onEscolher, onClose }: { chave: stri
               className="h-13 w-full rounded-2xl border border-border bg-background-deep/60 px-4 text-base text-foreground outline-none focus-visible:border-primary" />
             {lista === null && <p className="text-center text-sm text-muted-foreground">Carregando os clientes…</p>}
             {erro && <p role="alert" className="text-sm font-semibold text-destructive">{erro}</p>}
+            {daCopia && <p role="status" className="rounded-2xl border border-warning/50 bg-warning/10 p-2 text-xs font-semibold">Sem internet: os valores são da última atualização e podem ter mudado.</p>}
             {lista && !lista.length && !erro && <p className="text-center text-sm text-muted-foreground">Nenhum cliente no fiado ainda. Toque em "Cliente novo".</p>}
             <ul className="space-y-1.5">
-              {achados.map((c) => (
+              {achados.map((c) => {
+                const temSaldo = typeof c.deve === "number";
+                const deve = c.deve ?? 0;
+                return (
                 <li key={c.id}>
                   <button type="button" onClick={() => onEscolher({ id: c.id, nome: c.nome, telefone: c.telefone, novo: false })}
-                    className="flex min-h-13 w-full items-center justify-between rounded-2xl border border-border px-4 text-left">
-                    <span><span className="block text-base font-semibold">{c.nome}</span>{c.telefone && <span className="block text-xs text-muted-foreground">{maskPhone(c.telefone)}</span>}</span>
-                    <Check size={18} className="text-primary" />
+                    className="flex min-h-13 w-full items-center justify-between gap-3 rounded-2xl border border-border px-4 py-2 text-left">
+                    <span className="min-w-0">
+                      <span className="block text-base font-semibold">{c.nome}</span>
+                      {c.telefone && <span className="block text-xs text-muted-foreground">{maskPhone(c.telefone)}</span>}
+                      {temSaldo && <span className="block text-xs text-muted-foreground">Com esta venda, vai ficar devendo <b className="text-foreground">{brl(deve + valor)}</b></span>}
+                    </span>
+                    {temSaldo && (deve > 0
+                      ? <span className="shrink-0 text-right text-sm"><span className="block text-xs text-muted-foreground">Deve</span><b className="tabular-nums text-warning">{brl(deve)}</b></span>
+                      : <span className="shrink-0 text-xs font-semibold text-accent">Em dia</span>)}
+                    {!temSaldo && <Check size={18} className="text-primary" />}
                   </button>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </>
         ) : (

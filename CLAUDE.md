@@ -202,3 +202,4 @@
 
 - 11/10/2026: **plano do fiado no Caixa do celular** (pedido do dono): análise e etapas F1–F8 em [docs/FIADO_CAIXA_FONTE_DA_VERDADE.md](docs/FIADO_CAIXA_FONTE_DA_VERDADE.md), fonte da verdade desta frente; mexer só no caixa/fiado. Só documentação; não precisa Publicar. Próxima: F1.
 - 12/10/2026: **fiado no caixa F1** — `caixa_clientes_fiado` devolve também `deve` e `desde`; permissões iguais; sem mudança na tela; não precisa Publicar. Próxima: F2.
+- 12/10/2026: **fiado no caixa F2** — janela Fiado mostra quanto cada cliente deve e quanto vai ficar devendo; aviso de cópia sem internet. Precisa Publicar → Atualizar; falta o teste do dono. Próxima: F3.
