@@ -7,6 +7,7 @@ export type ClienteFiado = { id: string; nome: string; telefone: string | null; 
 export type MovimentoFiado = {
   id: string; clienteId: string; tipo: "compra" | "pagamento" | "cancelamento"; valor: number;
   vendaNumero: number | null; forma: "dinheiro" | "pix" | "cartao" | null; observacao: string | null; criadoEm: string;
+  /** F7: nome do funcionário quando o pagamento foi recebido no caixa. */ recebidoPor?: string | undefined;
 };
 export type ContaFiado = ClienteFiado & {
   deve: number;
@@ -56,7 +57,7 @@ export const FORMA_FIADO: Record<"dinheiro" | "pix" | "cartao", string> = { dinh
 export function textoMovimento(m: MovimentoFiado): string {
   if (m.tipo === "compra") return `Comprou${m.vendaNumero ? ` (venda nº ${m.vendaNumero})` : ""}`;
   if (m.tipo === "cancelamento") return `Venda cancelada${m.vendaNumero ? ` (nº ${m.vendaNumero})` : ""}`;
-  return `Pagou${m.forma ? ` em ${FORMA_FIADO[m.forma].toLowerCase()}` : ""}`;
+  return `Pagou${m.forma ? ` em ${FORMA_FIADO[m.forma].toLowerCase()}` : ""}${m.recebidoPor ? ` · no caixa (${m.recebidoPor})` : ""}`;
 }
 
 /** Mensagem para cobrar pelo WhatsApp, educada. */

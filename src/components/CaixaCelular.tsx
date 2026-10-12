@@ -1137,10 +1137,12 @@ function FecharCaixa({ turno, guardadas, naoAceitas, chave, api, onEnviar, onVol
           <div className="divide-y divide-border rounded-3xl border border-border px-4 py-2 text-sm">
             {linha(`Vendas (${fim.vendas})`, brl(fim.total), true)}
             {linha("Dinheiro", brl(fim.porForma.dinheiro))}{linha("Pix", brl(fim.porForma.pix))}{linha("Cartão", brl(fim.porForma.cartao))}{linha("Fiado", brl(fim.porForma.fiado))}
+            {(fim.fiadoRecebido?.quantos ?? 0) > 0 && linha(`Recebido do fiado (${fim.fiadoRecebido!.quantos})`, brl(fim.fiadoRecebido!.dinheiro + fim.fiadoRecebido!.pix + fim.fiadoRecebido!.cartao))}
           </div>
           <div className="divide-y divide-border rounded-3xl border border-border px-4 py-2 text-sm">
             {linha("Troco no começo", brl(fim.trocoInicial))}
             {linha("+ Dinheiro recebido", brl(fim.porForma.dinheiro))}
+            {(fim.fiadoRecebido?.dinheiro ?? 0) > 0 && linha("+ Dinheiro do fiado", brl(fim.fiadoRecebido!.dinheiro))}
             {linha("− Troco dado", brl(fim.trocoDado))}
             {linha("− Tirado da gaveta", brl(fim.sangrias))}
             {linha("Deveria ter na gaveta", brl(fim.dinheiroEsperado), true)}
