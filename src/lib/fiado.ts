@@ -3,7 +3,13 @@
 import { formatarCentavos as brl } from "@/lib/formatacao";
 import { normalizar } from "@/lib/vendas";
 
-export type ClienteFiado = { id: string; nome: string; telefone: string | null; ativo: boolean; criadoEm: string };
+export type ClienteFiado = { id: string; nome: string; telefone: string | null; ativo: boolean; criadoEm: string; limite?: number | null | undefined; bloqueado?: boolean | undefined };
+/** F8: motivo de não poder vender fiado (null = pode). Valores em centavos. */
+export function bloqueioFiado(c: { limite?: number | null | undefined; bloqueado?: boolean | undefined; deve?: number | null | undefined }, valor: number): string | null {
+  if (c.bloqueado) return "Cliente bloqueado pelo dono para o fiado.";
+  if (c.limite != null && (c.deve ?? 0) + valor > c.limite) return `Passa do limite de ${brl(c.limite)}.`;
+  return null;
+}
 export type MovimentoFiado = {
   id: string; clienteId: string; tipo: "compra" | "pagamento" | "cancelamento"; valor: number;
   vendaNumero: number | null; forma: "dinheiro" | "pix" | "cartao" | null; observacao: string | null; criadoEm: string;

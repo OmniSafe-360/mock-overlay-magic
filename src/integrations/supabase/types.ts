@@ -235,28 +235,34 @@ export type Database = {
       clientes_fiado: {
         Row: {
           ativo: boolean
+          bloqueado: boolean
           comercio_id: string
           created_at: string
           criado_por_funcionario: string | null
           id: string
+          limite: number | null
           nome: string
           telefone: string | null
         }
         Insert: {
           ativo?: boolean
+          bloqueado?: boolean
           comercio_id: string
           created_at?: string
           criado_por_funcionario?: string | null
           id: string
+          limite?: number | null
           nome: string
           telefone?: string | null
         }
         Update: {
           ativo?: boolean
+          bloqueado?: boolean
           comercio_id?: string
           created_at?: string
           criado_por_funcionario?: string | null
           id?: string
+          limite?: number | null
           nome?: string
           telefone?: string | null
         }
@@ -2703,6 +2709,10 @@ export type Database = {
       }
       definir_limite_faltas: {
         Args: { _comercio: string; _valor: number }
+        Returns: undefined
+      }
+      definir_limite_fiado: {
+        Args: { _bloqueado: boolean; _cliente: string; _limite: number }
         Returns: undefined
       }
       definir_pin_dono: { Args: { _pin: string }; Returns: undefined }
