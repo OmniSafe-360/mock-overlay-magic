@@ -857,6 +857,7 @@ function ClientesFiadoCaixa({ chave, api, onClose }: { chave: string; api: ApiCa
               <p className="text-2xl font-bold tabular-nums">{brl(total)}</p>
               <p className="text-xs text-muted-foreground">{devendo.length === 0 ? "Ninguém devendo" : devendo.length === 1 ? "1 cliente deve" : `${devendo.length} clientes devem`}</p>
             </div>
+            <NovoClienteCaixa chave={chave} onSalvo={(n) => setLista((l) => { const nova = [...(l ?? []).filter((x) => x.id !== n.id), n]; void escopoAcesso(chave).then((esc) => gravarCache(esc, { clientes: nova })).catch(() => {}); return nova; })} />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Procurar pelo nome ou telefone" aria-label="Procurar cliente"
               className="h-13 w-full rounded-2xl border border-border bg-background-deep/60 px-4 text-base text-foreground outline-none focus-visible:border-primary" />
             {!lista.length && !erro && <p className="text-center text-sm text-muted-foreground">Nenhum cliente no fiado ainda.</p>}

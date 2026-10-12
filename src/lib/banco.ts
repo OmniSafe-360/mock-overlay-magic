@@ -683,6 +683,13 @@ export async function caixaClienteFiadoHistorico(chave: string, clienteId: strin
     vendaNumero: m.venda_numero == null ? null : Number(m.venda_numero), criadoEm: m.criado_em,
   }));
 }
+/** F5: cadastra cliente do fiado pelo caixa, sem vender. Repetir o mesmo id com os mesmos dados não duplica. */
+export async function caixaSalvarClienteFiado(chave: string, id: string, nome: string, telefone: string | null): Promise<ClienteFiado> {
+  const { data, error } = await rpc("caixa_salvar_cliente_fiado" as any, { _chave: chave, _id: id, _nome: nome, _telefone: telefone ?? "" } as any);
+  if (error) throw error;
+  const d = data as any;
+  return { id: d.id, nome: d.nome, telefone: d.telefone ?? null, deve: 0, desde: null };
+}
 /** Abre o caixa com o troco da gaveta (em centavos). Se já estava aberto, devolve o mesmo. */
 export async function caixaAbrir(chave: string, id: string, trocoCentavos: number): Promise<TurnoCaixa> {
   const { data, error } = await rpc("caixa_abrir", { _chave: chave, _id: id, _troco: trocoCentavos / 100 });
