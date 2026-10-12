@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, Bell, MessageCircle, Phone } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
+import { InstalarCliente } from "@/components/InstalarCliente";
+import { prepararInstalacaoCliente } from "@/lib/instalar";
 import { btnPrimary } from "@/components/StoreSetup";
 import { avisosFiado, chaveVisto, fiadoEntrar, fiadoEstado, fiadoExtrato, mensagemEntrarFiado, textoMov, type EstadoFiado, type ExtratoFiado } from "@/lib/fiadoCliente";
 
@@ -35,6 +37,7 @@ export function PaginaFiadoCliente({ token }: { token: string }) {
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void abrir(); }, [token]);
+  useEffect(() => { prepararInstalacaoCliente(token); }, [token]);
 
   return (
     <div className="min-h-dvh bg-app text-foreground">
@@ -52,6 +55,7 @@ export function PaginaFiadoCliente({ token }: { token: string }) {
           <TelaPin token={token} e={tela.e} onEntrou={(s) => { gravarSessao(token, s); void abrir(); }} />
         )}
         {tela.t === "conta" && <Conta token={token} x={tela.x} onSair={() => { gravarSessao(token, null); void abrir(); }} />}
+        {(tela.t === "pin" || tela.t === "conta") && <InstalarCliente token={token} />}
       </main>
     </div>
   );

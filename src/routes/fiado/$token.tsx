@@ -13,6 +13,7 @@ export const Route = createFileRoute("/fiado/$token")({
       { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex, nofollow" },
       { name: "referrer", content: "no-referrer" },
+      { name: "apple-mobile-web-app-title", content: "Omni Cliente" },
     ],
   }),
   component: Pagina,
