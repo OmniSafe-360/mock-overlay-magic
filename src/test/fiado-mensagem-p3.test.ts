@@ -7,13 +7,13 @@ describe("P3 — mensagem completa do fiado", () => {
     { tipo: "pagamento" as const, valor: 2000, forma: "pix" as const, vendaNumero: null, criadoEm: "2026-10-11T12:10:00Z" },
   ];
   it("traz total, data e hora, e o link", () => {
-    const t = mensagemFiadoCompleta({ nome: "João Silva", deve: 8000, desde: "2026-09-01T12:00:00Z" }, "Mercado X", movs, "https://x/fiado/abc");
+    const t = mensagemFiadoCompleta({ nome: "João Silva", deve: 8000, desde: "2026-09-01T12:00:00Z" }, "Mercado X", movs, "https://x/fiado/abc").replace(/\u00a0/g, " ");
     expect(t).toContain("Olá, João!");
     expect(t).toContain("R$ 80,00");
     expect(t).toContain("Devendo desde 01/09/2026");
     expect(t).toContain("10/10 às 18:42 — Compra nº 41: + R$ 23,50");
     expect(t).toContain("Pagamento (pix): − R$ 20,00");
-    expect(t).toContain("https://x/fiado/abc");
+    expect(t).toContain("https://x/fiado/abc").replace(/\u00a0/g, " ");
     expect(t.indexOf("Pagamento")).toBeLessThan(t.indexOf("Compra nº 41"));
   });
   it("conta em dia não fala em dívida", () => {
