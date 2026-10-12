@@ -43,6 +43,7 @@ export function PaginaFiadoCliente({ token }: { token: string }) {
     <div className="min-h-dvh bg-app text-foreground">
       <main className="mx-auto max-w-[520px] space-y-4 px-4 pb-10 pt-5">
         <div className="flex h-11 items-center gap-2 text-sm font-semibold text-muted-foreground"><LogoMark size={28} /> Omni Safe Cliente</div>
+        {(tela.t === "pin" || tela.t === "conta") && <InstalarCliente token={token} />}
         {tela.t === "carregando" && <p className="py-16 text-center text-base text-muted-foreground">Abrindo sua conta…</p>}
         {tela.t === "invalido" && <Aviso titulo="Este link não vale mais" texto="Peça um link novo ao comércio." />}
         {tela.t === "erro" && (
@@ -55,7 +56,6 @@ export function PaginaFiadoCliente({ token }: { token: string }) {
           <TelaPin token={token} e={tela.e} onEntrou={(s) => { gravarSessao(token, s); void abrir(); }} />
         )}
         {tela.t === "conta" && <Conta token={token} x={tela.x} onSair={() => { gravarSessao(token, null); void abrir(); }} />}
-        {(tela.t === "pin" || tela.t === "conta") && <InstalarCliente token={token} />}
       </main>
     </div>
   );

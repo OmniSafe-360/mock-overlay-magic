@@ -12,7 +12,10 @@ if (typeof window !== "undefined") {
   // "Sou funcionário" tocado dentro do app do dono instalado: a página abre dentro dele (não dá para instalar daqui).
   try { if (new URLSearchParams(window.location.search).get("origem") === "dono") sessionStorage.setItem(DENTRO_DONO, "1"); } catch { /* nada */ }
   // O navegador avisa uma vez que dá para instalar; guardamos para o botão "Instalar".
-  window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); guardado = e as EventoInstalar; avisar(); });
+  window.addEventListener("beforeinstallprompt", (e) => {
+    // Na página do cliente do fiado, deixa o Chrome mostrar sozinho a faixa "Instalar".
+    if (!window.location.pathname.startsWith("/fiado/")) e.preventDefault();
+    guardado = e as EventoInstalar; avisar(); });
   window.addEventListener("appinstalled", () => { guardado = null; try { localStorage.setItem(INSTALADO, "1"); } catch { /* nada */ } avisar(); });
 }
 
