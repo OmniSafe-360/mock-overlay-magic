@@ -2766,6 +2766,7 @@ export type Database = {
           _contado: number
           _id: string
           _produto: string
+          _rodada?: number
           _variacao: string
         }
         Returns: Json

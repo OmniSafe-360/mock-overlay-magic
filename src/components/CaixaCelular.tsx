@@ -21,6 +21,7 @@ import {
 import { newUid, unPlural, unSingular } from "@/lib/deposito";
 import { digits, maskPhone } from "@/lib/formatacao";
 import { escopoAcesso } from "@/lib/operacaoLocal";
+import { DIAS_ANTIGO, haQuantoTempo } from "@/lib/fiado";
 
 export type ApiCaixa = {
   estado: typeof banco.caixaEstado;
@@ -298,6 +299,7 @@ type Janela =
   | { j: "menu" }
   | { j: "vendas" }
   | { j: "sangria" }
+  | { j: "fiado" }
   | null;
 
 function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onReceber, onLimpar, guardadas, offline, erroFila, onEnviarGuardadas, onTentarDeNovo,
@@ -473,12 +475,13 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
       )}
       {janela?.j === "menu" && (
         <MenuCaixa estado={estado} guardadas={guardadas.length} onClose={() => setJanela(null)} onInstalar={onInstalar ? () => { setJanela(null); onInstalar(); } : undefined}
-          onVendas={() => setJanela({ j: "vendas" })} onSangria={() => setJanela({ j: "sangria" })}
+          onVendas={() => setJanela({ j: "vendas" })} onSangria={() => setJanela({ j: "sangria" })} onFiado={() => setJanela({ j: "fiado" })}
           onFechar={() => { setJanela(null); onFechar(); }} onInicio={() => { setJanela(null); onSair(); }} />
       )}
       {janela?.j === "vendas" && (
         <VendasDoCaixa estado={estado} guardadas={guardadas} chave={chave} api={api} offline={offline} onClose={() => setJanela(null)} onMudou={onAtualizar} onTentarDeNovo={onTentarDeNovo} />
       )}
+      {janela?.j === "fiado" && <ClientesFiadoCaixa chave={chave} api={api} onClose={() => setJanela(null)} />}
       {janela?.j === "sangria" && estado.turno && (
         <Sangria turno={estado.turno} chave={chave} api={api} onClose={() => setJanela(null)}
           onFeito={(t) => { onEstado({ ...estado, turno: t }); setJanela(null); setAviso({ ok: true, texto: "Dinheiro tirado da gaveta e anotado." }); }} />
@@ -798,8 +801,93 @@ function AvisoGuardadas({ guardadas, erroFila, onEnviar }: { guardadas: VendaGua
   );
 }
 
-function MenuCaixa({ estado, guardadas, onClose, onVendas, onSangria, onFechar, onInicio, onInstalar }: {
+/** F3: consulta de quem deve no fiado, dentro do caixa (só leitura). Sem internet, usa a última cópia com aviso. */
+function ClientesFiadoCaixa({ chave, api, onClose }: { chave: string; api: ApiCaixa; onClose: () => void }) {
+  const [lista, setLista] = useState<banco.ClienteFiado[] | null>(null);
+  const [daCopia, setDaCopia] = useState(false);
+  const [erro, setErro] = useState("");
+  const [q, setQ] = useState("");
+  const [sel, setSel] = useState<string | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    void (async () => {
+      const esc = await escopoAcesso(chave);
+      try {
+        const l = await api.clientes(chave);
+        if (!vivo) return;
+        setLista(l); setDaCopia(false); gravarCache(esc, { clientes: l });
+      } catch (e) {
+        if (!vivo) return;
+        const c = lerCache(esc)?.clientes;
+        if (c) { setLista(c); setDaCopia(true); } else { setErro(erroCaixa(e, "A lista de clientes não carregou")); setLista([]); }
+      }
+    })();
+    return () => { vivo = false; };
+  }, [api, chave]);
+  const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+  const todos = [...(lista ?? [])].sort((a, b) => (b.deve ?? 0) - (a.deve ?? 0) || a.nome.localeCompare(b.nome, "pt-BR"));
+  const achados = todos.filter((c) => norm(c.nome).includes(norm(q)) || (!!digits(q) && (c.telefone ?? "").includes(digits(q))));
+  const devendo = todos.filter((c) => (c.deve ?? 0) > 0);
+  const total = devendo.reduce((t, c) => t + (c.deve ?? 0), 0);
+  const antigo = (c: banco.ClienteFiado) => !!c.desde && Date.now() - Date.parse(c.desde) > DIAS_ANTIGO * 86_400_000;
+  const c = todos.find((x) => x.id === sel);
+  const dataTxt = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
+  return (
+    <Sheet title={c ? c.nome : "Clientes do fiado"} onClose={onClose}>
+      <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3">
+        {daCopia && <p role="status" className="rounded-2xl border border-warning/50 bg-warning/10 p-2 text-xs font-semibold">Sem internet: os valores são da última atualização e podem ter mudado.</p>}
+        {erro && <p role="alert" className="text-sm font-semibold text-destructive">{erro}</p>}
+        {lista === null && <p className="text-center text-sm text-muted-foreground">Carregando os clientes…</p>}
+        {c ? (
+          <>
+            <button type="button" onClick={() => setSel(null)} className="text-sm font-semibold text-primary">← Todos os clientes</button>
+            <div className="rounded-3xl border border-border bg-secondary/40 p-4">
+              <p className="text-sm text-muted-foreground">{(c.deve ?? 0) > 0 ? "Deve" : "Conta em dia"}</p>
+              <p className={`text-3xl font-bold tabular-nums ${(c.deve ?? 0) > 0 ? "" : "text-accent"}`}>{typeof c.deve === "number" ? brl(c.deve) : "—"}</p>
+              {c.desde && (c.deve ?? 0) > 0 && <p className={`text-xs ${antigo(c) ? "font-semibold text-warning" : "text-muted-foreground"}`}>Devendo desde {dataTxt(c.desde)} ({haQuantoTempo(c.desde)})</p>}
+              {c.telefone && <p className="mt-1 text-sm">{maskPhone(c.telefone)}</p>}
+            </div>
+            <p className="text-xs text-muted-foreground">Para anotar uma compra, use Fiado na hora de receber. Pagamentos ainda são registrados pelo dono.</p>
+          </>
+        ) : lista && (
+          <>
+            <div className="rounded-3xl border border-border bg-secondary/40 p-4">
+              <p className="text-sm text-muted-foreground">Total a receber</p>
+              <p className="text-2xl font-bold tabular-nums">{brl(total)}</p>
+              <p className="text-xs text-muted-foreground">{devendo.length === 0 ? "Ninguém devendo" : devendo.length === 1 ? "1 cliente deve" : `${devendo.length} clientes devem`}</p>
+            </div>
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Procurar pelo nome ou telefone" aria-label="Procurar cliente"
+              className="h-13 w-full rounded-2xl border border-border bg-background-deep/60 px-4 text-base text-foreground outline-none focus-visible:border-primary" />
+            {!lista.length && !erro && <p className="text-center text-sm text-muted-foreground">Nenhum cliente no fiado ainda.</p>}
+            <ul className="space-y-1.5" aria-label="Clientes do fiado">
+              {achados.map((x) => {
+                const deve = x.deve ?? 0;
+                return (
+                  <li key={x.id}>
+                    <button type="button" onClick={() => setSel(x.id)}
+                      className={`flex min-h-13 w-full items-center justify-between gap-3 rounded-2xl border px-4 py-2 text-left ${antigo(x) && deve > 0 ? "border-warning/60 bg-warning/5" : "border-border"}`}>
+                      <span className="min-w-0">
+                        <span className="block text-base font-semibold">{x.nome}</span>
+                        {x.desde && deve > 0 && <span className={`block text-xs ${antigo(x) ? "font-semibold text-warning" : "text-muted-foreground"}`}>Desde {dataTxt(x.desde)} ({haQuantoTempo(x.desde)})</span>}
+                      </span>
+                      {typeof x.deve !== "number" ? null : deve > 0
+                        ? <b className="shrink-0 tabular-nums">{brl(deve)}</b>
+                        : <span className="shrink-0 text-xs font-semibold text-accent">Em dia</span>}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
+      </div>
+    </Sheet>
+  );
+}
+
+function MenuCaixa({ estado, guardadas, onClose, onVendas, onSangria, onFechar, onInicio, onInstalar, onFiado }: {
   estado: banco.EstadoCaixa; guardadas: number; onClose: () => void; onVendas: () => void; onSangria: () => void; onFechar: () => void; onInicio: () => void;
+  onFiado: () => void;
   onInstalar?: (() => void) | undefined;
 }) {
   const t = estado.turno;
@@ -814,6 +902,7 @@ function MenuCaixa({ estado, guardadas, onClose, onVendas, onSangria, onFechar, 
           </div>
         )}
         <button type="button" onClick={onVendas} className={item}><Receipt size={20} className="text-primary" /><span className="flex-1"><b className="block text-base">Vendas deste caixa</b><span className="text-xs text-muted-foreground">Ver e cancelar (com o PIN do dono)</span></span></button>
+        <button type="button" onClick={onFiado} className={item}><BookUser size={20} className="text-primary" /><span className="flex-1"><b className="block text-base">Clientes do fiado</b><span className="text-xs text-muted-foreground">Quem deve, quanto e desde quando</span></span></button>
         <button type="button" onClick={onSangria} className={item}><HandCoins size={20} className="text-primary" /><span className="flex-1"><b className="block text-base">Tirar dinheiro da gaveta</b><span className="text-xs text-muted-foreground">Sangria, com o PIN do dono</span></span></button>
         <button type="button" onClick={onFechar} className={item}><Lock size={20} className="text-primary" /><span className="flex-1"><b className="block text-base">Fechar o caixa</b><span className="text-xs text-muted-foreground">Contar o dinheiro e encerrar o dia</span></span></button>
         {onInstalar && (
