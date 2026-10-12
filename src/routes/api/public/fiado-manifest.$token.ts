@@ -12,7 +12,7 @@ export const Route = createFileRoute("/api/public/fiado-manifest/$token")({
           name: "Omni Safe Cliente",
           short_name: "Omni Cliente",
           description: "Sua conta no fiado: quanto deve, compras e pagamentos.",
-          start_url: token ? `/fiado/${token}` : "/fiado/",
+          start_url: token ? `/fiado/${token}?app=cliente` : "/fiado/?app=cliente",
           scope: "/fiado/",
           display: "standalone",
           orientation: "portrait",

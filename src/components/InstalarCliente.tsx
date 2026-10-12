@@ -9,14 +9,28 @@ export function dentroDeOutroApp(ua = typeof navigator === "undefined" ? "" : na
   return /WhatsApp|FBAN|FBAV|Instagram|; wv\)/i.test(ua) || (/iPhone|iPad|iPod/i.test(ua) && !/Safari\//i.test(ua));
 }
 
+const MARCA = "omni.fiado.app_cliente";
+/** Aberto pelo ícone do Omni Safe Cliente (o manifesto abre com ?app=cliente). */
+function abertoPeloCliente() {
+  try {
+    if (new URLSearchParams(window.location.search).get("app") === "cliente") sessionStorage.setItem(MARCA, "1");
+    return sessionStorage.getItem(MARCA) === "1";
+  } catch { return false; }
+}
+
 export function InstalarCliente({ token }: { token: string }) {
   const [pronto, setPronto] = useState(false);
   const [direto, setDireto] = useState(false);
   const [ajuda, setAjuda] = useState(false);
   const [preso, setPreso] = useState(false);
+  const [noAppDono, setNoAppDono] = useState(false);
   useEffect(() => {
-    setPronto(!abertoComoApp());
-    setPreso(dentroDeOutroApp());
+    const app = abertoComoApp();
+    const cliente = app && abertoPeloCliente();
+    // Com o Omni Safe 360 instalado, o Android abre o link do WhatsApp dentro dele (tela cheia, sem navegador).
+    setPronto(!cliente);
+    setNoAppDono(app && !cliente);
+    setPreso(dentroDeOutroApp() || (app && !cliente));
     setDireto(podeInstalarDireto());
     return ouvirInstalacao(() => setDireto(podeInstalarDireto()));
   }, []);
@@ -31,14 +45,14 @@ export function InstalarCliente({ token }: { token: string }) {
         <p className="font-bold">Instale o Omni Safe Cliente</p>
         {aparelho === "android" ? (
           <>
-            <p className="mt-1 text-sm text-muted-foreground">Dentro do WhatsApp não dá para instalar. Abra no Chrome:</p>
+            <p className="mt-1 text-sm text-muted-foreground">{noAppDono ? "O link abriu dentro do app Omni Safe 360. Para instalar o Omni Safe Cliente, abra no Chrome:" : "Dentro do WhatsApp não dá para instalar. Abra no Chrome:"}</p>
             <a href={linkChromeAndroid(caminho)} className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary font-semibold text-primary-foreground">
               <ExternalLink size={18} /> Abrir no Chrome e instalar
             </a>
           </>
         ) : (
           <>
-            <p className="mt-1 text-sm text-muted-foreground">Dentro do WhatsApp não dá para instalar. Toque nos <b>três pontinhos</b> ou no ícone da bússola e escolha <b>Abrir no Safari</b>. Depois: Compartilhar → <b>Adicionar à Tela de Início</b>.</p>
+            <p className="mt-1 text-sm text-muted-foreground">{noAppDono ? "O link abriu dentro de outro app. " : "Dentro do WhatsApp não dá para instalar. "}Toque nos <b>três pontinhos</b> ou no ícone da bússola e escolha <b>Abrir no Safari</b>. Depois: Compartilhar → <b>Adicionar à Tela de Início</b>.</p>
             <button type="button" onClick={() => void navigator.clipboard?.writeText(endereco)} className="mt-3 h-11 w-full rounded-2xl border border-border font-semibold">Copiar o link</button>
           </>
         )}
