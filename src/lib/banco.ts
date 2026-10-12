@@ -690,6 +690,13 @@ export async function caixaSalvarClienteFiado(chave: string, id: string, nome: s
   const d = data as any;
   return { id: d.id, nome: d.nome, telefone: d.telefone ?? null, deve: 0, desde: null };
 }
+/** F6: pagamento do fiado recebido no caixa (centavos). Repetir o mesmo id não registra de novo. */
+export async function caixaReceberFiado(chave: string, id: string, turnoId: string, clienteId: string, centavos: number, forma: "dinheiro" | "pix" | "cartao"): Promise<{ situacao: "registrado" | "repetida"; deve: number }> {
+  const { data, error } = await rpc("caixa_receber_fiado" as any, { _chave: chave, _id: id, _turno: turnoId, _cliente: clienteId, _valor: centavos / 100, _forma: forma } as any);
+  if (error) throw error;
+  const d = data as any;
+  return { situacao: d.situacao, deve: Math.round(Number(d.deve) * 100) };
+}
 /** Abre o caixa com o troco da gaveta (em centavos). Se já estava aberto, devolve o mesmo. */
 export async function caixaAbrir(chave: string, id: string, trocoCentavos: number): Promise<TurnoCaixa> {
   const { data, error } = await rpc("caixa_abrir", { _chave: chave, _id: id, _troco: trocoCentavos / 100 });

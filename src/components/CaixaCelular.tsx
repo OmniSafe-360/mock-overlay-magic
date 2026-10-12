@@ -481,7 +481,7 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
       {janela?.j === "vendas" && (
         <VendasDoCaixa estado={estado} guardadas={guardadas} chave={chave} api={api} offline={offline} onClose={() => setJanela(null)} onMudou={onAtualizar} onTentarDeNovo={onTentarDeNovo} />
       )}
-      {janela?.j === "fiado" && <ClientesFiadoCaixa chave={chave} api={api} onClose={() => setJanela(null)} />}
+      {janela?.j === "fiado" && <ClientesFiadoCaixa chave={chave} api={api} turnoId={estado.turno?.id ?? null} onClose={() => setJanela(null)} />}
       {janela?.j === "sangria" && estado.turno && (
         <Sangria turno={estado.turno} chave={chave} api={api} onClose={() => setJanela(null)}
           onFeito={(t) => { onEstado({ ...estado, turno: t }); setJanela(null); setAviso({ ok: true, texto: "Dinheiro tirado da gaveta e anotado." }); }} />
@@ -846,7 +846,8 @@ function NovoClienteCaixa({ chave, onSalvo }: { chave: string; onSalvo: (c: banc
 }
 
 /** F3: consulta de quem deve no fiado, dentro do caixa (só leitura). Sem internet, usa a última cópia com aviso. */
-function ClientesFiadoCaixa({ chave, api, onClose }: { chave: string; api: ApiCaixa; onClose: () => void }) {
+function ClientesFiadoCaixa({ chave, api, turnoId, onClose }: { chave: string; api: ApiCaixa; turnoId: string | null; onClose: () => void }) {
+  const [versao, setVersao] = useState(0);
   const [lista, setLista] = useState<banco.ClienteFiado[] | null>(null);
   const [daCopia, setDaCopia] = useState(false);
   const [erro, setErro] = useState("");
@@ -891,8 +892,12 @@ function ClientesFiadoCaixa({ chave, api, onClose }: { chave: string; api: ApiCa
               {c.desde && (c.deve ?? 0) > 0 && <p className={`text-xs ${antigo(c) ? "font-semibold text-warning" : "text-muted-foreground"}`}>Devendo desde {dataTxt(c.desde)} ({haQuantoTempo(c.desde)})</p>}
               {c.telefone && <p className="mt-1 text-sm">{maskPhone(c.telefone)}</p>}
             </div>
-            <HistoricoFiado chave={chave} clienteId={c.id} />
-            <p className="text-xs text-muted-foreground">Para anotar uma compra, use Fiado na hora de receber. Pagamentos ainda são registrados pelo dono.</p>
+            {turnoId && (c.deve ?? 0) > 0 && !daCopia && (
+              <ReceberFiadoCaixa key={c.id} chave={chave} turnoId={turnoId} cliente={c}
+                onPago={(deve) => { setLista((l) => (l ?? []).map((x) => x.id === c.id ? { ...x, deve, desde: deve > 0 ? (x.desde ?? null) : null } : x)); setVersao((n) => n + 1); }} />
+            )}
+            <HistoricoFiado key={versao} chave={chave} clienteId={c.id} />
+            <p className="text-xs text-muted-foreground">Para anotar uma compra, use Fiado na hora de receber.</p>
           </>
         ) : lista && (
           <>
@@ -1242,6 +1247,56 @@ function HistoricoFiado({ chave, clienteId }: { chave: string; clienteId: string
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+/** F6: o cliente pagou o fiado no balcão. Precisa do caixa aberto e de internet; o id fica guardado até dar certo (repetir não duplica). */
+function ReceberFiadoCaixa({ chave, turnoId, cliente, onPago }: { chave: string; turnoId: string; cliente: banco.ClienteFiado; onPago: (deve: number) => void }) {
+  const deve = cliente.deve ?? 0;
+  const [aberto, setAberto] = useState(false);
+  const [valor, setValor] = useState(() => (deve / 100).toFixed(2).replace(".", ","));
+  const [forma, setForma] = useState<"dinheiro" | "pix" | "cartao">("dinheiro");
+  const [id, setId] = useState(() => crypto.randomUUID());
+  const [salvando, setSalvando] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [ok, setOk] = useState("");
+  const cent = Math.round(Number(valor.replace(/\./g, "").replace(",", ".")) * 100);
+  const valido = Number.isFinite(cent) && cent > 0 && cent <= deve;
+  const salvar = async () => {
+    if (!valido || salvando) return;
+    setSalvando(true); setMsg("");
+    try {
+      const r = await banco.caixaReceberFiado(chave, id, turnoId, cliente.id, cent, forma);
+      setOk(`Pagamento de ${brl(cent)} registrado.${forma === "dinheiro" ? " O dinheiro entra na conta da gaveta." : ""}`);
+      setId(crypto.randomUUID()); setAberto(false); onPago(r.deve);
+    } catch (e) { setMsg(erroCaixa(e, "O pagamento não foi registrado")); }
+    finally { setSalvando(false); }
+  };
+  if (!aberto) return (
+    <div className="space-y-1">
+      <button type="button" onClick={() => { setAberto(true); setOk(""); }} className="flex min-h-12 w-full items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground">Recebeu pagamento</button>
+      {ok && <p role="status" className="text-center text-xs font-semibold text-accent">{ok}</p>}
+    </div>
+  );
+  const btn = (f: "dinheiro" | "pix" | "cartao", t: string) => (
+    <button type="button" disabled={salvando} onClick={() => setForma(f)} aria-pressed={forma === f}
+      className={`h-11 flex-1 rounded-2xl border text-sm font-semibold ${forma === f ? "border-primary bg-primary/15 text-primary" : "border-border"}`}>{t}</button>
+  );
+  return (
+    <div className="space-y-2 rounded-3xl border border-border bg-secondary/40 p-4">
+      <p className="text-sm font-semibold">Quanto o cliente pagou?</p>
+      <input value={valor} onChange={(e) => setValor(e.target.value.replace(/[^0-9,.]/g, ""))} disabled={salvando} inputMode="decimal" aria-label="Valor pago"
+        className="h-12 w-full rounded-2xl border border-border bg-background-deep/60 px-4 text-base text-foreground outline-none focus-visible:border-primary" />
+      <div className="flex gap-2">{btn("dinheiro", "Dinheiro")}{btn("pix", "Pix")}{btn("cartao", "Cartão")}</div>
+      {cent > deve && <p className="text-xs text-warning">Não pode passar do que deve ({brl(deve)}).</p>}
+      {valido && <p className="text-xs text-muted-foreground">{cent === deve ? "A conta fica em dia." : `Vai continuar devendo ${brl(deve - cent)}.`}</p>}
+      {msg && <p role="alert" className="text-sm font-semibold text-destructive">{msg}</p>}
+      <div className="flex gap-2">
+        <button type="button" disabled={salvando} onClick={() => { setAberto(false); setMsg(""); }} className="h-12 flex-1 rounded-2xl border border-border text-sm font-semibold">Cancelar</button>
+        <button type="button" disabled={!valido || salvando} onClick={() => void salvar()} className="h-12 flex-1 rounded-2xl bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-50">{salvando ? "Registrando…" : "Registrar pagamento"}</button>
+      </div>
+      <p className="text-xs text-muted-foreground">Precisa de internet. Dinheiro recebido entra no fechamento do caixa.</p>
     </div>
   );
 }
