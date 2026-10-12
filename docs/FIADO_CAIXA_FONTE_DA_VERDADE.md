@@ -57,7 +57,7 @@ Regras do fluxo:
 
 ## 3. Etapas (uma de cada vez)
 
-- [ ] **F1 — Saldo na lista do fiado (banco, só leitura).** Alterar `caixa_clientes_fiado` (função existente,
+- [x] **F1 — Saldo na lista do fiado (banco, só leitura).** Alterar `caixa_clientes_fiado` (função existente,
   a partir de `pg_get_functiondef`) para devolver também `deve` e `desde`. Mesma chave/permissões; sem tabela nova.
   Testes: saldo = compras − pagamentos − cancelamentos, nunca negativo; outro comércio recusado.
 - [ ] **F2 — Mostrar o saldo ao vender fiado (tela).** Na janela Fiado do "Receber": cada cliente com
@@ -88,4 +88,5 @@ Regras do fluxo:
 
 ## 5. Registro
 
-- 11/10/2026: análise e plano criados. Nenhum código ou banco alterado. Próxima etapa: **F1**.
+- 11/10/2026: análise e plano criados. Nenhum código ou banco alterado.
+- 12/10/2026: **F1 feita** — `caixa_clientes_fiado` (a partir da versão do banco) devolve também `deve` (compras − pagamentos − cancelamentos, nunca negativo) e `desde` (só quando deve). Mesma chave, SECURITY DEFINER, search_path e permissões conferidos depois. Campos antigos iguais: o app atual continua funcionando. Sem tela nova; não precisa Publicar. Não deu para simular com rollback antes (o ambiente aplica direto). Próxima: **F2**.
