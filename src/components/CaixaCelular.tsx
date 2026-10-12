@@ -847,6 +847,7 @@ function ClientesFiadoCaixa({ chave, api, onClose }: { chave: string; api: ApiCa
               {c.desde && (c.deve ?? 0) > 0 && <p className={`text-xs ${antigo(c) ? "font-semibold text-warning" : "text-muted-foreground"}`}>Devendo desde {dataTxt(c.desde)} ({haQuantoTempo(c.desde)})</p>}
               {c.telefone && <p className="mt-1 text-sm">{maskPhone(c.telefone)}</p>}
             </div>
+            <HistoricoFiado chave={chave} clienteId={c.id} />
             <p className="text-xs text-muted-foreground">Para anotar uma compra, use Fiado na hora de receber. Pagamentos ainda são registrados pelo dono.</p>
           </>
         ) : lista && (
