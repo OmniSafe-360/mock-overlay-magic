@@ -483,7 +483,7 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
       {janela?.j === "vendas" && (
         <VendasDoCaixa estado={estado} guardadas={guardadas} chave={chave} api={api} offline={offline} onClose={() => setJanela(null)} onMudou={onAtualizar} onTentarDeNovo={onTentarDeNovo} />
       )}
-      {janela?.j === "fiado" && <ClientesFiadoCaixa chave={chave} api={api} turnoId={estado.turno?.id ?? null} onClose={() => setJanela(null)} />}
+      {janela?.j === "fiado" && <ClientesFiadoCaixa chave={chave} api={api} turnoId={estado.turno?.id ?? null} comercioNome={estado.comercio.nome} onClose={() => setJanela(null)} />}
       {janela?.j === "sangria" && estado.turno && (
         <Sangria turno={estado.turno} chave={chave} api={api} onClose={() => setJanela(null)}
           onFeito={(t) => { onEstado({ ...estado, turno: t }); setJanela(null); setAviso({ ok: true, texto: "Dinheiro tirado da gaveta e anotado." }); }} />
