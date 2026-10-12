@@ -15,6 +15,7 @@ import { Route as ConectorRouteImport } from './routes/conector'
 import { Route as FuncionarioRouteImport } from './routes/funcionario'
 import { Route as FiadoTokenRouteImport } from './routes/fiado/$token'
 import { Route as PedidoTokenRouteImport } from './routes/pedido/$token'
+import { Route as ApiPublicFiadoManifestTokenRouteImport } from './routes/api/public/fiado-manifest.$token'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +47,12 @@ const PedidoTokenRoute = PedidoTokenRouteImport.update({
   path: '/pedido/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicFiadoManifestTokenRoute =
+  ApiPublicFiadoManifestTokenRouteImport.update({
+    id: '/api/public/fiado-manifest/$token',
+    path: '/api/public/fiado-manifest/$token',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByFullPath {
   '/funcionario': typeof FuncionarioRoute
   '/fiado/$token': typeof FiadoTokenRoute
   '/pedido/$token': typeof PedidoTokenRoute
+  '/api/public/fiado-manifest/$token': typeof ApiPublicFiadoManifestTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +70,7 @@ export interface FileRoutesByTo {
   '/funcionario': typeof FuncionarioRoute
   '/fiado/$token': typeof FiadoTokenRoute
   '/pedido/$token': typeof PedidoTokenRoute
+  '/api/public/fiado-manifest/$token': typeof ApiPublicFiadoManifestTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,6 +80,7 @@ export interface FileRoutesById {
   '/funcionario': typeof FuncionarioRoute
   '/fiado/$token': typeof FiadoTokenRoute
   '/pedido/$token': typeof PedidoTokenRoute
+  '/api/public/fiado-manifest/$token': typeof ApiPublicFiadoManifestTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -81,6 +91,7 @@ export interface FileRouteTypes {
     | '/funcionario'
     | '/fiado/$token'
     | '/pedido/$token'
+    | '/api/public/fiado-manifest/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -89,6 +100,7 @@ export interface FileRouteTypes {
     | '/funcionario'
     | '/fiado/$token'
     | '/pedido/$token'
+    | '/api/public/fiado-manifest/$token'
   id:
     | '__root__'
     | '/'
@@ -97,6 +109,7 @@ export interface FileRouteTypes {
     | '/funcionario'
     | '/fiado/$token'
     | '/pedido/$token'
+    | '/api/public/fiado-manifest/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -106,6 +119,7 @@ export interface RootRouteChildren {
   FuncionarioRoute: typeof FuncionarioRoute
   FiadoTokenRoute: typeof FiadoTokenRoute
   PedidoTokenRoute: typeof PedidoTokenRoute
+  ApiPublicFiadoManifestTokenRoute: typeof ApiPublicFiadoManifestTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -152,6 +166,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PedidoTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/fiado-manifest/$token': {
+      id: '/api/public/fiado-manifest/$token'
+      path: '/api/public/fiado-manifest/$token'
+      fullPath: '/api/public/fiado-manifest/$token'
+      preLoaderRoute: typeof ApiPublicFiadoManifestTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -162,6 +183,7 @@ const rootRouteChildren: RootRouteChildren = {
   FuncionarioRoute: FuncionarioRoute,
   FiadoTokenRoute: FiadoTokenRoute,
   PedidoTokenRoute: PedidoTokenRoute,
+  ApiPublicFiadoManifestTokenRoute: ApiPublicFiadoManifestTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -73,3 +73,16 @@ export function dentroDoAppDono(): boolean {
 /** Endereço para abrir no navegador. No Android, abre direto no Chrome. */
 export const enderecoFuncionario = (caminho = "/funcionario") => (typeof window === "undefined" ? caminho : `${window.location.origin}${caminho}`);
 export const linkChromeAndroid = (caminho = "/funcionario") => (typeof window === "undefined" ? "" : `intent://${window.location.host}${caminho}#Intent;scheme=https;package=com.android.chrome;end`);
+
+/** App do cliente do fiado ("Omni Safe Cliente"): manifesto próprio, com o link da conta dele. */
+export function prepararInstalacaoCliente(token: string) {
+  if (typeof document === "undefined") return;
+  let link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+  if (!link) { link = document.createElement("link"); link.rel = "manifest"; document.head.appendChild(link); }
+  link.href = `/api/public/fiado-manifest/${encodeURIComponent(token)}`;
+  let meta = document.querySelector<HTMLMetaElement>('meta[name="apple-mobile-web-app-title"]');
+  if (!meta) { meta = document.createElement("meta"); meta.name = "apple-mobile-web-app-title"; document.head.appendChild(meta); }
+  meta.content = "Omni Cliente";
+  // Só para o celular oferecer "Instalar"; o arquivo não guarda nada fora de /caixa e /funcionario.
+  if (import.meta.env.PROD && "serviceWorker" in navigator) navigator.serviceWorker.register("/sw-funcionario.js", { scope: "/fiado/", updateViaCache: "none" }).catch(() => { /* menu do navegador ainda funciona */ });
+}
