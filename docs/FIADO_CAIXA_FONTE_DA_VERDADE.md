@@ -63,7 +63,7 @@ Regras do fluxo:
 - [x] **F2 — Mostrar o saldo ao vender fiado (tela).** Na janela Fiado do "Receber": cada cliente com
   "Deve R$ X" (ou "Em dia") e, ao escolher, "Vai ficar devendo R$ Y". Cópia sem internet guarda o saldo com aviso.
   Não muda a venda nem a fila.
-- [ ] **F3 — "Clientes do fiado" no menu do caixa (tela, só consulta).** Lista ordenada por quem deve mais,
+- [x] **F3 — "Clientes do fiado" no menu do caixa (tela, só consulta).** Lista ordenada por quem deve mais,
   busca, total a receber, cliente com mais de 30 dias em amarelo (mesma regra de `src/lib/fiado.ts`).
   Detalhe: saldo, desde quando, telefone. Reaproveitar `contasFiado`/`resumoFiado`/`haQuantoTempo`.
 - [ ] **F4 — Histórico do cliente no caixa (banco + tela).** Precisa de **função nova** de leitura pela chave do
@@ -91,3 +91,4 @@ Regras do fluxo:
 - 11/10/2026: análise e plano criados. Nenhum código ou banco alterado.
 - 12/10/2026: **F1 feita** — `caixa_clientes_fiado` (a partir da versão do banco) devolve também `deve` (compras − pagamentos − cancelamentos, nunca negativo) e `desde` (só quando deve). Mesma chave, SECURITY DEFINER, search_path e permissões conferidos depois. Campos antigos iguais: o app atual continua funcionando. Sem tela nova; não precisa Publicar. Não deu para simular com rollback antes (o ambiente aplica direto). Próxima: **F2**.
 - 12/10/2026: **F2 feita** — na janela Fiado do "Receber", cada cliente mostra "Deve R$ X" ou "Em dia" e "Com esta venda, vai ficar devendo R$ Y"; sem internet usa a cópia com aviso "valores da última atualização". Venda, fila e regras iguais. Teste `src/test/caixa-fiado-saldo.test.ts`. Precisa Publicar → Atualizar; falta o teste do dono. Próxima: **F3**.
+- 12/10/2026: **F3 feita** — menu do caixa ganhou "Clientes do fiado": total a receber, lista de quem deve mais primeiro, busca por nome/telefone, amarelo acima de 30 dias, detalhe com saldo, desde quando e telefone. Só consulta; sem internet usa a cópia com aviso. Sem mudança no banco. Precisa Publicar → Atualizar; falta o teste do dono. Próxima: **F4** (aguarda aprovação: função nova de histórico).
