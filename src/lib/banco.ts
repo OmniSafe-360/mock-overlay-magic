@@ -626,6 +626,7 @@ const numero = (v: unknown) => Number(v ?? 0);
 export type TurnoCaixa = {
   id: string; abertoEm: string; trocoInicial: number; vendas: number; canceladas: number; total: number;
   porForma: Record<"dinheiro" | "pix" | "cartao" | "fiado", number>; trocoDado: number; sangrias: number; dinheiroEsperado: number;
+  /** F7: pagamentos do fiado recebidos neste turno (centavos). */ fiadoRecebido?: { dinheiro: number; pix: number; cartao: number; quantos: number } | undefined;
   fechado?: boolean | undefined; dinheiroContado?: number | undefined; diferenca?: number | undefined;
 };
 export type VendaDoCaixa = { id: string; numero: number | null; feitaEm: string; total: number; situacao: "finalizada" | "cancelada";
@@ -638,6 +639,7 @@ const turno = (t: any): TurnoCaixa => ({
   id: t.id, abertoEm: t.aberto_em, trocoInicial: centavos(t.troco_inicial), vendas: numero(t.vendas), canceladas: numero(t.canceladas), total: centavos(t.total),
   porForma: { dinheiro: centavos(t.por_forma?.dinheiro), pix: centavos(t.por_forma?.pix), cartao: centavos(t.por_forma?.cartao), fiado: centavos(t.por_forma?.fiado) },
   trocoDado: centavos(t.troco_dado), sangrias: centavos(t.sangrias), dinheiroEsperado: centavos(t.dinheiro_esperado),
+  ...(t.fiado_recebido ? { fiadoRecebido: { dinheiro: centavos(t.fiado_recebido.dinheiro), pix: centavos(t.fiado_recebido.pix), cartao: centavos(t.fiado_recebido.cartao), quantos: numero(t.fiado_recebido.quantos) } } : {}),
   ...(t.situacao === "fechado" ? { fechado: true, dinheiroContado: centavos(t.dinheiro_contado), diferenca: centavos(t.diferenca) } : {}),
 });
 export async function caixaEstado(chave: string): Promise<EstadoCaixa> {
@@ -774,12 +776,13 @@ export async function carregarFechamentos(comercioId: string, desde: string): Pr
 export async function carregarFiado(comercioId: string): Promise<{ clientes: import("@/lib/fiado").ClienteFiado[]; movimentos: import("@/lib/fiado").MovimentoFiado[] }> {
   const [cs, ms] = await Promise.all([
     todos("clientes_fiado", "id,nome,telefone,ativo,created_at", (q) => q.eq("comercio_id", comercioId)),
-    todos("fiado_movimentos", "id,cliente_id,tipo,valor,forma,observacao,criado_em,vendas(numero)", (q) => q.eq("comercio_id", comercioId)),
+    todos("fiado_movimentos", "id,cliente_id,tipo,valor,forma,observacao,criado_em,funcionario_id,vendas(numero),funcionarios(nome)", (q) => q.eq("comercio_id", comercioId)),
   ]);
   return {
     clientes: cs.map((c) => ({ id: c.id, nome: c.nome, telefone: c.telefone ?? null, ativo: !!c.ativo, criadoEm: c.created_at })),
     movimentos: ms.map((m) => ({ id: m.id, clienteId: m.cliente_id, tipo: m.tipo, valor: centavos(m.valor), vendaNumero: m.vendas?.numero ?? null,
-      forma: m.forma ?? null, observacao: m.observacao ?? null, criadoEm: m.criado_em })),
+      forma: m.forma ?? null, observacao: m.observacao ?? null, criadoEm: m.criado_em,
+      ...(m.tipo === "pagamento" && m.funcionario_id ? { recebidoPor: m.funcionarios?.nome ?? "funcionário" } : {}) })),
   };
 }
 /** O cliente pagou (tudo ou parte). Não aceita mais do que deve. Repetir o mesmo id não paga duas vezes. */
