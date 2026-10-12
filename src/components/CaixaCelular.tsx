@@ -21,7 +21,9 @@ import {
 import { newUid, unPlural, unSingular } from "@/lib/deposito";
 import { digits, maskPhone } from "@/lib/formatacao";
 import { escopoAcesso } from "@/lib/operacaoLocal";
-import { DIAS_ANTIGO, haQuantoTempo, textoMovimento , bloqueioFiado } from "@/lib/fiado";
+import { DIAS_ANTIGO, haQuantoTempo, textoMovimento , bloqueioFiado, mensagemFiadoCompleta } from "@/lib/fiado";
+import { CompartilharFiado } from "@/components/CompartilharFiado";
+import { linkClienteCaixa } from "@/lib/fiadoCliente";
 
 export type ApiCaixa = {
   estado: typeof banco.caixaEstado;
@@ -898,6 +900,13 @@ function ClientesFiadoCaixa({ chave, api, turnoId, onClose }: { chave: string; a
             {turnoId && (c.deve ?? 0) > 0 && !daCopia && (
               <ReceberFiadoCaixa key={c.id} chave={chave} turnoId={turnoId} cliente={c}
                 onPago={(deve) => { setLista((l) => (l ?? []).map((x) => x.id === c.id ? { ...x, deve, desde: deve > 0 ? (x.desde ?? null) : null } : x)); setVersao((n) => n + 1); }} />
+            )}
+            {!daCopia && (
+              <CompartilharFiado telefone={c.telefone ?? null} rotulo={(c.deve ?? 0) > 0 ? "Mandar a conta no WhatsApp" : "Mandar a conta no WhatsApp"}
+                montar={async (link) => {
+                  const [token, movs] = await Promise.all([linkClienteCaixa(chave, c.id), banco.caixaClienteFiadoHistorico(chave, c.id).catch(() => [])]);
+                  return mensagemFiadoCompleta({ nome: c.nome, deve: c.deve ?? 0, desde: c.desde ?? null }, comercioNome, movs, link(token));
+                }} />
             )}
             <HistoricoFiado key={versao} chave={chave} clienteId={c.id} />
             <p className="text-xs text-muted-foreground">Para anotar uma compra, use Fiado na hora de receber.</p>

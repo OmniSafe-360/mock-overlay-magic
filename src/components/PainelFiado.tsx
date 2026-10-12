@@ -8,7 +8,7 @@ import * as banco from "@/lib/banco";
 import { centavosDigitados, mascaraDinheiro } from "@/lib/caixa";
 import { newUid } from "@/lib/deposito";
 import {
-  DIAS_ANTIGO, FORMA_FIADO, buscarConta, contasFiado, haQuantoTempo, linkWhats, mensagemCobranca, resumoFiado, textoMovimento,
+  DIAS_ANTIGO, FORMA_FIADO, buscarConta, contasFiado, haQuantoTempo, mensagemFiadoCompleta, resumoFiado, textoMovimento,
   type ClienteFiado, type ContaFiado, type MovimentoFiado,
 } from "@/lib/fiado";
 import { digits, formatarCentavos as brl, maskPhone } from "@/lib/formatacao";
