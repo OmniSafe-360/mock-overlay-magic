@@ -2631,6 +2631,17 @@ export type Database = {
         Returns: Json
       }
       caixa_produtos: { Args: { _chave: string }; Returns: Json }
+      caixa_receber_fiado: {
+        Args: {
+          _chave: string
+          _cliente: string
+          _forma: string
+          _id: string
+          _turno: string
+          _valor: number
+        }
+        Returns: Json
+      }
       caixa_registrar_venda: {
         Args: { _chave: string; _venda: Json }
         Returns: Json
