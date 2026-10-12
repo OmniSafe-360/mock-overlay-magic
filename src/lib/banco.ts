@@ -9,6 +9,7 @@ import type { ItemRecebido, ProdutoFunc, Recebimento, SituacaoItemRecebido } fro
 import type { itemParaEnvio } from "@/lib/recebimento";
 import { ehIncerto, enviarCadastro, linhaFornecedor, montarCadastro, montarFornecedores, montarProdutos, type Bruto, type Sessao } from "@/lib/persistencia";
 import type { TipoEnvio } from "@/lib/envios";
+import { unPlural, unSingular } from "@/lib/deposito";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const db = supabase;
@@ -715,14 +716,22 @@ export async function caixaAbrir(chave: string, id: string, trocoCentavos: numbe
   return turno(data.turno);
 }
 /** Venda finalizada. Repetir o mesmo id não conta de novo (devolve "repetida"). */
-export type BloqueioCaixa = { nome: string; motivo: string; contagemSolicitada: boolean };
+export type BloqueioCaixa = { nome: string; motivo: string; contagemSolicitada: boolean; produtoId?: string; disponivel?: number | null };
 export type ResultadoCaixa = { situacao: "registrada" | "repetida"; numero: number | null; troco: number; semCadastro: number }
   | { situacao: "bloqueada"; bloqueios: BloqueioCaixa[] };
 function bloqueioCaixa(data: any): Extract<ResultadoCaixa, { situacao: "bloqueada" }> {
-  return { situacao: "bloqueada", bloqueios: (data.bloqueios ?? []).map((b: any) => ({ nome: String(b.nome ?? "Produto"), motivo: String(b.motivo), contagemSolicitada: !!b.contagem_solicitada })) };
+  return { situacao: "bloqueada", bloqueios: (data.bloqueios ?? []).map((b: any) => ({ nome: String(b.nome ?? "Produto"), motivo: String(b.motivo), contagemSolicitada: !!b.contagem_solicitada,
+    ...(b.produto_id ? { produtoId: String(b.produto_id) } : {}), ...(b.disponivel !== undefined ? { disponivel: numOuNull(b.disponivel) } : {}) })) };
 }
-export function textoBloqueioCaixa(r: Extract<ResultadoCaixa, { situacao: "bloqueada" }>): string {
-  return r.bloqueios.map((b) => `${b.nome}: ${b.motivo === "produto_sem_cadastro" ? "peça ao dono para cadastrar antes de vender." : b.motivo === "produto_sem_area_venda" ? "peça ao dono para configurar a área de venda." : b.contagemSolicitada ? "venda bloqueada. Contagem solicitada à equipe; não houve venda ou baixa." : "saldo já conferido. Corrija a quantidade ou registre a reposição antes de vender."}`).join(" ");
+export function textoBloqueioCaixa(r: Extract<ResultadoCaixa, { situacao: "bloqueada" }>, produtos: import("@/lib/caixa").ProdutoCaixa[] = []): string {
+  return r.bloqueios.map((b) => {
+    if (b.motivo === "produto_sem_cadastro") return `${b.nome}: peça ao dono para cadastrar o produto antes de vender.`;
+    if (b.motivo === "produto_sem_area_venda") return `${b.nome}: peça ao dono para configurar a área de venda.`;
+    const p = produtos.find((p) => p.id === b.produtoId);
+    const quantidade = b.disponivel != null ? `${b.disponivel.toLocaleString("pt-BR", { maximumFractionDigits: 3 })}${p ? ` ${b.disponivel === 1 ? unSingular(p.unidade) : unPlural(p.unidade)}` : ""}` : null;
+    const saldo = quantidade != null ? `o sistema registra ${quantidade} na área de venda.` : b.motivo === "gondola_nao_contada" ? "a quantidade na área de venda ainda precisa ser conferida." : "a quantidade solicitada ultrapassa o disponível no sistema.";
+    return `${b.nome}: ${saldo} ${b.contagemSolicitada ? "A equipe já foi avisada para conferir o produto. Para vender mais, aguarde a conferência ou a reposição." : "Confira a quantidade do carrinho. Para vender mais, registre a reposição primeiro."}`;
+  }).join(" ");
 }
 export async function caixaConferirVenda(chave: string, venda: ReturnType<typeof import("@/lib/caixa").montarVenda>): Promise<{ situacao: "aprovada" } | Extract<ResultadoCaixa, { situacao: "bloqueada" }>> {
   const { data, error } = await rpc("caixa_registrar_venda", { _chave: chave, _venda: { ...venda, acao: "conferir" } as unknown as Json });

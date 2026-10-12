@@ -118,6 +118,8 @@ E2–E4 verificam o que já existe; não reconstroem os módulos. E5 inclui pend
 
 **C6 / E3.5–E3.9 e E4.1–E4.2:** correção de excesso no Caixa móvel e conferências vinculadas entregue em 12/10/2026, com banco aplicado, tipos/testes duas vezes, SQL/conexões concorrentes e navegador local 320/1280 px. [Registro e roteiro](caixa-estoque-contagens-2026-10-12.md). [PR #111](https://github.com/OmniSafe-360/mock-overlay-magic/pull/111). Precisa Publicar → Atualizar; teste do dono pendente. Os itens `[ ]` continuam abertos para o aceite conjunto. Nenhum saldo real acertado.
 
+**Complemento C6 — aviso do Caixa (12/10/2026):** o dono confirmou visualmente o bloqueio da quantidade extra no print `72039.png` e pediu clareza. Aviso único, legível e sem sobrepor os campos, com carrinho mantido e opção de fechar; sem mudar regra ou banco. Testes/tipos duas vezes e navegador 320×568/390×844/1280×900 aprovados; [registro](caixa-estoque-contagens-2026-10-12.md). Pronto, falta Publicar → Atualizar e conferir no aparelho. O resultado parcial não encerra E3/E4/E6.
+
 **Roteiro mínimo com números conhecidos, em ambiente de teste:** começar com depósito 20/área de venda 10; aceitar 8 boas → 28/10; repor 5 → 23/15; vender 3 → 23/12; cancelar essa venda → 23/15; perda de 2 na área → 23/13. Conferir saldos, lotes e registros após cada passo. Testar depois embalagem e variação. “Não contado” tem roteiro separado; não inventar zero para iniciar essa conta.
 
 **Saída de E3:** a cadeia física e a conta do sistema fecham, com estados e registros verificáveis; nenhuma falha conhecida de duplicação, omissão ou acesso cruzado permanece aberta.
