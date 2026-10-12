@@ -140,7 +140,7 @@ function Conta({ token, x, onSair }: { token: string; x: ExtratoFiado; onSair: (
   const podeComprar = x.limite != null ? Math.max(0, x.limite - x.deve) : null;
   return (
     <div className="space-y-4">
-      <div className="-mt-12 flex justify-end">
+      <div className="-mt-[60px] flex justify-end">
         <button type="button" onClick={() => setBalao((b) => !b)} aria-label={`Notificações${avisos.length ? `: ${avisos.length}` : ""}`} className="relative flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card">
           <Bell size={20} />
           {avisos.length > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-xs font-bold text-destructive-foreground">{avisos.length}</span>}
