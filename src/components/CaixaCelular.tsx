@@ -21,7 +21,7 @@ import {
 import { newUid, unPlural, unSingular } from "@/lib/deposito";
 import { digits, maskPhone } from "@/lib/formatacao";
 import { escopoAcesso } from "@/lib/operacaoLocal";
-import { DIAS_ANTIGO, haQuantoTempo } from "@/lib/fiado";
+import { DIAS_ANTIGO, haQuantoTempo, textoMovimento } from "@/lib/fiado";
 
 export type ApiCaixa = {
   estado: typeof banco.caixaEstado;
@@ -1165,5 +1165,38 @@ function Comprovante({ dados, telefone, onClose }: { dados: DadosComprovante; te
         )}
       </div>
     </Sheet>
+  );
+}
+
+/** F4: histórico do cliente do fiado no caixa (só consulta; precisa de internet). */
+function HistoricoFiado({ chave, clienteId }: { chave: string; clienteId: string }) {
+  const [movs, setMovs] = useState<banco.MovimentoFiadoCaixa[] | null>(null);
+  const [erro, setErro] = useState("");
+  useEffect(() => {
+    let vivo = true; setMovs(null); setErro("");
+    banco.caixaClienteFiadoHistorico(chave, clienteId)
+      .then((m) => { if (vivo) setMovs(m); })
+      .catch((e) => { if (vivo) setErro(erroCaixa(e, "O histórico não carregou")); });
+    return () => { vivo = false; };
+  }, [chave, clienteId]);
+  const quando = (iso: string) => new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+  const texto = (m: banco.MovimentoFiadoCaixa) => textoMovimento({ ...m, clienteId, observacao: null });
+  return (
+    <div className="space-y-1.5">
+      <p className="text-sm font-semibold">Últimos movimentos</p>
+      {erro && <p role="alert" className="text-sm text-destructive">{erro}</p>}
+      {!erro && movs === null && <p className="text-sm text-muted-foreground">Carregando o histórico…</p>}
+      {movs && movs.length === 0 && <p className="text-sm text-muted-foreground">Nenhum movimento ainda.</p>}
+      {movs && movs.length > 0 && (
+        <ul className="space-y-1" aria-label="Histórico do cliente">
+          {movs.map((m) => (
+            <li key={m.id} className="flex items-center justify-between rounded-2xl border border-border px-3 py-2 text-sm">
+              <span><span className="block">{texto(m)}</span><span className="text-xs text-muted-foreground">{quando(m.criadoEm)}</span></span>
+              <b className={`tabular-nums ${m.tipo === "compra" ? "" : "text-accent"}`}>{m.tipo === "compra" ? "+" : "−"}{brl(m.valor)}</b>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
