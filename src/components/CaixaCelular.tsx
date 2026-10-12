@@ -21,7 +21,9 @@ import {
 import { newUid, unPlural, unSingular } from "@/lib/deposito";
 import { digits, maskPhone } from "@/lib/formatacao";
 import { escopoAcesso } from "@/lib/operacaoLocal";
-import { DIAS_ANTIGO, haQuantoTempo, textoMovimento , bloqueioFiado } from "@/lib/fiado";
+import { DIAS_ANTIGO, haQuantoTempo, textoMovimento , bloqueioFiado, mensagemFiadoCompleta } from "@/lib/fiado";
+import { CompartilharFiado } from "@/components/CompartilharFiado";
+import { linkClienteCaixa } from "@/lib/fiadoCliente";
 
 export type ApiCaixa = {
   estado: typeof banco.caixaEstado;
@@ -481,7 +483,7 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
       {janela?.j === "vendas" && (
         <VendasDoCaixa estado={estado} guardadas={guardadas} chave={chave} api={api} offline={offline} onClose={() => setJanela(null)} onMudou={onAtualizar} onTentarDeNovo={onTentarDeNovo} />
       )}
-      {janela?.j === "fiado" && <ClientesFiadoCaixa chave={chave} api={api} turnoId={estado.turno?.id ?? null} onClose={() => setJanela(null)} />}
+      {janela?.j === "fiado" && <ClientesFiadoCaixa chave={chave} api={api} turnoId={estado.turno?.id ?? null} comercioNome={estado.comercio.nome} onClose={() => setJanela(null)} />}
       {janela?.j === "sangria" && estado.turno && (
         <Sangria turno={estado.turno} chave={chave} api={api} onClose={() => setJanela(null)}
           onFeito={(t) => { onEstado({ ...estado, turno: t }); setJanela(null); setAviso({ ok: true, texto: "Dinheiro tirado da gaveta e anotado." }); }} />
@@ -849,7 +851,7 @@ function NovoClienteCaixa({ chave, onSalvo }: { chave: string; onSalvo: (c: banc
 }
 
 /** F3: consulta de quem deve no fiado, dentro do caixa (só leitura). Sem internet, usa a última cópia com aviso. */
-function ClientesFiadoCaixa({ chave, api, turnoId, onClose }: { chave: string; api: ApiCaixa; turnoId: string | null; onClose: () => void }) {
+function ClientesFiadoCaixa({ chave, api, turnoId, comercioNome = "", onClose }: { chave: string; api: ApiCaixa; turnoId: string | null; comercioNome?: string; onClose: () => void }) {
   const [versao, setVersao] = useState(0);
   const [lista, setLista] = useState<banco.ClienteFiado[] | null>(null);
   const [daCopia, setDaCopia] = useState(false);
@@ -898,6 +900,13 @@ function ClientesFiadoCaixa({ chave, api, turnoId, onClose }: { chave: string; a
             {turnoId && (c.deve ?? 0) > 0 && !daCopia && (
               <ReceberFiadoCaixa key={c.id} chave={chave} turnoId={turnoId} cliente={c}
                 onPago={(deve) => { setLista((l) => (l ?? []).map((x) => x.id === c.id ? { ...x, deve, desde: deve > 0 ? (x.desde ?? null) : null } : x)); setVersao((n) => n + 1); }} />
+            )}
+            {!daCopia && (
+              <CompartilharFiado telefone={c.telefone ?? null} rotulo="Mandar a conta no WhatsApp"
+                montar={async (link) => {
+                  const [token, movs] = await Promise.all([linkClienteCaixa(chave, c.id), banco.caixaClienteFiadoHistorico(chave, c.id).catch(() => [])]);
+                  return mensagemFiadoCompleta({ nome: c.nome, deve: c.deve ?? 0, desde: c.desde ?? null }, comercioNome, movs, link(token));
+                }} />
             )}
             <HistoricoFiado key={versao} chave={chave} clienteId={c.id} />
             <p className="text-xs text-muted-foreground">Para anotar uma compra, use Fiado na hora de receber.</p>

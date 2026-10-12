@@ -54,7 +54,7 @@ describe("Fiado no app do dono", () => {
     expect((await screen.findByText(/Fiado · a receber/)).closest("button")!.textContent?.replace(/\s/g, " ")).toMatch(/R\$ 53,90.*2 clientes devem.*1 há mais de 30 dias/);
     fireEvent.click(screen.getByRole("button", { name: /Fiado · a receber/ }));
     fireEvent.click(await screen.findByRole("button", { name: /João da Silva/ }));
-    expect(screen.getByRole("link", { name: /Cobrar pelo WhatsApp/ }).getAttribute("href")).toMatch(/^https:\/\/wa\.me\/5543999991234\?text=Ol/);
+    expect(screen.getByRole("button", { name: /Cobrar pelo WhatsApp/ })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Recebeu/ }));
     fireEvent.change(screen.getByLabelText("Quanto recebeu?"), { target: { value: "9999" } });
     expect(screen.getByText(/É mais do que ele deve/)).toBeTruthy();

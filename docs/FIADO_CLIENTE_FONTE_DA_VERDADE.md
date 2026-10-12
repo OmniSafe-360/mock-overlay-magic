@@ -28,7 +28,7 @@ O cliente **só vê**; não paga nem muda nada pela página.
 ## Etapas (uma por vez, cada uma com aprovação)
 - [x] (12/10/2026, aprovado e aplicado) **P1 Banco — acesso do cliente**: `fiado_acessos` (cliente, link, pin_hash, tentativas, trava, criado/último acesso); RLS ligada, sem leitura direta. Funções: `fiado_cliente_link` (dono/caixa obtém ou cria o link), `fiado_novo_link` e `fiado_zerar_pin` (só dono), `fiado_publico_estado(link)` (novo/pin/inválido), `fiado_publico_entrar(link, final_tel, pin)`, `fiado_publico_extrato(link, sessão)` (só leitura).
 - [x] (12/10/2026) **P2 Página do cliente** `/fiado/$link`: criar PIN, entrar, extrato fácil (total, lista com data e hora, itens da compra, limite, contato). Mobile primeiro.
-- **P3 Mensagem completa no WhatsApp**: substituir o texto simples de "Cobrar pelo WhatsApp" por resumo + link; mesmo botão no "Clientes do fiado" do caixa.
+- [x] (12/10/2026) **P3 Mensagem completa no WhatsApp**: substituir o texto simples de "Cobrar pelo WhatsApp" por resumo + link; mesmo botão no "Clientes do fiado" do caixa.
 - **P4 Avisos na página**: faixa com novidades desde o último acesso e dívida antiga.
 - **P5 Controles do dono**: na conta do cliente, "Gerar novo link", "Zerar PIN do cliente", "Último acesso do cliente".
 

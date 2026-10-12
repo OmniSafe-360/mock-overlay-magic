@@ -67,3 +67,16 @@ export const textoMov = (m: MovFiado) =>
   m.tipo === "compra" ? `Comprou${m.vendaNumero ? ` (venda nº ${m.vendaNumero})` : ""}`
   : m.tipo === "pagamento" ? `Pagou${m.forma ? ` em ${m.forma === "dinheiro" ? "dinheiro" : m.forma === "pix" ? "Pix" : m.forma === "cartao" ? "cartão" : m.forma}` : ""}`
   : m.tipo === "cancelamento" ? "Compra cancelada" : m.tipo;
+
+/** P3: dono pega o link do cliente (cria se ainda não existir). */
+export async function linkClienteDono(clienteId: string): Promise<string> {
+  const { data, error } = await rpc("fiado_cliente_link", { _cliente: clienteId });
+  if (error) throw error;
+  return String(data);
+}
+/** P3: caixa pega o link do cliente. */
+export async function linkClienteCaixa(chave: string, clienteId: string): Promise<string> {
+  const { data, error } = await rpc("caixa_fiado_cliente_link", { _chave: chave, _cliente: clienteId });
+  if (error) throw error;
+  return String(data);
+}
