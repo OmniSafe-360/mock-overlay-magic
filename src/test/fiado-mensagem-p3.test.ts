@@ -13,7 +13,7 @@ describe("P3 — mensagem completa do fiado", () => {
     expect(t).toContain("Devendo desde 01/09/2026");
     expect(t).toContain("10/10 às 18:42 — Compra nº 41: + R$ 23,50");
     expect(t).toContain("Pagamento (pix): − R$ 20,00");
-    expect(t).toContain("https://x/fiado/abc").replace(/\u00a0/g, " ");
+    expect(t).toContain("https://x/fiado/abc");
     expect(t.indexOf("Pagamento")).toBeLessThan(t.indexOf("Compra nº 41"));
   });
   it("conta em dia não fala em dívida", () => {
