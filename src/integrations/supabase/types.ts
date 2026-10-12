@@ -2615,6 +2615,10 @@ export type Database = {
         }
         Returns: Json
       }
+      caixa_cliente_fiado_historico: {
+        Args: { _chave: string; _cliente: string }
+        Returns: Json
+      }
       caixa_clientes_fiado: { Args: { _chave: string }; Returns: Json }
       caixa_estado: { Args: { _chave: string }; Returns: Json }
       caixa_fechar: {

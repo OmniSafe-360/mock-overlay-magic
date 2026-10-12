@@ -66,7 +66,7 @@ Regras do fluxo:
 - [x] **F3 — "Clientes do fiado" no menu do caixa (tela, só consulta).** Lista ordenada por quem deve mais,
   busca, total a receber, cliente com mais de 30 dias em amarelo (mesma regra de `src/lib/fiado.ts`).
   Detalhe: saldo, desde quando, telefone. Reaproveitar `contasFiado`/`resumoFiado`/`haQuantoTempo`.
-- [ ] **F4 — Histórico do cliente no caixa (banco + tela).** Precisa de **função nova** de leitura pela chave do
+- [x] **F4 — Histórico do cliente no caixa (banco + tela).** Precisa de **função nova** de leitura pela chave do
   caixa (`caixa_cliente_fiado_historico`) — **aguarda aprovação do dono**. Últimos movimentos sem mostrar dados de outros clientes.
 - [ ] **F5 — Cadastrar cliente no caixa sem vender.** Precisa de **função nova** `caixa_salvar_cliente_fiado`
   (pela chave, função Caixa; mesmas validações de nome/telefone de `salvar_cliente_fiado`; repetir não duplica)
@@ -92,3 +92,4 @@ Regras do fluxo:
 - 12/10/2026: **F1 feita** — `caixa_clientes_fiado` (a partir da versão do banco) devolve também `deve` (compras − pagamentos − cancelamentos, nunca negativo) e `desde` (só quando deve). Mesma chave, SECURITY DEFINER, search_path e permissões conferidos depois. Campos antigos iguais: o app atual continua funcionando. Sem tela nova; não precisa Publicar. Não deu para simular com rollback antes (o ambiente aplica direto). Próxima: **F2**.
 - 12/10/2026: **F2 feita** — na janela Fiado do "Receber", cada cliente mostra "Deve R$ X" ou "Em dia" e "Com esta venda, vai ficar devendo R$ Y"; sem internet usa a cópia com aviso "valores da última atualização". Venda, fila e regras iguais. Teste `src/test/caixa-fiado-saldo.test.ts`. Precisa Publicar → Atualizar; falta o teste do dono. Próxima: **F3**.
 - 12/10/2026: **F3 feita** — menu do caixa ganhou "Clientes do fiado": total a receber, lista de quem deve mais primeiro, busca por nome/telefone, amarelo acima de 30 dias, detalhe com saldo, desde quando e telefone. Só consulta; sem internet usa a cópia com aviso. Sem mudança no banco. Precisa Publicar → Atualizar; falta o teste do dono. Próxima: **F4** (aguarda aprovação: função nova de histórico).
+- 12/10/2026: **F4 feita** (aprovada pelo dono) — função nova `caixa_cliente_fiado_historico(_chave, _cliente)` (SECURITY DEFINER, mesma checagem `_funcionario_caixa`, só cliente do mesmo comércio, até 30 movimentos, sem dados de outros clientes). No detalhe de "Clientes do fiado": "Últimos movimentos" (Comprou/Pagou/Venda cancelada, data e valor). Precisa de internet. Precisa Publicar → Atualizar; falta o teste do dono. Próxima: **F5** (aguarda aprovação).

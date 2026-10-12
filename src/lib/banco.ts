@@ -673,6 +673,16 @@ export async function caixaClientesFiado(chave: string): Promise<ClienteFiado[]>
     deve: c.deve == null ? null : Math.round(Number(c.deve) * 100), desde: c.desde ?? null,
   }));
 }
+/** F4: últimos movimentos (até 30) de um cliente do fiado, pela chave do caixa. Valores em centavos. */
+export type MovimentoFiadoCaixa = { id: string; tipo: "compra" | "pagamento" | "cancelamento"; valor: number; forma: "dinheiro" | "pix" | "cartao" | null; vendaNumero: number | null; criadoEm: string };
+export async function caixaClienteFiadoHistorico(chave: string, clienteId: string): Promise<MovimentoFiadoCaixa[]> {
+  const { data, error } = await rpc("caixa_cliente_fiado_historico", { _chave: chave, _cliente: clienteId });
+  if (error) throw error;
+  return ((data as any[]) ?? []).map((m: any) => ({
+    id: m.id, tipo: m.tipo, valor: Math.round(Number(m.valor) * 100), forma: m.forma ?? null,
+    vendaNumero: m.venda_numero == null ? null : Number(m.venda_numero), criadoEm: m.criado_em,
+  }));
+}
 /** Abre o caixa com o troco da gaveta (em centavos). Se já estava aberto, devolve o mesmo. */
 export async function caixaAbrir(chave: string, id: string, trocoCentavos: number): Promise<TurnoCaixa> {
   const { data, error } = await rpc("caixa_abrir", { _chave: chave, _id: id, _troco: trocoCentavos / 100 });
