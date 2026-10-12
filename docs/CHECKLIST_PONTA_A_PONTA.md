@@ -103,6 +103,9 @@ E2–E4 verificam o que já existe; não reconstroem os módulos. E5 inclui pend
 
 ## E3 — operação e fechamento do estoque
 
+**Entrega prioritária C5, autorizada pelo dono em 12/10/2026 após o caso do Nescau:** contagem de depósito/gôndola com diferença não ajusta automaticamente; duas iguais divergentes ou três diferentes aguardam a decisão do dono. Bloqueio por produto/variação/área no banco, retomada e reenvio protegidos, mesmo sem caixa ligado. Sem alteração do saldo real investigado. **Pronto, falta Publicar → Atualizar e o teste do dono.** [Registro, evidências e roteiro](contagem-cega-decisao-dono-2026-10-12.md). E3.5–E3.7 continuam abertas para validação conjunta; próxima verificação independente E2.1 preservada.
+
+
 - [ ] **E3.1 Equipe:** código/QR, PIN, instalar, bloquear/desbloquear, trocar acesso, sair, tentativas erradas e vencimento da sessão. Ao destravar voltar ao trabalho; acesso revogado não continua gravando. Funcionário não vê quantidade esperada na contagem cega.
 - [ ] **E3.2 Receber com pedido:** contar por embalagem/unidade; validade/lote; avaria; “Não veio”; envio parcial; recontagens até três; concluir e pendência para o dono. Quantidade contada, conferência, conclusão e entrada no estoque nunca aparecem como a mesma coisa.
 - [ ] **E3.3 Receber sem pedido:** fornecedor A, B e “Não sei” com rascunhos separados; retomar/desistir de contagens não enviadas; proteger envio sem resposta e acesso por outra aba. Entrega avulsa concluída chega ao dono; em contagem não vira entrada liberada.

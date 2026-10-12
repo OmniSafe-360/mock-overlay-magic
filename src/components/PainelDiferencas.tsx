@@ -336,7 +336,7 @@ function ExplicarDiferenca({ d, nome, unidade, tipo, precoCompra, onSalvar, onCl
 
         {escolher && (
           <fieldset className="space-y-2">
-            <legend className="mb-1 text-base font-bold">As 3 contagens não bateram. Qual número está certo?</legend>
+            <legend className="mb-1 text-base font-bold">{d.contagemConfirmada ? "A contagem se repetiu, mas há uma diferença. Qual número está certo?" : "As 3 contagens não bateram. Qual número está certo?"}</legend>
             <p className="text-sm text-muted-foreground">O sistema tinha {qtdUn(d.esperado, unidade)} {onde}. Se não souber, peça para alguém contar de novo antes de escolher.</p>
             {opcoes.map((o) => (
               <button key={o.txt} type="button" aria-pressed={contado === o.n} onClick={() => setContado(o.n)}

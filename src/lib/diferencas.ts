@@ -17,6 +17,7 @@ export type Diferenca = {
   /** Contagem inconsistente em que o dono já escolheu o número certo. */ resolvida: boolean;
   /** Perda recusada: o motivo que o funcionário tinha dado. */ motivoInformado: MotivoPerda | null;
   criadaEm: string;
+  /** Duas contagens iguais, mas diferentes do saldo; aguarda a decisão do dono. */ contagemConfirmada?: boolean;
 };
 export type Perda = {
   id: string; produtoId: string; variacaoId: string | null; area: AreaEstoque; quantidade: number; baixado: number;
@@ -46,7 +47,7 @@ export const ondeTexto = (area: AreaEstoque, tipo: string) =>
 
 /** "Faltaram 2 unidades na gôndola" / "Sobraram 3 unidades no depósito" / "As contagens não bateram". */
 export function textoDiferenca(d: Diferenca, unidade: string, tipo: string): string {
-  if (precisaEscolher(d)) return `As contagens não bateram ${ondeTexto(d.area, tipo)}`;
+  if (precisaEscolher(d)) return d.contagemConfirmada ? `Contagem com diferença ${ondeTexto(d.area, tipo)} · aguardando sua decisão` : `As contagens não bateram ${ondeTexto(d.area, tipo)}`;
   if (d.diferenca === 0) return `Bateu com o sistema ${ondeTexto(d.area, tipo)}`;
   const q = qtdUn(Math.abs(d.diferenca), unidade);
   const um = Math.abs(d.diferenca) <= 1;

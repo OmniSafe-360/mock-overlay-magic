@@ -144,6 +144,9 @@ async function enviarSemTrava(s: Sessao, montar: () => object, rpc: Rpc): Promis
 
 /* ---------- mensagens em português ---------- */
 const MSG: [string, string][] = [
+  ["contagem_ja_resolvida", "Esta contagem já foi resolvida. Atualize a lista para continuar."],
+  ["produto_inativo", "Este produto foi desativado. Revise o cadastro antes de aceitar a contagem ou mantenha o número anterior."],
+  ["variacao_removida", "Esta variação foi removida. Mantenha o número anterior para encerrar a pendência."],
   ["nao_autenticado", "Sua sessão expirou. Entre novamente para salvar."],
   ["fornecedor_nao_encontrado", "Este fornecedor não foi encontrado. Atualize a página e tente de novo."],
   ["pedido_sem_itens", "O pedido precisa ter pelo menos um produto."],

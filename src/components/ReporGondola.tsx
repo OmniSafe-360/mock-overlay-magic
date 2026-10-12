@@ -1,5 +1,5 @@
 /* Repor gôndola no app do funcionário (E3). Primeiro ele conta a prateleira (sem ver quanto o sistema tem);
- * só depois o app diz quanto buscar no depósito, até encher (o máximo). Até o PDV existir, a contagem só acerta o estoque. */
+ * só depois de confirmar a contagem o app diz quanto buscar. Diferenças aguardam o dono, mesmo sem caixa. */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, ArrowLeft, Camera, Check, CheckCircle2, MapPin, PackageSearch, Search, ShoppingBasket, Warehouse } from "lucide-react";
 import { Scanner } from "@/components/Scanner";
@@ -24,6 +24,11 @@ export type ApiRepor = {
 const API_PADRAO: ApiRepor = { lista: banco.listaReposicao, contar: banco.contarPrateleira, concluir: banco.concluirReposicao, buscar: banco.buscarProdutoFuncionario };
 
 const MSG_REPOR: [string, string][] = [
+  ["contagem_exige_atualizacao", "Atualize o app para usar a contagem com até três tentativas."],
+  ["contagem_exige_recontagem", "Esta reposição precisa de uma nova contagem antes de continuar."],
+  ["contagem_aguardando_dono", "Contagem bloqueada. Aguarde o dono decidir antes de repor este produto."],
+  ["contagem_em_andamento", "Já há uma contagem deste produto em andamento. Volte à lista e continue a contagem começada."],
+  ["rodada_desatualizada", "Esta contagem mudou em outro celular. Volte à lista e abra o produto novamente."],
   ["produto_sem_area_venda", "Este produto não tem lugar na área de venda cadastrado. Avise o dono."],
   ["deposito_insuficiente", "O depósito não tem essa quantidade. Confira quanto você pegou."],
   ["deposito_reponivel_insuficiente", "Não há essa quantidade conferida e dentro da validade no depósito. Atualize e confira o que você pegou."],
@@ -96,9 +101,9 @@ function Reposicao({ chave, onVoltar, apiDada }: { chave: string; onVoltar: () =
     if (registro.current?.atual() !== tela) return;
     try { guardar(proxima); setErroEnvio(""); } catch (e) { setErroEnvio(erroTexto(e)); }
   };
-  const comecar = (p: Item) => {
+  const comecar = (p: Item & { conferenciaId?: string | null; rodada?: number }) => {
     const { produtoId, variacaoId, nome, unidade, codigo, variacao, local, localDeposito } = p;
-    mudar({ t: "ir", item: { produtoId, variacaoId, nome, unidade, codigo, variacao, local, localDeposito }, id: newUid(), tipo: dados?.tipo ?? "mercado", valor: "" });
+    mudar({ t: "ir", item: { produtoId, variacaoId, nome, unidade, codigo, variacao, local, localDeposito }, id: p.conferenciaId ?? newUid(), rodada: p.rodada ?? 1, tipo: dados?.tipo ?? "mercado", valor: "" });
     setFeito(null); setRetomada(false);
   };
   const terminou = (item: Item, levado: number, r: banco.RespostaContagemPrateleira) => {
@@ -123,10 +128,21 @@ function Reposicao({ chave, onVoltar, apiDada }: { chave: string; onVoltar: () =
         guardar(envio);
         try {
           if (envio.t === "contar") {
-            const r = await api.contar(chave, envio.id, envio.item.produtoId, envio.item.variacaoId, envio.contado!);
+            const r = (envio.rodada ?? 1) === 1
+              ? await api.contar(chave, envio.id, envio.item.produtoId, envio.item.variacaoId, envio.contado!)
+              : await api.contar(chave, envio.id, envio.item.produtoId, envio.item.variacaoId, envio.contado!, envio.rodada);
+            if (r.situacao === "recontar") {
+              guardar({ ...envio, t: "contar", rodada: r.rodada ?? (envio.rodada ?? 1) + 1, valor: "", contado: null });
+              return;
+            }
+            if (r.situacao === "aguardando_dono" || r.situacao === "inconsistente") {
+              guardar(null);
+              if (montado.current) { setFeito({ reposto: false, texto: `${nomeProdutoFunc(envio.item)}: contagem bloqueada, aguardando o dono. Nenhum acerto de saldo ou reposição foi feito.` }); setRetomada(false); carregar(); }
+              return;
+            }
             if (r.situacao === "concluido") {
               guardar(null);
-              if (montado.current) { setFeito({ reposto: false, texto: "Esta reposição já foi registrada. Nenhuma nova transferência foi feita. Atualize a lista antes de continuar." }); carregar(); }
+              if (montado.current) { setFeito({ reposto: false, texto: "Esta contagem já foi encerrada. Nenhuma nova transferência foi feita. Atualize a lista antes de continuar." }); carregar(); }
             } else {
               guardar({ t: "buscar", item: envio.item, id: envio.id, tipo: envio.tipo, r,
                 valor: r.sugerido > 0 ? String(r.sugerido).replace(".", ",") : "", levado: null });
@@ -137,6 +153,10 @@ function Reposicao({ chave, onVoltar, apiDada }: { chave: string; onVoltar: () =
             if (montado.current) terminou(envio.item, envio.levado!, envio.r);
           }
         } catch (e) {
+          if (envio.t === "buscar" && String((e as { message?: string })?.message ?? e).includes("contagem_exige_recontagem")) {
+            guardar({ t: "contar", id: envio.id, item: envio.item, tipo: envio.tipo, rodada: 1, valor: "", contado: null });
+            throw e;
+          }
           // Uma recusa explícita permite corrigir o número. Falta de resposta mantém os dados congelados.
           if (!ehIncerto(e)) guardar(envio.t === "contar" ? { ...envio, contado: null } : { ...envio, levado: null });
           throw e;
@@ -161,7 +181,7 @@ function Reposicao({ chave, onVoltar, apiDada }: { chave: string; onVoltar: () =
         onVoltar={() => mudar(null)} onCheguei={() => mudar({ ...tela, t: "contar", contado: null })} />}
       {tela.t === "contar" && <ContarPrateleira item={tela.item} prateleira={prateleira} valor={tela.valor}
         onMudar={(valor) => { if (!pendente) mudar({ ...tela, valor }); }} travado={enviando || pendente} enviando={enviando} pendente={pendente}
-        onVoltar={() => { if (pendente) onVoltar(); else mudar({ t: "ir", item: tela.item, id: tela.id, tipo: tela.tipo, valor: tela.valor }); }} onEnviar={(q) => void enviar(q)} />}
+        rodada={tela.rodada ?? 1} onVoltar={() => { if (pendente) onVoltar(); else mudar({ ...tela, t: "ir" }); }} onEnviar={(q) => void enviar(q)} />}
       {tela.t === "buscar" && <Buscar item={tela.item} r={tela.r} prateleira={prateleira} t={t} valor={tela.valor}
         onMudar={(valor) => { if (!pendente) mudar({ ...tela, valor }); }} travado={enviando || pendente} enviando={enviando} pendente={pendente} onEnviar={(q) => void enviar(q)} />}
     </>;
@@ -190,12 +210,12 @@ function Reposicao({ chave, onVoltar, apiDada }: { chave: string; onVoltar: () =
       <ul className="space-y-3">
         {dados?.produtos.map((p) => (
           <li key={`${p.produtoId}:${p.variacaoId ?? "_"}`}>
-            <button type="button" onClick={() => comecar(p)} className="flex w-full items-center gap-3 rounded-3xl border-2 border-destructive/50 bg-destructive/5 p-4 text-left transition active:scale-[0.99]">
+            <button type="button" disabled={p.aguardandoDono} onClick={() => comecar(p)} className="flex w-full items-center gap-3 rounded-3xl border-2 border-destructive/50 bg-destructive/5 p-4 text-left transition active:scale-[0.99]">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary"><ShoppingBasket size={24} /></span>
               <span className="min-w-0 flex-1">
                 <span className="block break-words text-lg font-bold leading-snug">{nomeProdutoFunc(p)}</span>
                 <span className="flex items-center gap-1 text-sm text-muted-foreground"><MapPin size={14} /> {p.local ?? `Sem lugar na ${prateleira}`}</span>
-                {p.depositoVazio && <span className="block text-sm font-semibold text-warning">{t(motivoSemEstoque(p.motivoSemReposicao))}</span>}
+                {p.aguardandoDono ? <span className="block text-sm font-semibold text-warning">Contagem bloqueada · Aguardando o dono</span> : p.conferenciaId ? <span className="block text-sm font-semibold text-warning">Contagem começada: termine</span> : p.depositoVazio && <span className="block text-sm font-semibold text-warning">{t(motivoSemEstoque(p.motivoSemReposicao))}</span>}
               </span>
             </button>
           </li>
@@ -251,15 +271,16 @@ function Ir({ item, prateleira, chave, api, onVoltar, onCheguei, mercado }: {
   );
 }
 
-function ContarPrateleira({ item, prateleira, valor, onMudar, onVoltar, onEnviar, travado, enviando, pendente }: {
+function ContarPrateleira({ item, prateleira, valor, onMudar, onVoltar, onEnviar, travado, enviando, pendente, rodada }: {
   item: Item; prateleira: string; valor: string; onMudar: (valor: string) => void; onVoltar: () => void; onEnviar: (q: number) => void;
-  travado: boolean; enviando: boolean; pendente: boolean;
+  travado: boolean; enviando: boolean; pendente: boolean; rodada: number;
 }) {
   const n = parseNum(valor, item.unidade, false);
   const plural = unPlural(item.unidade).toLowerCase();
   return (
     <div className="flex flex-1 flex-col gap-4">
       <Cabecalho item={item} onVoltar={onVoltar} voltar={pendente ? "Início" : "Voltar"} />
+      {rodada > 1 && <p className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm font-semibold text-warning">Conte de novo, com calma, tudo deste produto. (Contagem {rodada} de 3)</p>}
       <div className="space-y-3 rounded-3xl border border-border p-4">
         <p className="text-xl font-bold">{pendente ? `Contagem enviada da ${prateleira}` : `Quanto tem na ${prateleira} agora?`}</p>
         <p className="text-sm text-muted-foreground">{pendente ? "Confirme o envio anterior com a quantidade abaixo." : `Conte tudo deste produto na ${prateleira}, inclusive atrás e embaixo.`}</p>
