@@ -68,7 +68,7 @@ function trazerVendaAntiga(escopo: string, fila: ReturnType<typeof filaCaixa>) {
 }
 
 type Fase = "carregando" | "erro" | "abrir" | "vender" | "receber" | "feito" | "fechar";
-type Aviso = { ok: boolean; texto: string } | null;
+type Aviso = { ok: boolean; texto: string; estoque?: boolean } | null;
 type Feito = { id: string; total: number; troco: number; numero: number | null; formas: string; guardada: boolean; comprovante: DadosComprovante; telefone: string | null; clienteFiado?: { id: string; nome: string } | null };
 /** Tempo entre as tentativas de enviar as vendas guardadas. */
 export const SEGUNDOS_REENVIO = 20;
@@ -123,7 +123,7 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
           throw e;
         }
         if (r.situacao === "bloqueada") {
-          const mensagem = banco.textoBloqueioCaixa(r);
+          const mensagem = banco.textoBloqueioCaixa(r, produtos);
           if (v.confirmacaoPendente) { fila.current!.tirar(v.venda.id); setEnvioPendente(null); setErroVenda(mensagem); }
           else fila.current!.marcarProblema(v.venda.id, mensagem, true);
           throw new Error(`estoque_bloqueado:${mensagem}`);
@@ -147,7 +147,7 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
       sincronizando.current = false; setEnviandoVenda(false);
       setGuardadas(fila.current.ler());
     }
-  }, [api, chave, atualizarEstado, atualizarProdutos]);
+  }, [api, chave, atualizarEstado, atualizarProdutos, produtos]);
 
   const carregar = useCallback(async () => {
     setFase("carregando"); setErroCarga("");
@@ -226,7 +226,7 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
     try {
       if (api.conferir) {
         const r = await api.conferir(chave, montarVenda(idCarrinho.current, estado.turno.id, itens, [], null));
-        if (r.situacao === "bloqueada") { setErroVenda(banco.textoBloqueioCaixa(r)); await atualizarProdutos(); return; }
+        if (r.situacao === "bloqueada") { setErroVenda(banco.textoBloqueioCaixa(r, produtos)); await atualizarProdutos(); return; }
       } else {
         const bloqueio = limiteCarrinho(itens, produtos);
         if (bloqueio) { setErroVenda(bloqueio.motivo); return; }
@@ -287,6 +287,7 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
       chave={chave} api={api} onEstado={(e) => { setEstado(e); gravarCache(escopo, { estado: e }); }} onAtualizar={() => { atualizarEstado(); void atualizarProdutos(); }}
       onFechar={() => setFase("fechar")} onInstalar={onInstalar}
       erroEstoque={erroVenda} conferindo={conferindo} onSolicitarContagem={(itens) => void conferirCarrinho(itens)}
+      onFecharAviso={() => setErroVenda("")}
       onReceber={() => void conferirCarrinho(carrinho, true)}
       onLimpar={() => { if (verificando.current) return; idCarrinho.current = newUid(); setCarrinho([]); setPags([]); setCliente(null); setErroVenda(""); }} />
   );
@@ -363,8 +364,9 @@ type Janela =
   | null;
 
 function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onReceber, onLimpar, guardadas, offline, erroFila, onEnviarGuardadas, onTentarDeNovo,
-  chave, api, onEstado, onAtualizar, onFechar, onInstalar, erroEstoque, conferindo, onSolicitarContagem }: {
+  chave, api, onEstado, onAtualizar, onFechar, onInstalar, erroEstoque, conferindo, onSolicitarContagem, onFecharAviso }: {
   erroEstoque: string; conferindo: boolean; onSolicitarContagem: (itens: ItemCarrinho[]) => void;
+  onFecharAviso: () => void;
   estado: banco.EstadoCaixa; produtos: ProdutoCaixa[]; mercado: boolean; carrinho: ItemCarrinho[]; onCarrinho: (f: (c: ItemCarrinho[]) => ItemCarrinho[]) => void;
   onSair: () => void; onReceber: () => void; onLimpar: () => void;
   guardadas: VendaGuardada[]; offline: boolean; erroFila: string; onEnviarGuardadas: () => void; onTentarDeNovo: (id: string) => void;
@@ -384,7 +386,7 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
     if (conferindoAtual.current) return;
     const candidato = adicionar(carrinhoAtual.current, item);
     const limite = limiteCarrinho(candidato, produtos);
-    if (limite) { avisar({ ok: false, texto: limite.motivo }); onSolicitarContagem(candidato); return; }
+    if (limite) { avisar({ ok: false, estoque: true, texto: "A quantidade extra não foi adicionada. Estamos conferindo o disponível no sistema." }); onSolicitarContagem(candidato); return; }
     carrinhoAtual.current = candidato; onCarrinho(() => candidato);
     avisar({ ok: true, texto: `${item.nome}${item.detalhe ? ` · ${item.detalhe}` : ""} · ${brl(subtotal(item))}` });
     setTimeout(() => fimLista.current?.scrollIntoView?.({ block: "end", behavior: "smooth" }), 30);
@@ -424,14 +426,14 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
     if (conferindoAtual.current) return;
     const candidato = carrinhoAtual.current.flatMap((x) => x.id !== id ? [x] : x.qtd + delta <= 0 ? [] : [{ ...x, qtd: x.qtd + delta }]);
     const limite = limiteCarrinho(candidato, produtos);
-    if (delta > 0 && limite) { avisar({ ok: false, texto: limite.motivo }); onSolicitarContagem(candidato); return; }
+    if (delta > 0 && limite) { avisar({ ok: false, estoque: true, texto: "A quantidade extra não foi adicionada. Estamos conferindo o disponível no sistema." }); onSolicitarContagem(candidato); return; }
     carrinhoAtual.current = candidato; onCarrinho(() => candidato);
   };
   const tirar = (id: string) => { if (!conferindoAtual.current) onCarrinho((c) => c.filter((x) => x.id !== id)); };
 
   return (
     <Tela>
-      <header className="flex items-center gap-2 px-4 pb-2 pt-3">
+      <header className="flex shrink-0 items-center gap-2 px-4 pb-2 pt-3">
         <button type="button" onClick={onSair} aria-label="Voltar ao início" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border"><ArrowLeft size={20} /></button>
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-1.5 text-lg font-bold"><span className="h-2.5 w-2.5 rounded-full bg-accent" /> Caixa aberto</p>
@@ -450,13 +452,14 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
         </p>
       )}
 
-      <div className="space-y-2 px-4">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3">
+      <div className="space-y-2">
         {camera && <LeitorContinuo mercado={mercado} pausado={!!janela} onCode={lerCodigo} />}
         <div className="grid grid-cols-2 gap-2">
           <button type="button" onClick={() => setJanela({ j: "buscar" })} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-border bg-secondary/50 px-3 text-sm font-semibold"><Search size={18} /> Código ou nome</button>
           <button type="button" onClick={() => setJanela({ j: "sem_cadastro", codigo: null })} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-border bg-secondary/50 px-3 text-sm font-semibold"><PackagePlus size={18} /> Sem cadastro</button>
         </div>
-        {aviso && (
+        {aviso && !aviso.estoque && !erroEstoque && (
           <p role="status" className={`flex items-center gap-2 rounded-2xl px-3 py-2 text-sm font-semibold ${aviso.ok ? "bg-accent/10 text-accent" : "bg-warning/10 text-warning"}`}>
             {aviso.ok ? <CheckCircle2 size={16} className="shrink-0" /> : <TriangleAlert size={16} className="shrink-0" />} <span className="min-w-0 truncate">{aviso.texto}</span>
           </p>
@@ -464,8 +467,18 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
         <AvisoGuardadas guardadas={guardadas} erroFila={erroFila} onEnviar={onEnviarGuardadas} />
       </div>
 
-      {erroEstoque && <p role="alert" className="mx-4 rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm font-semibold">{erroEstoque}</p>}
-      <div className="mt-2 min-h-0 flex-1 overflow-y-auto px-4">
+      {(erroEstoque || aviso?.estoque) && (
+        <section role="alert" aria-label="Aviso de estoque" className="mt-3 rounded-2xl border border-warning/30 bg-warning/5 p-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-warning/10 text-warning"><TriangleAlert size={20} aria-hidden="true" /></span>
+            <h2 className="min-w-0 flex-1 text-sm font-bold leading-snug text-foreground">{conferindo ? "Conferindo a quantidade…" : aviso?.estoque ? "Limite de quantidade atingido" : "Confira antes de continuar"}</h2>
+            <button type="button" disabled={conferindo} aria-label="Fechar aviso de estoque" onClick={() => { setAviso(null); onFecharAviso(); }} className="-mr-2 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-warning/10 disabled:opacity-50"><X size={18} /></button>
+          </div>
+          <p className="mt-3 break-words text-sm leading-relaxed text-foreground">{erroEstoque || aviso?.texto}</p>
+          <p className="mt-3 border-t border-warning/15 pt-3 text-xs leading-relaxed text-muted-foreground">{aviso?.estoque ? "A quantidade extra não foi adicionada. " : ""}Seu carrinho foi mantido.</p>
+        </section>
+      )}
+      <div className="mt-3">
         {!carrinho.length ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 py-6 text-center text-muted-foreground">
             <ShoppingCart size={36} />
@@ -501,8 +514,9 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
         )}
         <div ref={fimLista} />
       </div>
+      </div>
 
-      <footer className="space-y-2 border-t border-border bg-background/80 px-4 pt-3 backdrop-blur">
+      <footer className="shrink-0 space-y-2 border-t border-border bg-background/80 px-4 pt-3 backdrop-blur">
         <div className="flex items-end justify-between">
           <div>
             <p className="text-sm text-muted-foreground">Total{carrinho.length ? ` · ${contarItens(carrinho) === 1 ? "1 item" : `${qtdTexto(contarItens(carrinho))} itens`}` : ""}</p>

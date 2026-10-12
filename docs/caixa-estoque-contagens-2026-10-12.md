@@ -4,6 +4,18 @@ Pedido do dono em 12/10/2026, após o print `72034.png`. A investigação encont
 
 **Situação:** corrigido no código e aplicado no banco oficial; falta **Publicar → Atualizar** no Lovable e o teste do dono. E3/E4 continuam abertas até a validação conjunta. [PR #111](https://github.com/OmniSafe-360/mock-overlay-magic/pull/111), correção `c78ac23`. Migração oficial: `supabase/migrations/20261012055317_caixa_estoque_contagens.sql`.
 
+## Complemento visual — aviso do caixa (12/10/2026)
+
+O print `72039.png` e o relato do dono confirmam o bloqueio da quantidade extra no aplicativo; as duas mensagens eram repetidas e davam a entender que as cinco unidades do carrinho também não poderiam ser vendidas. Essa evidência valida esse cenário de interface, sem encerrar os demais testes de E3/E4/E6.
+
+Por pedido do dono, agora há **um único cartão de aviso**, abaixo dos controles de busca e dentro da área de rolagem, com título, ícone discreto, texto completo e botão para fechar. Mostra a quantidade confirmada pelo banco com a unidade do produto quando disponíveis; saldo desconhecido não vira zero. Diz que a equipe foi avisada somente quando a solicitação está confirmada. Explica que a quantidade extra não entrou e o carrinho foi mantido. O termo técnico “baixa” e a frase “venda bloqueada” foram retirados desse aviso.
+
+Cabeçalho e total/pagamento mantêm espaço próprio; aviso, controles e lista não se sobrepõem, inclusive em tela curta. Fechar o aviso só fecha a informação: o carrinho e a proteção de estoque continuam. Sem SQL, mudança de saldo ou regra de venda/contagem.
+
+Tipos e **1.019 testes em 98 arquivos duas vezes**, build e Chromium de produção com API simulada em **320×568, 390×844 e 1280×900** aprovados. Conferidos um só aviso, número/unidade, solicitação pendente sem confirmação falsa, ausência de sobreposição/rolagem horizontal, acesso aos controles, fechar/reabrir aviso mantendo limite/carrinho e pagamento das cinco unidades. Câmera/leitor físico não foram testados nesta melhoria. **Pronto no código; falta Publicar → Atualizar e conferir o aviso no aparelho do dono.** PR do complemento a registrar.
+
+Depois de publicar: tentar a sexta unidade com cinco disponíveis; conferir o aviso único e legível, rolar até os produtos em tela curta, fechar o aviso e tentar novamente. Deve manter cinco e impedir a sexta; Receber das cinco continua possível após conferir o saldo. Roteiro geral abaixo permanece válido.
+
 ## Comportamento entregue
 
 - O Caixa no celular compara a quantidade com a **área de venda**, somando linhas, códigos e embalagens do mesmo produto/variação. Depósito não autoriza venda direta. Saldo não contado continua desconhecido; cadastro ausente, embalagem/variação removida ou produto desativado não contornam a proteção.

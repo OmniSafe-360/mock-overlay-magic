@@ -14,8 +14,8 @@ it("conferir usa a função existente sem finalizar a venda",async()=>{
  expect(rpc).toHaveBeenCalledWith("caixa_registrar_venda",{_chave:"ch",_venda:{...venda,acao:"conferir"}});
 });
 it.each(["data","error"])("recusa HTTP/SQL em %s não vira venda registrada",async(campo)=>{
- rpc.mockResolvedValue({data:null,error:null,[campo]:{situacao:"bloqueada",bloqueios:[{nome:"Bala",motivo:"estoque_insuficiente",contagem_solicitada:true}]}});
- expect(await caixaRegistrarVenda("ch",venda)).toEqual({situacao:"bloqueada",bloqueios:[{nome:"Bala",motivo:"estoque_insuficiente",contagemSolicitada:true}]});
+ rpc.mockResolvedValue({data:null,error:null,[campo]:{situacao:"bloqueada",bloqueios:[{nome:"Bala",motivo:"estoque_insuficiente",contagem_solicitada:true,disponivel:5,produto_id:"p"}]}});
+ expect(await caixaRegistrarVenda("ch",venda)).toEqual({situacao:"bloqueada",bloqueios:[{nome:"Bala",motivo:"estoque_insuficiente",contagemSolicitada:true,disponivel:5,produtoId:"p"}]});
 });
 it("resposta desconhecida não confirma venda",async()=>{
  rpc.mockResolvedValue({data:{situacao:"aprovada"},error:null});await expect(caixaRegistrarVenda("ch",venda)).rejects.toThrow("resposta_venda_invalida");
