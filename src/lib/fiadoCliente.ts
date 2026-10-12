@@ -99,3 +99,20 @@ export function avisosFiado(x: Pick<ExtratoFiado, "deve" | "desde" | "movimentos
   return avisos;
 }
 export const chaveVisto = (token: string) => `omni.fiado.visto:${token.slice(0, 16)}`;
+
+/** P5: controles do dono sobre o acesso do cliente. */
+export type InfoAcesso = { temLink: boolean; temPin: boolean; ultimoAcesso: string | null };
+export async function acessoInfo(clienteId: string): Promise<InfoAcesso> {
+  const { data, error } = await rpc("fiado_acesso_info", { _cliente: clienteId });
+  if (error) throw error;
+  return { temLink: !!data?.tem_link, temPin: !!data?.tem_pin, ultimoAcesso: data?.ultimo_acesso ?? null };
+}
+export async function novoLinkCliente(clienteId: string): Promise<string> {
+  const { data, error } = await rpc("fiado_novo_link", { _cliente: clienteId });
+  if (error) throw error;
+  return String(data);
+}
+export async function zerarPinCliente(clienteId: string): Promise<void> {
+  const { error } = await rpc("fiado_zerar_pin", { _cliente: clienteId });
+  if (error) throw error;
+}

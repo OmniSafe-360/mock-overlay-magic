@@ -34,3 +34,6 @@ O cliente **só vê**; não paga nem muda nada pela página.
 
 ## Não muda
 Vendas, caixa, fiado (cálculo, limite, cancelamento), estoque e demais módulos. Nenhum dado real alterado sem lista confirmada.
+
+## P5 — feito (12/10/2026)
+Quadro "Página do cliente" na conta do fiado: último acesso, gerar novo link e zerar PIN, com confirmação. Falta o teste do dono.

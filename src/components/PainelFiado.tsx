@@ -5,6 +5,7 @@ import { BookUser, ChevronRight, HandCoins, MessageCircle, Pencil, Search } from
 import { Sheet } from "@/components/parts/Sheet";
 import { CompartilharFiado } from "@/components/CompartilharFiado";
 import { linkClienteDono } from "@/lib/fiadoCliente";
+import { AcessoClienteFiado } from "@/components/AcessoClienteFiado";
 import { btnGhost, btnPrimary } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";
 import { centavosDigitados, mascaraDinheiro } from "@/lib/caixa";
@@ -224,6 +225,7 @@ function DetalheConta({ c, comercioId, comercioNome, api, agora, aviso, onMudou,
             <CompartilharFiado telefone={c.telefone} rotulo={c.deve > 0 ? "Cobrar pelo WhatsApp" : "Mandar a conta no WhatsApp"}
               montar={async (link) => mensagemFiadoCompleta(c, comercioNome, c.movimentos, link(await linkClienteDono(c.id)))} />
             <button type="button" onClick={() => { setModo("editar"); setPronto(""); }} className="flex min-h-11 items-center justify-center gap-2 text-sm font-semibold text-muted-foreground"><Pencil size={16} /> Mudar nome ou telefone</button>
+            <AcessoClienteFiado key={`acesso-${c.id}`} clienteId={c.id} />
             <LimiteFiado key={c.id} cliente={c} onSalvo={() => setPronto("Limite do fiado salvo.")} />
           </div>
         )}
