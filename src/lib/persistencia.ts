@@ -144,6 +144,7 @@ async function enviarSemTrava(s: Sessao, montar: () => object, rpc: Rpc): Promis
 
 /* ---------- mensagens em português ---------- */
 const MSG: [string, string][] = [
+  ["deposito_aguardando_contagem", "Conferência do depósito solicitada. Resolva a contagem do depósito na lista antes de aceitar a diferença da gôndola. Nenhum acerto da gôndola foi feito."],
   ["contagem_ja_resolvida", "Esta contagem já foi resolvida. Atualize a lista para continuar."],
   ["produto_inativo", "Este produto foi desativado. Revise o cadastro antes de aceitar a contagem ou mantenha o número anterior."],
   ["variacao_removida", "Esta variação foi removida. Mantenha o número anterior para encerrar a pendência."],

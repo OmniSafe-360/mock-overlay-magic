@@ -13,6 +13,8 @@ export type ProdutoCaixa = {
   codigos: CodigoCaixa[];
   variacoes: { id: string; nome: string }[];
   embalagens: { id: string; tipo: string; quantidade: number }[];
+  /** Saldo da área de venda por variação; null significa ainda não contado. */
+  estoques?: { variacaoId: string | null; quantidade: number | null }[];
 };
 
 /** Uma linha da venda. Produto sem cadastro tem `produtoId` vazio e o preço digitado. */
@@ -90,6 +92,24 @@ export function adicionar(carrinho: ItemCarrinho[], item: ItemCarrinho): ItemCar
   }
   return [...carrinho, item];
 }
+
+/** Soma linhas/códigos/embalagens do mesmo produto em unidades de venda. */
+export function limiteCarrinho(carrinho: ItemCarrinho[], produtos: ProdutoCaixa[]): { item: ItemCarrinho; motivo: string } | null {
+  const somas = new Map<string, number>();
+  for (const item of carrinho) {
+    const p = produtos.find((x) => x.id === item.produtoId);
+    if (!p) return { item, motivo: "Produto sem cadastro. Peça ao dono para cadastrar antes de vender." };
+    const e = item.embalagemId ? p.embalagens.find((x) => x.id === item.embalagemId) : null;
+    if (item.embalagemId && !e) return { item, motivo: "Esta embalagem mudou. Atualize os produtos antes de vender." };
+    const estoque = p.estoques?.find((x) => x.variacaoId === item.variacaoId);
+    if (!estoque || estoque.quantidade == null) return { item, motivo: "A gôndola ainda precisa ser contada ou configurada." };
+    const chave = `${p.id}:${item.variacaoId ?? ""}`;
+    const soma = (somas.get(chave) ?? 0) + Math.round(item.qtd * (e?.quantidade ?? 1) * 1000);
+    somas.set(chave, soma);
+    if (soma > Math.round(estoque.quantidade * 1000)) return { item, motivo: "Quantidade acima do disponível na área de venda." };
+  }
+  return null;
+}
 /** Quantidade × preço, arredondado ao centavo como o banco (meio centavo sobe), sem erro de vírgula do computador. */
 export const subtotal = (i: Pick<ItemCarrinho, "qtd" | "preco">) => Math.floor((Math.round(i.qtd * 1000) * Math.round(i.preco) + 500) / 1000);
 export const totalCarrinho = (c: ItemCarrinho[]) => c.reduce((t, i) => t + subtotal(i), 0);
@@ -146,6 +166,9 @@ export function montarVenda(id: string, turnoId: string, carrinho: ItemCarrinho[
 /** Mensagens do caixa em português. `naoFeito` diz o que não aconteceu quando falta internet. */
 export function erroCaixa(e: unknown, naoFeito = "A venda não foi enviada"): string {
   const m = String((e as { message?: string } | null)?.message ?? e ?? "");
+  if (m.startsWith("estoque_bloqueado:")) return m.slice("estoque_bloqueado:".length);
+  if (m.includes("resposta_venda_invalida")) return "O envio ainda não foi confirmado. Confira o mesmo envio antes de vender novamente.";
+  if (m.includes("produto_inativo")) return "Este produto foi desativado. Atualize os produtos antes de vender.";
   if (m.includes("pin_necessario")) return "Por segurança, o app travou. Volte ao início e digite seu PIN.";
   if (m.includes("acesso_encerrado")) return "Este celular saiu do app. Entre de novo com o código do dono.";
   if (m.includes("funcao_nao_permite_caixa")) return "O dono ainda não liberou o caixa para você. Peça para ele ligar \"Caixa\" no seu nome, na Equipe.";
@@ -203,14 +226,19 @@ export function erroPinDono(e: unknown, naoFeito?: string): string {
 }
 
 /** Erros que não se resolvem tentando de novo (a venda fica separada para o dono ver). Os outros: tenta de novo depois. */
-const DEFINITIVOS = ["pagamento_", "item_invalido", "venda_invalida", "venda_sem_itens", "data_invalida", "produto_de_outro_comercio",
+const DEFINITIVOS = ["estoque_bloqueado", "produto_inativo", "pagamento_", "item_invalido", "venda_invalida", "venda_sem_itens", "data_invalida", "produto_de_outro_comercio",
   "variacao_invalida", "embalagem_invalida", "turno_invalido", "cliente_invalido", "fiado_sem_cliente", "nome_cliente_invalido", "telefone_cliente_invalido"];
 export const erroDefinitivo = (e: unknown) => {
   const m = String((e as { message?: string } | null)?.message ?? e ?? "");
+  if (m.includes("resposta_venda_invalida")) return false;
   return DEFINITIVOS.some((k) => m.includes(k));
 };
 
-export type VendaGuardada = { venda: ReturnType<typeof montarVenda>; total: number; troco: number; formas: string; problema?: string | undefined };
+export type VendaGuardada = { venda: ReturnType<typeof montarVenda>; total: number; troco: number; formas: string; problema?: string | undefined;
+  /** Envio novo cuja conclusão só é anunciada após confirmação; ausente nas filas antigas. */
+  confirmacaoPendente?: boolean; comprovante?: DadosComprovante;
+  /** Venda recebida numa versão antiga, recusada por estoque; exige conciliação do dono. */ conciliacaoDono?: boolean;
+};
 export const vendaGuardadaValida = (p: unknown): p is VendaGuardada => {
   const x = p as VendaGuardada | null;
   return !!x && !!x.venda && typeof x.venda.id === "string" && typeof x.venda.turno_id === "string" && Array.isArray(x.venda.itens) && x.venda.itens.length > 0
@@ -233,9 +261,9 @@ export function filaCaixa(escopo: string, armazem: Armazem = localStorage) {
     /** Guarda uma venda nova (mesmo id não entra duas vezes). */
     por: (v: VendaGuardada) => { const l = ler(); if (!l.some((x) => x.venda.id === v.venda.id)) gravar([...l, v]); },
     tirar: (id: string) => gravar(ler().filter((x) => x.venda.id !== id)),
-    marcarProblema: (id: string, problema: string) => gravar(ler().map((x) => (x.venda.id === id ? { ...x, problema } : x))),
+    marcarProblema: (id: string, problema: string, conciliacaoDono = false) => gravar(ler().map((x) => (x.venda.id === id ? { ...x, problema, ...(conciliacaoDono ? { conciliacaoDono: true } : {}) } : x))),
     /** "Tentar enviar de novo" uma venda que não foi aceita: volta para a fila. */
-    tentarDeNovo: (id: string) => gravar(ler().map((x) => { if (x.venda.id !== id) return x; const { problema: _p, ...resto } = x; return resto; })),
+    tentarDeNovo: (id: string) => gravar(ler().map((x) => { if (x.venda.id !== id || x.conciliacaoDono) return x; const { problema: _p, ...resto } = x; return resto; })),
   };
 }
 

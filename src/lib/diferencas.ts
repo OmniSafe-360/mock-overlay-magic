@@ -18,6 +18,8 @@ export type Diferenca = {
   /** Perda recusada: o motivo que o funcionário tinha dado. */ motivoInformado: MotivoPerda | null;
   criadaEm: string;
   /** Duas contagens iguais, mas diferentes do saldo; aguarda a decisão do dono. */ contagemConfirmada?: boolean;
+  solicitacaoCaixa?: boolean; revisaoCaixaPendente?: boolean; saldoTotalPreservado?: boolean;
+  depositoPendente?: boolean; depositoContado?: number | null;
 };
 export type Perda = {
   id: string; produtoId: string; variacaoId: string | null; area: AreaEstoque; quantidade: number; baixado: number;
@@ -83,7 +85,7 @@ export function resumoDiferencas(difs: Diferenca[], perdas: Perda[], hoje: strin
   return {
     perdas: perdas.filter((p) => p.situacao === "aguardando").length,
     diferencas: difs.filter((d) => d.situacao === "aberta").length,
-    faltouMes: 0 - difs.filter((d) => mesDe(d.criadaEm) === mes && d.valor < 0 && d.motivo !== "erro_contagem" && !precisaEscolher(d)).reduce((t, d) => t + d.valor, 0),
+    faltouMes: 0 - difs.filter((d) => mesDe(d.criadaEm) === mes && d.valor < 0 && d.motivo !== "erro_contagem" && !precisaEscolher(d) && !d.revisaoCaixaPendente && !d.saldoTotalPreservado).reduce((t, d) => t + d.valor, 0),
     perdasMes: perdas.filter((p) => p.situacao !== "recusada" && mesDe(p.criadaEm) === mes).reduce((t, p) => t + Math.round(p.baixado * precoCompra(p.produtoId)), 0),
   };
 }

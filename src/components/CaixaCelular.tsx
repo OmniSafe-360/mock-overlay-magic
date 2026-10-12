@@ -2,7 +2,7 @@
  * abrir o caixa (troco da gaveta) → bipar (câmera sempre lendo, ou leitor de código ligado ao celular) → receber
  * (dinheiro com troco, Pix, cartão ou fiado) → "Venda finalizada". Só aqui o produto sai da gôndola.
  * Menu do caixa (C3): vendas deste caixa (cancelar com o PIN do dono), tirar dinheiro da gaveta (PIN do dono) e fechar o caixa.
- * Sem internet: a venda finalizada fica guardada no celular e vai sozinha quando a internet voltar (nunca conta duas vezes). */
+ * Sem internet: preserva o carrinho; novas vendas só concluem após confirmação do estoque e do banco. */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, Banknote, BookUser, MessageCircle, Camera, CameraOff, Check, CheckCircle2, CloudOff, CreditCard, HandCoins, Home, Lock, Menu, Minus, PackagePlus, Plus, QrCode,
@@ -14,7 +14,7 @@ import { btnGhost, btnPrimary } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";
 import {
   FORMA_TXT, acharPorCodigo, adicionar, atalhosDinheiro, bip, brl, buscarProdutos, centavosDigitados, contarItens, enviarFila, erroCaixa, erroPinDono, filaCaixa,
-  itemDoProduto, lerQuantidade, linkWhatsApp, mascaraDinheiro, montarVenda, notaNaoAceitas, qtdTexto, semInternet, situacaoPagamento, subtotal, textoComprovante, textoDiferencaCaixa, totalCarrinho,
+  itemDoProduto, limiteCarrinho, lerQuantidade, linkWhatsApp, mascaraDinheiro, montarVenda, notaNaoAceitas, qtdTexto, semInternet, situacaoPagamento, subtotal, textoComprovante, textoDiferencaCaixa, totalCarrinho,
   type DadosComprovante,
   vendaGuardadaValida, type Achado, type FormaCaixa, type ItemCarrinho, type PagamentoCaixa, type ProdutoCaixa, type VendaGuardada,
 } from "@/lib/caixa";
@@ -23,6 +23,7 @@ import { digits, maskPhone } from "@/lib/formatacao";
 import { escopoAcesso } from "@/lib/operacaoLocal";
 import { DIAS_ANTIGO, haQuantoTempo, textoMovimento , bloqueioFiado, mensagemFiadoCompleta } from "@/lib/fiado";
 import { CompartilharFiado } from "@/components/CompartilharFiado";
+import { ehIncerto } from "@/lib/persistencia";
 import { linkClienteCaixa } from "@/lib/fiadoCliente";
 
 export type ApiCaixa = {
@@ -31,17 +32,18 @@ export type ApiCaixa = {
   clientes: typeof banco.caixaClientesFiado;
   abrir: typeof banco.caixaAbrir;
   registrar: typeof banco.caixaRegistrarVenda;
+  conferir?: typeof banco.caixaConferirVenda;
   cancelar?: typeof banco.caixaCancelarVenda | undefined;
   sangria?: typeof banco.caixaSangria | undefined;
   fechar?: typeof banco.caixaFechar | undefined;
 };
 const API_PADRAO: ApiCaixa = {
   estado: banco.caixaEstado, produtos: banco.caixaProdutos, clientes: banco.caixaClientesFiado, abrir: banco.caixaAbrir, registrar: banco.caixaRegistrarVenda,
-  cancelar: banco.caixaCancelarVenda, sangria: banco.caixaSangria, fechar: banco.caixaFechar,
+  conferir: banco.caixaConferirVenda, cancelar: banco.caixaCancelarVenda, sangria: banco.caixaSangria, fechar: banco.caixaFechar,
 };
 
 type ClienteVenda = { id: string; nome: string; telefone: string | null; novo: boolean };
-type Rascunho = { carrinho: ItemCarrinho[]; pags: PagamentoCaixa[]; cliente: ClienteVenda | null };
+type Rascunho = { carrinho: ItemCarrinho[]; pags: PagamentoCaixa[]; cliente: ClienteVenda | null; vendaId?: string };
 const chaveRascunho = (escopo: string) => `omni.caixa.rascunho.v1:${escopo}`;
 function lerRascunho(escopo: string): Rascunho | null {
   try { const r = JSON.parse(localStorage.getItem(chaveRascunho(escopo)) ?? "null"); return r && Array.isArray(r.carrinho) && Array.isArray(r.pags) ? r : null; } catch { return null; }
@@ -49,7 +51,7 @@ function lerRascunho(escopo: string): Rascunho | null {
 function guardarRascunho(escopo: string, r: Rascunho) {
   try { if (!r.carrinho.length && !r.pags.length) localStorage.removeItem(chaveRascunho(escopo)); else localStorage.setItem(chaveRascunho(escopo), JSON.stringify(r)); } catch { /* sem armazenamento */ }
 }
-/** Cópia do caixa e dos produtos no celular, para continuar vendendo se a internet cair. */
+/** Cópia do caixa e dos produtos no celular, para preservar o trabalho se a internet cair. */
 type Cache = { estado: banco.EstadoCaixa; produtos: ProdutoCaixa[]; clientes?: banco.ClienteFiado[] | undefined };
 const chaveCache = (escopo: string) => `omni.caixa.cache.v1:${escopo}`;
 function lerCache(escopo: string): Cache | null {
@@ -91,6 +93,17 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
   const [erroVenda, setErroVenda] = useState("");
   const fila = useRef<ReturnType<typeof filaCaixa> | null>(null);
   const sincronizando = useRef(false);
+  const idCarrinho = useRef(newUid());
+  const [envioPendente, setEnvioPendente] = useState<VendaGuardada | null>(null);
+  const [enviandoVenda, setEnviandoVenda] = useState(false);
+  const [conferindo, setConferindo] = useState(false);
+  const verificando = useRef(false);
+  const revisaoProdutos = useRef(0);
+  const atualizarProdutos = useCallback(async () => {
+    const rodada = ++revisaoProdutos.current;
+    try { const p = await api.produtos(chave); if (rodada === revisaoProdutos.current) { setProdutos(p); setOffline(false); if (escopo) gravarCache(escopo, { produtos: p }); } }
+    catch (e) { if (semInternet(e)) setOffline(true); }
+  }, [api, chave, escopo]);
 
   const atualizarEstado = useCallback(() => {
     void api.estado(chave).then((e) => { setEstado(e); setOffline(false); if (escopo) gravarCache(escopo, { estado: e }); }).catch(() => {});
@@ -101,17 +114,40 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
     if (!fila.current || sincronizando.current) return;
     sincronizando.current = true;
     try {
-      await enviarFila(fila.current, (v) => api.registrar(chave, v.venda),
-        (v, r) => setFeito((f) => (f && f.id === v.venda.id ? { ...f, numero: r.numero, guardada: false, comprovante: { ...f.comprovante, numero: r.numero } } : f)));
+      setEnviandoVenda(true);
+      await enviarFila(fila.current, async (v) => {
+        let r: banco.ResultadoCaixa;
+        try { r = await api.registrar(chave, v.venda); }
+        catch (e) {
+          if (v.confirmacaoPendente && !ehIncerto(e)) { fila.current!.tirar(v.venda.id); setEnvioPendente(null); setErroVenda(erroCaixa(e)); }
+          throw e;
+        }
+        if (r.situacao === "bloqueada") {
+          const mensagem = banco.textoBloqueioCaixa(r);
+          if (v.confirmacaoPendente) { fila.current!.tirar(v.venda.id); setEnvioPendente(null); setErroVenda(mensagem); }
+          else fila.current!.marcarProblema(v.venda.id, mensagem, true);
+          throw new Error(`estoque_bloqueado:${mensagem}`);
+        }
+        if (r.situacao !== "registrada" && r.situacao !== "repetida") throw new Error("resposta_venda_invalida");
+        return r;
+      }, (v, r) => {
+        if (v.confirmacaoPendente && v.comprovante) {
+          setFeito({ id: v.venda.id, total: v.total, troco: r.troco, numero: r.numero, formas: v.formas, guardada: false,
+            telefone: v.venda.cliente?.telefone ?? null, clienteFiado: v.venda.cliente ? { id: v.venda.cliente.id, nome: v.comprovante!.cliente ?? "Cliente" } : null,
+            comprovante: { ...v.comprovante, numero: r.numero } });
+          setCarrinho([]); setPags([]); setCliente(null); setEnvioPendente(null); idCarrinho.current = newUid(); setErroVenda(""); setFase("feito"); bip();
+        } else setFeito((f) => (f && f.id === v.venda.id ? { ...f, numero: r.numero, guardada: false, comprovante: { ...f.comprovante, numero: r.numero } } : f));
+      });
+      await atualizarProdutos();
       setOffline(false); setErroFila("");
       atualizarEstado();
     } catch (e) {
       if (semInternet(e)) setOffline(true); else setErroFila(erroCaixa(e));
     } finally {
-      sincronizando.current = false;
+      sincronizando.current = false; setEnviandoVenda(false);
       setGuardadas(fila.current.ler());
     }
-  }, [api, chave, atualizarEstado]);
+  }, [api, chave, atualizarEstado, atualizarProdutos]);
 
   const carregar = useCallback(async () => {
     setFase("carregando"); setErroCarga("");
@@ -121,7 +157,9 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
       trazerVendaAntiga(esc, fila.current);
       setGuardadas(fila.current.ler());
       const r = lerRascunho(esc);
-      if (r) { setCarrinho(r.carrinho); setPags(r.pags); setCliente(r.cliente); }
+      if (r) { setCarrinho(r.carrinho); setPags(r.pags); setCliente(r.cliente); if (r.vendaId) idCarrinho.current = r.vendaId; }
+      const incerto = fila.current.ler().find((v) => v.confirmacaoPendente && !v.problema);
+      if (incerto) { setEnvioPendente(incerto); idCarrinho.current = incerto.venda.id; }
       setEscopo(esc);
       let est: banco.EstadoCaixa, prods: ProdutoCaixa[];
       try {
@@ -137,7 +175,7 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
     } catch (e) { setErroCarga(erroCaixa(e, "O caixa não carregou")); setFase("erro"); }
   }, [api, chave]);
   useEffect(() => { void carregar(); }, [carregar]);
-  useEffect(() => { if (escopo) guardarRascunho(escopo, { carrinho, pags, cliente }); }, [escopo, carrinho, pags, cliente]);
+  useEffect(() => { if (escopo) guardarRascunho(escopo, { carrinho, pags, cliente, vendaId: idCarrinho.current }); }, [escopo, carrinho, pags, cliente]);
   // Preços e produtos novos do dono chegam com o caixa aberto: a cada 2 min, ao voltar ao app e quando a internet volta.
   // Não mexe na tela atual nem no carrinho; sem internet, continua com a lista guardada.
   useEffect(() => {
@@ -145,8 +183,9 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
     let vivo = true;
     const atualizar = async () => {
       try {
+        const rodada = ++revisaoProdutos.current;
         const prods = await api.produtos(chave);
-        if (!vivo) return;
+        if (!vivo || rodada !== revisaoProdutos.current) return;
         setProdutos(prods);
         const c = lerCache(escopo);
         if (c) gravarCache(escopo, { ...c, produtos: prods });
@@ -180,25 +219,36 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
 
   const total = totalCarrinho(carrinho);
 
-  /** Finalizar: a venda é guardada no celular na hora e enviada em seguida (sem internet, vai depois). */
+  const conferirCarrinho = async (itens: ItemCarrinho[], receber = false) => {
+    if (!estado?.turno || verificando.current || envioPendente) return;
+    if (offline || navigator.onLine === false) { setErroVenda("Conecte à internet para conferir o estoque e finalizar. O carrinho continua guardado."); return; }
+    verificando.current = true; setConferindo(true); setErroVenda("");
+    try {
+      if (api.conferir) {
+        const r = await api.conferir(chave, montarVenda(idCarrinho.current, estado.turno.id, itens, [], null));
+        if (r.situacao === "bloqueada") { setErroVenda(banco.textoBloqueioCaixa(r)); await atualizarProdutos(); return; }
+      } else {
+        const bloqueio = limiteCarrinho(itens, produtos);
+        if (bloqueio) { setErroVenda(bloqueio.motivo); return; }
+      }
+      if (receber) setFase("receber"); else { await atualizarProdutos(); setErroVenda("O estoque foi atualizado. Confira a quantidade e tente incluir novamente."); }
+    } catch (e) { if (semInternet(e)) setOffline(true); setErroVenda(erroCaixa(e, "A conferência não foi confirmada")); }
+    finally { verificando.current = false; setConferindo(false); }
+  };
+
+  /** Guardar antes do envio, manter o carrinho e só concluir após confirmação do banco. */
   const finalizar = () => {
-    if (!fila.current || !estado?.turno) return;
-    const s = situacaoPagamento(total, pags);
-    if (!s.pronto) return;
-    const v: VendaGuardada = {
-      venda: montarVenda(newUid(), estado.turno.id, carrinho, pags, cliente ? (cliente.novo ? { id: cliente.id, nome: cliente.nome, ...(cliente.telefone ? { telefone: cliente.telefone } : {}) } : { id: cliente.id }) : null),
-      total, troco: s.troco, formas: pags.map((p) => FORMA_TXT[p.forma]).join(" + "),
-    };
+    if (!fila.current || !estado?.turno || sincronizando.current || envioPendente) return;
+    if (offline || navigator.onLine === false) { setErroVenda("Conecte à internet para finalizar. O carrinho continua guardado."); return; }
+    const situacao = situacaoPagamento(total, pags);
+    if (!situacao.pronto) return;
+    const comprovante: DadosComprovante = { comercio: { nome: estado.comercio.nome, endereco: estado.comercio.endereco }, numero: null, feitaEm: new Date().toISOString(),
+      itens: carrinho.map((i) => ({ descricao: i.detalhe ? `${i.nome} (${i.detalhe})` : i.nome, qtd: i.qtd, valor: subtotal(i) })), total, pagamentos: pags, troco: situacao.troco, cliente: cliente?.nome ?? null };
+    const v: VendaGuardada = { venda: montarVenda(idCarrinho.current, estado.turno.id, carrinho, pags,
+      cliente ? (cliente.novo ? { id: cliente.id, nome: cliente.nome, ...(cliente.telefone ? { telefone: cliente.telefone } : {}) } : { id: cliente.id }) : null, comprovante.feitaEm),
+      total, troco: situacao.troco, formas: pags.map((p) => FORMA_TXT[p.forma]).join(" + "), confirmacaoPendente: true, comprovante };
     try { fila.current.por(v); } catch (e) { setErroVenda(e instanceof Error ? e.message : String(e)); return; }
-    setErroVenda("");
-    setCarrinho([]); setPags([]); setCliente(null);
-    setGuardadas(fila.current.ler());
-    setFeito({ id: v.venda.id, total: v.total, troco: v.troco, numero: null, formas: v.formas, guardada: true, telefone: cliente?.telefone ?? null, clienteFiado: cliente ? { id: cliente.id, nome: cliente.nome } : null,
-      comprovante: { comercio: { nome: estado.comercio.nome, endereco: estado.comercio.endereco }, numero: null, feitaEm: v.venda.feita_em,
-        itens: carrinho.map((i) => ({ descricao: i.detalhe ? `${i.nome} (${i.detalhe})` : i.nome, qtd: i.qtd, valor: subtotal(i) })),
-        total, pagamentos: pags, troco: s.troco, cliente: cliente?.nome ?? null } });
-    setFase("feito"); bip();
-    void sincronizar();
+    setErroVenda(""); setEnvioPendente(v); setGuardadas(fila.current.ler()); void sincronizar();
   };
 
   if (fase === "carregando") return <Tela><p className="m-auto text-base text-muted-foreground">Abrindo o caixa…</p></Tela>;
@@ -212,6 +262,13 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
       </div>
     </Tela>
   );
+  if (envioPendente) return <Tela><div className="m-auto w-full space-y-4 px-5 text-center">
+    <p className="text-xl font-bold">{enviandoVenda ? "Confirmando venda…" : "Venda sem confirmação"}</p>
+    <p className="text-sm">O carrinho está preservado. Aguarde a confirmação deste envio antes de vender novamente.</p>
+    {(erroFila || offline) && <p role="alert" className="rounded-2xl border border-warning/50 p-3 text-sm">{erroFila || "Sem internet. Conecte para confirmar o mesmo envio."}</p>}
+    <button type="button" disabled={enviandoVenda} onClick={() => void sincronizar()} className={btnPrimary(!enviandoVenda)}>Conferir envio</button>
+    <button type="button" disabled={enviandoVenda} onClick={onSair} className={`w-full ${btnGhost}`}>Voltar ao início</button>
+  </div></Tela>;
   if (fase === "abrir") return <AbrirCaixa nome={estado.nome} api={api} chave={chave} onSair={onSair}
     onAberto={(t) => { const e = { ...estado, turno: t, vendas: [] }; setEstado(e); gravarCache(escopo, { estado: e }); setFase("vender"); }} />;
   if (fase === "feito" && feito) return <VendaFeita f={feito} chave={chave} comercioNome={estado?.comercio.nome ?? ""} onProxima={() => { setFeito(null); setFase("vender"); }} />;
@@ -227,10 +284,11 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
     <Vender estado={estado} produtos={produtos} mercado={mercado} carrinho={carrinho} onCarrinho={setCarrinho} onSair={onSair}
       guardadas={guardadas} offline={offline} erroFila={erroFila} onEnviarGuardadas={() => void sincronizar()}
       onTentarDeNovo={(id) => { if (!fila.current) return; fila.current.tentarDeNovo(id); setGuardadas(fila.current.ler()); setErroFila(""); void sincronizar(); }}
-      chave={chave} api={api} onEstado={(e) => { setEstado(e); gravarCache(escopo, { estado: e }); }} onAtualizar={atualizarEstado}
+      chave={chave} api={api} onEstado={(e) => { setEstado(e); gravarCache(escopo, { estado: e }); }} onAtualizar={() => { atualizarEstado(); void atualizarProdutos(); }}
       onFechar={() => setFase("fechar")} onInstalar={onInstalar}
-      onReceber={() => { setErroVenda(""); setFase("receber"); }}
-      onLimpar={() => { setCarrinho([]); setPags([]); setCliente(null); }} />
+      erroEstoque={erroVenda} conferindo={conferindo} onSolicitarContagem={(itens) => void conferirCarrinho(itens)}
+      onReceber={() => void conferirCarrinho(carrinho, true)}
+      onLimpar={() => { if (verificando.current) return; idCarrinho.current = newUid(); setCarrinho([]); setPags([]); setCliente(null); setErroVenda(""); }} />
   );
 }
 
@@ -305,7 +363,8 @@ type Janela =
   | null;
 
 function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onReceber, onLimpar, guardadas, offline, erroFila, onEnviarGuardadas, onTentarDeNovo,
-  chave, api, onEstado, onAtualizar, onFechar, onInstalar }: {
+  chave, api, onEstado, onAtualizar, onFechar, onInstalar, erroEstoque, conferindo, onSolicitarContagem }: {
+  erroEstoque: string; conferindo: boolean; onSolicitarContagem: (itens: ItemCarrinho[]) => void;
   estado: banco.EstadoCaixa; produtos: ProdutoCaixa[]; mercado: boolean; carrinho: ItemCarrinho[]; onCarrinho: (f: (c: ItemCarrinho[]) => ItemCarrinho[]) => void;
   onSair: () => void; onReceber: () => void; onLimpar: () => void;
   guardadas: VendaGuardada[]; offline: boolean; erroFila: string; onEnviarGuardadas: () => void; onTentarDeNovo: (id: string) => void;
@@ -319,17 +378,24 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
   const t = estado.turno;
 
   const avisar = (a: Aviso) => { setAviso(a); };
+  const carrinhoAtual = useRef(carrinho); carrinhoAtual.current = carrinho;
+  const conferindoAtual = useRef(conferindo); conferindoAtual.current = conferindo;
   const colocar = useCallback((item: ItemCarrinho) => {
-    onCarrinho((c) => adicionar(c, item));
+    if (conferindoAtual.current) return;
+    const candidato = adicionar(carrinhoAtual.current, item);
+    const limite = limiteCarrinho(candidato, produtos);
+    if (limite) { avisar({ ok: false, texto: limite.motivo }); onSolicitarContagem(candidato); return; }
+    carrinhoAtual.current = candidato; onCarrinho(() => candidato);
     avisar({ ok: true, texto: `${item.nome}${item.detalhe ? ` · ${item.detalhe}` : ""} · ${brl(subtotal(item))}` });
     setTimeout(() => fimLista.current?.scrollIntoView?.({ block: "end", behavior: "smooth" }), 30);
-  }, [onCarrinho]);
+  }, [onCarrinho, produtos, onSolicitarContagem]);
   const incluir = useCallback((a: Achado, codigo: string | null) => {
     if (a.produto.variacoes.length && !a.variacaoId && !a.embalagemId) { setJanela({ j: "variacao", a, codigo }); return; }
     if (!a.embalagemId && a.produto.fracionado) { setJanela({ j: "peso", a, codigo }); return; }
     colocar(itemDoProduto(newUid(), a, codigo));
   }, [colocar]);
   const lerCodigo = useCallback((c: string) => {
+    if (conferindoAtual.current) return;
     bip();
     const a = acharPorCodigo(produtos, c);
     if (!a) { avisar({ ok: false, texto: `Código ${c} não está cadastrado` }); setJanela({ j: "sem_cadastro", codigo: c }); return; }
@@ -354,8 +420,14 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
     return () => window.removeEventListener("keydown", tecla);
   }, []);
 
-  const mudarQtd = (id: string, delta: number) => onCarrinho((c) => c.flatMap((x) => (x.id !== id ? [x] : x.qtd + delta <= 0 ? [] : [{ ...x, qtd: x.qtd + delta }])));
-  const tirar = (id: string) => onCarrinho((c) => c.filter((x) => x.id !== id));
+  const mudarQtd = (id: string, delta: number) => {
+    if (conferindoAtual.current) return;
+    const candidato = carrinhoAtual.current.flatMap((x) => x.id !== id ? [x] : x.qtd + delta <= 0 ? [] : [{ ...x, qtd: x.qtd + delta }]);
+    const limite = limiteCarrinho(candidato, produtos);
+    if (delta > 0 && limite) { avisar({ ok: false, texto: limite.motivo }); onSolicitarContagem(candidato); return; }
+    carrinhoAtual.current = candidato; onCarrinho(() => candidato);
+  };
+  const tirar = (id: string) => { if (!conferindoAtual.current) onCarrinho((c) => c.filter((x) => x.id !== id)); };
 
   return (
     <Tela>
@@ -374,7 +446,7 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
       </header>
       {offline && (
         <p role="status" className="mx-4 mb-2 flex items-center gap-2 rounded-2xl bg-warning/15 px-3 py-2 text-sm font-semibold text-warning">
-          <CloudOff size={16} className="shrink-0" /> Sem internet: pode continuar vendendo, as vendas ficam guardadas.
+          <CloudOff size={16} className="shrink-0" /> Sem internet: o carrinho fica guardado. Conecte para conferir o estoque e finalizar.
         </p>
       )}
 
@@ -392,6 +464,7 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
         <AvisoGuardadas guardadas={guardadas} erroFila={erroFila} onEnviar={onEnviarGuardadas} />
       </div>
 
+      {erroEstoque && <p role="alert" className="mx-4 rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm font-semibold">{erroEstoque}</p>}
       <div className="mt-2 min-h-0 flex-1 overflow-y-auto px-4">
         {!carrinho.length ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 py-6 text-center text-muted-foreground">
@@ -411,14 +484,14 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
                   </p>
                 </div>
                 {i.fracionado ? (
-                  <button type="button" aria-label={`Tirar ${i.nome}`} onClick={() => tirar(i.id)} className="flex h-11 w-11 items-center justify-center rounded-xl text-muted-foreground"><Trash2 size={18} /></button>
+                  <button type="button" disabled={conferindo} aria-label={`Tirar ${i.nome}`} onClick={() => tirar(i.id)} className="flex h-11 w-11 items-center justify-center rounded-xl text-muted-foreground"><Trash2 size={18} /></button>
                 ) : (
                   <div className="flex items-center rounded-2xl border border-border">
-                    <button type="button" aria-label={i.qtd === 1 ? `Tirar ${i.nome}` : `Menos ${i.nome}`} onClick={() => mudarQtd(i.id, -1)} className="flex h-11 w-10 items-center justify-center text-primary">
+                    <button type="button" disabled={conferindo} aria-label={i.qtd === 1 ? `Tirar ${i.nome}` : `Menos ${i.nome}`} onClick={() => mudarQtd(i.id, -1)} className="flex h-11 w-10 items-center justify-center text-primary">
                       {i.qtd === 1 ? <Trash2 size={17} /> : <Minus size={18} />}
                     </button>
                     <span aria-label={`Quantidade de ${i.nome}`} className="min-w-7 text-center text-base font-bold tabular-nums">{i.qtd}</span>
-                    <button type="button" aria-label={`Mais ${i.nome}`} onClick={() => mudarQtd(i.id, 1)} className="flex h-11 w-10 items-center justify-center text-primary"><Plus size={18} /></button>
+                    <button type="button" disabled={conferindo} aria-label={`Mais ${i.nome}`} onClick={() => mudarQtd(i.id, 1)} className="flex h-11 w-10 items-center justify-center text-primary"><Plus size={18} /></button>
                   </div>
                 )}
                 <span className="w-20 shrink-0 text-right text-base font-bold tabular-nums">{brl(subtotal(i))}</span>
@@ -433,11 +506,11 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
         <div className="flex items-end justify-between">
           <div>
             <p className="text-sm text-muted-foreground">Total{carrinho.length ? ` · ${contarItens(carrinho) === 1 ? "1 item" : `${qtdTexto(contarItens(carrinho))} itens`}` : ""}</p>
-            {carrinho.length > 0 && <button type="button" onClick={() => setJanela({ j: "limpar" })} className="text-xs font-semibold text-muted-foreground underline">Limpar venda</button>}
+            {carrinho.length > 0 && <button type="button" disabled={conferindo} onClick={() => setJanela({ j: "limpar" })} className="text-xs font-semibold text-muted-foreground underline">Limpar venda</button>}
           </div>
           <p aria-label="Total da venda" className="text-4xl font-bold tabular-nums">{brl(total)}</p>
         </div>
-        <button type="button" disabled={!carrinho.length} onClick={onReceber} className={`flex items-center justify-center gap-2 ${btnPrimary(!!carrinho.length)}`}>
+        <button type="button" disabled={!carrinho.length || conferindo} onClick={onReceber} className={`flex items-center justify-center gap-2 ${btnPrimary(!!carrinho.length)}`}>
           <Banknote size={22} /> Receber {carrinho.length ? brl(total) : ""}
         </button>
       </footer>
@@ -447,10 +520,7 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
           onCodigo={(c) => { setJanela(null); lerCodigo(c); }}
           onEscolher={(p) => { setJanela(null); incluir({ produto: p, variacaoId: null, embalagemId: null }, null); }} />
       )}
-      {janela?.j === "sem_cadastro" && (
-        <SemCadastro codigo={janela.codigo} onClose={() => setJanela(null)}
-          onIncluir={(descricao, preco, qtd) => { setJanela(null); colocar({ id: newUid(), produtoId: null, variacaoId: null, embalagemId: null, codigo: janela.codigo, nome: descricao, detalhe: "", unidade: "Unidade", fracionado: false, qtd, preco }); }} />
-      )}
+      {janela?.j === "sem_cadastro" && <SemCadastro codigo={janela.codigo} onClose={() => setJanela(null)} />}
       {janela?.j === "peso" && (
         <Peso a={janela.a} onClose={() => setJanela(null)}
           onIncluir={(q) => { setJanela(null); colocar(itemDoProduto(newUid(), janela.a, janela.codigo, q)); }} />
@@ -521,39 +591,14 @@ function BuscarProduto({ produtos, onEscolher, onCodigo, onClose }: { produtos: 
   );
 }
 
-function SemCadastro({ codigo, onIncluir, onClose }: { codigo: string | null; onIncluir: (descricao: string, preco: number, qtd: number) => void; onClose: () => void }) {
-  const [descricao, setDescricao] = useState("");
-  const [preco, setPreco] = useState(0);
-  const [qtd, setQtd] = useState(1);
-  const ok = preco > 0;
-  return (
-    <Sheet title="Produto sem cadastro" onClose={onClose}>
-      <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3">
-        <p className="rounded-2xl bg-secondary/50 p-3 text-sm">
-          {codigo ? <>O código <b>{codigo}</b> não está no Omni.</> : "Venda um produto que não está cadastrado."} Digite o preço e venda normalmente. O dono resolve depois qual produto é.
-        </p>
-        <label className="block space-y-1">
-          <span className="text-sm font-medium text-muted-foreground">O que é? (opcional)</span>
-          <input value={descricao} maxLength={60} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex.: Sacola, pão de queijo"
-            className="h-13 w-full rounded-2xl border border-border bg-background-deep/60 px-4 text-base text-foreground outline-none focus-visible:border-primary" />
-        </label>
-        <CampoDinheiro rotulo="Preço de cada um" valor={preco} onMudar={setPreco} autoFocus />
-        <div className="flex items-center justify-between">
-          <span className="text-base font-medium">Quantidade</span>
-          <div className="flex items-center rounded-2xl border border-border">
-            <button type="button" aria-label="Menos" onClick={() => setQtd((q) => Math.max(1, q - 1))} className="flex h-12 w-12 items-center justify-center text-primary"><Minus size={18} /></button>
-            <span className="min-w-8 text-center text-lg font-bold">{qtd}</span>
-            <button type="button" aria-label="Mais" onClick={() => setQtd((q) => q + 1)} className="flex h-12 w-12 items-center justify-center text-primary"><Plus size={18} /></button>
-          </div>
-        </div>
-      </div>
-      <div className="px-5 pt-2">
-        <button type="button" disabled={!ok} onClick={() => onIncluir(descricao.trim() || "Produto sem cadastro", preco, qtd)} className={btnPrimary(ok)}>
-          Incluir {ok ? brl(preco * qtd) : ""}
-        </button>
-      </div>
-    </Sheet>
-  );
+function SemCadastro({ codigo, onClose }: { codigo: string | null; onClose: () => void }) {
+  return <Sheet title="Produto sem cadastro" onClose={onClose}>
+    <div className="space-y-3 px-5 py-3">
+      <p className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">{codigo ? <>O código <b>{codigo}</b> não está no Omni.</> : "Este produto precisa ser identificado."} Peça ao dono para cadastrar o produto e conferir a área de venda antes de vender.</p>
+      <p className="text-sm text-muted-foreground">O carrinho atual continua preservado.</p>
+      <button type="button" onClick={onClose} className={`w-full ${btnGhost}`}>Entendi</button>
+    </div>
+  </Sheet>;
 }
 
 function Peso({ a, onIncluir, onClose }: { a: Achado; onIncluir: (qtd: number) => void; onClose: () => void }) {
@@ -1074,7 +1119,8 @@ function VendasDoCaixa({ estado, guardadas, chave, api, offline, onClose, onMudo
             <p className={g.problema ? "font-semibold text-destructive" : "text-warning"}>{g.problema ? `Não foi aceita: ${g.problema}` : "Guardada no celular · esperando a internet"}</p>
             {g.problema && (
               <>
-                <button type="button" onClick={() => onTentarDeNovo(g.venda.id)} className={`mt-2 w-full ${btnGhost}`}>Tentar enviar de novo</button>
+                {g.conciliacaoDono ? <p className="mt-2 text-sm font-semibold">Venda antiga: mostre ao dono para conciliar o dinheiro e o estoque. O envio foi preservado.</p> :
+                  <button type="button" onClick={() => onTentarDeNovo(g.venda.id)} className={`mt-2 w-full ${btnGhost}`}>Tentar enviar de novo</button>}
                 <p className="mt-1 text-xs text-muted-foreground">Se continuar sem ir, mostre ao dono. Ao fechar o caixa, ela aparece para ele no fechamento.</p>
               </>
             )}

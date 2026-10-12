@@ -206,15 +206,16 @@ FORNECEDOR ──(receber, cego)──▶ DEPÓSITO ──(repor, cego)──▶
 - **Futuro, a combinar:** chave para o fornecedor do sistema de caixa enviar diretamente e eventual caixa adicional no computador. Não confundir esses projetos com o Caixa no celular existente.
 - **Regras:**
   - cada nota só conta uma vez (número único de 44 dígitos);
-  - sem internet, as vendas esperam e vão depois;
+  - no Conector, sem internet as vendas externas já finalizadas esperam e vão depois; no Caixa móvel, o carrinho fica guardado e novas vendas só finalizam com confirmação online do banco;
   - nota cancelada devolve para a gôndola;
   - vender o código da embalagem desconta as unidades dela;
   - o código interno do caixa (incluindo balança) é ligado ao produto uma vez;
-  - produto vendido sem cadastro vai para a lista "Vendido sem cadastro";
+  - vendas externas sem cadastro vão para "Vendido sem cadastro"; no Caixa móvel, cadastrar/conferir o produto antes de vender;
   - vendas como "Diversos" são contadas por caixa e avisadas;
-  - gôndola que ficaria negativa gera aviso amarelo;
+  - no Conector, falta para uma venda externa já finalizada fica registrada; no Caixa móvel, quantidade acima da área de venda bloqueia a venda inteira e solicita conferência cega, sem baixa ou dinheiro/fiado;
   - cada venda grava uma `operacoes`.
 - **Situação de cada caixa:** verde enviando, amarelo parado há 30 minutos com a loja aberta, vermelho desligado.
+- **C6, decisão de 12/10/2026:** diferença confirmada na gôndola solicitada pelo caixa pede conferência do depósito. O dono aceita a diferença da gôndola após resolver o depósito; manter o esperado continua permitido. Não há reposição/acerto automático. Reenvios conservam ID; conclusão só após confirmação. Conferências vinculadas em revisão ou com total preservado não viram falta total automática. [Detalhes e teste](caixa-estoque-contagens-2026-10-12.md).
 - **Fechamento do dinheiro:** para caixa externo ligado ao Conector, continua no sistema do mercado; no Caixa no celular, o turno e seu fechamento são feitos no Omni. Conferir o caminho usado pelo piloto.
 
 ### 7.7 Perdas e diferenças (Fase 4)
@@ -334,6 +335,9 @@ O [checklist ponta a ponta](CHECKLIST_PONTA_A_PONTA.md) registra limitações ad
 
 ### 12.2 Pronto, falta o teste do dono
 
+12/10/2026: **C6 / E3–E4 — caixa respeita saldo da área de venda e solicita contagens**, pedido do dono após `72034.png`. Validação no carrinho e na transação final, embalagens/variações somadas, confirmação antes de concluir, solicitações cegas deduplicadas e depósito solicitado após diferença confirmada. Dono resolve os dois locais; total preservado não vira falta automática. Offline mantém carrinho, novas vendas exigem conexão; sem cadastro exige cadastrar/conferir; filas antigas recusadas permanecem para conciliação. Sem tabelas/funções SQL novas e sem alterar saldo real. Conector preservado. **Pronto, falta Publicar → Atualizar e teste do dono.** [Registro, migração e roteiro](caixa-estoque-contagens-2026-10-12.md). E3/E4 permanecem abertas.
+
+
 
 12/10/2026: **E3 / C5 — contagem cega exige decisão do dono**, autorizada após o caso do Nescau: depósito/gôndola recontam em branco, duas iguais divergentes ou três diferentes aguardam o dono, mesmo sem caixa ligado. Bloqueio no banco por produto/variação/área; outro ID/aparelho/dia não contorna. Decisão e transferência não duplicam; movimentos posteriores preservados. Migração `20261012003349` simulada com rollback e aplicada; seis funções iguais ao arquivo, RLS/permissões/auxiliares preservados e dados reais iguais imediatamente antes/depois. Nescau permanece 1.000 no depósito e 1 na gôndola. Tipos/990 testes duas vezes, 41 asserções SQL, seis disputas reais e Chromium de produção 320/1280 px com API simulada aprovados. Avisos automáticos: HTTP 403 por falta de `advisors_read`; metadados conferidos diretamente. **Precisa Publicar → Atualizar; falta o teste do dono.** [Registro e roteiro](contagem-cega-decisao-dono-2026-10-12.md). [PR #110](https://github.com/OmniSafe-360/mock-overlay-magic/pull/110), correção `aa6728c`. Regra 7.2 atualizada; E3 continua aberta e próxima verificação independente E2.1 preservada.
 
@@ -373,6 +377,8 @@ O [checklist ponta a ponta](CHECKLIST_PONTA_A_PONTA.md) registra limitações ad
 - Aba **Vendas** do comércio: caixas, vendas, fechamento e fiado. Vendas chegam pelo Omni Conector ou pelo Caixa no celular; ambos existem, com validação real ainda pendente.
 
 ### 12.3 Ainda não existe ou está incompleto
+- **Caixa e contagens C6/E3–E4:** correção entregue; publicação, teste físico nos aparelhos e conciliação de eventual fila antiga recebida/recusada continuam pendentes. [Roteiro](caixa-estoque-contagens-2026-10-12.md).
+
 - **Contagem cega (C5/E3):** banco corrigido; falta publicar a interface e validar recontagem/bloqueio/decisão do dono. A unidade antiga do Nescau continua pendente de conferência física e decisão, sem acerto automático nesta entrega. [Roteiro](contagem-cega-decisao-dono-2026-10-12.md).
 - **Conta e comércio (E2.1):** isolamento durante o carregamento corrigido; publicação/teste do dono e demais cenários da etapa ainda pendentes. Próxima verificação: conferir B13 já corrigido no main atual, retomada e retornos das telas. Não considerar entrada/e-mail/Google reais novamente validados pela simulação.
 - **Confiabilidade (E1):** R01–R05 corrigidos no código; publicação e teste do dono pendentes na seção 12.2. R05 ainda exige validar a reabertura do Caixa sem internet em aparelhos reais; E1 não está validada por completo.
@@ -385,7 +391,7 @@ O [checklist ponta a ponta](CHECKLIST_PONTA_A_PONTA.md) registra limitações ad
 
 ## 13. ROTEIRO — O PLANO
 
-**Plano ativo, pedido do dono em 11/10/2026:** [CHECKLIST_PONTA_A_PONTA.md](CHECKLIST_PONTA_A_PONTA.md). **Análise 2 (11/10/2026, tarde):** 31 defeitos confirmados em fluxos existentes, listados em [checklist-funcional-2.md](checklist-funcional-2.md) (A1–A12 graves, B1–B16 números/telas, C1–C3 menores; A12 já resolvido por R01, B13 dentro de E2.1). **A1–C3 estão marcados corrigidos por outro acesso no main atual; falta validação conjunta.** C4 (saída do primeiro cadastro) e C5 (contagem cega com decisão do dono) acrescentados por pedido do dono, com entregas próprias na seção 12.2. **Próxima verificação independente: continuar E2.1 — conferir B13 já corrigido, retomada e retornos das telas.** Isolamento da conta e salvamento/confirmação do cadastro corrigidos no código; falta publicação/teste do dono. Editor de comércio já salvo não foi encontrado; requer desenho autorizado antes de função nova. E2.1 permanece aberta.  R01–R05 corrigidos no código, R02 aplicada no banco; falta publicação/teste do dono (seção 12.2). **E1 permanece sem aceite geral:** R05 foi corrigida após reprodução local, mas exige teste no app instalado em aparelhos reais, junto de E6/item antigo 29. O dono autorizou adiar o teste geral; avançar em E2 não encerra os itens pendentes. Depois seguem E2 dono/compras, E3 estoque/operação, E4 caixa/fiado, E5 lançamento/acesso, E6 aparelhos, E7 dados autorizados e E8 piloto. Consultar a indicação atual antes de cada tarefa, executar um item por PR e registrar resultado/limites. R02 verificou a concorrência e comparou as funções reais antes/depois do SQL; consulta automática de avisos continua pendente por falta de leitura no token disponível.
+**Plano ativo, pedido do dono em 11/10/2026:** [CHECKLIST_PONTA_A_PONTA.md](CHECKLIST_PONTA_A_PONTA.md). **Análise 2 (11/10/2026, tarde):** 31 defeitos confirmados em fluxos existentes, listados em [checklist-funcional-2.md](checklist-funcional-2.md) (A1–A12 graves, B1–B16 números/telas, C1–C3 menores; A12 já resolvido por R01, B13 dentro de E2.1). **A1–C3 estão marcados corrigidos por outro acesso no main atual; falta validação conjunta.** C4 (saída do primeiro cadastro), C5 (contagem cega com decisão do dono) e C6 (bloqueio do caixa e conferências vinculadas) acrescentados por pedido do dono, com entregas próprias na seção 12.2. **Próxima verificação independente: continuar E2.1 — conferir B13 já corrigido, retomada e retornos das telas.** Isolamento da conta e salvamento/confirmação do cadastro corrigidos no código; falta publicação/teste do dono. Editor de comércio já salvo não foi encontrado; requer desenho autorizado antes de função nova. E2.1 permanece aberta.  R01–R05 corrigidos no código, R02 aplicada no banco; falta publicação/teste do dono (seção 12.2). **E1 permanece sem aceite geral:** R05 foi corrigida após reprodução local, mas exige teste no app instalado em aparelhos reais, junto de E6/item antigo 29. O dono autorizou adiar o teste geral; avançar em E2 não encerra os itens pendentes. Depois seguem E2 dono/compras, E3 estoque/operação, E4 caixa/fiado, E5 lançamento/acesso, E6 aparelhos, E7 dados autorizados e E8 piloto. Consultar a indicação atual antes de cada tarefa, executar um item por PR e registrar resultado/limites. R02 verificou a concorrência e comparou as funções reais antes/depois do SQL; consulta automática de avisos continua pendente por falta de leitura no token disponível.
 
 As fases abaixo são o histórico de construção do produto. “Feita” indica implementação, com testes do dono ainda pendentes onde registrado; **não substitui o checklist ativo nem declara validação geral concluída**.
 

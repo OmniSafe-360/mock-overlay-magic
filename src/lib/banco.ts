@@ -494,14 +494,14 @@ export async function sairFuncionario(chave: string) {
 }
 
 /* ---------- fechar a conta no app do funcionário (Fase 4.2) ---------- */
-export type ItemConferencia = ProdutoFunc & { local: string | null; conferenciaId: string | null; /** Contagem em que uma conferência começada parou (2 ou 3). */ rodada?: number | undefined; aguardandoDono?: boolean };
+export type ItemConferencia = ProdutoFunc & { local: string | null; conferenciaId: string | null; /** Contagem em que uma conferência começada parou (2 ou 3). */ rodada?: number | undefined; aguardandoDono?: boolean; solicitadaCaixa?: boolean };
 /** Produtos para conferir hoje no depósito (sem quantidades). */
 export async function listaConferencia(chave: string): Promise<{ tipo: string; feitosHoje: number; meta: number; produtos: ItemConferencia[] }> {
   const { data, error } = await rpc("funcionario_conferencia_lista", { _chave: chave });
   if (error) throw error;
   return {
     tipo: data?.tipo ?? "", feitosHoje: Number(data?.feitos_hoje ?? 0), meta: Number(data?.meta ?? 5),
-    produtos: (data?.produtos ?? []).map((x: any) => ({ ...produtoFunc(x), local: x.local ?? null, conferenciaId: x.conferencia_id ?? null, aguardandoDono: !!x.aguardando_dono, ...(x.rodada ? { rodada: Number(x.rodada) } : {}) })),
+    produtos: (data?.produtos ?? []).map((x: any) => ({ ...produtoFunc(x), local: x.local ?? null, conferenciaId: x.conferencia_id ?? null, aguardandoDono: !!x.aguardando_dono, solicitadaCaixa: !!x.solicitada_caixa, ...(x.rodada ? { rodada: Number(x.rodada) } : {}) })),
   };
 }
 /** Uma contagem cega do depósito: "recontar", "concluida" ou "inconsistente" (nunca quanto o sistema tinha). */
@@ -522,13 +522,13 @@ export async function registrarPerdaFuncionario(chave: string, p: NovaPerda) {
 
 /* ---------- reposição (E3) ---------- */
 export type MotivoSemReposicao = "recebimento_em_conferencia" | "estoque_nao_liberado" | "deposito_sem_estoque" | "deposito_nao_contado";
-export type ItemReposicao = ProdutoFunc & { local: string | null; localDeposito: string | null; depositoVazio: boolean; motivoSemReposicao?: MotivoSemReposicao | null; conferenciaId?: string | null; rodada?: number; aguardandoDono?: boolean };
+export type ItemReposicao = ProdutoFunc & { local: string | null; localDeposito: string | null; depositoVazio: boolean; motivoSemReposicao?: MotivoSemReposicao | null; conferenciaId?: string | null; rodada?: number; aguardandoDono?: boolean; solicitadaCaixa?: boolean };
 export async function listaReposicao(chave: string): Promise<{ tipo: string; produtos: ItemReposicao[] }> {
   const { data, error } = await rpc("funcionario_reposicao_lista", { _chave: chave });
   if (error) throw error;
   return {
     tipo: data?.tipo ?? "",
-    produtos: (data?.produtos ?? []).map((x: any) => ({ ...produtoFunc(x), local: x.local ?? null, localDeposito: x.local_deposito ?? null, depositoVazio: !!x.deposito_vazio, motivoSemReposicao: x.motivo_sem_reposicao ?? null, conferenciaId: x.conferencia_id ?? null, ...(x.rodada ? { rodada: Number(x.rodada) } : {}), aguardandoDono: !!x.aguardando_dono })),
+    produtos: (data?.produtos ?? []).map((x: any) => ({ ...produtoFunc(x), local: x.local ?? null, localDeposito: x.local_deposito ?? null, depositoVazio: !!x.deposito_vazio, motivoSemReposicao: x.motivo_sem_reposicao ?? null, conferenciaId: x.conferencia_id ?? null, ...(x.rodada ? { rodada: Number(x.rodada) } : {}), aguardandoDono: !!x.aguardando_dono, solicitadaCaixa: !!x.solicitada_caixa })),
   };
 }
 export type RespostaContagemPrateleira = { sugerido: number; cheio: boolean; depositoVazio: boolean; localDeposito: string | null; situacao: "contado" | "concluido" | "recontar" | "aguardando_dono" | "inconsistente"; motivoSemReposicao?: MotivoSemReposicao | null; rodada?: number };
@@ -547,11 +547,12 @@ export async function concluirReposicao(chave: string, id: string, levado: numbe
 const nomeFunc = (r: { funcionarios?: { nome?: string } | null }) => r.funcionarios?.nome ?? null;
 /** Abertas/aguardando sempre; o resto desde `desde` (ISO). */
 export async function carregarDiferencas(comercioId: string, desde: string): Promise<{ diferencas: Diferenca[]; perdas: Perda[] }> {
-  const [ds, ps] = await Promise.all([
+  const [ds, ps, conferencias] = await Promise.all([
     todos("diferencas", "id,produto_id,variacao_id,area,origem,esperado,contado,diferenca,valor,situacao,motivo,observacao,detalhes,created_at,funcionarios(nome)",
       (q) => q.eq("comercio_id", comercioId).or(`situacao.eq.aberta,created_at.gte.${desde}`)),
     todos("perdas", "id,produto_id,variacao_id,area,quantidade,baixado,motivo,observacao,registrado_por,situacao,created_at,funcionarios(nome)",
       (q) => q.eq("comercio_id", comercioId).or(`situacao.eq.aguardando,created_at.gte.${desde}`)),
+    todos("conferencias", "id,situacao,contado", (q) => q.eq("comercio_id", comercioId)),
   ]);
   return {
     diferencas: ds.map((r) => ({
@@ -559,6 +560,10 @@ export async function carregarDiferencas(comercioId: string, desde: string): Pro
       esperado: Number(r.esperado), contado: Number(r.contado), diferenca: Number(r.diferenca), valor: centavos(r.valor),
       funcionario: nomeFunc(r), situacao: r.situacao, motivo: r.motivo ?? null, observacao: r.observacao ?? null,
       tentativas: Array.isArray(r.detalhes?.tentativas) ? r.detalhes.tentativas.map(Number) : [], resolvida: !!r.detalhes?.resolvida, contagemConfirmada: !!r.detalhes?.contagem_confirmada,
+      solicitacaoCaixa: !!r.detalhes?.solicitacao_caixa, revisaoCaixaPendente: !!r.detalhes?.revisao_caixa_pendente,
+      saldoTotalPreservado: !!r.detalhes?.saldo_total_preservado,
+      depositoPendente: !!r.detalhes?.deposito_conferencia_id && conferencias.find((c) => c.id === r.detalhes.deposito_conferencia_id)?.situacao !== "concluida",
+      depositoContado: numOuNull(conferencias.find((c) => c.id === r.detalhes?.deposito_conferencia_id)?.contado),
       motivoInformado: r.detalhes?.motivo_informado ?? null, criadaEm: r.created_at,
     })),
     perdas: ps.map((r) => ({
@@ -579,6 +584,7 @@ export async function explicarDiferenca(id: string, motivo: MotivoDiferenca, obs
 export async function resolverConferencia(id: string, contado: number): Promise<{ diferenca: number }> {
   const { data, error } = await rpc("resolver_conferencia", { _diferenca: id, _contado: contado });
   if (error) throw error;
+  if (data?.situacao === "aguardando_deposito") throw new Error("deposito_aguardando_contagem");
   return { diferenca: Number(data?.diferenca ?? 0) };
 }
 export type PerdaDono = { id: string; comercioId: string; produtoId: string; variacaoId: string | null; area: AreaEstoque; quantidade: number; motivo: MotivoPerda; observacao: string };
@@ -663,6 +669,7 @@ export async function caixaProdutos(chave: string): Promise<import("@/lib/caixa"
     codigos: (p.codigos ?? []).map((c: any) => ({ codigo: String(c.codigo), variacaoId: c.variacao_id ?? null, embalagemId: c.embalagem_id ?? null })),
     variacoes: (p.variacoes ?? []).map((v: any) => ({ id: v.id, nome: v.nome || "Sem nome" })),
     embalagens: (p.embalagens ?? []).map((e: any) => ({ id: e.id, tipo: e.tipo, quantidade: Number(e.quantidade) })),
+    estoques: (p.estoques ?? []).map((e: any) => ({ variacaoId: e.variacao_id ?? null, quantidade: e.quantidade == null ? null : Number(e.quantidade) })),
   }));
 }
 /** `deve` em centavos (null = o banco não informou); `desde` só quando deve. */
@@ -708,9 +715,29 @@ export async function caixaAbrir(chave: string, id: string, trocoCentavos: numbe
   return turno(data.turno);
 }
 /** Venda finalizada. Repetir o mesmo id não conta de novo (devolve "repetida"). */
-export async function caixaRegistrarVenda(chave: string, venda: ReturnType<typeof import("@/lib/caixa").montarVenda>): Promise<{ situacao: "registrada" | "repetida"; numero: number | null; troco: number; semCadastro: number }> {
-  const { data, error } = await rpc("caixa_registrar_venda", { _chave: chave, _venda: venda as unknown as Json });
+export type BloqueioCaixa = { nome: string; motivo: string; contagemSolicitada: boolean };
+export type ResultadoCaixa = { situacao: "registrada" | "repetida"; numero: number | null; troco: number; semCadastro: number }
+  | { situacao: "bloqueada"; bloqueios: BloqueioCaixa[] };
+function bloqueioCaixa(data: any): Extract<ResultadoCaixa, { situacao: "bloqueada" }> {
+  return { situacao: "bloqueada", bloqueios: (data.bloqueios ?? []).map((b: any) => ({ nome: String(b.nome ?? "Produto"), motivo: String(b.motivo), contagemSolicitada: !!b.contagem_solicitada })) };
+}
+export function textoBloqueioCaixa(r: Extract<ResultadoCaixa, { situacao: "bloqueada" }>): string {
+  return r.bloqueios.map((b) => `${b.nome}: ${b.motivo === "produto_sem_cadastro" ? "peça ao dono para cadastrar antes de vender." : b.motivo === "produto_sem_area_venda" ? "peça ao dono para configurar a área de venda." : b.contagemSolicitada ? "venda bloqueada. Contagem solicitada à equipe; não houve venda ou baixa." : "saldo já conferido. Corrija a quantidade ou registre a reposição antes de vender."}`).join(" ");
+}
+export async function caixaConferirVenda(chave: string, venda: ReturnType<typeof import("@/lib/caixa").montarVenda>): Promise<{ situacao: "aprovada" } | Extract<ResultadoCaixa, { situacao: "bloqueada" }>> {
+  const { data, error } = await rpc("caixa_registrar_venda", { _chave: chave, _venda: { ...venda, acao: "conferir" } as unknown as Json });
+  if ((error as any)?.situacao === "bloqueada") return bloqueioCaixa(error);
   if (error) throw error;
+  if (data?.situacao === "bloqueada") return bloqueioCaixa(data);
+  if (data?.situacao !== "aprovada") throw new Error("resposta_venda_invalida");
+  return { situacao: "aprovada" };
+}
+export async function caixaRegistrarVenda(chave: string, venda: ReturnType<typeof import("@/lib/caixa").montarVenda>): Promise<ResultadoCaixa> {
+  const { data, error } = await rpc("caixa_registrar_venda", { _chave: chave, _venda: venda as unknown as Json });
+  if ((error as any)?.situacao === "bloqueada") return bloqueioCaixa(error);
+  if (error) throw error;
+  if (data?.situacao === "bloqueada") return bloqueioCaixa(data);
+  if (data?.situacao !== "registrada" && data?.situacao !== "repetida") throw new Error("resposta_venda_invalida");
   return { situacao: data.situacao, numero: data.numero ?? null, troco: centavos(data.troco), semCadastro: numero(data.sem_cadastro) };
 }
 
