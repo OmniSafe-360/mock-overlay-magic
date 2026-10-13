@@ -1,6 +1,6 @@
 # OMNI SAFE 360 — FONTE DA VERDADE
 
-Versão 3.0, de 11/10/2026. Atualiza a versão 2.0 com o plano ponta a ponta pedido pelo dono; regras e histórico anteriores permanecem válidos.
+Versão 3.1, de 13/10/2026. Acrescenta o plano de segurança e operação em mercados grandes, com várias lojas e vários caixas, ao plano ponta a ponta. Regras e histórico anteriores permanecem válidos.
 
 Este documento é a referência oficial do sistema. Se qualquer instrução, código ou conversa contradisser este documento, vale este documento. A exceção é quando o dono disser o contrário por escrito; nesse caso, o documento é atualizado.
 
@@ -15,6 +15,8 @@ Este documento é a referência oficial do sistema. Se qualquer instrução, có
 2. **Conferir se o `main` mudou** (alguém pode ter gravado direto, como o Codex em 09/10). Se mudou, revisar antes de seguir.
 3. **Tabela nova ou mudança de desenho?** Só com o desenho aprovado pelo dono (regra 5).
 4. **Decidir o lugar certo** na tela, pelo mapa da seção 3.2. Se não houver lugar coerente, propor ao dono antes.
+
+**Validação prévia, pedido do dono em 12/10/2026:** antes de alterar o aplicativo ou o banco, apresentar o código proposto, a lista exata dos arquivos e os impactos para validação do dono. A autorização para auditar/documentar não autoriza aplicar essas correções. Reutilizar o que existe e preservar os fluxos funcionais.
 
 ### Durante
 5. **Fácil, bonito, organizado e coerente** (seção 3.1). Cada tela tem uma tarefa clara, botões grandes, frases curtas e os nomes certos para o tipo de comércio.
@@ -393,7 +395,12 @@ O [checklist ponta a ponta](CHECKLIST_PONTA_A_PONTA.md) registra limitações ad
 
 ## 13. ROTEIRO — O PLANO
 
-**Plano ativo, pedido do dono em 11/10/2026:** [CHECKLIST_PONTA_A_PONTA.md](CHECKLIST_PONTA_A_PONTA.md). **Análise 2 (11/10/2026, tarde):** 31 defeitos confirmados em fluxos existentes, listados em [checklist-funcional-2.md](checklist-funcional-2.md) (A1–A12 graves, B1–B16 números/telas, C1–C3 menores; A12 já resolvido por R01, B13 dentro de E2.1). **A1–C3 estão marcados corrigidos por outro acesso no main atual; falta validação conjunta.** C4 (saída do primeiro cadastro), C5 (contagem cega com decisão do dono) e C6 (bloqueio do caixa e conferências vinculadas) acrescentados por pedido do dono, com entregas próprias na seção 12.2. **Próxima verificação independente: continuar E2.1 — conferir B13 já corrigido, retomada e retornos das telas.** Isolamento da conta e salvamento/confirmação do cadastro corrigidos no código; falta publicação/teste do dono. Editor de comércio já salvo não foi encontrado; requer desenho autorizado antes de função nova. E2.1 permanece aberta.  R01–R05 corrigidos no código, R02 aplicada no banco; falta publicação/teste do dono (seção 12.2). **E1 permanece sem aceite geral:** R05 foi corrigida após reprodução local, mas exige teste no app instalado em aparelhos reais, junto de E6/item antigo 29. O dono autorizou adiar o teste geral; avançar em E2 não encerra os itens pendentes. Depois seguem E2 dono/compras, E3 estoque/operação, E4 caixa/fiado, E5 lançamento/acesso, E6 aparelhos, E7 dados autorizados e E8 piloto. Consultar a indicação atual antes de cada tarefa, executar um item por PR e registrar resultado/limites. R02 verificou a concorrência e comparou as funções reais antes/depois do SQL; consulta automática de avisos continua pendente por falta de leitura no token disponível.
+**Prioridade atual, definida pelo dono em 13/10/2026:** preparar operação em **várias lojas e vários caixas**, pelas etapas **G0–G8** no [mesmo checklist](CHECKLIST_PONTA_A_PONTA.md#plano-para-mercados-grandes-g0-a-g8). A [auditoria de 13/10/2026](auditoria-mercados-seguranca-2026-10-13.md) registra evidências e limites; é um relatório de apoio, não outra fonte de regras. **Próxima tarefa: G0.1 — apresentar a proposta de correção das dependências com alertas conhecidos**, com versões, código/arquivos e impactos antes de aplicar. Rotação de credenciais compartilhadas (G0.2) pode avançar pelo canal seguro do dono. Nenhuma correção G foi aplicada nesta auditoria. E1–E8 e os aceites pendentes continuam válidos; E2.1/B13 é retomada em G4, sem reaplicar itens entregues.
+
+“Operacional” exige conciliar estoque/dinheiro e aprovar fluxos, carga, recuperação e segurança no cenário registrado. Não existe promessa de proteção de 100% contra ataques. C5/C6 já entregues são preservadas: o novo fluxo de **Conferir gôndola/área de venda**, independente de **Repor**, e sua investigação ficam em G3, sem implementação aprovada. Ajustes de contagem exigem decisão explícita do dono; contagens iniciais e perdas têm comportamento anterior diferente e precisam de proposta/validação específica antes de mudar. Vendas, recebimentos e transferências legítimas não serão silenciosamente transformados em ajustes ou bloqueados pela documentação.
+
+
+**Plano anterior, preservado e abrangido pelas etapas G, pedido do dono em 11/10/2026:** [CHECKLIST_PONTA_A_PONTA.md](CHECKLIST_PONTA_A_PONTA.md). **Análise 2 (11/10/2026, tarde):** 31 defeitos confirmados em fluxos existentes, listados em [checklist-funcional-2.md](checklist-funcional-2.md) (A1–A12 graves, B1–B16 números/telas, C1–C3 menores; A12 já resolvido por R01, B13 dentro de E2.1). **A1–C3 estão marcados corrigidos por outro acesso no main atual; falta validação conjunta.** C4 (saída do primeiro cadastro), C5 (contagem cega com decisão do dono) e C6 (bloqueio do caixa e conferências vinculadas) acrescentados por pedido do dono, com entregas próprias na seção 12.2. **Verificação independente anterior, agora em G4.1: continuar E2.1 — conferir B13 já corrigido, retomada e retornos das telas.** Isolamento da conta e salvamento/confirmação do cadastro corrigidos no código; falta publicação/teste do dono. Editor de comércio já salvo não foi encontrado; requer desenho autorizado antes de função nova. E2.1 permanece aberta.  R01–R05 corrigidos no código, R02 aplicada no banco; falta publicação/teste do dono (seção 12.2). **E1 permanece sem aceite geral:** R05 foi corrigida após reprodução local, mas exige teste no app instalado em aparelhos reais, junto de E6/item antigo 29. O dono autorizou adiar o teste geral; avançar em E2 não encerra os itens pendentes. Depois seguem E2 dono/compras, E3 estoque/operação, E4 caixa/fiado, E5 lançamento/acesso, E6 aparelhos, E7 dados autorizados e E8 piloto. Consultar a indicação atual antes de cada tarefa, executar um item por PR e registrar resultado/limites. R02 verificou a concorrência e comparou as funções reais antes/depois do SQL; consulta automática de avisos continua pendente por falta de leitura no token disponível.
 
 As fases abaixo são o histórico de construção do produto. “Feita” indica implementação, com testes do dono ainda pendentes onde registrado; **não substitui o checklist ativo nem declara validação geral concluída**.
 
@@ -415,6 +422,8 @@ Cada fase termina com o roteiro de teste para o dono.
 
 ## 14. DECISÕES ABERTAS (PERGUNTAR AO DONO)
 
+Para G0–G8, o dono confirmou **várias lojas e vários caixas**. Ainda faltam: número máximo de lojas, produtos/variações e caixas simultâneos; pico de vendas e tamanho das filas; PDV/fiscal e equipamentos usados; atribuições do gerente; prazo tolerável de parada/perda de dados e orçamento de infraestrutura. Esses números são definidos em G5/G6, sem impedir as correções de segurança. A aprovação de ajustes de contagem, referência inicial e perdas deve distinguir os efeitos atuais e os propostos em G3.
+
 **Entrega de manutenção autorizada em 10/10/2026:** melhorias de confiabilidade, organização do código e clareza das telas, sem novos módulos nem alteração dos passos. Registro em [melhorias-base-2026-10-10.md](melhorias-base-2026-10-10.md). Correção SQL de reposição e reenvios aplicada em produção em 10/10/2026 (versão `20261010150241`). A Fase 6 não foi iniciada nesta entrega.
 
 1. ~~Vendas: caminho da seção 7.6~~ — aprovado em 10/10/2026. Para o piloto no fim: um mercado real, o arquivo `.xml` de uma nota e se o computador do caixa tem Chrome.
@@ -424,6 +433,8 @@ Cada fase termina com o roteiro de teste para o dono.
 8. Número certo do código de barras do **Arroz**.
 
 ## 15. HISTÓRICO DAS PRINCIPAIS DECISÕES DO DONO
+
+- **13/10/2026 — mercados grandes e segurança:** análise ponta a ponta e plano por etapas para várias lojas/vários caixas. Mantida esta fonte central; G0–G8 acrescentadas ao checklist, sem apagar E1–E8. Auditoria e documentação autorizadas; correções continuam sujeitas à apresentação prévia de código/arquivos/impactos. Não declarar sistema imune a ataques nem marcar testes de produção/carga/recuperação como executados sem evidência.
 
 - **11/10/2026 — plano ponta a ponta:** o dono pediu checklist por etapas no GitHub e consulta da fonte da verdade antes de cada etapa. Mantida esta referência central, ligado o checklist detalhado, preservados os 30 itens originais e separado corrigido/publicado/validado. Nenhuma nova função de negócio ou alteração de dados autorizada apenas por constar no plano.
 
