@@ -22,6 +22,8 @@ beforeEach(() => {
 });
 async function abrir(stores = [store]) {
   const r = render(<OwnerApp userId="u1" owner="Monica" initial={stores} />);
+  // RMC-02B: os cartões dos comércios ficam na aba Comércios
+  fireEvent.click(screen.getAllByRole("button", { name: "Comércios" })[0]!);
   fireEvent.click(screen.getByRole("button", { name: /^Entrar no Mercado A/ }));
   await screen.findByRole("button", { name: /Arroz atual/ });
   return r;
@@ -79,7 +81,7 @@ it("um carregamento antigo de A não esconde a falha do comércio B", async () =
   fireEvent.click(screen.getByRole("button", { name: "Atualizar" }));
   await waitFor(() => expect(banco.carregarProdutos).toHaveBeenCalledTimes(antes + 1));
   fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
-  // A tela inicial atualiza o resumo dos dois comércios antes de abrir B.
+  // A aba Comércios (de onde A foi aberto) atualiza o resumo dos dois comércios antes de abrir B.
   await waitFor(() => expect(banco.carregarProdutos).toHaveBeenCalledTimes(antes + 3));
   banco.carregarProdutos.mockRejectedValueOnce(new Error("Failed to fetch"));
   fireEvent.click(screen.getByRole("button", { name: /^Entrar no Mercado B/ }));
