@@ -1,6 +1,6 @@
 # G0.3 — verificações e publicação segura
 
-Entrega aprovada pelo dono em 13/10/2026 (“Sim”), sobre `main 2f610b2` (PR #116). **Oito arquivos aplicados no código; publicação do PR, primeira execução do GitHub e proteções administrativas ainda pendentes nesta revisão.** Este relatório apoia a fonte da verdade; não substitui suas regras.
+Entrega aprovada pelo dono em 13/10/2026 (“Sim”), sobre `main 2f610b2` (PR #116). **Oito arquivos aplicados e enviados no [PR #117](https://github.com/OmniSafe-360/mock-overlay-magic/pull/117), código `9830590`; primeira execução remota aprovada. Proteções/alertas administrativos e compatibilidade das regras com o Lovable permanecem pendentes.** Este relatório apoia a fonte da verdade; não substitui suas regras.
 
 ## Evidência atual
 
@@ -37,11 +37,11 @@ Depois da aplicação: verificar Actions habilitado, restrição de Actions apro
 
 ## Validação e aceite
 
-Validação isolada da proposta e repetida após aplicação: tipos duas vezes; 1.019 testes em 98 arquivos duas vezes; build; seis testes dos verificadores; scan de 1.522 blobs do histórico acessível sem ocorrências fortes; consulta npm de 554 nomes sem avisos conhecidos; instalação frozen/offline da cópia normalizada com cache verificado; regressões SQL e quatro disputas simultâneas em PostgreSQL 17 descartável, aprovados. Nenhum dado ou serviço de produção usado. YAML interpretado sem erros. A execução em runner hospedado do GitHub ainda não ocorreu; sua disponibilidade de PostgreSQL, instalação online e permissões são critérios de aceite, não presumidos. Não exige atualização do aplicativo no Lovable por si só. A pendência de atualização de G0.1 permanece.
+Validação isolada da proposta e repetida após aplicação: tipos duas vezes; 1.019 testes em 98 arquivos duas vezes; build; seis testes dos verificadores; scan de 1.522 blobs do histórico acessível sem ocorrências fortes; consulta npm de 554 nomes sem avisos conhecidos; instalação frozen/offline da cópia normalizada com cache verificado; regressões SQL e quatro disputas simultâneas em PostgreSQL 17 descartável, aprovados. Nenhum dado ou serviço de produção usado. YAML interpretado sem erros. O [CI remoto aprovado](https://github.com/OmniSafe-360/mock-overlay-magic/actions/runs/38381015645) confirmou no runner hospedado a instalação online das mesmas versões, scanner, consulta de avisos, seis testes dos verificadores, tipos/testes duas vezes, build e SQL descartável/concorrente. A revisão final dos registros no PR também passa pelo check; não tratar o sucesso como configuração de proteção obrigatória. Não exige atualização do aplicativo no Lovable por si só. A pendência de atualização de G0.1 permanece.
 
 G0.3 só fecha depois de: código aprovado/aplicado em PR; primeiro check remoto verde; proteções/alertas administrativos verificados e configurados; Lovable/manutenção compatíveis; ensaio de um PR com falha recusado por check obrigatório. Até lá G0.3 e G0 permanecem abertas. G1 é a próxima análise após essa entrega técnica, respeitando pendências de produção anteriores.
 
 
 ## Estado da entrega no GitHub
 
-Aprovação explícita recebida, sem nova autorização para configurar bloqueio de push direto ou bypass do Lovable. Publicação do PR/CI remoto em conferência; este campo será atualizado com o resultado real, sem tratar validação local como execução no GitHub. G0.3 continua aberta.
+Aprovação explícita recebida. Entrega no [PR #117](https://github.com/OmniSafe-360/mock-overlay-magic/pull/117), código `9830590`, [CI remoto aprovado](https://github.com/OmniSafe-360/mock-overlay-magic/actions/runs/38381015645); check executado com sucesso em pull_request. Revisão final documental em validação no mesmo PR. Não foi configurado bloqueio de push direto, bypass, requisito obrigatório ou segredo novo. Falta acesso administrativo/verificação das proteções e alertas nativos, validar a sincronização Lovable e ensaiar recusa de PR com falha por check obrigatório. **G0.3/G0 continuam abertas** para esses critérios; a próxima análise independente é G1.1 (isolamento de lojas/pessoas), mantendo G0.1/G0.2 pendentes. Esta entrega não exige Publicar → Atualizar por si só.
