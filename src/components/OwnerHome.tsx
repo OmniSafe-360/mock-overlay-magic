@@ -633,33 +633,33 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
             </div>
           )}
           <div className="mb-4 grid gap-3 md:grid-cols-2">
-          <div className="min-w-0">
+          <div className="@container min-w-0">
             <h3 className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Resultado de hoje<span className="font-normal normal-case tracking-normal">{etiquetaHoje(hoje)}</span></h3>
           <button type="button" onClick={onVendas} aria-label={`Vendas hoje: ${vendasCompletas ? brlVenda(t.vendasHojeTotal) : "consulta incompleta"}`}
-            className="flex w-full items-center gap-4 rounded-3xl border border-primary/50 bg-primary/10 p-4 text-left transition hover:border-primary">
+            data-testid="cartao-vendas" className="flex w-full flex-wrap items-start gap-x-4 gap-y-3 rounded-3xl border border-primary/50 bg-primary/10 p-4 text-left transition hover:border-primary @[26rem]:flex-nowrap @[26rem]:items-center">
             <ShoppingBag size={24} className="shrink-0 text-primary" />
             <span className="min-w-0 flex-1">
               <span className="block text-xs text-muted-foreground sm:text-sm">Vendas hoje</span>
-              <span className="block text-2xl font-bold tracking-tight sm:text-3xl">{vendasCompletas ? brlVenda(t.vendasHojeTotal) : visao.carregando ? "…" : "—"}</span>
+              <span className="block text-2xl font-bold tracking-tight [overflow-wrap:anywhere] sm:text-3xl">{vendasCompletas ? brlVenda(t.vendasHojeTotal) : visao.carregando ? "…" : "—"}</span>
               <span className="block text-xs leading-snug text-muted-foreground">Valor das vendas finalizadas hoje</span>
             </span>
-            <span className="shrink-0 text-right text-xs text-muted-foreground">
+            <span data-testid="status-cartao" className="w-full shrink-0 border-t border-border/60 pt-2 text-left text-xs text-muted-foreground @[26rem]:w-auto @[26rem]:border-0 @[26rem]:pt-0 @[26rem]:text-right">
               {!vendasCompletas ? visao.carregando ? "Consultando…" : "Consulta incompleta" : t.vendasHojeN === 0 ? "Nenhuma venda ainda" : t.vendasHojeN === 1 ? "1 venda" : `${t.vendasHojeN} vendas`}
               <span className="block font-semibold text-primary">Ver vendas</span>
             </span>
           </button>
           </div>
-          <div className="min-w-0">
+          <div className="@container min-w-0">
             <h3 className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Resultado deste mês<span className="font-normal normal-case tracking-normal">{etiquetaMes(hoje)}</span></h3>
           <button type="button" onClick={onAntifurto} aria-label={`Faltou este mês: ${afCompleto ? brlVenda(af.faltou) : "consulta incompleta"}`}
-            className={`flex w-full items-center gap-4 rounded-3xl border p-4 text-left transition hover:border-primary ${af.faltou > 0 || af.alertas > 0 ? "border-destructive/50 bg-destructive/10" : "border-border bg-secondary/70"}`}>
+            data-testid="cartao-faltou" className={`flex w-full flex-wrap items-start gap-x-4 gap-y-3 rounded-3xl border p-4 text-left @[26rem]:flex-nowrap @[26rem]:items-center transition hover:border-primary ${af.faltou > 0 || af.alertas > 0 ? "border-destructive/50 bg-destructive/10" : "border-border bg-secondary/70"}`}>
             <ShieldAlert size={24} className={`shrink-0 ${af.faltou > 0 || af.alertas > 0 ? "text-destructive" : "text-muted-foreground"}`} />
             <span className="min-w-0 flex-1">
               <span className="block text-xs text-muted-foreground sm:text-sm">Faltou este mês</span>
-              <span className="block text-2xl font-bold tracking-tight sm:text-3xl">{afPronto ? brlVenda(af.faltou) : visao.carregando ? "…" : "—"}</span>
+              <span className="block text-2xl font-bold tracking-tight [overflow-wrap:anywhere] sm:text-3xl">{afPronto ? brlVenda(af.faltou) : visao.carregando ? "…" : "—"}</span>
               <span className="block text-xs leading-snug text-muted-foreground">Faltas e perdas de mercadoria registradas no mês</span>
             </span>
-            <span className="shrink-0 text-right text-xs text-muted-foreground">
+            <span data-testid="status-cartao" className="w-full shrink-0 border-t border-border/60 pt-2 text-left text-xs text-muted-foreground @[26rem]:w-auto @[26rem]:border-0 @[26rem]:pt-0 @[26rem]:text-right">
               {!afCompleto ? "Consulta incompleta" : af.alertas === 0 ? "Nenhum alerta" : af.alertas === 1 ? "1 alerta" : `${af.alertas} alertas`}
               {afPronto && !afCompleto && <span className="block">Subtotal disponível</span>}
               <span className="block font-semibold text-primary">Ver antifurto</span>
@@ -673,12 +673,12 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
               <CircleCheck size={20} className="shrink-0" /> Tudo certo! Nenhum comércio precisa de atenção agora.
             </p>
           ) : (
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="@container"><div data-testid="grade-pendencias" className="grid grid-cols-1 gap-3 @[18rem]:grid-cols-2 @[52rem]:grid-cols-4">
               {kpis.map(({ label, n, Icon, cor, desc, disp }) => {
                 const ativo = disp.estado !== "indisponivel" && n > 0;
                 const borda = !ativo ? "border-border bg-secondary/70" : cor === "urgente" ? "border-destructive/60 bg-destructive/10" : "border-warning/60 bg-warning/10";
                 return (
-                  <button key={label} type="button" onClick={onAlertas} className={`rounded-3xl border p-4 text-left transition hover:border-primary ${borda}`}>
+                  <button key={label} type="button" onClick={onAlertas} className={`min-w-0 rounded-3xl border p-4 text-left [overflow-wrap:anywhere] transition hover:border-primary ${borda}`}>
                     <Icon size={20} className={!ativo ? "text-muted-foreground" : cor === "urgente" ? "text-destructive" : "text-warning"} />
                     <p className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">{disp.estado !== "indisponivel" ? n : visao.carregando || Object.keys(visao.geral).length === 0 ? "…" : "—"}</p>
                     <p className="mt-1 text-xs leading-tight text-muted-foreground sm:text-sm">{label}</p>
@@ -688,7 +688,7 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
                   </button>
                 );
               })}
-            </div>
+            </div></div>
           )}
         </section>
       )}
