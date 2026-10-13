@@ -154,3 +154,15 @@ Autorizada pelo dono. Só apresentação em `OwnerHome.tsx`: Vendas hoje e Falto
 - Não houve alteração no banco, SQL, operações das lojas, `StoreSpace.tsx`, `src/lib/resumoGeral.ts`, `src/lib/antifurto.ts`, carga de dados ou destinos da navegação.
 
 **Validação antes da integração:** o workflow de GitHub Actions no PR deve comprovar `tsc --noEmit` e Vitest completos em duas rodadas e `npm run build`. Resultados ainda não confirmados neste registro. A verificação visual completa (incluindo C3-B), a publicação `Publicar → Atualizar` e a homologação no aparelho do proprietário permanecem pendentes. **Não mesclar sem aprovação do proprietário.** C4-B/C4-C/C4-D, RMC-03/05/06 e correção autônoma de Alertas não foram iniciadas.
+
+## Entrega C4-B em revisão — implementação autorizada (13/10/2026)
+
+**Aprovação do proprietário:** implementar a proposta do [PR documental #129](https://github.com/OmniSafe-360/mock-overlay-magic/pull/129) em **branch e PR separados**, executar a suíte completa e **não integrar automaticamente nem iniciar C4-C**. Base de trabalho: `main bf7dae3bb26a`, C4-A aprovada na [verificação 38467066361](https://github.com/OmniSafe-360/mock-overlay-magic/actions/runs/38467066361).
+
+- `OwnerHome.tsx`: os quatro KPIs transmitem uma chave tipada do assunto; `OwnerApp` guarda o filtro quando se entra num comércio e regressa à aba Alertas; menu e sino limpam o filtro. Botão “Ver todos os alertas” retira apenas o recorte visual.
+- `AlertasFiltrados`: conserva a listagem antiga **sem filtro** para C4-C; usa os **IDs efetivamente válidos retornados por `disponibilidade` da C2**, com vendas/diferenças obrigatórias em “Para resolver agora”. Contagens por loja e subtotal apenas com dados confirmados; lojas incompletas listadas nominalmente como **sem confirmação**; não apresentar zero como certeza com consulta incompleta. Ordem quantidade de ocorrências ↓, nome, ordem de cadastro.
+- `AtencaoHoje.tsx`: prop opcional `assuntoGlobal`, restringindo somente a **apresentação** aos grupos de produtos pertinentes e, em Resolver, aos itens urgentes, contas atrasadas, entregas, vendas sem cadastro e diferenças. Preserva os grupos, detalhes, ações e “Tudo certo!” originais no modo normal. Não conta diretamente os cartões de antifurto como Resolver.
+- Teste novo `src/test/rmc-c4b.test.tsx` para indicadores, lojas, subtotal e falha, fornecedores, diferença/vendas, retorno, menu/sino e nenhum efeito operacional; teste existente `rmc-02c.test.tsx` atualizado apenas para verificar o contexto correto do clique.
+- Sem mudanças em banco/Supabase, SQL, cálculo de `ResumoComercio`, `StoreSpace.tsx`, controles de vendas, reposição, pedidos, autenticação, RLS ou novos endpoints.
+
+**Status:** implementado na branch de revisão, **ainda não integrado**, aguardando GitHub Actions, inspeção do diff e aprovação do dono. Testes locais e visuais reais não são reivindicados neste registro. **Publicar → Atualizar** e homologar no celular somente depois da aprovação e integração. A aba Alertas normal e o sino continuam com o problema previamente identificado de dados antigos; isso é escopo **C4-C**, não desta etapa.
