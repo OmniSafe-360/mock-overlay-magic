@@ -514,3 +514,5 @@ Registrada em 13/10/2026 (RMC-00), sobre o `main` `8bb3342` (PR #123). **Esta se
 
 
 **RMC-02C/C3-A (13/10/2026), autorizada pelo dono:** aplicada somente a proposta de três trechos em `OwnerHome.tsx` para margem/altura. Cabeçalho e grupos não se sobrepõem nos 25 cenários locais verificados no Chromium; preservados os cálculos, textos, ordem, destinos, cadastro, menu e botão Adicionar. Sem mudança de banco. **Pronto no código, falta Publicar → Atualizar e o teste do dono**; conferir títulos no Início com um/vários comércios. C3-B permanece pendente para valores/status em telas estreitas e letras ampliadas, com proposta prévia obrigatória antes da aplicação. [Registro de entrega](auditoria-painel-global-2026-10-13.md#entrega-c3-a).
+
+- 13/10/2026: **RMC-02C/C3-B** — cartões do Início se reorganizam pela largura do próprio cartão (valor completo em linha própria quando estreito; pendências em 1/2/4 colunas). Só apresentação; sem banco. Implementada no código, aguardando publicação e validação manual do proprietário. Ver docs/auditoria-painel-global-2026-10-13.md.
