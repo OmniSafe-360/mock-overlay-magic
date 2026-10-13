@@ -58,6 +58,8 @@ beforeEach(() => {
 describe("tela inicial, Comércios e Alertas do dono", () => {
   it("abre Adicionar comércio sem mudar a ordem dos hooks", () => {
     render(<OwnerApp userId="u1" owner="Monica" initial={[]} />);
+    // RMC-02B: Adicionar comércio fica na aba Comércios
+    fireEvent.click(screen.getAllByRole("button", { name: "Comércios" })[0]!);
     fireEvent.click(screen.getByRole("button", { name: /Adicionar comércio/ }));
     expect(screen.getByText("Qual é o seu tipo de comércio?")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Cancelar/ }));
@@ -88,6 +90,9 @@ describe("tela inicial, Comércios e Alertas do dono", () => {
     expect(resumo.getByRole("button", { name: /Para comprar/ }).textContent).toMatch(/^1/);
     expect(screen.queryByText(/Dados de exemplo/)).toBeNull();
     expect(screen.getByRole("button", { name: /Vendas hoje: R\$\s?0,00/ }).textContent).toMatch(/Nenhuma venda ainda/);
+    // RMC-02B: Início sem cartões; a situação de cada comércio fica na aba Comércios
+    expect(screen.queryByRole("region", { name: "Mercado Bom Preço" })).toBeNull();
+    fireEvent.click(screen.getAllByRole("button", { name: "Comércios" })[0]!);
     expect(screen.getByRole("region", { name: "Mercado Bom Preço" }).textContent).toMatch(/1 para resolver agora.*1 para repor · 1 para comprar/);
     expect(screen.getByRole("region", { name: "Farmácia Vida" }).textContent).toMatch(/Tudo certo/);
     expect(screen.getByRole("button", { name: /Alertas: 1 para resolver agora/ })).toBeTruthy();
@@ -101,8 +106,9 @@ describe("tela inicial, Comércios e Alertas do dono", () => {
     fireEvent.click(sec.getByRole("button", { name: /Café/ }));
     expect(await screen.findByRole("heading", { name: "Café" })).toBeTruthy();
   });
-  it("Início lista cada comércio com o tipo e abre ao tocar (antiga aba Comércios, RMC-02)", async () => {
+  it("aba Comércios lista cada comércio com o tipo e abre ao tocar (RMC-02B)", async () => {
     render(<OwnerApp userId="u1" owner="Monica" initial={[lojaA, lojaB]} />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Comércios" })[0]!);
     expect(await screen.findByRole("region", { name: "Seus comércios" })).toBeTruthy();
     await waitFor(() => expect(screen.getByRole("region", { name: "Farmácia Vida" }).textContent).toMatch(/Farmácia · Bauru - SP.*Tudo certo.*1 produto/));
     fireEvent.click(screen.getByRole("button", { name: "Entrar no Mercado Bom Preço" }));
@@ -112,7 +118,9 @@ describe("tela inicial, Comércios e Alertas do dono", () => {
     banco.carregarProdutos.mockImplementation(async (id: string) => { if (id === "c2") throw new Error("Failed to fetch"); return { produtos: [tudoCerto], locais: { deposito: [], venda: [] } }; });
     render(<OwnerApp userId="u1" owner="Monica" initial={[lojaA, lojaB]} />);
     expect(await screen.findByText(/Não foi possível atualizar algum comércio/)).toBeTruthy();
-    expect(screen.getByRole("region", { name: "Farmácia Vida" }).textContent).toMatch(/Não foi possível atualizar/);
+    fireEvent.click(screen.getAllByRole("button", { name: "Comércios" })[0]!);
+    expect(await screen.findByRole("region", { name: "Farmácia Vida" })).toHaveTextContent(/Não foi possível atualizar/);
+    fireEvent.click(screen.getAllByRole("button", { name: "Início" })[0]!);
     banco.carregarProdutos.mockImplementation(async () => ({ produtos: [tudoCerto], locais: { deposito: [], venda: [] } }));
     fireEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
     expect(await screen.findByText(/Tudo certo! Nenhum comércio precisa de atenção agora/)).toBeTruthy();
@@ -127,6 +135,7 @@ describe("tela inicial, Comércios e Alertas do dono", () => {
     render(<OwnerApp userId="u1" owner="Monica" initial={[lojaA, lojaB]} />);
     expect(await screen.findByRole("button", { name: /Vendas hoje: R\$\s?133,45/ })).toBeTruthy();
     expect(screen.getByText("2 vendas")).toBeTruthy();
+    fireEvent.click(screen.getAllByRole("button", { name: "Comércios" })[0]!);
     await waitFor(() => expect(screen.getByRole("region", { name: "Farmácia Vida" }).textContent).toMatch(/1 para resolver agora/));
     expect(screen.getByRole("region", { name: "Mercado Bom Preço" }).textContent).toMatch(/R\$\s?133,45 vendidos hoje/);
     fireEvent.click(screen.getAllByRole("button", { name: "Alertas" })[0]!);
@@ -141,6 +150,7 @@ describe("tela inicial, Comércios e Alertas do dono", () => {
     const perda = { id: "pe", produtoId: "f1", variacaoId: null, area: "venda", quantidade: 1, baixado: 1, motivo: "quebrou", observacao: null, funcionario: "João", peloDono: false, situacao: "aguardando", criadaEm: new Date().toISOString() };
     banco.carregarDiferencas.mockImplementation(async (id: string) => (id === "c2" ? { diferencas: [d("a", "aberta"), d("b", "aberta", 2), d("c", "explicada", 3)], perdas: [perda] } : { diferencas: [], perdas: [] }));
     render(<OwnerApp userId="u1" owner="Monica" initial={[lojaA, lojaB]} />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Comércios" })[0]!);
     await waitFor(() => expect(screen.getByRole("region", { name: "Farmácia Vida" }).textContent).toMatch(/3 para resolver agora/));
     fireEvent.click(screen.getAllByRole("button", { name: "Alertas" })[0]!);
     const sec = within(await screen.findByRole("region", { name: "Farmácia Vida" }));

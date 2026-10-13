@@ -27,9 +27,10 @@ import { caixaLigado, ocultarPassos, passosOcultos, primeirosPassos, type Passo 
 import { nomeAreaVenda, textoDoTipo } from "@/lib/exemplos";
 import { ProductWizard, type Product, type Supplier } from "@/components/ProductArea";
 
-type Tab = "inicio" | "alertas" | "equipe" | "conta";
+type Tab = "inicio" | "comercios" | "alertas" | "equipe" | "conta";
 const NAV: { id: Tab; label: string; Icon: typeof Home }[] = [
   { id: "inicio", label: "Início", Icon: Home },
+  { id: "comercios", label: "Comércios", Icon: Store },
   { id: "alertas", label: "Alertas", Icon: Bell },
   { id: "equipe", label: "Equipe", Icon: Users },
   { id: "conta", label: "Conta", Icon: UserCircle },
@@ -62,9 +63,12 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
   const [tab, setTab] = useState<Tab>("inicio");
   const [adding, setAdding] = useState(false);
   const [open, setOpen] = useState<StoreData | null>(null);
-  // RMC-02: "Ver vendas" com vários comércios pede a escolha no Início; limpa ao mudar de tela
+  // RMC-02B: "Ver vendas" com vários comércios leva à aba Comércios com a escolha ligada.
+  // A escolha é limpa de forma explícita (menu, abrir, cadastrar, cancelar), nunca na própria passagem Início → Comércios.
   const [escolherVendas, setEscolherVendas] = useState(false);
-  useEffect(() => { setEscolherVendas(false); }, [tab, open]);
+  /** Para onde o Voltar do comércio leva quando não é a aba de onde ele foi aberto (vendas pedidas no Início). */
+  const [voltarPara, setVoltarPara] = useState<Tab | null>(null);
+  const irPara = (id: Tab) => { setEscolherVendas(false); setVoltarPara(null); setTab(id); setOpen(null); };
   const [toast, setToast] = useState("");
   const [products, setProducts] = useState<Record<string, Product[]>>({});
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -181,7 +185,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
   }, []);
   const hojeGeral = useHoje();
   const idsLojas = stores.map(idDe).filter((x): x is string => !!x).join(",");
-  const telaGeral = !open && (tab === "inicio" || tab === "alertas");
+  const telaGeral = !open && (tab === "inicio" || tab === "comercios" || tab === "alertas");
   useEffect(() => { if (telaGeral && idsLojas) void carregarGeral(idsLojas.split(",")); }, [telaGeral, idsLojas, carregarGeral, hojeGeral]);
   useEffect(() => {
     if (!telaGeral || !idsLojas) return;
@@ -235,7 +239,8 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
   }, [stores, geral, hojeGeral]);
   const [verAntifurto, setVerAntifurto] = useState(false);
   useEffect(() => { if (tab !== "inicio") setVerAntifurto(false); }, [tab]);
-  const abrirLoja = (s: StoreData, inicio?: InicioComercio) => { setInicioLoja(inicio); setSaved(false); setOpen(s); setTab("inicio"); setVerAntifurto(false); };
+  // RMC-02B: o comércio abre por cima da aba atual; o Voltar devolve à aba (ou ao Antifurto) de origem.
+  const abrirLoja = (s: StoreData, inicio?: InicioComercio) => { setInicioLoja(inicio); setSaved(false); setEscolherVendas(false); setOpen(s); };
 
   const openSid = typeof open?.id === "string" && open.id.trim() ? open.id : null;
   useEffect(() => { if (openSid) void recarregar(openSid); }, [openSid, recarregar]);
@@ -258,8 +263,8 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
 
   if (adding)
     return (
-      <StoreSetup mode="add" userId={userId} onCancel={() => setAdding(false)}
-        onFinish={(s) => { setStores((l) => [...l, s]); setAdding(false); setTab("inicio"); setToast("Comércio adicionado!"); }} />
+      <StoreSetup mode="add" userId={userId} onCancel={() => { setEscolherVendas(false); setAdding(false); }}
+        onFinish={(s) => { setStores((l) => [...l, s]); setEscolherVendas(false); setAdding(false); setTab("comercios"); setToast("Comércio adicionado!"); }} />
     );
 
   const cur = open ?? undefined;
@@ -411,7 +416,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
         </div>
         <nav className="space-y-1">
           {NAV.map(({ id, label, Icon }) => (
-            <button key={id} type="button" onClick={() => { setTab(id); if (id !== "inicio") setOpen(null); }} aria-current={tab === id ? "page" : undefined}
+            <button key={id} type="button" onClick={() => irPara(id)} aria-current={tab === id ? "page" : undefined}
               className={`flex min-h-12 w-full items-center gap-3 rounded-2xl px-3 text-sm font-semibold transition ${tab === id ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
               <Icon size={20} className={tab === id ? "text-accent" : ""} /> {label}
             </button>
@@ -427,7 +432,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
               <span className="md:hidden"><LogoMark size={36} /></span>
               <p className="truncate text-lg font-bold">{owner ? `Olá, ${owner}` : "Olá!"}</p>
             </div>
-            <button type="button" aria-label={paraResolver(visao.total) ? `Alertas: ${paraResolver(visao.total)} para resolver agora` : "Alertas"} onClick={() => { setTab("alertas"); setOpen(null); }}
+            <button type="button" aria-label={paraResolver(visao.total) ? `Alertas: ${paraResolver(visao.total)} para resolver agora` : "Alertas"} onClick={() => irPara("alertas")}
               className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-secondary/60 text-foreground hover:border-primary">
               <Bell size={20} />
               {(paraResolver(visao.total) > 0 || deOlho(visao.total) > 0) && <span className={`absolute right-3 top-3 h-2.5 w-2.5 rounded-full ${paraResolver(visao.total) ? "bg-destructive" : "bg-warning"}`} />}
@@ -436,7 +441,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
         </header>
 
         <main className="mx-auto max-w-[1100px] px-5 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 md:pb-10">
-          {tab === "inicio" && cur && (
+          {cur && (
             <>
               {(pendentes.length > 0 || registroErro) && <div role="alert" className="mb-4 space-y-3 rounded-2xl border border-warning/60 bg-warning/10 p-4">
                 <p className="text-sm font-semibold">{registroErro || "Há um envio sem confirmação neste aparelho. Confira antes de cadastrar novamente."}</p>
@@ -453,17 +458,17 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
                 onClick={() => { if (sid) void recarregar(sid); }} className="mb-4 min-h-12 rounded-2xl border border-border px-4 text-sm font-semibold disabled:opacity-50">Atualizar dados</button>}
             </>
           )}
-          {tab === "inicio" && cur && carga !== "ok" && !list.length ? (
+          {cur && carga !== "ok" && !list.length ? (
             <div className="flex flex-col items-center gap-4 py-24 text-center">
               <p className="text-muted-foreground">{carga === "carregando" ? "Carregando produtos…" : "Não foi possível carregar os produtos. Verifique sua internet."}</p>
               {carga === "erro" && (
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => setOpen(null)} className="h-12 rounded-2xl border border-border px-5 font-semibold">Voltar</button>
+                  <button type="button" onClick={() => { setOpen(null); setInicioLoja(undefined); if (voltarPara) { setTab(voltarPara); setVoltarPara(null); } }} className="h-12 rounded-2xl border border-border px-5 font-semibold">Voltar</button>
                   <button type="button" onClick={() => sid && void recarregar(sid)} className="h-12 rounded-2xl bg-primary px-5 font-semibold text-primary-foreground">Tentar de novo</button>
                 </div>
               )}
             </div>
-          ) : tab === "inicio" && cur ? (
+          ) : cur ? (
             <StoreSpace key={sid ?? "sem-id"} store={cur} products={list} suppliers={suppliers} saved={saved} locais={sid ? locais[sid] : undefined}
               onAddSupplier={addSupplier} onUpdateSupplier={updateSupplier}
               pedidos={sid ? pedidos[sid] ?? [] : []}
@@ -482,15 +487,17 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
               onVendasMudou={() => { if (sid) { void recarregar(sid); void atualizarAvisos(sid); } }}
               diferencasDecidir={sid ? visao.decidir[sid] ?? 0 : 0} antifurto={sid ? visao.alertas[sid] : undefined}
               onDiferencasMudou={() => { if (sid) { void recarregar(sid); void atualizarAvisos(sid); } }}
-              onBack={() => { setOpen(null); setSaved(false); setInicioLoja(undefined); }} onNew={() => openWizard()} onEdit={(p) => openWizard(p)} onDismissSaved={() => setSaved(false)} />
+              onBack={() => { setOpen(null); setSaved(false); setInicioLoja(undefined); if (voltarPara) { setTab(voltarPara); setVoltarPara(null); } }} onNew={() => openWizard()} onEdit={(p) => openWizard(p)} onDismissSaved={() => setSaved(false)} />
           ) : tab === "inicio" && verAntifurto ? (
             <AntifurtoGeral linhas={visao.antifurto} carregando={visao.carregando} onAbrir={(s) => abrirLoja(s, { relatorio: true })} onVoltar={() => setVerAntifurto(false)} />
-          ) : tab === "inicio" ? (
-            <HomeContent stores={stores} visao={visao} fornecedores={suppliers.length} locais={locais}
+          ) : tab === "inicio" || tab === "comercios" ? (
+            <HomeContent modo={tab} stores={stores} visao={visao} fornecedores={suppliers.length} locais={locais}
               onPasso={(s, p) => abrirLoja(s, { aba: p.id === "fornecedor" ? "Fornecedores" : p.id === "equipe" ? "Equipe" : p.id === "caixa" ? "Vendas" : "Produtos" })}
-              onAdd={() => { setEscolherVendas(false); setAdding(true); }} onOpen={(s) => { if (escolherVendas) { setEscolherVendas(false); abrirLoja(s, { aba: "Vendas" }); } else abrirLoja(s); }}
-              escolherVendas={escolherVendas} onCancelarEscolha={() => setEscolherVendas(false)} onAlertas={() => setTab("alertas")} onAntifurto={() => setVerAntifurto(true)}
-              onVendas={() => { const com = stores.filter((s) => idDe(s)); if (com.length === 1) abrirLoja(com[0]!, { aba: "Vendas" }); else setEscolherVendas(true); }}
+              onAdd={() => { setEscolherVendas(false); setVoltarPara(null); setAdding(true); }}
+              onOpen={(s) => { if (escolherVendas) { abrirLoja(s, { aba: "Vendas" }); } else { setVoltarPara(null); abrirLoja(s); } }}
+              escolherVendas={escolherVendas} onCancelarEscolha={() => { setEscolherVendas(false); setVoltarPara(null); }} onAlertas={() => irPara("alertas")} onAntifurto={() => setVerAntifurto(true)}
+              onComercios={() => irPara("comercios")}
+              onVendas={() => { const com = stores.filter((s) => idDe(s)); if (com.length === 1) { setVoltarPara(null); abrirLoja(com[0]!, { aba: "Vendas" }); } else { setVoltarPara("inicio"); setTab("comercios"); setEscolherVendas(true); } }}
               onTentar={() => { if (idsLojas) void carregarGeral(idsLojas.split(",")); }} />
           ) : tab === "alertas" ? (
             <Alertas stores={stores} visao={visao} suppliers={suppliers} onAbrir={abrirLoja} onTentar={() => { if (idsLojas) void carregarGeral(idsLojas.split(",")); }} />
@@ -512,11 +519,11 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
 
       {/* barra inferior (celular) */}
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background-deep/90 backdrop-blur-xl md:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
-        <div className="grid grid-cols-4">
+        <div className="grid grid-cols-5">
           {NAV.map(({ id, label, Icon }) => {
             const on = tab === id;
             return (
-              <button key={id} type="button" onClick={() => { setTab(id); if (id !== "inicio") setOpen(null); }} aria-current={on ? "page" : undefined}
+              <button key={id} type="button" onClick={() => irPara(id)} aria-current={on ? "page" : undefined}
                 className={`flex min-h-16 flex-col items-center justify-center gap-1 text-[11px] font-semibold transition ${on ? "text-accent" : "text-muted-foreground"}`}>
                 <Icon size={22} /> {label}
               </button>
@@ -554,8 +561,8 @@ function passosDaTela(stores: StoreData[], visao: VisaoGeral, fornecedores: numb
   return null;
 }
 
-function HomeContent({ stores, visao, fornecedores, locais, onPasso, onAdd, onOpen, onAlertas, onVendas, onTentar, onAntifurto, escolherVendas = false, onCancelarEscolha }: {
-  stores: StoreData[]; visao: VisaoGeral; fornecedores: number; locais: Record<string, LocaisCadastrados>; onPasso: (s: StoreData, p: Passo) => void; onAdd: () => void; onOpen: (s: StoreData) => void; onAlertas: () => void; onVendas: () => void; onTentar: () => void; onAntifurto: () => void; escolherVendas?: boolean; onCancelarEscolha?: () => void;
+function HomeContent({ modo, stores, visao, fornecedores, locais, onPasso, onAdd, onOpen, onAlertas, onVendas, onTentar, onAntifurto, onComercios, escolherVendas = false, onCancelarEscolha }: {
+  modo: "inicio" | "comercios"; onComercios: () => void; stores: StoreData[]; visao: VisaoGeral; fornecedores: number; locais: Record<string, LocaisCadastrados>; onPasso: (s: StoreData, p: Passo) => void; onAdd: () => void; onOpen: (s: StoreData) => void; onAlertas: () => void; onVendas: () => void; onTentar: () => void; onAntifurto: () => void; escolherVendas?: boolean; onCancelarEscolha?: () => void;
 }) {
   const t = visao.total;
   const af = totalAntifurto(visao.antifurto);
@@ -576,11 +583,18 @@ function HomeContent({ stores, visao, fornecedores, locais, onPasso, onAdd, onOp
   const unico = stores.length === 1 ? stores[0]! : null;
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
-      {passos && (
+      {modo === "comercios" && <h1 className="text-xl font-bold">Comércios</h1>}
+      {modo === "inicio" && stores.length === 0 && (
+        <section aria-label="Comece por aqui" className="rounded-3xl border border-border bg-secondary/70 p-5">
+          <p className="font-semibold">Você ainda não tem comércio cadastrado.</p>
+          <button type="button" onClick={onComercios} className="mt-3 min-h-12 rounded-2xl bg-primary px-5 font-semibold text-primary-foreground">Ir para Comércios</button>
+        </section>
+      )}
+      {modo === "comercios" && passos && (
         <PrimeirosPassos passos={passos.passos} comercio={passos.s.nome} mostrarNome={stores.length > 1}
           onPasso={(p) => onPasso(passos.s, p)} onOcultar={() => { ocultarPassos(passos.id); setOcultos(passosOcultos().concat(passos.id)); }} />
       )}
-      {stores.length === 0 ? (
+      {modo === "inicio" ? null : stores.length === 0 ? (
         <section>
           <h2 className="mb-3 text-base font-semibold">Seus comércios</h2>
           <CartoesComercios stores={stores} visao={visao} onAdd={onAdd} onOpen={onOpen} />
@@ -590,7 +604,7 @@ function HomeContent({ stores, visao, fornecedores, locais, onPasso, onAdd, onOp
       ) : (
         <ListaComercios stores={stores} visao={visao} onOpen={onOpen} onAdd={onAdd} escolherVendas={escolherVendas} onCancelarEscolha={onCancelarEscolha} />
       )}
-      {stores.length > 0 && (
+      {modo === "inicio" && stores.length > 0 && (
         <section aria-label="Resumo geral">
           <div className="mb-3 flex items-center justify-between gap-2">
             <h2 className="text-base font-semibold">Resumo de hoje</h2>
