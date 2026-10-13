@@ -340,3 +340,5 @@ Próximo passo atualizado: C3-A autorizada pelo dono e implementada; concluir pu
 - [ ] **RMC-06:** validar visual, navegação e regressões; publicar e obter teste do dono.
 
 Achado para **G5**, sem implementação nesta frente: 1 + 8 funções de leitura por comércio no carregamento geral; medir volume/latência antes de otimizar. A existência de 1.049 testes não comprova visual sem sobreposição nem capacidade de produção.
+
+- 13/10/2026: **RMC-02C/C3-B** — cartões do Início se reorganizam pela largura do próprio cartão (valor completo em linha própria quando estreito; pendências em 1/2/4 colunas). Só apresentação; sem banco. Implementada no código, aguardando publicação e validação manual do proprietário. Ver docs/auditoria-painel-global-2026-10-13.md.
