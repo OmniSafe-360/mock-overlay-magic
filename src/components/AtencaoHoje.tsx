@@ -9,6 +9,8 @@ import { atencaoHoje, type GrupoAtencao } from "@/lib/situacao";
 import { hojeEm } from "@/lib/validade";
 import { PRODUTOS_LUGAR, VEZES_VISADO, type AlertasAntifurto } from "@/lib/antifurto";
 
+export type AssuntoAlertaGlobal = "resolver" | "repor" | "comprar" | "vencendo";
+
 const COR: Record<GrupoAtencao["nivel"], { quadro: string; numero: string; ponto: string }> = {
   urgente: { quadro: "border-destructive/50 bg-destructive/10", numero: "text-destructive", ponto: "bg-destructive" },
   atencao: { quadro: "border-warning/50 bg-warning/10", numero: "text-warning", ponto: "bg-warning" },
@@ -26,7 +28,7 @@ const maiuscula = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const linhaItem = (titulo: string, detalhe: string | undefined, assunto: string) =>
   titulo.toLowerCase() === assunto.toLowerCase() ? detalhe ?? "" : detalhe ? `${titulo} — ${detalhe}` : titulo;
 
-export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFazerPedido, contas, onVerContas, entregasDecidir = 0, onVerEntregas, semCadastro = 0, onVerSemCadastro, diferencas = 0, onVerDiferencas, antifurto, onVerAntifurto }: {
+export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFazerPedido, contas, onVerContas, entregasDecidir = 0, onVerEntregas, semCadastro = 0, onVerSemCadastro, diferencas = 0, onVerDiferencas, antifurto, onVerAntifurto, assuntoGlobal = null }: {
   products: Product[]; tipo: string; suppliers: Supplier[]; onOpen: (p: Product) => void;
   /** Produtos (id do banco) já num pedido em andamento. */ jaPedidos?: Set<string> | undefined;
   /** Abre a montagem do pedido de compra. */ onFazerPedido?: (() => void) | undefined;
@@ -35,10 +37,11 @@ export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFa
   /** Códigos vendidos no caixa que o Omni não sabe qual produto é (Fase 3.4); tocar abre a aba Vendas. */ semCadastro?: number | undefined; onVerSemCadastro?: (() => void) | undefined;
   /** Perdas para confirmar + diferenças para explicar (Fase 4.3); tocar abre a aba Diferenças. */ diferencas?: number | undefined; onVerDiferencas?: (() => void) | undefined;
   /** Alertas de antifurto (Fase 5.2); tocar abre o Relatório da aba Diferenças. */ antifurto?: AlertasAntifurto | undefined; onVerAntifurto?: (() => void) | undefined;
+  /** C4-B: apresentação filtrada, sem alterar as regras operacionais. */ assuntoGlobal?: AssuntoAlertaGlobal | null | undefined;
 }) {
   const hoje = useHoje();
   const grupos = useMemo(() => atencaoHoje(products, tipo, hoje, (p) => suppliers.find((f) => f.id === p.fornecedor)?.nome, jaPedidos), [products, tipo, hoje, suppliers, jaPedidos]);
-  const [aberto, setAberto] = useState<string | null>(null);
+  const [aberto, setAberto] = useState<string | null>(assuntoGlobal && assuntoGlobal !== "resolver" ? assuntoGlobal : null);
   const restoMes = contas ? contas.esteMes.n - contas.atrasados.n - contas.hoje.n : 0;
   const quadrosContas: { k: string; nivel: GrupoAtencao["nivel"]; n: number; titulo: string; total: number }[] = !contas ? [] : [
     { k: "atrasadas", nivel: "urgente" as const, n: contas.atrasados.n, titulo: contas.atrasados.n === 1 ? "Conta atrasada" : "Contas atrasadas", total: contas.atrasados.total },
@@ -55,9 +58,16 @@ export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFa
     ...(antifurto.lugares.length ? [{ k: "lugar", n: antifurto.lugares.length, titulo: antifurto.lugares.length === 1 ? "Lugar com muitas faltas" : "Lugares com muitas faltas", ajuda: `${PRODUTOS_LUGAR}+ produtos em 30 dias` }] : []),
     ...(antifurto.passouLimite ? [{ k: "limite", n: brl(antifurto.faltouMes), titulo: "Faltou no mês", ajuda: `passou do limite de ${brl(antifurto.limite)}` }] : []),
   ];
-  if (!products.length && !quadrosContas.length && !quadrosEntrega.length && !quadrosAntifurto.length) return null;
-  const sel = grupos.find((g) => g.tipo === aberto);
-  const importantes = grupos.filter((g) => g.nivel !== "info").reduce((n, g) => n + g.itens.length, 0);
+  const gruposVisiveis = !assuntoGlobal ? grupos : assuntoGlobal === "resolver"
+    ? grupos.filter((g) => g.nivel === "urgente")
+    : grupos.filter((g) => g.tipo === assuntoGlobal);
+  const contasVisiveis = !assuntoGlobal ? quadrosContas : assuntoGlobal === "resolver" ? quadrosContas.filter((q) => q.k === "atrasadas") : [];
+  const entregasVisiveis = !assuntoGlobal || assuntoGlobal === "resolver" ? quadrosEntrega : [];
+  const antifurtoVisiveis = !assuntoGlobal ? quadrosAntifurto : [];
+  if (!assuntoGlobal && !products.length && !quadrosContas.length && !quadrosEntrega.length && !quadrosAntifurto.length) return null;
+  if (assuntoGlobal && !gruposVisiveis.length && !contasVisiveis.length && !entregasVisiveis.length) return null;
+  const sel = gruposVisiveis.find((g) => g.tipo === aberto);
+  const importantes = gruposVisiveis.filter((g) => g.nivel !== "info").reduce((n, g) => n + g.itens.length, 0);
 
   return (
     <section aria-label="Atenção hoje" className="rounded-3xl border border-border bg-secondary/40 p-4">
@@ -66,37 +76,37 @@ export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFa
         <span className="text-xs text-muted-foreground">{maiuscula(dataPorExtenso(hoje))}</span>
       </div>
 
-      {!grupos.some((g) => g.nivel !== "info") && !quadrosContas.some((q) => q.nivel !== "info") && !quadrosEntrega.length && !quadrosAntifurto.length && (
+      {!assuntoGlobal && !gruposVisiveis.some((g) => g.nivel !== "info") && !contasVisiveis.some((q) => q.nivel !== "info") && !entregasVisiveis.length && !antifurtoVisiveis.length && (
         <p className="mt-3 flex items-center gap-2 rounded-2xl border border-accent/50 bg-accent/10 p-3 text-sm font-semibold text-accent">
           <CircleCheck size={18} className="shrink-0" /> Tudo certo! Nenhum produto precisa de atenção agora.
         </p>
       )}
       {importantes > 0 && <p className="mt-1 text-sm text-muted-foreground">Toque num quadro para ver os produtos.</p>}
 
-      {(grupos.length > 0 || quadrosContas.length > 0 || quadrosEntrega.length > 0 || quadrosAntifurto.length > 0) && (
+      {(gruposVisiveis.length > 0 || contasVisiveis.length > 0 || entregasVisiveis.length > 0 || antifurtoVisiveis.length > 0) && (
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {quadrosEntrega.map((q) => (
+          {entregasVisiveis.map((q) => (
             <button key={q.k} type="button" onClick={q.onClick}
               className={`flex min-h-[84px] flex-col justify-between rounded-2xl border p-3 text-left transition hover:border-primary ${COR.urgente.quadro}`}>
               <span className={`text-3xl font-bold leading-none tabular-nums ${COR.urgente.numero}`}>{q.n}</span>
               <span className="mt-2 text-sm font-semibold leading-tight">{q.titulo}<span className="block text-xs font-normal text-muted-foreground">{q.ajuda}</span></span>
             </button>
           ))}
-          {quadrosAntifurto.map((q) => (
+          {antifurtoVisiveis.map((q) => (
             <button key={q.k} type="button" onClick={onVerAntifurto}
               className={`flex min-h-[84px] flex-col justify-between rounded-2xl border p-3 text-left transition hover:border-primary ${COR.atencao.quadro}`}>
               <span className={`${typeof q.n === "number" ? "text-3xl" : "text-xl"} font-bold leading-none tabular-nums ${COR.atencao.numero}`}>{q.n}</span>
               <span className="mt-2 text-sm font-semibold leading-tight">{q.titulo}<span className="block text-xs font-normal text-muted-foreground">{q.ajuda}</span></span>
             </button>
           ))}
-          {quadrosContas.map((q) => (
+          {contasVisiveis.map((q) => (
             <button key={q.k} type="button" onClick={onVerContas}
               className={`flex min-h-[84px] flex-col justify-between rounded-2xl border p-3 text-left transition hover:border-primary ${COR[q.nivel].quadro}`}>
               <span className={`text-3xl font-bold leading-none tabular-nums ${COR[q.nivel].numero}`}>{q.n}</span>
               <span className="mt-2 text-sm font-semibold leading-tight">{q.titulo}<span className="block text-xs font-normal text-muted-foreground">{brl(q.total)}</span></span>
             </button>
           ))}
-          {grupos.map((g) => {
+          {gruposVisiveis.map((g) => {
             const c = COR[g.nivel];
             const on = aberto === g.tipo;
             return (

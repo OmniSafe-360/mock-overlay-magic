@@ -118,7 +118,8 @@ describe("RMC-02C / C2 — subtotais dos quatro indicadores", () => {
   it("clique nos indicadores abre Alertas", async () => {
     render(<OwnerApp userId="u1" owner="M" initial={[a]} />);
     fireEvent.click(await resolver());
-    expect(await screen.findAllByText(/Repor|Tudo certo/)).toBeTruthy();
+    expect(await screen.findByText("Assunto: Para resolver agora")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Alertas" })).toBeTruthy();
   });
 });
 

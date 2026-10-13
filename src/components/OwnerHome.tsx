@@ -13,7 +13,7 @@ import { ContaPerfil } from "@/components/ContaPerfil";
 import type { Perfil } from "@/lib/perfil";
 import { StoreSetup, TIPOS, type StoreData } from "@/components/StoreSetup";
 import { StoreSpace, type InicioComercio } from "@/components/StoreSpace";
-import { AtencaoHoje } from "@/components/AtencaoHoje";
+import { AtencaoHoje, type AssuntoAlertaGlobal } from "@/components/AtencaoHoje";
 import { resumoPagamentos } from "@/lib/pagamento";
 import { hojeEm } from "@/lib/validade";
 import { agruparPendentes, brl as brlVenda, diaDaVenda } from "@/lib/vendas";
@@ -63,6 +63,7 @@ function Backdrop() {
 export function OwnerApp({ userId, owner, initial, fullName = "", email = "", avatarUrl = null, onPerfilSalvo, onLogout }: { userId: string; owner: string; initial: StoreData[]; fullName?: string; email?: string; avatarUrl?: string | null; onPerfilSalvo?: (perfil: Perfil) => void; onLogout?: () => void }) {
   const [stores, setStores] = useState<StoreData[]>(initial);
   const [tab, setTab] = useState<Tab>("inicio");
+  const [assuntoAlertas, setAssuntoAlertas] = useState<AssuntoAlertaGlobal | null>(null);
   const [adding, setAdding] = useState(false);
   const [open, setOpen] = useState<StoreData | null>(null);
   // RMC-02B: "Ver vendas" com vários comércios leva à aba Comércios com a escolha ligada.
@@ -70,7 +71,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
   const [escolherVendas, setEscolherVendas] = useState(false);
   /** Para onde o Voltar do comércio leva quando não é a aba de onde ele foi aberto (vendas pedidas no Início). */
   const [voltarPara, setVoltarPara] = useState<Tab | null>(null);
-  const irPara = (id: Tab) => { setEscolherVendas(false); setVoltarPara(null); setTab(id); setOpen(null); };
+  const irPara = (id: Tab) => { setEscolherVendas(false); setVoltarPara(null); setAssuntoAlertas(null); setTab(id); setOpen(null); };
   const [toast, setToast] = useState("");
   const [products, setProducts] = useState<Record<string, Product[]>>({});
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -497,12 +498,12 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
               onPasso={(s, p) => abrirLoja(s, { aba: p.id === "fornecedor" ? "Fornecedores" : p.id === "equipe" ? "Equipe" : p.id === "caixa" ? "Vendas" : "Produtos" })}
               onAdd={() => { setEscolherVendas(false); setVoltarPara(null); setAdding(true); }}
               onOpen={(s) => { if (escolherVendas) { abrirLoja(s, { aba: "Vendas" }); } else { setVoltarPara(null); abrirLoja(s); } }}
-              escolherVendas={escolherVendas} onCancelarEscolha={() => { setEscolherVendas(false); setVoltarPara(null); }} onAlertas={() => irPara("alertas")} onAntifurto={() => setVerAntifurto(true)}
+              escolherVendas={escolherVendas} onCancelarEscolha={() => { setEscolherVendas(false); setVoltarPara(null); }} onAlertas={(assunto) => { setAssuntoAlertas(assunto); setEscolherVendas(false); setVoltarPara(null); setTab("alertas"); setOpen(null); }} onAntifurto={() => setVerAntifurto(true)}
               onComercios={() => irPara("comercios")}
               onVendas={() => { const com = stores.filter((s) => idDe(s)); if (com.length === 1) { setVoltarPara(null); abrirLoja(com[0]!, { aba: "Vendas" }); } else { setVoltarPara("inicio"); setTab("comercios"); setEscolherVendas(true); } }}
               onTentar={() => { if (idsLojas) void carregarGeral(idsLojas.split(",")); }} />
           ) : tab === "alertas" ? (
-            <Alertas stores={stores} visao={visao} suppliers={suppliers} onAbrir={abrirLoja} onTentar={() => { if (idsLojas) void carregarGeral(idsLojas.split(",")); }} />
+            <Alertas stores={stores} visao={visao} suppliers={suppliers} assunto={assuntoAlertas} onVerTodos={() => setAssuntoAlertas(null)} onAbrir={abrirLoja} onTentar={() => { if (idsLojas) void carregarGeral(idsLojas.split(",")); }} />
           ) : tab === "conta" ? (
             <ContaPerfil userId={userId} nome={fullName || owner} foto={avatarUrl} email={email} onSalvo={(perfil) => onPerfilSalvo?.(perfil)} onLogout={onLogout} />
           ) : tab === "equipe" ? (
@@ -564,7 +565,7 @@ function passosDaTela(stores: StoreData[], visao: VisaoGeral, fornecedores: numb
 }
 
 function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso, onAdd, onOpen, onAlertas, onVendas, onTentar, onAntifurto, onComercios, escolherVendas = false, onCancelarEscolha }: {
-  hoje?: string; modo: "inicio" | "comercios"; onComercios: () => void; stores: StoreData[]; visao: VisaoGeral; fornecedores: number; locais: Record<string, LocaisCadastrados>; onPasso: (s: StoreData, p: Passo) => void; onAdd: () => void; onOpen: (s: StoreData) => void; onAlertas: () => void; onVendas: () => void; onTentar: () => void; onAntifurto: () => void; escolherVendas?: boolean; onCancelarEscolha?: () => void;
+  hoje?: string; modo: "inicio" | "comercios"; onComercios: () => void; stores: StoreData[]; visao: VisaoGeral; fornecedores: number; locais: Record<string, LocaisCadastrados>; onPasso: (s: StoreData, p: Passo) => void; onAdd: () => void; onOpen: (s: StoreData) => void; onAlertas: (assunto: AssuntoAlertaGlobal) => void; onVendas: () => void; onTentar: () => void; onAntifurto: () => void; escolherVendas?: boolean; onCancelarEscolha?: () => void;
 }) {
   const t = visao.total;
   const af = totalAntifurto(visao.antifurto);
@@ -575,10 +576,10 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
   const dispBase = disponibilidade(stores, visao, false);
   const dispResolver = disponibilidade(stores, visao, true);
   const kpis = [
-    { label: "Para resolver agora", disp: dispResolver, n: paraResolver(dispResolver.soma), Icon: AlertTriangle, cor: "urgente" as const, desc: "Pendências urgentes de vários tipos, não só produtos" },
-    { label: "Para repor", disp: dispBase, n: dispBase.soma.repor, Icon: ShoppingBasket, cor: "atencao" as const, desc: "Produtos para repor na área de venda" },
-    { label: "Para comprar", disp: dispBase, n: dispBase.soma.comprar, Icon: ShoppingCart, cor: "atencao" as const, desc: "Produtos para comprar, fora os já pedidos" },
-    { label: dispBase.soma.vencendo === 1 ? "Vence em breve" : "Vencem em breve", disp: dispBase, n: dispBase.soma.vencendo, Icon: CalendarClock, cor: "atencao" as const, desc: "Produtos com validade perto do fim" },
+    { label: "Para resolver agora", assunto: "resolver" as const, disp: dispResolver, n: paraResolver(dispResolver.soma), Icon: AlertTriangle, cor: "urgente" as const, desc: "Pendências urgentes de vários tipos, não só produtos" },
+    { label: "Para repor", assunto: "repor" as const, disp: dispBase, n: dispBase.soma.repor, Icon: ShoppingBasket, cor: "atencao" as const, desc: "Produtos para repor na área de venda" },
+    { label: "Para comprar", assunto: "comprar" as const, disp: dispBase, n: dispBase.soma.comprar, Icon: ShoppingCart, cor: "atencao" as const, desc: "Produtos para comprar, fora os já pedidos" },
+    { label: dispBase.soma.vencendo === 1 ? "Vence em breve" : "Vencem em breve", assunto: "vencendo" as const, disp: dispBase, n: dispBase.soma.vencendo, Icon: CalendarClock, cor: "atencao" as const, desc: "Produtos com validade perto do fim" },
   ];
   // B10: "Tudo certo!" só quando também não há nada "de olho" (conta vencendo hoje, alerta de antifurto…)
   const tudoCerto = pronto && !visao.carregando && !visao.erro && kpis.every((k) => k.n === 0 && k.disp.estado === "total") && deOlho(t) === 0;
@@ -658,11 +659,11 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
             </p>
           ) : (
             <div className="@container"><div data-testid="grade-pendencias" className="grid grid-cols-1 gap-3 @[18rem]:grid-cols-2 @[52rem]:grid-cols-4">
-              {kpis.map(({ label, n, Icon, cor, desc, disp }) => {
+              {kpis.map(({ label, assunto, n, Icon, cor, desc, disp }) => {
                 const ativo = disp.estado !== "indisponivel" && n > 0;
                 const borda = !ativo ? "border-border bg-secondary/70" : cor === "urgente" ? "border-destructive/60 bg-destructive/10" : "border-warning/60 bg-warning/10";
                 return (
-                  <button key={label} type="button" onClick={onAlertas} className={`min-w-0 rounded-3xl border p-4 text-left [overflow-wrap:anywhere] transition hover:border-primary ${borda}`}>
+                  <button key={label} type="button" onClick={() => onAlertas(assunto)} className={`min-w-0 rounded-3xl border p-4 text-left [overflow-wrap:anywhere] transition hover:border-primary ${borda}`}>
                     <Icon size={20} className={!ativo ? "text-muted-foreground" : cor === "urgente" ? "text-destructive" : "text-warning"} />
                     <p className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">{disp.estado !== "indisponivel" ? n : visao.carregando || Object.keys(visao.geral).length === 0 ? "…" : "—"}</p>
                     <p className="mt-1 text-xs leading-tight text-muted-foreground sm:text-sm">{label}</p>
@@ -713,7 +714,7 @@ function disponibilidade(stores: StoreData[], visao: VisaoGeral, comAvisos: bool
     return !comAvisos || (!!g.vendas && !!g.dif);
   });
   const estado: "total" | "subtotal" | "indisponivel" = validos.length === 0 ? "indisponivel" : validos.length === ids.length ? "total" : "subtotal";
-  return { estado, validos: validos.length, total: ids.length, soma: somaResumos(validos.map((id) => visao.resumos[id]!)) };
+  return { estado, validos: validos.length, idsValidos: validos, total: ids.length, soma: somaResumos(validos.map((id) => visao.resumos[id]!)) };
 }
 
 /** RMC-01: vários comércios em lista vertical no celular e grade nas telas maiores, com "Adicionar" no fim. */
@@ -840,10 +841,12 @@ function CartoesComercios({ stores, visao, onAdd, onOpen, detalhado = false }: {
 }
 
 /** Menu Alertas: o "Atenção hoje" de cada comércio, o mais urgente primeiro. Tocar abre o comércio no lugar certo. */
-function Alertas({ stores, visao, suppliers, onAbrir, onTentar }: {
+function Alertas({ stores, visao, suppliers, onAbrir, onTentar, assunto, onVerTodos }: {
   stores: StoreData[]; visao: VisaoGeral; suppliers: Supplier[]; onAbrir: (s: StoreData, inicio?: InicioComercio) => void; onTentar: () => void;
+  assunto: AssuntoAlertaGlobal | null; onVerTodos: () => void;
 }) {
   const hoje = useHoje();
+  if (assunto) return <AlertasFiltrados stores={stores} visao={visao} suppliers={suppliers} onAbrir={onAbrir} onTentar={onTentar} assunto={assunto} onVerTodos={onVerTodos} hoje={hoje} />;
   const comId = stores.map((s) => ({ s, id: idDe(s) })).filter((x): x is { s: StoreData; id: string } => !!x.id);
   const prontos = comId.filter((x) => visao.resumos[x.id]);
   const comAviso = prontos.filter((x) => paraResolver(visao.resumos[x.id]!) + deOlho(visao.resumos[x.id]!) > 0)
@@ -907,3 +910,76 @@ function Alertas({ stores, visao, suppliers, onAbrir, onTentar }: {
   );
 }
 
+/** C4-B: recorte de leitura dos quatro indicadores; a aba Alertas sem filtro permanece intacta até C4-C. */
+function AlertasFiltrados({ stores, visao, suppliers, onAbrir, onTentar, assunto, onVerTodos, hoje }: {
+  stores: StoreData[]; visao: VisaoGeral; suppliers: Supplier[];
+  onAbrir: (s: StoreData, inicio?: InicioComercio) => void; onTentar: () => void;
+  assunto: AssuntoAlertaGlobal; onVerTodos: () => void; hoje: string;
+}) {
+  const titulos: Record<AssuntoAlertaGlobal, string> = {
+    resolver: "Para resolver agora", repor: "Para repor", comprar: "Para comprar", vencendo: "Vencem em breve",
+  };
+  // Os mesmos IDs da C2: nunca utilizar produtos/pedidos antigos nem ausência de vendas/diferenças em Resolver.
+  const disp = disponibilidade(stores, visao, assunto === "resolver");
+  const validos = new Set(disp.idsValidos);
+  const comId = stores.flatMap((s, ordem) => { const id = idDe(s); return id ? [{ s, id, ordem }] : []; });
+  const faltando = comId.filter((x) => !validos.has(x.id));
+  const contar = (r: ResumoComercio) => assunto === "resolver" ? paraResolver(r) : r[assunto];
+  const comAviso = comId.filter((x) => validos.has(x.id) && !!visao.resumos[x.id] && contar(visao.resumos[x.id]!) > 0)
+    .sort((a, b) => contar(visao.resumos[b.id]!) - contar(visao.resumos[a.id]!)
+      || a.s.nome.localeCompare(b.s.nome, "pt-BR") || a.ordem - b.ordem);
+  const n = contar(disp.soma);
+  const completo = disp.estado === "total";
+  return (
+    <div className="mx-auto max-w-3xl space-y-5 animate-in fade-in duration-300">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold">Alertas</h1>
+          <p className="text-sm font-semibold text-primary">Assunto: {titulos[assunto]}</p>
+          <p className="text-sm text-muted-foreground">Somente este assunto, separado por comércio e com dados confirmados.</p>
+        </div>
+        <button type="button" onClick={onVerTodos} className="min-h-12 rounded-xl border border-border px-4 text-sm font-semibold text-primary">Ver todos os alertas</button>
+      </div>
+      {!stores.length && <p className="rounded-2xl border border-border p-4 text-sm">Cadastre um comércio para acompanhar os alertas.</p>}
+      {!completo && comId.length > 0 && (
+        <div role="status" className="space-y-2 rounded-2xl border border-warning/60 p-3 text-sm">
+          <p className="font-semibold">{visao.carregando ? "Consultando comércios…" : "Consulta incompleta"}</p>
+          <p>Entre os {disp.validos} de {disp.total} comércios conferidos. As quantidades abaixo não representam todos os seus comércios.</p>
+          {faltando.length > 0 && <p className="text-muted-foreground">Sem confirmação nesta consulta: {faltando.map((x) => x.s.nome).join(", ")}.</p>}
+          {!visao.carregando && <button type="button" onClick={onTentar} className="min-h-11 rounded-xl border border-border px-3 font-semibold">Tentar de novo</button>}
+        </div>
+      )}
+      {disp.estado !== "indisponivel" && (
+        <p className="text-sm font-semibold">{n} {assunto === "resolver" ? (n === 1 ? "pendência confirmada" : "pendências confirmadas") : (n === 1 ? "produto confirmado" : "produtos confirmados")}{completo ? "" : " nos comércios conferidos"}.</p>
+      )}
+      {disp.estado === "total" && n === 0 && <p className="rounded-2xl border border-border bg-secondary/40 p-4 text-sm">Nenhuma pendência deste assunto nos comércios conferidos.</p>}
+      {comAviso.map(({ s, id }) => {
+        const g = visao.geral[id]!;
+        const Icon = iconOf(s.tipo);
+        const quantidade = contar(visao.resumos[id]!);
+        return (
+          <section key={id} aria-label={s.nome} className="space-y-2">
+            <button type="button" onClick={() => onAbrir(s)} className="flex w-full items-center gap-3 rounded-2xl px-1 py-1 text-left">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary"><Icon size={20} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-bold">{s.nome}</span>
+                <span className="block text-xs text-muted-foreground">{quantidade} {assunto === "resolver" ? (quantidade === 1 ? "pendência" : "pendências") : (quantidade === 1 ? "produto" : "produtos")} · {titulos[assunto]}</span>
+              </span>
+              <span className="flex shrink-0 items-center text-sm font-semibold text-primary">Abrir <ChevronRight size={18} /></span>
+            </button>
+            <AtencaoHoje key={id + ":" + assunto} assuntoGlobal={assunto}
+              products={g.produtos} tipo={s.tipo} suppliers={suppliers} jaPedidos={produtosJaPedidos(g.pedidos)}
+              contas={resumoPagamentos(g.pedidos, hoje)} entregasDecidir={entregasParaDecidir(g.pedidos)}
+              onOpen={(p) => onAbrir(s, { produtoId: p.id })}
+              onFazerPedido={() => onAbrir(s, { pedidos: "montar" })}
+              onVerContas={() => onAbrir(s, { pedidos: "contas" })}
+              onVerEntregas={() => onAbrir(s, { pedidos: "lista" })}
+              semCadastro={g.vendas?.semCadastro ?? 0} onVerSemCadastro={() => onAbrir(s, { aba: "Vendas" })}
+              diferencas={visao.decidir[id] ?? 0} onVerDiferencas={() => onAbrir(s, { aba: "Diferenças" })}
+              antifurto={visao.alertas[id]} onVerAntifurto={() => onAbrir(s, { relatorio: true })} />
+          </section>
+        );
+      })}
+    </div>
+  );
+}
