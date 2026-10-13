@@ -874,18 +874,25 @@ function Alertas({ stores, visao, suppliers, onAbrir, onTentar, assunto, onVerTo
   const hoje = useHoje();
   if (assunto) return <AlertasFiltrados stores={stores} visao={visao} suppliers={suppliers} onAbrir={onAbrir} onTentar={onTentar} assunto={assunto} onVerTodos={onVerTodos} hoje={hoje} />;
   const comId = stores.map((s) => ({ s, id: idDe(s) })).filter((x): x is { s: StoreData; id: string } => !!x.id);
-  const prontos = comId.filter((x) => visao.resumos[x.id]);
-  const comAviso = prontos.filter((x) => paraResolver(visao.resumos[x.id]!) + deOlho(visao.resumos[x.id]!) > 0)
-    .sort((a, b) => paraResolver(visao.resumos[b.id]!) - paraResolver(visao.resumos[a.id]!) || deOlho(visao.resumos[b.id]!) - deOlho(visao.resumos[a.id]!));
-  const completo = (id: string) => { const g = visao.geral[id]; return g?.estado === "ok" && !!g.vendas && !!g.dif; };
-  const semAviso = prontos.filter((x) => !comAviso.includes(x) && completo(x.id));
-  const faltando = comId.filter((x) => !completo(x.id));
+  const leitura = resumoAvisosConfirmados(stores, visao);
+  const prontos = comId.filter((x) => leitura.base.has(x.id));
+  const resumoSeguro = (id: string) => leitura.parciais.get(id) ?? visao.resumos[id]!;
+  const comAviso = prontos.filter((x) => paraResolver(resumoSeguro(x.id)) + deOlho(resumoSeguro(x.id)) > 0)
+    .sort((a, b) => paraResolver(resumoSeguro(b.id)) - paraResolver(resumoSeguro(a.id)) || deOlho(resumoSeguro(b.id)) - deOlho(resumoSeguro(a.id)));
+  const semAviso = prontos.filter((x) => !comAviso.includes(x) && leitura.completo.has(x.id));
+  const faltando = comId.filter((x) => !leitura.completo.has(x.id));
   const comFalha = faltando.some((x) => visao.geral[x.id]?.estado === "erro" || visao.geral[x.id]?.estado === "ok");
   return (
     <div className="mx-auto max-w-3xl space-y-5 animate-in fade-in duration-300">
-      <div>
-        <h1 className="text-xl font-bold">Alertas</h1>
-        <p className="text-sm text-muted-foreground">O que precisa de atenção em todos os seus comércios. O mais urgente vem primeiro.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold">Alertas</h1>
+          <p className="text-sm text-muted-foreground">O que precisa de atenção em todos os seus comércios. O mais urgente vem primeiro.</p>
+        </div>
+        {comId.length > 0 && <button type="button" disabled={visao.carregando} onClick={onTentar}
+          className="min-h-12 rounded-xl border border-border px-4 text-sm font-semibold text-primary disabled:opacity-60">
+          {visao.carregando ? "Atualizando alertas…" : "Atualizar alertas"}
+        </button>}
       </div>
       {!stores.length && <p className="rounded-3xl border border-border bg-secondary/40 p-6 text-center text-sm text-muted-foreground">Cadastre um comércio para ver os alertas aqui.</p>}
       {faltando.length > 0 && (
@@ -902,7 +909,8 @@ function Alertas({ stores, visao, suppliers, onAbrir, onTentar, assunto, onVerTo
       {comAviso.map(({ s, id }) => {
         const g = visao.geral[id]!;
         const Icon = iconOf(s.tipo);
-        const f = fraseComercio(visao.resumos[id]!);
+        const consultaCompleta = leitura.completo.has(id);
+        const f = fraseComercio(resumoSeguro(id));
         return (
           <section key={id} aria-label={s.nome} className="space-y-2">
             <button type="button" onClick={() => onAbrir(s)} className="flex w-full items-center gap-3 rounded-2xl px-1 py-1 text-left">
@@ -914,15 +922,18 @@ function Alertas({ stores, visao, suppliers, onAbrir, onTentar, assunto, onVerTo
               </span>
               <span className="flex shrink-0 items-center text-sm font-semibold text-primary">Abrir <ChevronRight size={18} /></span>
             </button>
+            {!consultaCompleta && <p role="status" className="rounded-xl border border-warning/60 p-3 text-xs text-muted-foreground">
+              Consulta incompleta nesta unidade: apenas os avisos de produtos e pedidos estão confirmados; vendas e diferenças precisam de nova consulta.
+            </p>}
             <AtencaoHoje products={g.produtos} tipo={s.tipo} suppliers={suppliers} jaPedidos={produtosJaPedidos(g.pedidos)}
               contas={resumoPagamentos(g.pedidos, hoje)} entregasDecidir={entregasParaDecidir(g.pedidos)}
               onOpen={(p) => onAbrir(s, { produtoId: p.id })}
               onFazerPedido={() => onAbrir(s, { pedidos: "montar" })}
               onVerContas={() => onAbrir(s, { pedidos: "contas" })}
               onVerEntregas={() => onAbrir(s, { pedidos: "lista" })}
-              semCadastro={g.vendas?.semCadastro ?? 0} onVerSemCadastro={() => onAbrir(s, { aba: "Vendas" })}
-              diferencas={visao.decidir[id] ?? 0} onVerDiferencas={() => onAbrir(s, { aba: "Diferenças" })}
-              antifurto={visao.alertas[id]} onVerAntifurto={() => onAbrir(s, { relatorio: true })} />
+              semCadastro={consultaCompleta ? (g.vendas?.semCadastro ?? 0) : 0} onVerSemCadastro={() => onAbrir(s, { aba: "Vendas" })}
+              diferencas={consultaCompleta ? (visao.decidir[id] ?? 0) : 0} onVerDiferencas={() => onAbrir(s, { aba: "Diferenças" })}
+              antifurto={consultaCompleta ? visao.alertas[id] : undefined} onVerAntifurto={() => onAbrir(s, { relatorio: true })} />
           </section>
         );
       })}
