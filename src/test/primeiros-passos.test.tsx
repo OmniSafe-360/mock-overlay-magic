@@ -64,11 +64,11 @@ describe("primeiros passos", () => {
   it("RMC-01/02B: comércios em lista/grade na aba Comércios, sem carrossel; Início só com o resumo", async () => {
     render(<OwnerApp userId="u1" owner="Monica" initial={[loja, { ...loja, id: "c2", nome: "Mercado Dois" }]} />);
     // 1. Início: resumo, sem cartões
-    expect(screen.getByText("Resumo de hoje")).toBeInTheDocument();
+    expect(screen.getByText("Situação dos comércios")).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Seus comércios" })).toBeNull();
     fireEvent.click(screen.getAllByRole("button", { name: "Comércios" })[0]!);
     const secao = await screen.findByRole("region", { name: "Seus comércios" });
-    expect(screen.queryByText("Resumo de hoje")).toBeNull();
+    expect(screen.queryByText("Situação dos comércios")).toBeNull();
     // 2 e 4. cada comércio uma única vez, com o nome acessível preservado
     expect(within(secao).getAllByRole("button", { name: `Entrar no ${loja.nome}` })).toHaveLength(1);
     expect(within(secao).getAllByRole("button", { name: "Entrar no Mercado Dois" })).toHaveLength(1);
@@ -84,6 +84,6 @@ describe("primeiros passos", () => {
     // 5. "Adicionar comércio" continua funcionando (abre o cadastro)
     fireEvent.click(within(secao).getByRole("button", { name: "Adicionar comércio" }));
     await waitFor(() => expect(screen.queryByRole("region", { name: "Seus comércios" })).toBeNull());
-    expect(screen.queryByText("Resumo de hoje")).toBeNull();
+    expect(screen.queryByText("Situação dos comércios")).toBeNull();
   });
 });
