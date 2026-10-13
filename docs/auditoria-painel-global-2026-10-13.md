@@ -142,3 +142,15 @@ Validação local: `npx tsc --noEmit` **duas vezes** e `npx vitest run` **duas v
 ## Entrega C3-B (13/10/2026)
 
 Autorizada pelo dono. Só apresentação em `OwnerHome.tsx`: Vendas hoje e Faltou este mês ficam lado a lado quando o cartão tem pelo menos 26rem de largura; mais estreito, o valor ganha linha própria (todos os dígitos e centavos, quebra se for preciso) e status/ação vão para baixo com um separador discreto. Decisão pela largura do próprio cartão (container query), não da tela. Pendências: 1 coluna em espaço muito estreito, 2 a partir de 18rem, 4 a partir de 52rem; cartões com `min-w-0` e quebra de texto. Cálculos, textos, nomes acessíveis, botões e destinos iguais. Teste `src/test/rmc-c3b.test.tsx`; tipos e 102 arquivos de teste passaram duas vezes. Conferência visual no navegador com sessão real não feita neste ambiente. **RMC-02C/C3-B — Implementada no código, aguardando publicação e validação manual do proprietário.**
+
+## Entrega em revisão — RMC-04/C4-A (13/10/2026)
+
+**Implementação autorizada pelo proprietário, em branch separada e PR sujeito a revisão.** Base: `main 108332fe865d`. Referência de proposta documental: [PR #127](https://github.com/OmniSafe-360/mock-overlay-magic/pull/127), **não integrado**. Este registro descreve a nova branch de implementação e não encerra a etapa.
+
+- `HomeContent` em `src/components/OwnerHome.tsx`: título da região de “Resumo de hoje” para **“Situação dos comércios”**; sequência visual **Resultado de hoje / Vendas hoje → Pendências que precisam de atenção → Resultado deste mês / Faltou este mês**. Preservados `aria-label="Resumo geral"`, nomes dos indicadores, `aria-label` dos botões, condições de carregamento, valores e `onClick` existentes.
+- Descrição do cartão mensal ajustada para **“Valor das faltas identificadas nas diferenças do estoque neste mês”**, alinhada a `alertasAntifurto(...).faltouMes` e ao filtro `ehFalta` de `src/lib/antifurto.ts`. Perdas são registradas separadamente; nenhuma regra de antifurto ou soma foi alterada.
+- A grade dinâmica dos quatro KPIs e as classes de container query da C3-B foram preservadas. A realocação dos cartões financeiros demanda nova conferência geométrica em 320/390/768/1024/1280 px e texto ampliado.
+- Ajustada exclusivamente a ordem esperada no teste de apresentação C3 de `src/test/rmc-02c.test.tsx`. Adicionado `src/test/rmc-c4a.test.tsx` para título/semântica/ordem, preservação dos valores, subtotal e acesso a Alertas.
+- Não houve alteração no banco, SQL, operações das lojas, `StoreSpace.tsx`, `src/lib/resumoGeral.ts`, `src/lib/antifurto.ts`, carga de dados ou destinos da navegação.
+
+**Validação antes da integração:** o workflow de GitHub Actions no PR deve comprovar `tsc --noEmit` e Vitest completos em duas rodadas e `npm run build`. Resultados ainda não confirmados neste registro. A verificação visual completa (incluindo C3-B), a publicação `Publicar → Atualizar` e a homologação no aparelho do proprietário permanecem pendentes. **Não mesclar sem aprovação do proprietário.** C4-B/C4-C/C4-D, RMC-03/05/06 e correção autônoma de Alertas não foram iniciadas.
