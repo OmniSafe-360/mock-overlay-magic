@@ -604,6 +604,18 @@ function HomeContent({ modo, stores, visao, fornecedores, locais, onPasso, onAdd
       ) : (
         <ListaComercios stores={stores} visao={visao} onOpen={onOpen} onAdd={onAdd} escolherVendas={escolherVendas} onCancelarEscolha={onCancelarEscolha} />
       )}
+      {modo === "inicio" && stores.length > 0 && (() => {
+        // RMC-02C/C1: completo = produtos ok + vendas + diferenças/antifurto disponíveis
+        const completos = stores.filter((s) => { const g = visao.geral[idDe(s) ?? ""]; return g?.estado === "ok" && !!g.vendas && !!g.dif; }).length;
+        return (
+          <header aria-label="Visão geral" className="-mb-4">
+            <p className="text-sm font-semibold">Visão geral dos seus comércios</p>
+            <p className="text-xs text-muted-foreground">
+              {stores.length === 1 ? "1 comércio cadastrado" : `${stores.length} comércios cadastrados`} · {completos === 1 ? "1 com dados completos" : `${completos} com dados completos`}
+            </p>
+          </header>
+        );
+      })()}
       {modo === "inicio" && stores.length > 0 && (
         <section aria-label="Resumo geral">
           <div className="mb-3 flex items-center justify-between gap-2">
