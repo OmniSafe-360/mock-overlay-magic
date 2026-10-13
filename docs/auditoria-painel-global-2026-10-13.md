@@ -86,10 +86,10 @@ A tela inicial deve continuar útil com uma unidade e permanecer curta com seis:
 | Ordem | Identificador | Entrega e aceite | Situação |
 | --- | --- | --- | --- |
 | 1 | RMC-02C/C3-A | Corrigir margens/alturas que sobrepõem títulos; manter textos, valores, ações e ordem. Nenhum cartão invade outro grupo em 320/390/768/1024/1280 px | Implementada com autorização do dono; publicação e teste manual pendentes |
-| 2 | RMC-02C/C3-B | Valores grandes, texto ampliado, nomes longos e tablet; leitura completa e alvo de toque adequado | Planejada; apresentar patch próprio |
-| 3 | RMC-04/C4-A | Clareza dos títulos/períodos e ordem dos blocos; manter significado dos totais, neutro entre tipos | Planejada |
-| 4 | RMC-04/C4-B | Destino específico dos indicadores, comércio identificado e retorno preservado; reaproveitar Alertas | Planejada |
-| 5 | RMC-04/C4-C | Atualização explícita e coerência de leitura parcial, inclusive sino/detalhes; falha nunca vira zero | Planejada |
+| 2 | RMC-02C/C3-B | Valores grandes, texto ampliado, nomes longos e tablet; leitura completa e alvo de toque adequado | Implementada em main; publicação/teste manual pendentes |
+| 3 | RMC-04/C4-A | Clareza dos títulos/períodos e ordem dos blocos; manter significado dos totais, neutro entre tipos | Integrada no PR #128; publicação/teste manual pendentes |
+| 4 | RMC-04/C4-B | Destino específico dos indicadores, comércio identificado e retorno preservado; reaproveitar Alertas | Integrada no PR #130; publicação/teste manual pendentes |
+| 5 | RMC-04/C4-C | Atualização explícita e coerência de leitura parcial, inclusive sino/detalhes; falha nunca vira zero | Proposta C4-C1 abaixo; C4-C2 pendente; nenhuma aplicada |
 | 6 | RMC-04/C4-D | Avaliar necessidade de destaque para decisões/conferências; só implementar após mapear fontes e aprovação | Opcional, não implementada |
 | 7 | RMC-06 | Regressão funcional e visual, publicação e homologação do dono em aparelho real | Pendente |
 
@@ -166,3 +166,104 @@ Autorizada pelo dono. Só apresentação em `OwnerHome.tsx`: Vendas hoje e Falto
 - Sem mudanças em banco/Supabase, SQL, cálculo de `ResumoComercio`, `StoreSpace.tsx`, controles de vendas, reposição, pedidos, autenticação, RLS ou novos endpoints.
 
 **Status:** implementado na branch de revisão, **ainda não integrado**, aguardando GitHub Actions, inspeção do diff e aprovação do dono. Testes locais e visuais reais não são reivindicados neste registro. **Publicar → Atualizar** e homologar no celular somente depois da aprovação e integração. A aba Alertas normal e o sino continuam com o problema previamente identificado de dados antigos; isso é escopo **C4-C**, não desta etapa.
+
+## Situação conferida no GitHub e próxima proposta C4-C1
+
+Consulta de 13/10/2026, base `main 8aca066`. Este registro atualiza a situação administrativa dos registros históricos acima: **C3-A, C3-B, C4-A e C4-B estão no main**. [PR #128](https://github.com/OmniSafe-360/mock-overlay-magic/pull/128) mesclado às 20h58m44s UTC, CI `38466127017` aprovado; [PR #130](https://github.com/OmniSafe-360/mock-overlay-magic/pull/130) mesclado às 21h35m56s UTC, CI `38469612409` aprovado. As frases anteriores “ainda não integrado/CI pendente” descrevem o momento das entregas, não o estado atual. Não reaplicar essas correções. Não há confirmação nesta tarefa de Publicar → Atualizar ou teste no aparelho do dono; manter os itens abertos para homologação.
+
+**Faltam duas etapas principais do painel:** C4-C (atualização/coerência) e RMC-06 (regressão visual/funcional, publicação e teste manual). C4-D é opcional. RMC-03/05 e frentes G/E permanecem separadas, não encerradas por esta consulta.
+
+Para manter entregas pequenas, C4-C fica dividida:
+
+- **C4-C1, proposta pronta:** Atualizar no Início usando a leitura existente, sem criar chamadas de negócio; desabilitar o botão durante a leitura; sino usa disponibilidade C2 em vez de somar urgências antigas, distinguindo atualização/consulta incompleta; lista Alertas normal exclui produtos/pedidos antigos, preservando os avisos por loja e ações de leitura confirmadas.
+- **C4-C2, ainda precisa de proposta:** estados/atualização dos valores financeiros e relatório geral durante leitura em andamento; avaliar a indicação de quando cada leitura foi concluída. Não chamar número em cache de “atualizado agora”. C4-C1 não resolve nem altera esses cartões/relatórios.
+
+### Problema reproduzido e efeito para o dono
+
+Após uma leitura com urgência na unidade B, se a próxima leitura de B falha, `visao.total` e `visao.resumos` ainda podem conter seus produtos antigos. Isso mantém a urgência no sino e a seção de B em Alertas sem filtro, embora o indicador C2/recorte C4-B já exclua B. Reproduzido em teste local do código atual; o botão Atualizar painel também não existe atualmente.
+
+Proposta: sinal amarelo quando a consulta está incompleta, sem apresentar a antiga urgência como confirmada; aviso continua identificando qual comércio não foi confirmado. A seção dessa loja deixa temporariamente a lista geral. As outras lojas confirmadas continuam utilizáveis. Dados guardados não são apagados, “Tudo certo!” não aparece com consulta incompleta e Tentar de novo recupera a seção ao confirmar a leitura. Vendas ou diferenças indisponíveis não impedem mostrar a reposição baseada em produtos/pedidos atuais, mas o aviso de incompletude permanece.
+
+### Arquivos exatos e limites da aplicação futura
+
+1. `src/components/OwnerHome.tsx`: somente composição visual do sino, botão Atualizar em HomeContent e seleção dos dados atuais de Alertas sem filtro.
+2. `src/test/rmc-c4c.test.tsx`: novo teste de cinco cenários (falha após sucesso no sino; lista geral/recuperação; clique/bloqueio de Atualizar; produtos confirmados com vendas indisponíveis; conta sem comércios).
+3. `docs/auditoria-painel-global-2026-10-13.md`, `docs/FONTE_DA_VERDADE.md`, `docs/CHECKLIST_PONTA_A_PONTA.md`, `CLAUDE.md`: registrar a entrega e evidências.
+
+**Impactos para validação prévia:** uma loja que falhou deixa de aparecer como confirmada em Alertas até uma leitura válida; o sino pode ficar amarelo por consulta incompleta, sem representar urgência de mercadoria confirmada. Atualizar repete leituras e fica indisponível enquanto aguarda. Nenhum ajuste automático, SQL, permissão, saldo, transação, rota, cálculo financeiro, formulário de comércio ou regra de compra/reposição é modificado. Preservar a função original de disponibilidade, os filtros C4-B e o retorno da unidade.
+
+**Esta proposta foi construída apenas em cópia isolada** `/tmp/omni-owner-c4c-proposta/repo`; não está aplicada ao aplicativo oficial nem ao banco. A entrega atual publica somente os quatro registros documentais. O novo teste existe apenas na cópia até aprovação da aplicação.
+
+### Código proposto para C4-C1
+
+```diff
+--- a/src/components/OwnerHome.tsx
++++ b/src/components/OwnerHome.tsx
+@@ -240,6 +240,12 @@
+     const gs = Object.values(geral);
+     return { geral, resumos, alertas, decidir, antifurto, total: somaResumos(Object.values(resumos)), carregando: gs.some((g) => g.estado === "carregando"), erro: gs.some((g) => g.estado === "erro" || (g.estado === "ok" && (!g.vendas || !g.dif))) };
+   }, [stores, geral, hojeGeral]);
++  // C4-C1: o sino usa os mesmos comércios confirmados de Resolver agora.
++  const dispSino = disponibilidade(stores, visao, true);
++  const urgentesSino = paraResolver(dispSino.soma);
++  const incompletoSino = stores.length > 0 && (dispSino.estado !== "total" || visao.erro);
++  const nomeSino = (urgentesSino ? `Alertas: ${urgentesSino} para resolver agora` : "Alertas")
++    + (visao.carregando ? "; atualizando" : incompletoSino ? "; consulta incompleta" : "");
+   const [verAntifurto, setVerAntifurto] = useState(false);
+   useEffect(() => { if (tab !== "inicio") setVerAntifurto(false); }, [tab]);
+   // RMC-02B: o comércio abre por cima da aba atual; o Voltar devolve à aba (ou ao Antifurto) de origem.
+@@ -435,10 +441,10 @@
+               <span className="md:hidden"><LogoMark size={36} /></span>
+               <p className="truncate text-lg font-bold">{owner ? `Olá, ${owner}` : "Olá!"}</p>
+             </div>
+-            <button type="button" aria-label={paraResolver(visao.total) ? `Alertas: ${paraResolver(visao.total)} para resolver agora` : "Alertas"} onClick={() => irPara("alertas")}
++            <button type="button" aria-label={nomeSino} onClick={() => irPara("alertas")}
+               className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-secondary/60 text-foreground hover:border-primary">
+               <Bell size={20} />
+-              {(paraResolver(visao.total) > 0 || deOlho(visao.total) > 0) && <span className={`absolute right-3 top-3 h-2.5 w-2.5 rounded-full ${paraResolver(visao.total) ? "bg-destructive" : "bg-warning"}`} />}
++              {(urgentesSino > 0 || deOlho(dispSino.soma) > 0 || incompletoSino) && <span className={`absolute right-3 top-3 h-2.5 w-2.5 rounded-full ${urgentesSino ? "bg-destructive" : "bg-warning"}`} />}
+             </button>
+           </div>
+         </header>
+@@ -623,9 +629,12 @@
+       })()}
+       {modo === "inicio" && stores.length > 0 && (
+         <section aria-label="Resumo geral">
+-          <div className="mb-3 flex items-center justify-between gap-2">
++          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+             <h2 className="text-base font-semibold">Situação dos comércios</h2>
+-            {visao.carregando && <span className="text-xs text-muted-foreground">Atualizando…</span>}
++            <button type="button" aria-label="Atualizar painel" disabled={visao.carregando} onClick={onTentar}
++              className="min-h-11 rounded-xl border border-border px-3 text-sm font-semibold disabled:opacity-50">
++              {visao.carregando ? "Atualizando…" : "Atualizar"}
++            </button>
+           </div>
+           {visao.erro && !visao.carregando && (
+             <div role="alert" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-warning/60 p-3 text-sm">
+@@ -848,10 +857,11 @@
+   const hoje = useHoje();
+   if (assunto) return <AlertasFiltrados stores={stores} visao={visao} suppliers={suppliers} onAbrir={onAbrir} onTentar={onTentar} assunto={assunto} onVerTodos={onVerTodos} hoje={hoje} />;
+   const comId = stores.map((s) => ({ s, id: idDe(s) })).filter((x): x is { s: StoreData; id: string } => !!x.id);
+-  const prontos = comId.filter((x) => visao.resumos[x.id]);
++  const idsConfirmados = new Set(disponibilidade(stores, visao, false).idsValidos);
++  const prontos = comId.filter((x) => idsConfirmados.has(x.id));
+   const comAviso = prontos.filter((x) => paraResolver(visao.resumos[x.id]!) + deOlho(visao.resumos[x.id]!) > 0)
+     .sort((a, b) => paraResolver(visao.resumos[b.id]!) - paraResolver(visao.resumos[a.id]!) || deOlho(visao.resumos[b.id]!) - deOlho(visao.resumos[a.id]!));
+-  const completo = (id: string) => { const g = visao.geral[id]; return g?.estado === "ok" && !!g.vendas && !!g.dif; };
++  const completo = (id: string) => { const g = visao.geral[id]; return idsConfirmados.has(id) && g?.estado === "ok" && !!g.vendas && !!g.dif; };
+   const semAviso = prontos.filter((x) => !comAviso.includes(x) && completo(x.id));
+   const faltando = comId.filter((x) => !completo(x.id));
+   const comFalha = faltando.some((x) => visao.geral[x.id]?.estado === "erro" || visao.geral[x.id]?.estado === "ok");
+```
+
+### Validação da proposta e aceite
+
+- Cópia candidata: tipos duas vezes, **1.066 testes em 105 arquivos duas vezes**, `npm run build` aprovado com Supabase fictício. Os cinco novos testes exercitam comportamento; nenhum teste existente alterado. Focados: **41 testes em quatro arquivos aprovados** (C4-C1, C4-B, C2 e resumo geral).
+- Reprodução inicial no código atual: o sino conserva urgência antiga após falha e não há Atualizar painel. Dois seletores do teste inicial eram ambíguos porque menu e sino compartilham “Alertas”; corrigidos somente no novo teste isolado. O primeiro rascunho também apresentou erro de escopo/tipagem; corrigido na cópia antes das duas rodadas completas, sem tocar o aplicativo oficial. Não atribuir essas falhas de preparação ao sistema publicado.
+- Chromium: quatro cenários em **320/390/768/1280 px**, seis unidades/tipos, falha depois do sucesso, botão de 44 px, sino incompleto e exclusão da unidade antiga, preservando unidade confirmada. Zero erros JavaScript; componente/CSS reais da proposta, dados fictícios e rede externa bloqueada.
+- Artefatos locais: `/tmp/omni-owner-c4c-proposta` (patch, testes/logs, capturas e resultado). Proposta ainda não aplicada; não representa sessão/aparelho do dono, banco real ou capacidade de produção. Os checks do PR documental validam o **código atual**, não aplicam nem publicam a proposta.
+
+
+Após aplicação aprovada/publicação: tocar Atualizar; verificar bloqueio enquanto aguarda; simular internet instável e conferir nomes das lojas não confirmadas; abrir sino/lista normal e os quatro recortes C4-B; recuperar internet e repetir; conferir retorno e preservar acesso aos módulos operacionais. RMC-06 permanece pendente para aparelho real/volume/fluxos completos.
+
+**Regra de autorização:** seção 0 da fonte: “antes de alterar o aplicativo ou o banco, apresentar o código proposto, a lista exata dos arquivos e os impactos para validação do dono”. O pedido atual autoriza conferir o que falta e preparar esta próxima correção; aplicar o patch acima depende da validação prévia da proposta concreta.

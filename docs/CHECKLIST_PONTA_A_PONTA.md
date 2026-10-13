@@ -325,16 +325,16 @@ Regras e controle obrigatório na seção 16 da [fonte da verdade](FONTE_DA_VERD
 - [ ] **RMC-05 Separação entre a navegação geral do proprietário e a navegação interna da unidade.**
 - [ ] **RMC-06 Testes de regressão e homologação da reorganização.**
 
-Próximo passo atualizado: C3-A autorizada pelo dono e implementada; concluir publicação/teste manual. Apresentar C3-B antes de aplicar a próxima correção; RMC-03 permanece pendente.
+Próximo passo atualizado em `main 8aca066`: C3-A/B e C4-A/B já integradas; falta publicação/teste manual. Validar a proposta C4-C1 abaixo; preparar C4-C2 e RMC-06. RMC-03 permanece pendente.
 
 ### Auditoria do painel global — atualização de prioridade em 13/10/2026
 
 [Detalhes, código proposto, arquivos, impactos e evidências](auditoria-painel-global-2026-10-13.md). Base `e169e89`. Análise documental entregue; nenhuma correção funcional aplicada.
 
 - [ ] **RMC-02C/C3-A:** autorizada pelo dono (“Pode fazer a primeira etapa”), implementada nos três trechos previstos de `OwnerHome.tsx`: removida a margem negativa do cabeçalho global e `h-full` dos dois cartões de valores. **Pronto no código, falta Publicar → Atualizar e o teste do dono.** Navegador: 25 cenários com 1/6 comércios, parcial, valores grandes e texto 200%, em 320/390/768/1024/1280 px; títulos/grupos sem invasão, cartões dentro dos contêineres; zero erros JavaScript. Valores/status dentro dos cartões ficam para C3-B. Validação de tipos/suíte/build registrada no relatório e histórico. Sem banco/cálculos/destinos alterados.
-- [ ] **RMC-02C/C3-B:** valores grandes, tablet e letras ampliadas.
-- [ ] **RMC-04/C4-A:** clareza de títulos, períodos e prioridade dos blocos.
-- [ ] **RMC-04/C4-B:** cada indicador abre seu assunto e identifica o comércio, mantendo retorno.
+- [ ] **RMC-02C/C3-B:** implementada em main; valores grandes, tablet e letras ampliadas; publicação/teste manual pendentes.
+- [ ] **RMC-04/C4-A:** integrada pelo PR #128, CI aprovado; clareza de títulos/períodos/prioridade; publicação/teste manual pendentes.
+- [ ] **RMC-04/C4-B:** integrada pelo PR #130, CI aprovado; cada indicador abre seu assunto/comércio/retorno; publicação/teste manual pendentes.
 - [ ] **RMC-04/C4-C:** atualizar painel e alinhar estado parcial/antigo do sino e detalhes.
 - [ ] **RMC-04/C4-D (opcional):** avaliar destaque de decisões/conferências, reutilizando fontes auditadas.
 - [ ] **RMC-06:** validar visual, navegação e regressões; publicar e obter teste do dono.
@@ -346,3 +346,11 @@ Achado para **G5**, sem implementação nesta frente: 1 + 8 funções de leitura
 - [ ] **RMC-04/C4-A — clareza e prioridade dos blocos (PR para aprovação)** — 13/10/2026. Autorizada ordem Vendas hoje → Pendências → Faltou este mês, título “Situação dos comércios” e descrição mensal consistente com `ehFalta`, sem mudar contas, antifurto, botões, banco ou operações. `OwnerHome.tsx` alterado apenas na apresentação; teste de ordem `rmc-02c.test.tsx` atualizado e novo `rmc-c4a.test.tsx`. Documentado em [auditoria do painel global](auditoria-painel-global-2026-10-13.md#entrega-em-revisão--rmc-04c4-a-13102026). **Em branch/PR separado, aguardando resultado do CI, revisão do dono, publicação e validação visual/manual; não integrar automaticamente.** C4-B/C4-C, RMC-03/05/06 ainda não iniciadas.
 
 - [ ] **RMC-04/C4-B — Destinos por assunto (PR de implementação aguardando aprovação):** botão Resolver/Repor/Comprar/Validade abre Alertas filtrados pelos dados validados da C2; comércio identificado, detalhes pertinentes e “Ver todos os alertas”; navegação do menu/sino sem filtro, Voltar da loja com assunto preservado; uma unidade e várias, casos sem dados confiáveis e subtotal. Código restrito a `OwnerHome.tsx` e `AtencaoHoje.tsx`, novo `rmc-c4b.test.tsx`, expectativa textual em `rmc-02c.test.tsx` e registros oficiais. **CI, build, auditoria de diff, publicação e validação manual pendentes; não integrar automaticamente.** C4-C não iniciada.
+
+### Situação atual conferida em main 8aca066 — 13/10/2026
+
+Os registros anteriores “em PR/CI pendente” de C4-A/B são históricos: os PRs #128/#130 foram mesclados e seus checks estão aprovados. Esta conferência não confirma publicação no Lovable ou teste no aparelho do dono. **Quatro das seis etapas principais do painel estão implementadas; C4-C e RMC-06 ainda faltam, além de C4-D opcional.** Não reaplicar o que já existe.
+
+- [ ] **C4-C1:** proposta em cópia isolada para Atualizar painel, sino e lista geral sem dados antigos apresentados como confirmados. [Código, arquivos, impactos e testes](auditoria-painel-global-2026-10-13.md#situação-conferida-no-github-e-próxima-proposta-c4-c1). Aguarda validação prévia; nenhum código oficial aplicado.
+- [ ] **C4-C2:** revisar estados/atualização dos valores financeiros e relatório geral; avaliar horário de leitura. Apresentar proposta própria, mantendo cálculos.
+- [ ] **RMC-06:** repetir navegação e inspeção visual da versão consolidada, publicar e obter teste do dono.
