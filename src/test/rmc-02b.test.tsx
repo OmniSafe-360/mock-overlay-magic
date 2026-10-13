@@ -75,6 +75,7 @@ describe("RMC-02B: Início com resumo, Comércios com as unidades", () => {
   it("Voltar respeita a origem: Comércios → Comércios, Alertas → Alertas, Antifurto → Antifurto", async () => {
     const d = { id: "d1", produtoId: "c2p", variacaoId: null, area: "venda", origem: "reposicao", esperado: 10, contado: 8, diferenca: -2, valor: -2000,
       funcionario: null, situacao: "explicada", motivo: "sumiu", observacao: null, tentativas: [], resolvida: false, motivoInformado: null, criadaEm: new Date(Date.now() - 60_000).toISOString() };
+    banco.carregarProdutos.mockImplementation(async (id: string) => ({ produtos: id === "c1" ? [{ ...prod("c1p", "Café"), deposito: { local: "Estante A", qtd: 0, min: 5, max: 40 }, areaVenda: { local: "Gôndola 1", qtd: 0, min: 3, max: 12 } }] : [prod("c2p", "Dipirona")], locais: { deposito: ["Estante A"], venda: ["Gôndola 1"] } }));
     banco.carregarDiferencas.mockImplementation(async (id: string) => (id === "c2" ? { diferencas: [d], perdas: [] } : { diferencas: [], perdas: [] }));
     render(<OwnerApp userId="u1" owner="Monica" initial={[lojaA, lojaB]} />);
     comercios();
@@ -83,12 +84,12 @@ describe("RMC-02B: Início com resumo, Comércios com as unidades", () => {
     expect(await screen.findByRole("region", { name: "Seus comércios" })).toBeTruthy();
 
     fireEvent.click(screen.getAllByRole("button", { name: "Alertas" })[0]!);
-    const alerta = await screen.findAllByRole("button", { name: /Produto visado|Faltou no mês|Perdas/ }).catch(() => []);
-    if (alerta.length) {
-      fireEvent.click(alerta[0]!);
-      fireEvent.click(await screen.findByRole("button", { name: /Voltar/ }));
-      expect(await screen.findByRole("heading", { name: "Alertas" })).toBeTruthy();
-    }
+    fireEvent.click(await screen.findByRole("button", { name: /Acabaram/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Café/ }));
+    expect(await screen.findByRole("heading", { name: "Café" })).toBeTruthy();
+    fireEvent.click(screen.getAllByRole("button", { name: /Voltar/ })[0]!);
+    fireEvent.click(await screen.findByRole("button", { name: /Voltar/ }));
+    expect(await screen.findByRole("heading", { name: "Alertas" })).toBeTruthy();
     fireEvent.click(screen.getAllByRole("button", { name: "Início" })[0]!);
     fireEvent.click(await screen.findByRole("button", { name: /Faltou este mês/ }));
     expect(await screen.findByRole("heading", { name: /Antifurto/ })).toBeTruthy();
