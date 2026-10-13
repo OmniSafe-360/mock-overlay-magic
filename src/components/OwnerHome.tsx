@@ -241,6 +241,10 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
     return { geral, resumos, alertas, decidir, antifurto, total: somaResumos(Object.values(resumos)), carregando: gs.some((g) => g.estado === "carregando"), erro: gs.some((g) => g.estado === "erro" || (g.estado === "ok" && (!g.vendas || !g.dif))) };
   }, [stores, geral, hojeGeral]);
   // C4-C1: o sino usa os mesmos comércios confirmados de Resolver agora.
+  // C4-C2: recorte de apresentação, sem alterar dados guardados ou cálculos.
+  const idsFinanceiros = new Set(disponibilidade(stores, visao, false).idsValidos);
+  const visaoFinanceira: VisaoGeral = { ...visao, antifurto: visao.antifurto.map((l) =>
+    idsFinanceiros.has(l.id) ? l : { ...l, alertas: null, maisSumiu: null }) };
   const dispSino = disponibilidade(stores, visao, true);
   const urgentesSino = paraResolver(dispSino.soma);
   const incompletoSino = stores.length > 0 && (dispSino.estado !== "total" || visao.erro);
@@ -498,9 +502,9 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
               onDiferencasMudou={() => { if (sid) { void recarregar(sid); void atualizarAvisos(sid); } }}
               onBack={() => { setOpen(null); setSaved(false); setInicioLoja(undefined); if (voltarPara) { setTab(voltarPara); setVoltarPara(null); } }} onNew={() => openWizard()} onEdit={(p) => openWizard(p)} onDismissSaved={() => setSaved(false)} />
           ) : tab === "inicio" && verAntifurto ? (
-            <AntifurtoGeral linhas={visao.antifurto} carregando={visao.carregando} onAbrir={(s) => abrirLoja(s, { relatorio: true })} onVoltar={() => setVerAntifurto(false)} />
+            <AntifurtoGeral linhas={visaoFinanceira.antifurto} carregando={visao.carregando} onAbrir={(s) => abrirLoja(s, { relatorio: true })} onVoltar={() => setVerAntifurto(false)} />
           ) : tab === "inicio" || tab === "comercios" ? (
-            <HomeContent hoje={hojeGeral} modo={tab} stores={stores} visao={visao} fornecedores={suppliers.length} locais={locais}
+            <HomeContent hoje={hojeGeral} modo={tab} stores={stores} visao={tab === "inicio" ? visaoFinanceira : visao} fornecedores={suppliers.length} locais={locais}
               onPasso={(s, p) => abrirLoja(s, { aba: p.id === "fornecedor" ? "Fornecedores" : p.id === "equipe" ? "Equipe" : p.id === "caixa" ? "Vendas" : "Produtos" })}
               onAdd={() => { setEscolherVendas(false); setVoltarPara(null); setAdding(true); }}
               onOpen={(s) => { if (escolherVendas) { abrirLoja(s, { aba: "Vendas" }); } else { setVoltarPara(null); abrirLoja(s); } }}
@@ -573,13 +577,13 @@ function passosDaTela(stores: StoreData[], visao: VisaoGeral, fornecedores: numb
 function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso, onAdd, onOpen, onAlertas, onVendas, onTentar, onAntifurto, onComercios, escolherVendas = false, onCancelarEscolha }: {
   hoje?: string; modo: "inicio" | "comercios"; onComercios: () => void; stores: StoreData[]; visao: VisaoGeral; fornecedores: number; locais: Record<string, LocaisCadastrados>; onPasso: (s: StoreData, p: Passo) => void; onAdd: () => void; onOpen: (s: StoreData) => void; onAlertas: (assunto: AssuntoAlertaGlobal) => void; onVendas: () => void; onTentar: () => void; onAntifurto: () => void; escolherVendas?: boolean; onCancelarEscolha?: () => void;
 }) {
+  const dispBase = disponibilidade(stores, visao, false);
   const t = visao.total;
   const af = totalAntifurto(visao.antifurto);
   const afPronto = visao.antifurto.some((l) => l.alertas);
-  const vendasCompletas = stores.every((s) => !!visao.geral[idDe(s) ?? ""]?.vendas);
+  const vendasCompletas = stores.every((s) => { const id = idDe(s) ?? ""; return dispBase.idsValidos.includes(id) && !!visao.geral[id]?.vendas; });
   const afCompleto = visao.antifurto.length === stores.length && visao.antifurto.every((l) => !!l.alertas);
   const pronto = Object.keys(visao.resumos).length > 0;
-  const dispBase = disponibilidade(stores, visao, false);
   const dispResolver = disponibilidade(stores, visao, true);
   const kpis = [
     { label: "Para resolver agora", assunto: "resolver" as const, disp: dispResolver, n: paraResolver(dispResolver.soma), Icon: AlertTriangle, cor: "urgente" as const, desc: "Pendências urgentes de vários tipos, não só produtos" },
@@ -696,7 +700,7 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
               <span className="block text-xs leading-snug text-muted-foreground">Valor das faltas identificadas nas diferenças do estoque neste mês</span>
             </span>
             <span data-testid="status-cartao" className="w-full shrink-0 border-t border-border/60 pt-2 text-left text-xs text-muted-foreground @[26rem]:w-auto @[26rem]:border-0 @[26rem]:pt-0 @[26rem]:text-right">
-              {!afCompleto ? "Consulta incompleta" : af.alertas === 0 ? "Nenhum alerta" : af.alertas === 1 ? "1 alerta" : `${af.alertas} alertas`}
+              {!afCompleto ? visao.carregando ? "Consultando…" : "Consulta incompleta" : af.alertas === 0 ? "Nenhum alerta" : af.alertas === 1 ? "1 alerta" : `${af.alertas} alertas`}
               {afPronto && !afCompleto && <span className="block">Subtotal disponível</span>}
               <span className="block font-semibold text-primary">Ver antifurto</span>
             </span>

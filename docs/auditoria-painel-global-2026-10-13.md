@@ -89,7 +89,7 @@ A tela inicial deve continuar útil com uma unidade e permanecer curta com seis:
 | 2 | RMC-02C/C3-B | Valores grandes, texto ampliado, nomes longos e tablet; leitura completa e alvo de toque adequado | Implementada em main; publicação/teste manual pendentes |
 | 3 | RMC-04/C4-A | Clareza dos títulos/períodos e ordem dos blocos; manter significado dos totais, neutro entre tipos | Integrada no PR #128; publicação/teste manual pendentes |
 | 4 | RMC-04/C4-B | Destino específico dos indicadores, comércio identificado e retorno preservado; reaproveitar Alertas | Integrada no PR #130; publicação/teste manual pendentes |
-| 5 | RMC-04/C4-C | Atualização explícita e coerência de leitura parcial, inclusive sino/detalhes; falha nunca vira zero | C4-C1 integrada no PR #134; proposta C4-C2 preparada abaixo; publicação/teste manual pendentes |
+| 5 | RMC-04/C4-C | Atualização explícita e coerência de leitura parcial, inclusive sino/detalhes; falha nunca vira zero | C4-C1/C4-C2 implementadas; publicação/teste manual pendentes |
 | 6 | RMC-04/C4-D | Avaliar necessidade de destaque para decisões/conferências; só implementar após mapear fontes e aprovação | Opcional, não implementada |
 | 7 | RMC-06 | Regressão funcional e visual, publicação e homologação do dono em aparelho real | Pendente |
 
@@ -389,3 +389,20 @@ Chromium com componente/CSS da proposta, dados fictícios e rede externa bloquea
 Artefatos locais em `/tmp/omni-owner-c4c2-proposta`: patch, cinco testes, logs, scripts e resultado do navegador. Isso não comprova publicação/aparelho/banco real ou carga de produção. Checks do PR documental validam o código atual (C4-C1); o patch/teste da proposta continuam apenas na cópia até validação prévia.
 
 Depois da aplicação aprovada e Publicar → Atualizar: conferir Vendas/Faltou com um/vários comércios; tocar Atualizar e confirmar Consultando; abrir Antifurto durante a consulta e conferir quantidade de unidades confirmadas; verificar falha/recuperação e zero confirmado; entrar numa unidade e voltar, mantendo origem/relatório. Não registrar como publicado/testado no aparelho sem evidência. RMC-06 permanece pendente para a inspeção final dos fluxos e da versão publicada; C4-D continua opcional.
+
+## Entrega C4-C2
+
+13/10/2026, base `main db35ebf` (PR documental #135). O dono aprovou a proposta concreta respondendo **“Sim”**. Aplicado o patch exato em `OwnerHome.tsx`/`AntifurtoGeral.tsx` e novo `src/test/rmc-c4c2.test.tsx`; comparação byte a byte dos componentes com a proposta aprovada, sem ampliar escopo. Quatro documentos atualizados. Registros da cópia isolada acima descrevem a preparação; nesta entrega o código oficial está corrigido.
+
+- O recorte financeiro reutiliza IDs confirmados da C2; preserva dados guardados e fórmulas.
+- Vendas só mostra total completo com leitura atual válida de todos os comércios. Antifurto/relatório considera apenas unidades confirmadas, mantendo subtotal identificado. Durante consulta, valores anteriores/zero antigo ficam fora da confirmação.
+- Consulta em andamento, falha final e zero confirmado têm estados distintos; recuperação retorna valores atuais e mantém navegação/retornos. C4-B/C4-C1 e modo Comércios preservados.
+- Cinco casos novos: espera/valor anterior, parcial/relatório/retorno, zero, falha de diferenças e falha total/recuperação. Nenhum teste existente alterado. Horário avaliado e não introduzido sem origem confiável; sem mudança de estoque, banco, permissões, fórmulas ou dependências.
+
+Após aplicação oficial: tipos **duas vezes**, **1.071 testes em 106 arquivos duas vezes**, `npm run build` com Supabase fictício aprovado. Componentes e novo teste comparados byte a byte com a proposta aprovada; nenhuma diferença funcional. Nenhum teste existente modificado.
+
+Chromium sobre componente/CSS **do código oficial aplicado**, com dados fictícios e rede externa bloqueada: **320/390/768/1280 px**, seis tipos de comércio, leitura retida, valores antigos ocultos no painel e no relatório, quantidade de unidades confirmadas, recuperação e zero verdadeiro; **quatro cenários aprovados, zero erros JavaScript**. Os testes automatizados cobrem também subtotal/retorno, falha só de diferenças e falha total/recuperação. Artefatos locais em `/tmp/omni-owner-c4c2` (logs, scripts e resultado). Não representa sessão/banco/aparelho real ou capacidade de produção; não comprova Publicar → Atualizar.
+
+**Publicar → Atualizar e testar no celular:** abrir Início; comparar os totais confirmados; tocar Atualizar e conferir Consultando; abrir Antifurto durante leitura e conferir número de unidades confirmadas/subtotal; repetir com internet instável, recuperar e conferir valores/zero verdadeiro; abrir a unidade correta e voltar ao relatório; confirmar recortes/sino/Atualizar da C4-C1. Não apagar registros ou criar ajustes para testar.
+
+**Situação:** cinco das seis etapas principais do painel implementadas no código, todas aguardam evidência de publicação/homologação quando pendente. Próxima principal **RMC-06**, validação da versão consolidada e teste publicado. C4-D opcional; nenhuma funcionalidade adicional ou outra frente iniciada nesta entrega. Não fechar C4-C como homologada com apenas testes locais/CI.
