@@ -83,7 +83,7 @@ describe("RMC-04 / C4-C1 — consistência do sino e Alertas sem filtro", () => 
     expect(screen.getByText(/Consulta incompleta: Mercado Alfa, Farmácia Beta/)).toBeTruthy();
     expect(secao("Mercado Alfa").getByRole("button", { name: /Acabaram/ })).toBeTruthy();
     expect(secao("Mercado Alfa").getByRole("button", { name: /Repor a gôndola/ })).toBeTruthy();
-    expect(secao("Mercado Alfa").getByText(/somente os avisos de produtos e pedidos estão confirmados/)).toBeTruthy();
+    expect(secao("Mercado Alfa").getByText(/apenas os avisos de produtos e pedidos estão confirmados/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Vendido sem cadastro/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Perda ou diferença/ })).toBeNull();
     expect(screen.queryByText(/Tudo certo! Nenhum comércio/)).toBeNull();
