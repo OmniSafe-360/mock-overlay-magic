@@ -671,11 +671,11 @@ function HomeContent({ modo, stores, visao, fornecedores, locais, onPasso, onAdd
                 return (
                   <button key={label} type="button" onClick={onAlertas} className={`rounded-3xl border p-4 text-left transition hover:border-primary ${borda}`}>
                     <Icon size={20} className={!ativo ? "text-muted-foreground" : cor === "urgente" ? "text-destructive" : "text-warning"} />
-                    <p className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">{disp.estado !== "indisponivel" ? n : visao.carregando || !pronto ? "…" : "—"}</p>
+                    <p className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">{disp.estado !== "indisponivel" ? n : visao.carregando || Object.keys(visao.geral).length === 0 ? "…" : "—"}</p>
                     <p className="mt-1 text-xs leading-tight text-muted-foreground sm:text-sm">{label}</p>
                     <p className="mt-1 text-[11px] leading-snug text-muted-foreground/80 sm:text-xs">{desc}</p>
                     {disp.estado === "subtotal" && <p className="mt-1 text-[11px] font-semibold leading-snug text-warning sm:text-xs">Subtotal: {disp.validos} de {disp.total} comércios</p>}
-                    {disp.estado === "indisponivel" && !visao.carregando && pronto && <p className="mt-1 text-[11px] font-semibold leading-snug text-warning sm:text-xs">Consulta incompleta</p>}
+                    {disp.estado === "indisponivel" && !visao.carregando && Object.keys(visao.geral).length > 0 && <p className="mt-1 text-[11px] font-semibold leading-snug text-warning sm:text-xs">Consulta incompleta</p>}
                   </button>
                 );
               })}
