@@ -41,6 +41,9 @@ done
 for regressao in 005_melhorias_operacionais.sql 011_coerencia_recebimento.sql; do
   "${psql_cega[@]}" -f "$base_cega/$regressao" >>"$temp_cega/regressao.log" 2>&1 || { tail -16 "$temp_cega/regressao.log"; exit 1; }
 done
+# G1.2 usa a mesma base ficticia e desfaz todos os registros ao terminar.
+{ echo 'begin;'; cat "$base_cega/015_base_caixa_estoque.sql" "$base_cega/016_acesso_loja_inativa.sql"; echo 'rollback;'; } >"$temp_cega/acessos.sql"
+"${psql_cega[@]}" -f "$temp_cega/acessos.sql" >"$temp_cega/acessos.log" 2>&1 || { tail -16 "$temp_cega/acessos.log"; exit 1; }
 # As disputas usam apenas os dados fictícios neste servidor privado; o EXIT descarta tudo.
 "${psql_cega[@]}" -1 -f "$base_cega/015_base_caixa_estoque.sql" >"$temp_cega/concorrencia.log" 2>&1 || { tail -16 "$temp_cega/concorrencia.log"; exit 1; }
 PGHOST="$temp_cega" PGPORT="$porta_cega" PGUSER=postgres PGDATABASE=postgres PGOPTIONS='-c statement_timeout=10000' python3 "$base_cega/015_caixa_estoque_concorrencia.py"
