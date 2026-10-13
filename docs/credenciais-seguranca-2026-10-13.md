@@ -2,6 +2,8 @@
 
 Revisão de **13/10/2026**, base `main 2c379f0` (PR #114). Vinculada à [fonte central](FONTE_DA_VERDADE.md) e ao [checklist](CHECKLIST_PONTA_A_PONTA.md#plano-para-mercados-grandes-g0-a-g8). Documento de evidências e procedimento; não cria outra fonte de regras.
 
+Entrega documental: [PR #115](https://github.com/OmniSafe-360/mock-overlay-magic/pull/115), inventário `dc2c005`.
+
 **Estado: inventário concluído; G0.2 permanece aberta.** Revogação do token compartilhado, eventual substituição nos serviços que o utilizem e validação do acesso não foram executadas nem confirmadas. Esta entrega modifica somente documentação, sem aplicativo, permissões, banco ou dados.
 
 ## O que foi verificado
