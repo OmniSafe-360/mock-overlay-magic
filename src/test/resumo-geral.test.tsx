@@ -101,12 +101,11 @@ describe("tela inicial, Comércios e Alertas do dono", () => {
     fireEvent.click(sec.getByRole("button", { name: /Café/ }));
     expect(await screen.findByRole("heading", { name: "Café" })).toBeTruthy();
   });
-  it("Comércios lista cada comércio com o tipo e abre ao tocar", async () => {
+  it("Início lista cada comércio com o tipo e abre ao tocar (antiga aba Comércios, RMC-02)", async () => {
     render(<OwnerApp userId="u1" owner="Monica" initial={[lojaA, lojaB]} />);
-    fireEvent.click(screen.getAllByRole("button", { name: "Comércios" })[0]!);
-    expect(await screen.findByRole("heading", { name: "Comércios" })).toBeTruthy();
-    await waitFor(() => expect(screen.getByRole("button", { name: /Farmácia Vida/ }).textContent).toMatch(/Farmácia · Bauru - SP.*Tudo certo.*1 produto/));
-    fireEvent.click(screen.getByRole("button", { name: /Mercado Bom Preço/ }));
+    expect(await screen.findByRole("region", { name: "Seus comércios" })).toBeTruthy();
+    await waitFor(() => expect(screen.getByRole("region", { name: "Farmácia Vida" }).textContent).toMatch(/Farmácia · Bauru - SP.*Tudo certo.*1 produto/));
+    fireEvent.click(screen.getByRole("button", { name: "Entrar no Mercado Bom Preço" }));
     expect(await screen.findByRole("button", { name: /Feijão/ })).toBeTruthy();
   });
   it("comércio que não carregou avisa e deixa tentar de novo", async () => {

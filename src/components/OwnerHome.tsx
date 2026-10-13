@@ -27,10 +27,9 @@ import { caixaLigado, ocultarPassos, passosOcultos, primeirosPassos, type Passo 
 import { nomeAreaVenda, textoDoTipo } from "@/lib/exemplos";
 import { ProductWizard, type Product, type Supplier } from "@/components/ProductArea";
 
-type Tab = "inicio" | "comercios" | "alertas" | "equipe" | "conta";
+type Tab = "inicio" | "alertas" | "equipe" | "conta";
 const NAV: { id: Tab; label: string; Icon: typeof Home }[] = [
   { id: "inicio", label: "Início", Icon: Home },
-  { id: "comercios", label: "Comércios", Icon: Store },
   { id: "alertas", label: "Alertas", Icon: Bell },
   { id: "equipe", label: "Equipe", Icon: Users },
   { id: "conta", label: "Conta", Icon: UserCircle },
@@ -63,6 +62,9 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
   const [tab, setTab] = useState<Tab>("inicio");
   const [adding, setAdding] = useState(false);
   const [open, setOpen] = useState<StoreData | null>(null);
+  // RMC-02: "Ver vendas" com vários comércios pede a escolha no Início; limpa ao mudar de tela
+  const [escolherVendas, setEscolherVendas] = useState(false);
+  useEffect(() => { setEscolherVendas(false); }, [tab, open]);
   const [toast, setToast] = useState("");
   const [products, setProducts] = useState<Record<string, Product[]>>({});
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -179,7 +181,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
   }, []);
   const hojeGeral = useHoje();
   const idsLojas = stores.map(idDe).filter((x): x is string => !!x).join(",");
-  const telaGeral = !open && (tab === "inicio" || tab === "comercios" || tab === "alertas");
+  const telaGeral = !open && (tab === "inicio" || tab === "alertas");
   useEffect(() => { if (telaGeral && idsLojas) void carregarGeral(idsLojas.split(",")); }, [telaGeral, idsLojas, carregarGeral, hojeGeral]);
   useEffect(() => {
     if (!telaGeral || !idsLojas) return;
@@ -486,17 +488,10 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
           ) : tab === "inicio" ? (
             <HomeContent stores={stores} visao={visao} fornecedores={suppliers.length} locais={locais}
               onPasso={(s, p) => abrirLoja(s, { aba: p.id === "fornecedor" ? "Fornecedores" : p.id === "equipe" ? "Equipe" : p.id === "caixa" ? "Vendas" : "Produtos" })}
-              onAdd={() => setAdding(true)} onOpen={(s) => abrirLoja(s)} onAlertas={() => setTab("alertas")} onAntifurto={() => setVerAntifurto(true)}
-              onVendas={() => { const com = stores.filter((s) => idDe(s)); if (com.length === 1) abrirLoja(com[0]!, { aba: "Vendas" }); else setTab("comercios"); }}
+              onAdd={() => setAdding(true)} onOpen={(s) => { if (escolherVendas) { setEscolherVendas(false); abrirLoja(s, { aba: "Vendas" }); } else abrirLoja(s); }}
+              escolherVendas={escolherVendas} onCancelarEscolha={() => setEscolherVendas(false)} onAlertas={() => setTab("alertas")} onAntifurto={() => setVerAntifurto(true)}
+              onVendas={() => { const com = stores.filter((s) => idDe(s)); if (com.length === 1) abrirLoja(com[0]!, { aba: "Vendas" }); else setEscolherVendas(true); }}
               onTentar={() => { if (idsLojas) void carregarGeral(idsLojas.split(",")); }} />
-          ) : tab === "comercios" ? (
-            <div className="mx-auto max-w-[1100px] space-y-4 animate-in fade-in duration-300">
-              <div>
-                <h1 className="text-xl font-bold">Comércios</h1>
-                <p className="text-sm text-muted-foreground">Toque num comércio para ver produtos, depósito, pedidos e equipe.</p>
-              </div>
-              <CartoesComercios stores={stores} visao={visao} onAdd={() => setAdding(true)} onOpen={(s) => abrirLoja(s)} detalhado />
-            </div>
           ) : tab === "alertas" ? (
             <Alertas stores={stores} visao={visao} suppliers={suppliers} onAbrir={abrirLoja} onTentar={() => { if (idsLojas) void carregarGeral(idsLojas.split(",")); }} />
           ) : tab === "conta" ? (
@@ -517,7 +512,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
 
       {/* barra inferior (celular) */}
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background-deep/90 backdrop-blur-xl md:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
-        <div className="grid grid-cols-5">
+        <div className="grid grid-cols-4">
           {NAV.map(({ id, label, Icon }) => {
             const on = tab === id;
             return (
@@ -559,8 +554,8 @@ function passosDaTela(stores: StoreData[], visao: VisaoGeral, fornecedores: numb
   return null;
 }
 
-function HomeContent({ stores, visao, fornecedores, locais, onPasso, onAdd, onOpen, onAlertas, onVendas, onTentar, onAntifurto }: {
-  stores: StoreData[]; visao: VisaoGeral; fornecedores: number; locais: Record<string, LocaisCadastrados>; onPasso: (s: StoreData, p: Passo) => void; onAdd: () => void; onOpen: (s: StoreData) => void; onAlertas: () => void; onVendas: () => void; onTentar: () => void; onAntifurto: () => void;
+function HomeContent({ stores, visao, fornecedores, locais, onPasso, onAdd, onOpen, onAlertas, onVendas, onTentar, onAntifurto, escolherVendas = false, onCancelarEscolha }: {
+  stores: StoreData[]; visao: VisaoGeral; fornecedores: number; locais: Record<string, LocaisCadastrados>; onPasso: (s: StoreData, p: Passo) => void; onAdd: () => void; onOpen: (s: StoreData) => void; onAlertas: () => void; onVendas: () => void; onTentar: () => void; onAntifurto: () => void; escolherVendas?: boolean; onCancelarEscolha?: () => void;
 }) {
   const t = visao.total;
   const af = totalAntifurto(visao.antifurto);
@@ -593,7 +588,7 @@ function HomeContent({ stores, visao, fornecedores, locais, onPasso, onAdd, onOp
       ) : unico ? (
         <CartaoComercio s={unico} visao={visao} onOpen={onOpen} onAdd={onAdd} />
       ) : (
-        <ListaComercios stores={stores} visao={visao} onOpen={onOpen} onAdd={onAdd} />
+        <ListaComercios stores={stores} visao={visao} onOpen={onOpen} onAdd={onAdd} escolherVendas={escolherVendas} onCancelarEscolha={onCancelarEscolha} />
       )}
       {stores.length > 0 && (
         <section aria-label="Resumo geral">
@@ -658,10 +653,22 @@ function HomeContent({ stores, visao, fornecedores, locais, onPasso, onAdd, onOp
 }
 
 /** RMC-01: vários comércios em lista vertical no celular e grade nas telas maiores, com "Adicionar" no fim. */
-function ListaComercios({ stores, visao, onOpen, onAdd }: { stores: StoreData[]; visao: VisaoGeral; onOpen: (s: StoreData) => void; onAdd: () => void }) {
+function ListaComercios({ stores, visao, onOpen, onAdd, escolherVendas = false, onCancelarEscolha }: { stores: StoreData[]; visao: VisaoGeral; onOpen: (s: StoreData) => void; onAdd: () => void; escolherVendas?: boolean; onCancelarEscolha?: (() => void) | undefined }) {
+  const aviso = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!escolherVendas || !aviso.current) return;
+    aviso.current.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    aviso.current.focus({ preventScroll: true });
+  }, [escolherVendas]);
   return (
     <section aria-label="Seus comércios">
       <h2 className="mb-3 text-base font-semibold">Seus comércios <span className="text-muted-foreground">({stores.length})</span></h2>
+      {escolherVendas && (
+        <div ref={aviso} tabIndex={-1} role="status" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-primary/60 bg-primary/10 p-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-ring">
+          <span>Escolha o comércio para ver as vendas</span>
+          <button type="button" onClick={onCancelarEscolha} className="min-h-11 rounded-xl border border-border px-3 font-semibold">Cancelar</button>
+        </div>
+      )}
       <ul role="list" data-testid="lista-comercios" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {stores.map((s, i) => (
           <li key={s.id ?? i}><CartaoComercio s={s} visao={visao} onOpen={onOpen} /></li>
@@ -698,6 +705,7 @@ function CartaoComercio({ s, visao, onOpen, onAdd }: { s: StoreData; visao: Visa
           </p>
           {f?.extra && <p className="mt-0.5 text-xs font-semibold text-warning">{f.extra}</p>}
           {r && r.vendasHojeTotal > 0 && <p className="mt-0.5 text-xs text-muted-foreground"><b className="text-foreground">{brlVenda(r.vendasHojeTotal)}</b> vendidos hoje</p>}
+          {r && g?.estado === "ok" && <p className="mt-0.5 text-xs text-muted-foreground">{r.produtos} {r.produtos === 1 ? "produto" : "produtos"}</p>}
         </div>
       </div>
       <button type="button" onClick={() => onOpen(s)} aria-label={`Entrar no ${s.nome}`}
