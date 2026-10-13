@@ -1,6 +1,6 @@
 # G1.1 — isolamento entre lojas e pessoas
 
-Auditoria de **13/10/2026**, autorizada pelo dono (“Pode fazer”), sobre `main b05339c1d045c9c10b83a3453c8a0804be738036`, conferido com o GitHub. Este relatório apoia a [fonte da verdade](FONTE_DA_VERDADE.md) e o [checklist](CHECKLIST_PONTA_A_PONTA.md); não substitui suas regras.
+Auditoria de **13/10/2026**, autorizada pelo dono (“Pode fazer”), sobre `main b05339c1d045c9c10b83a3453c8a0804be738036`, conferido com o GitHub. Conteúdo documental inicial `114a00e`. Este relatório apoia a [fonte da verdade](FONTE_DA_VERDADE.md) e o [checklist](CHECKLIST_PONTA_A_PONTA.md); não substitui suas regras.
 
 ## Resultado para o dono
 
