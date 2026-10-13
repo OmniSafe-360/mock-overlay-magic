@@ -486,7 +486,7 @@ Registrada em 13/10/2026 (RMC-00), sobre o `main` `8bb3342` (PR #123). **Esta se
 
 1. O painel geral representa o conjunto dos comércios do proprietário.
 2. Cada comércio mantém suas operações e informações específicas.
-3. A tela inicial geral prioriza todos os comércios: nome, identificação da unidade, localização, situação resumida e entrada para o estabelecimento.
+3. Conforme revisão RMC-02B reafirmada pelo dono em 13/10/2026, Início prioriza indicadores do conjunto dos comércios; nome, identificação, localização, situação e entrada de cada unidade ficam em Comércios. Não duplicar a lista no painel global.
 4. Não repetir no painel geral listas operacionais, cadastros completos, equipes individuais ou detalhes de estoque.
 5. Não eliminar informações importantes nem funcionalidades existentes. Toda funcionalidade permanece acessível em um local coerente.
 6. Recursos realmente consolidados de vários comércios (ex.: relatórios gerais, antifurto geral) têm seu destino avaliado antes de qualquer retirada.
@@ -508,3 +508,6 @@ Registrada em 13/10/2026 (RMC-00), sobre o `main` `8bb3342` (PR #123). **Esta se
 **RMC-02C / C2 (13/10/2026):** os quatro indicadores menores do Início somam apenas comércios com dados confirmados na leitura atual; com parte dos comércios mostram "Subtotal: X de Y comércios", sem nenhum mostram "—" (ou "…" carregando). Números antigos de comércio que falhou nunca entram como confirmados.
 
 **RMC-02C / C3 — organização visual** (13/10/2026): Início agrupado em "Resultado de hoje" (Vendas hoje, etiqueta "Hoje · dd/mm"), "Resultado deste mês" (Faltou este mês, "Mês de <mês>") e "Pendências que precisam de atenção" (quatro indicadores); etiquetas pela data de referência já usada (`useHoje`, America/Sao_Paulo); celular empilhado, computador lado a lado e 4 colunas. C1/C2, cálculos, nomes acessíveis e ações iguais. +3 testes; tipos duas vezes, 1.049 testes nas duas rodadas, build. Conferência visual no navegador não feita (sem sessão de teste neste ambiente). Sem banco. **Implementada no código, aguardando validação manual**; precisa Publicar → Atualizar. C4/RMC-03 não iniciadas.
+
+
+**Auditoria do painel global (13/10/2026, base `e169e89`):** o dono reafirmou Início como painel consolidado para um ou vários comércios de tipos diferentes. [Análise, evidências e proposta de pequenas etapas](auditoria-painel-global-2026-10-13.md), parte desta frente RMC. Sobreposição reproduzida no Chromium com componente/CSS reais e dados fictícios: margem negativa do cabeçalho, altura integral dos cartões somada aos títulos e valores grandes invadindo texto lateral. Primeira entrega proposta **C3-A**, apenas margens/alturas; depois C3-B (valores/responsividade), C4-A/B/C (clareza, destinos e atualização), C4-D opcional e RMC-06. **Somente documentação nesta auditoria; correções aguardam validação prévia.** Preservar cálculos, relatórios, menu e isolamento; nenhuma alteração de banco. RMC-03 continua pendente; priorizar a legibilidade antes de avançar.

@@ -325,4 +325,18 @@ Regras e controle obrigatório na seção 16 da [fonte da verdade](FONTE_DA_VERD
 - [ ] **RMC-05 Separação entre a navegação geral do proprietário e a navegação interna da unidade.**
 - [ ] **RMC-06 Testes de regressão e homologação da reorganização.**
 
-Próximo passo: RMC-03 somente com autorização do dono.
+Próximo passo atualizado pelo pedido do dono: validar a proposta RMC-02C/C3-A abaixo; RMC-03 permanece pendente.
+
+### Auditoria do painel global — atualização de prioridade em 13/10/2026
+
+[Detalhes, código proposto, arquivos, impactos e evidências](auditoria-painel-global-2026-10-13.md). Base `e169e89`. Análise documental entregue; nenhuma correção funcional aplicada.
+
+- [ ] **RMC-02C/C3-A:** retirar sobreposição por margem/altura; proposta de três trechos em OwnerHome apresentada no relatório, aguarda validação.
+- [ ] **RMC-02C/C3-B:** valores grandes, tablet e letras ampliadas.
+- [ ] **RMC-04/C4-A:** clareza de títulos, períodos e prioridade dos blocos.
+- [ ] **RMC-04/C4-B:** cada indicador abre seu assunto e identifica o comércio, mantendo retorno.
+- [ ] **RMC-04/C4-C:** atualizar painel e alinhar estado parcial/antigo do sino e detalhes.
+- [ ] **RMC-04/C4-D (opcional):** avaliar destaque de decisões/conferências, reutilizando fontes auditadas.
+- [ ] **RMC-06:** validar visual, navegação e regressões; publicar e obter teste do dono.
+
+Achado para **G5**, sem implementação nesta frente: 1 + 8 funções de leitura por comércio no carregamento geral; medir volume/latência antes de otimizar. A existência de 1.049 testes não comprova visual sem sobreposição nem capacidade de produção.
