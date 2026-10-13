@@ -142,3 +142,52 @@ Validação local: `npx tsc --noEmit` **duas vezes** e `npx vitest run` **duas v
 ## Entrega C3-B (13/10/2026)
 
 Autorizada pelo dono. Só apresentação em `OwnerHome.tsx`: Vendas hoje e Faltou este mês ficam lado a lado quando o cartão tem pelo menos 26rem de largura; mais estreito, o valor ganha linha própria (todos os dígitos e centavos, quebra se for preciso) e status/ação vão para baixo com um separador discreto. Decisão pela largura do próprio cartão (container query), não da tela. Pendências: 1 coluna em espaço muito estreito, 2 a partir de 18rem, 4 a partir de 52rem; cartões com `min-w-0` e quebra de texto. Cálculos, textos, nomes acessíveis, botões e destinos iguais. Teste `src/test/rmc-c3b.test.tsx`; tipos e 102 arquivos de teste passaram duas vezes. Conferência visual no navegador com sessão real não feita neste ambiente. **RMC-02C/C3-B — Implementada no código, aguardando publicação e validação manual do proprietário.**
+
+## Proposta para aprovação — RMC-04/C4-A (sem execução)
+
+Preparada sobre `main 108332fe865d`, após solicitação do proprietário para continuar diretamente pelo GitHub. **Esta seção é somente proposta documental; nenhuma mudança no aplicativo foi autorizada/aplicada por este registro.** C4-B/C4-C e as demais frentes continuam independentes.
+
+### Situação da C3-B antes de começar
+
+- Commit `108332fe865d`, GitHub Actions [38460475469](https://github.com/OmniSafe-360/mock-overlay-magic/actions/runs/38460475469): **success**, incluindo verificações de tipos, suíte e geração do aplicativo no fluxo automatizado. Testes novos `rmc-c3b.test.tsx` checam classes de container query e preservação de rótulos; **não medem sobreposição geométrica no navegador**.
+- Persistem pendentes os ensaios visuais reais com 320/390/768/1024/1280 px, textos ampliados, milhões e estados parciais, além da publicação e homologação no celular do dono. Não declarar C3-B visualmente concluída.
+- A consulta do ambiente de elaboração desta proposta não disponibilizou o aplicativo completo executável/local, apesar de Chromium instalado: não foi realizado ensaio com componente e CSS reais. Um exemplo isolado de HTML/CSS não substitui essa validação.
+
+### Diagnóstico confirmado no código
+
+1. `HomeContent` mantém título geral **“Resumo de hoje”** dentro de `section[aria-label="Resumo geral"]`, mas o mesmo grupo inclui **“Faltou este mês”** (período mensal) e pendências sem horizonte restrito ao dia. O título induz a erro.
+2. A descrição do cartão **“Faltou este mês”** é **“Faltas e perdas de mercadoria registradas no mês”**, porém `alertasAntifurto` em `src/lib/antifurto.ts` calcula `faltouMes` filtrando diferenças por `ehFalta` e mês no fuso de São Paulo; perdas são relatadas separadamente, **não somadas diretamente** nesse total. Não alterar o cálculo, os eventos de diferença ou o relatório.
+3. O arranjo atual apresenta o indicador mensal ao lado de vendas, antes das quatro pendências. O relatório de auditoria sugere dar prioridade às pendências após vendas e deixar o mensal separado como consulta secundária. Isso é uma **decisão visual pendente de aprovação**; não criar novas categorias contábeis.
+4. As etiquetas `etiquetaHoje(hoje)` e `etiquetaMes(hoje)` já utilizam a mesma data de referência. Não são necessárias novas leituras, alteração de fuso nem estado adicional.
+
+### Proposta concreta para o proprietário aprovar
+
+**C4-A: somente conteúdo textual e hierarquia, sem mudar destinos.**
+
+- Trocar o título de seção `“Resumo de hoje”` por **`“Situação dos comércios”`**. Preservar `aria-label="Resumo geral"`, o cabeçalho `“Visão geral dos seus comércios”` e `“Atualizando…”`.
+- Preservar os nomes dos cartões **“Vendas hoje”** e **“Faltou este mês”**, inclusive seus `aria-label`, valores e ações.
+- Substituir **apenas** a frase explicativa do indicador mensal por **`“Valor das faltas identificadas nas diferenças do estoque neste mês”`**, sem afirmar furto, somar perdas nem representar esse valor como lucro ou prejuízo contábil.
+- **Opção visual recomendada (sujeita à aprovação):** organizar o fluxo em **Resultado de hoje → Pendências que precisam de atenção → Resultado deste mês**, mantendo os quatro KPIs como hoje. O cartão mensal fica abaixo das pendências; a interface continua curta com 1 ou várias unidades. Preservar a responsividade por container query entregue na C3-B e o acesso ao relatório existente. Essa mudança altera a posição visual do cartão mensal e, por isso, exige validação do proprietário.
+- **Opção conservadora:** manter os cartões lado a lado/empilhados como atualmente e mudar apenas título e descrição. É a alternativa de menor regressão; não cumpre integralmente a proposta de priorização do relatório.
+- Não adicionar filtros, somatórios, gráficos, chamadas ao Supabase, rankings, avisos de atualização nem um novo significado para “Para resolver agora”. C4-B (destinos por assunto) e C4-C (confiabilidade de Alertas/sino e atualização) permanecem separadas.
+
+### Arquivos propostos para a futura implementação (só após aprovação)
+
+1. `src/components/OwnerHome.tsx` — exclusivamente `HomeContent`, texto e agrupamento/ordem visual do resumo.
+2. `src/test/rmc-02c.test.tsx` — **necessário ajustar o teste C3 de ordem dos grupos**, atualmente exigindo Vendas → Faltou → Pendências, **somente se aprovada a mudança de ordem**; preservar todas as asserções funcionais.
+3. `src/test/rmc-c4a.test.tsx` — testes novos de título correto, sentido da descrição, ordem aprovada, ausência de valor parcial marcado como completo, acessibilidade e cliques intactos.
+4. `docs/FONTE_DA_VERDADE.md`, `docs/CHECKLIST_PONTA_A_PONTA.md`, `CLAUDE.md` e este relatório — histórico e estado, sem reescrever etapas anteriores.
+
+**Nenhum outro arquivo, incluindo `src/lib/antifurto.ts`, `src/lib/resumoGeral.ts`, `StoreSpace.tsx` ou SQL, poderá ser alterado sem nova autorização.** Os testes `resumo-geral`, `rmc-02b`, `rmc-02c`, `rmc-c3b` deverão ser inspecionados e executados; qualquer outro teste que exija modificação será justificado previamente.
+
+### Critérios de aceite e riscos
+
+- Comparar antes/depois em um e vários comércios: valores monetários, quantidade de vendas, faltas e pendências idênticos, incluindo subtotal/“—”/carregamento.
+- Cartão “Faltou este mês” permanece mensal; não misturar valores de perdas com `faltouMes`.
+- Não alterar nenhum `onClick`/destino, estado de navegação, seleção de comércio nem referência de data.
+- Layout e ordem propostos funcionam em 320/390/768/1024/1280 px e texto 100%/150%/200%; valores completos; sem sobreposições. C3-B ainda requer evidência visual independente.
+- `npx tsc --noEmit` duas vezes, `npx vitest run` duas vezes, build e GitHub Actions após futura alteração de código; inspecionar diff e preservar fluxo do Lovable sem force push.
+- Publicação `Publicar → Atualizar` e validação pelo proprietário somente depois da implementação aprovada.
+- A possível inconsistência de dados antigos na aba Alertas **não** faz parte de C4-A; continua reservada à etapa C4-C, sem disfarçar a pendência.
+
+**Decisão pendente do dono:** aprovar a C4-A com *reordenação recomendada* ou com *texto apenas*. Nenhum código funcional foi alterado neste PR de proposta.
