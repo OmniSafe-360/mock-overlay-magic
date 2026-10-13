@@ -24,7 +24,7 @@ const ok = produto("p3", "Arroz", 20, 10);
 const a: StoreData = { id: "c1", tipo: "mercado", nome: "Mercado Alfa", cidade: "Bauru", uf: "SP", rua: "R", numero: "1", bairro: "Centro" };
 const b: StoreData = { ...a, id: "c2", nome: "Farmácia Beta", tipo: "farmacia" };
 const naAba = () => fireEvent.click(screen.getAllByRole("button", { name: "Alertas" })[0]!);
-const sininho = () => screen.getByRole("button", { name: /^Alertas(:|$)/ });
+const sininho = () => document.querySelector<HTMLButtonElement>('header.sticky button[aria-label^="Alertas"]')!;
 const secao = (nome: string) => within(screen.getByRole("region", { name: nome }));
 
 beforeEach(() => {
