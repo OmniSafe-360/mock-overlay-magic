@@ -612,7 +612,7 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
         // RMC-02C/C1: completo = produtos ok + vendas + diferenças/antifurto disponíveis
         const completos = stores.filter((s) => { const g = visao.geral[idDe(s) ?? ""]; return g?.estado === "ok" && !!g.vendas && !!g.dif; }).length;
         return (
-          <header aria-label="Visão geral" className="-mb-4">
+          <header aria-label="Visão geral">
             <p className="text-sm font-semibold">Visão geral dos seus comércios</p>
             <p className="text-xs text-muted-foreground">
               {stores.length === 1 ? "1 comércio cadastrado" : `${stores.length} comércios cadastrados`} · {completos === 1 ? "1 com dados completos" : `${completos} com dados completos`}
@@ -636,7 +636,7 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
           <div className="min-w-0">
             <h3 className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Resultado de hoje<span className="font-normal normal-case tracking-normal">{etiquetaHoje(hoje)}</span></h3>
           <button type="button" onClick={onVendas} aria-label={`Vendas hoje: ${vendasCompletas ? brlVenda(t.vendasHojeTotal) : "consulta incompleta"}`}
-            className="flex h-full w-full items-center gap-4 rounded-3xl border border-primary/50 bg-primary/10 p-4 text-left transition hover:border-primary">
+            className="flex w-full items-center gap-4 rounded-3xl border border-primary/50 bg-primary/10 p-4 text-left transition hover:border-primary">
             <ShoppingBag size={24} className="shrink-0 text-primary" />
             <span className="min-w-0 flex-1">
               <span className="block text-xs text-muted-foreground sm:text-sm">Vendas hoje</span>
@@ -652,7 +652,7 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
           <div className="min-w-0">
             <h3 className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Resultado deste mês<span className="font-normal normal-case tracking-normal">{etiquetaMes(hoje)}</span></h3>
           <button type="button" onClick={onAntifurto} aria-label={`Faltou este mês: ${afCompleto ? brlVenda(af.faltou) : "consulta incompleta"}`}
-            className={`flex h-full w-full items-center gap-4 rounded-3xl border p-4 text-left transition hover:border-primary ${af.faltou > 0 || af.alertas > 0 ? "border-destructive/50 bg-destructive/10" : "border-border bg-secondary/70"}`}>
+            className={`flex w-full items-center gap-4 rounded-3xl border p-4 text-left transition hover:border-primary ${af.faltou > 0 || af.alertas > 0 ? "border-destructive/50 bg-destructive/10" : "border-border bg-secondary/70"}`}>
             <ShieldAlert size={24} className={`shrink-0 ${af.faltou > 0 || af.alertas > 0 ? "text-destructive" : "text-muted-foreground"}`} />
             <span className="min-w-0 flex-1">
               <span className="block text-xs text-muted-foreground sm:text-sm">Faltou este mês</span>

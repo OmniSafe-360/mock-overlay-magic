@@ -85,7 +85,7 @@ A tela inicial deve continuar útil com uma unidade e permanecer curta com seis:
 
 | Ordem | Identificador | Entrega e aceite | Situação |
 | --- | --- | --- | --- |
-| 1 | RMC-02C/C3-A | Corrigir margens/alturas que sobrepõem títulos; manter textos, valores, ações e ordem. Nenhum cartão invade outro grupo em 320/390/768/1024/1280 px | Proposta pronta; aguarda validação prévia |
+| 1 | RMC-02C/C3-A | Corrigir margens/alturas que sobrepõem títulos; manter textos, valores, ações e ordem. Nenhum cartão invade outro grupo em 320/390/768/1024/1280 px | Implementada com autorização do dono; publicação e teste manual pendentes |
 | 2 | RMC-02C/C3-B | Valores grandes, texto ampliado, nomes longos e tablet; leitura completa e alvo de toque adequado | Planejada; apresentar patch próprio |
 | 3 | RMC-04/C4-A | Clareza dos títulos/períodos e ordem dos blocos; manter significado dos totais, neutro entre tipos | Planejada |
 | 4 | RMC-04/C4-B | Destino específico dos indicadores, comércio identificado e retorno preservado; reaproveitar Alertas | Planejada |
@@ -124,3 +124,17 @@ Arquivos de registro previstos na mesma entrega: `docs/FONTE_DA_VERDADE.md`, `do
 - `npx tsc --noEmit` duas vezes e `npx vitest run` duas vezes aprovados: **1.049 testes em 101 arquivos em cada rodada**. Nenhum teste alterado/desativado. Não executado build novo: entrega estritamente documental; navegador usou Vite com componente/CSS reais em montagem isolada.
 
 **Roteiro do dono após cada publicação funcional:** abrir em celular normal e com letras maiores; conferir um e vários comércios; tocar cada cartão; verificar nome da unidade, período e retorno; repetir com internet instável; confirmar que vendas/estoque/recebimentos continuam iguais nos fluxos existentes. Não prometer ausência absoluta de regressões: registrar evidência e manter pendência de teste real.
+
+## Entrega C3-A
+
+13/10/2026, base `main 04db8e1` (PR #125). O dono autorizou “Pode fazer a primeira etapa”. Aplicada **exatamente** a proposta de três trechos acima em `src/components/OwnerHome.tsx`; os outros quatro arquivos desta entrega são registros documentais. C3-B/C4 não executadas. Nenhum cálculo, texto, ordem, destino, migração ou teste existente modificado.
+
+Chromium com OwnerApp/CSS reais e dados fictícios, rede externa bloqueada: **25 cenários aprovados**, cruzando cinco larguras (320/390/768/1024/1280) com um comércio, seis de tipos diferentes, falha de uma unidade, valores grandes e texto 200%. Asserções geométricas confirmaram separação cabeçalho/título, cartões dentro dos contêineres, separação do grupo Pendências e dos dois blocos no celular; zero erros JavaScript. Em 390 px cabeçalho termina em y=129 e Resumo começa em y=161.
+
+A primeira versão do script externo usava uma asserção incorreta de empilhamento também para tablet com texto ampliado. Corrigido apenas o script temporário para respeitar a grade real a partir de 768 px; todos os 25 cenários repetidos passaram. Não foi necessário ampliar o patch do aplicativo. Fluxos adicionais preservados: entrada de cadastro sem comércio, seleção/cancelamento de unidade para vendas com seis comércios, Repor para Alertas, subtotal 5/6 e vendas incompletas quando uma unidade falha.
+
+**Limite:** estas asserções não validam o espaço interno entre valor e texto lateral (C3-B); a sobreposição interna de valores/status em tablet continua registrada e exige a etapa seguinte. Dados e autenticação são simulados; não comprova aparelho do dono/publicação real/capacidade de produção. Artefatos: `/tmp/omni-owner-c3a/geometry.json`, `actions.json`, capturas e scripts locais, sem inclusão no aplicativo.
+
+Validação local: `npx tsc --noEmit` **duas vezes** e `npx vitest run` **duas vezes**, com **1.049 testes em 101 arquivos aprovados em cada rodada**; `npm run build` aprovado com Supabase fictício sem acesso a produção. Nenhum teste adicionado, removido ou alterado. A inspeção visual é complementar aos testes existentes.
+
+**Publicação e teste manual pendentes:** no Lovable, Publicar → Atualizar; abrir Início com um/vários comércios; conferir que os títulos não encostam nos cartões; tocar Vendas/Antifurto e voltar; comparar valores e pendências com o comportamento anterior. Esta etapa só encerra após o teste do dono. A próxima é C3-B e exige proposta/arquivos/impactos antes de aplicar.

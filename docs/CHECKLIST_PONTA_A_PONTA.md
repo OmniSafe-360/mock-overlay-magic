@@ -325,13 +325,13 @@ Regras e controle obrigatório na seção 16 da [fonte da verdade](FONTE_DA_VERD
 - [ ] **RMC-05 Separação entre a navegação geral do proprietário e a navegação interna da unidade.**
 - [ ] **RMC-06 Testes de regressão e homologação da reorganização.**
 
-Próximo passo atualizado pelo pedido do dono: validar a proposta RMC-02C/C3-A abaixo; RMC-03 permanece pendente.
+Próximo passo atualizado: C3-A autorizada pelo dono e implementada; concluir publicação/teste manual. Apresentar C3-B antes de aplicar a próxima correção; RMC-03 permanece pendente.
 
 ### Auditoria do painel global — atualização de prioridade em 13/10/2026
 
 [Detalhes, código proposto, arquivos, impactos e evidências](auditoria-painel-global-2026-10-13.md). Base `e169e89`. Análise documental entregue; nenhuma correção funcional aplicada.
 
-- [ ] **RMC-02C/C3-A:** retirar sobreposição por margem/altura; proposta de três trechos em OwnerHome apresentada no relatório, aguarda validação.
+- [ ] **RMC-02C/C3-A:** autorizada pelo dono (“Pode fazer a primeira etapa”), implementada nos três trechos previstos de `OwnerHome.tsx`: removida a margem negativa do cabeçalho global e `h-full` dos dois cartões de valores. **Pronto no código, falta Publicar → Atualizar e o teste do dono.** Navegador: 25 cenários com 1/6 comércios, parcial, valores grandes e texto 200%, em 320/390/768/1024/1280 px; títulos/grupos sem invasão, cartões dentro dos contêineres; zero erros JavaScript. Valores/status dentro dos cartões ficam para C3-B. Validação de tipos/suíte/build registrada no relatório e histórico. Sem banco/cálculos/destinos alterados.
 - [ ] **RMC-02C/C3-B:** valores grandes, tablet e letras ampliadas.
 - [ ] **RMC-04/C4-A:** clareza de títulos, períodos e prioridade dos blocos.
 - [ ] **RMC-04/C4-B:** cada indicador abre seu assunto e identifica o comércio, mantendo retorno.
