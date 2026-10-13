@@ -64,7 +64,8 @@ export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFa
   const contasVisiveis = !assuntoGlobal ? quadrosContas : assuntoGlobal === "resolver" ? quadrosContas.filter((q) => q.k === "atrasadas") : [];
   const entregasVisiveis = !assuntoGlobal || assuntoGlobal === "resolver" ? quadrosEntrega : [];
   const antifurtoVisiveis = !assuntoGlobal ? quadrosAntifurto : [];
-  if (!gruposVisiveis.length && !contasVisiveis.length && !entregasVisiveis.length && !antifurtoVisiveis.length) return null;
+  if (!assuntoGlobal && !products.length && !quadrosContas.length && !quadrosEntrega.length && !quadrosAntifurto.length) return null;
+  if (assuntoGlobal && !gruposVisiveis.length && !contasVisiveis.length && !entregasVisiveis.length) return null;
   const sel = gruposVisiveis.find((g) => g.tipo === aberto);
   const importantes = gruposVisiveis.filter((g) => g.nivel !== "info").reduce((n, g) => n + g.itens.length, 0);
 
