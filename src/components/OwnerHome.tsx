@@ -585,6 +585,16 @@ function HomeContent({ stores, visao, fornecedores, locais, onPasso, onAdd, onOp
         <PrimeirosPassos passos={passos.passos} comercio={passos.s.nome} mostrarNome={stores.length > 1}
           onPasso={(p) => onPasso(passos.s, p)} onOcultar={() => { ocultarPassos(passos.id); setOcultos(passosOcultos().concat(passos.id)); }} />
       )}
+      {stores.length === 0 ? (
+        <section>
+          <h2 className="mb-3 text-base font-semibold">Seus comércios</h2>
+          <CartoesComercios stores={stores} visao={visao} onAdd={onAdd} onOpen={onOpen} />
+        </section>
+      ) : unico ? (
+        <CartaoComercio s={unico} visao={visao} onOpen={onOpen} onAdd={onAdd} />
+      ) : (
+        <ListaComercios stores={stores} visao={visao} onOpen={onOpen} onAdd={onAdd} />
+      )}
       {stores.length > 0 && (
         <section aria-label="Resumo geral">
           <div className="mb-3 flex items-center justify-between gap-2">
@@ -643,58 +653,27 @@ function HomeContent({ stores, visao, fornecedores, locais, onPasso, onAdd, onOp
           )}
         </section>
       )}
-
-      {stores.length === 0 ? (
-        <section>
-          <h2 className="mb-3 text-base font-semibold">Seus comércios</h2>
-          <CartoesComercios stores={stores} visao={visao} onAdd={onAdd} onOpen={onOpen} />
-        </section>
-      ) : unico ? (
-        <CartaoComercio s={unico} visao={visao} onOpen={onOpen} onAdd={onAdd} />
-      ) : (
-        <FaixaComercios stores={stores} visao={visao} onOpen={onOpen} onAdd={onAdd} />
-      )}
     </div>
   );
 }
 
-/** Vários comércios: uma faixa que corre para o lado com o dedo, um cartão de cada vez, e "Adicionar" no fim. */
-function FaixaComercios({ stores, visao, onOpen, onAdd }: { stores: StoreData[]; visao: VisaoGeral; onOpen: (s: StoreData) => void; onAdd: () => void }) {
-  const faixa = useRef<HTMLDivElement>(null);
-  const [atual, setAtual] = useState(0);
-  const total = stores.length + 1;
-  const aoCorrer = () => {
-    const el = faixa.current; if (!el || !el.clientWidth) return;
-    const filhos = [...el.children] as HTMLElement[];
-    const meio = el.scrollLeft + el.clientWidth / 2;
-    let melhor = 0;
-    filhos.forEach((c, i) => { if (Math.abs(c.offsetLeft + c.offsetWidth / 2 - meio) < Math.abs((filhos[melhor]!.offsetLeft + filhos[melhor]!.offsetWidth / 2) - meio)) melhor = i; });
-    setAtual(melhor);
-  };
-  const irPara = (i: number) => { const c = faixa.current?.children[i] as HTMLElement | undefined; c?.scrollIntoView?.({ behavior: "smooth", inline: "center", block: "nearest" }); };
+/** RMC-01: vários comércios em lista vertical no celular e grade nas telas maiores, com "Adicionar" no fim. */
+function ListaComercios({ stores, visao, onOpen, onAdd }: { stores: StoreData[]; visao: VisaoGeral; onOpen: (s: StoreData) => void; onAdd: () => void }) {
   return (
     <section aria-label="Seus comércios">
-      <h2 className="text-base font-semibold">Seus comércios <span className="text-muted-foreground">({stores.length})</span></h2>
-      <p className="mb-3 text-sm text-muted-foreground">Passe o dedo para o lado para ver os outros.</p>
-      <div ref={faixa} onScroll={aoCorrer}
-        className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-5 px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <h2 className="mb-3 text-base font-semibold">Seus comércios <span className="text-muted-foreground">({stores.length})</span></h2>
+      <ul role="list" data-testid="lista-comercios" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {stores.map((s, i) => (
-          <div key={s.id ?? i} className="w-[85%] max-w-md shrink-0 snap-center">
-            <CartaoComercio s={s} visao={visao} onOpen={onOpen} />
-          </div>
+          <li key={s.id ?? i}><CartaoComercio s={s} visao={visao} onOpen={onOpen} /></li>
         ))}
-        <button type="button" onClick={onAdd}
-          className="flex w-[60%] max-w-xs shrink-0 snap-center flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-accent/80 p-4 text-center transition hover:bg-accent/5 focus-visible:outline-2 focus-visible:outline-ring">
-          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-accent"><Plus size={24} /></span>
-          <span className="font-semibold">Adicionar comércio</span>
-        </button>
-      </div>
-      <div className="mt-3 flex justify-center gap-1.5">
-        {Array.from({ length: total }, (_, i) => (
-          <button key={i} type="button" onClick={() => irPara(i)} aria-label={i < stores.length ? `Ver ${stores[i]!.nome}` : "Ver Adicionar comércio"}
-            className="flex h-6 items-center"><span className={`block h-2 rounded-full transition-all ${i === atual ? "w-5 bg-primary" : "w-2 bg-muted-foreground/40"}`} /></button>
-        ))}
-      </div>
+        <li>
+          <button type="button" onClick={onAdd}
+            className="flex h-full min-h-32 w-full flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-accent/80 p-4 text-center transition hover:bg-accent/5 focus-visible:outline-2 focus-visible:outline-ring">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-accent"><Plus size={24} /></span>
+            <span className="font-semibold">Adicionar comércio</span>
+          </button>
+        </li>
+      </ul>
     </section>
   );
 }

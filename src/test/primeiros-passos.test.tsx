@@ -56,12 +56,27 @@ describe("primeiros passos", () => {
     expect(screen.queryByText(/de 6 feitos/)).toBeNull();
   });
 
-  it("comércios ficam embaixo do resumo; com dois, correm para o lado", async () => {
+  it("RMC-01: comércios em lista/grade antes do resumo, sem carrossel", async () => {
+    const onAdd = vi.fn();
     render(<OwnerApp userId="u1" owner="Monica" initial={[loja, { ...loja, id: "c2", nome: "Mercado Dois" }]} />);
-    const faixa = await screen.findByRole("region", { name: "Seus comércios" });
-    expect(screen.getByText("Resumo de hoje").compareDocumentPosition(faixa) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByText("Passe o dedo para o lado para ver os outros.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Entrar no Mercado Dois/ })).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /^Ver / })).toHaveLength(3);
+    const secao = await screen.findByRole("region", { name: "Seus comércios" });
+    // 1. antes do "Resumo de hoje"
+    expect(secao.compareDocumentPosition(screen.getByText("Resumo de hoje")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // 2 e 4. cada comércio uma única vez, com o nome acessível preservado
+    expect(within(secao).getAllByRole("button", { name: `Entrar no ${loja.nome}` })).toHaveLength(1);
+    expect(within(secao).getAllByRole("button", { name: "Entrar no Mercado Dois" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: /^Entrar no / })).toHaveLength(2);
+    // 3. lista vertical no celular, grade nas telas maiores
+    const lista = within(secao).getByTestId("lista-comercios");
+    expect(lista.className).toMatch(/\bgrid-cols-1\b/);
+    expect(lista.className).toMatch(/\bsm:grid-cols-2\b/);
+    expect(lista.className).not.toMatch(/overflow-x-auto|snap-x/);
+    // 6. sem carrossel, bolinhas ou instrução de deslizar
+    expect(screen.queryByText("Passe o dedo para o lado para ver os outros.")).toBeNull();
+    expect(screen.queryAllByRole("button", { name: /^Ver / })).toHaveLength(0);
+    // 5. "Adicionar comércio" continua funcionando (abre o cadastro)
+    fireEvent.click(within(secao).getByRole("button", { name: "Adicionar comércio" }));
+    expect(await screen.findByText(/Cancelar|Dados do comércio|Tipo de comércio/)).toBeInTheDocument();
+    void onAdd;
   });
 });
