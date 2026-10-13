@@ -15,7 +15,7 @@ O painel deve responder: **quanto vendi, o que precisa de atenção e em qual co
 | Cabeçalho global | Saudação, sino, quantidade de comércios e quantidade com dados completos | Identificar “Seus comércios”, período e atualização; reduzir títulos repetidos |
 | Vendas hoje | Soma vendas finalizadas do dia, em centavos, com data de referência America/Sao_Paulo | Preservar cálculo; chamar de vendas, nunca de lucro ou dinheiro disponível |
 | Ver vendas | Um comércio abre suas Vendas; vários abrem seleção na aba Comércios | Preservar entrada/retorno; futuramente mostrar contribuição por comércio sem misturar operações |
-| Faltou este mês | Resumo antifurto com faltas/perdas registradas e acesso ao relatório geral | Explicar o período e a origem; não apresentar como prova de furto ou resultado financeiro |
+| Faltou este mês | Soma de `faltouMes` das diferenças aceitas por `ehFalta`, com acesso ao relatório geral | Explicar o período e a origem; não apresentar como prova de furto ou resultado financeiro |
 | Resolver agora | Soma assuntos diferentes: produtos urgentes, contas atrasadas, recebimentos para decidir, códigos sem cadastro e diferenças/perdas pendentes | Usar “pendências”; discriminar assunto e comércio no destino. Não dizer “N produtos” |
 | Repor / Comprar / Validade | Mesmas regras de produtos e pedidos da unidade; já pedidos não entram em Comprar | Manter regras e mostrar produtos por comércio; não somar unidades, kg, litros e metros como um estoque global |
 | Alertas | Seções por comércio, mais urgentes primeiro; acessos a produtos, contas, pedidos, vendas e diferenças | Reaproveitar para o detalhamento dos indicadores, levando ao assunto tocado |
@@ -48,6 +48,8 @@ Proposta para C4/RMC-04: passar contexto de leitura (assunto e, quando escolhido
 
 ### 4. Escopo, período e atualização podem ser mais claros
 
+**Inconsistência de descrição confirmada:** o texto do cartão diz “Faltas e perdas de mercadoria registradas no mês”, mas `totalAntifurto` soma `alertas.faltouMes`, calculado apenas a partir de diferenças aceitas por `ehFalta`. A lista de perdas é tratada separadamente no relatório e não é somada diretamente a esse indicador. Ajustar a descrição ao cálculo em C4-A; não somar perdas por conta própria (poderia duplicar fatos e mudar a regra). Preservar a distinção entre diferença ainda em revisão, falta considerada pela regra e perda registrada.
+
 “Resumo de hoje” abrange também “Faltou este mês”. Há repetição entre “Visão geral”, “Resumo” e “Resultado”. Propor um único título global e períodos em cada bloco; não alterar o intervalo de cálculo.
 
 Hoje não há botão geral de atualizar sempre disponível nem horário explícito da última leitura concluída. Há atualização ao entrar, voltar à aba/ficar visível e recuperar conexão; “Tentar de novo” aparece em erro. Propor um comando Atualizar usando o carregamento existente e informar atualização/consulta incompleta com precisão. Não rotular todo o painel como atualizado se uma unidade falhou. Isso não equivale a monitoramento em tempo real.
@@ -65,7 +67,7 @@ Funcionários/caixas atendem Primeiros passos em Comércios, mas são consultado
 1. **Cabeçalho:** saudação curta; “Visão geral dos seus comércios”; “6 comércios” ou “1 comércio”; situação da atualização; sino com significado consistente.
 2. **Vendas de hoje:** valor e quantidade de vendas confirmadas; data; Ver vendas com a seleção já existente. Valor completo e legível.
 3. **Precisa da sua atenção:** Resolver agora, Repor, Comprar e Validade. Contagem com unidade clara, cor com texto/ícone, cada botão leva ao assunto correspondente e identifica o comércio.
-4. **Faltas e perdas do mês:** valor registrado, período e acesso ao relatório existente; apresentação secundária, sem confundir perda de mercadoria com lucro/prejuízo contábil.
+4. **Faltou este mês:** valor das faltas conforme a regra vigente, período e acesso ao relatório existente; apresentação secundária, sem confundir perda de mercadoria com lucro/prejuízo contábil.
 5. **Menu global existente:** Início, Comércios, Alertas, Equipe, Conta. Abrir uma unidade mostra nome/tipo e Voltar retorna ao contexto correto.
 
 A mudança de ordem acima é **proposta**, não aplicada. Primeiro corrigir a legibilidade dos blocos atuais; só depois revisar prioridade/ordem com o dono.
