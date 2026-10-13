@@ -39,7 +39,7 @@ describe("RMC-02C / C1 — clareza da visão global", () => {
     render(<OwnerApp userId="u1" owner="M" initial={[a]} />);
     const r = within(await screen.findByRole("region", { name: "Resumo geral" }));
     await waitFor(() => expect(r.getByRole("button", { name: /Para repor/ }).textContent).toMatch(/^1/));
-    for (const t of ["Valor das vendas finalizadas hoje", "Faltas e perdas de mercadoria registradas no mês", "Pendências urgentes de vários tipos, não só produtos",
+    for (const t of ["Valor das vendas finalizadas hoje", "Valor das faltas identificadas nas diferenças do estoque neste mês", "Pendências urgentes de vários tipos, não só produtos",
       "Produtos para repor na área de venda", "Produtos para comprar, fora os já pedidos", "Produtos com validade perto do fim"]) expect(r.getByText(t)).toBeTruthy();
     expect(screen.queryByText(/furto/i, { selector: "p" })).toBeNull();
     fireEvent.click(r.getByRole("button", { name: /Para repor/ }));
@@ -131,17 +131,17 @@ describe("RMC-02C / C3 — organização visual", () => {
     expect(etiquetaMes("2026-01-31")).toBe("Mês de janeiro");
     expect(etiquetaHoje(undefined)).toBe("Hoje");
   });
-  it("ordem dos grupos, nomes acessíveis e ações preservadas", async () => {
+  it("ordem C4-A dos grupos, nomes acessíveis e ações preservadas", async () => {
     render(<OwnerApp userId="u1" owner="M" initial={[a]} />);
     const reg = await screen.findByRole("region", { name: "Resumo geral" });
     const r = within(reg);
     const hs = r.getAllByRole("heading", { level: 3 }).map((h) => h.textContent ?? "");
     expect(hs[0]).toMatch(/^Resultado de hoje.*Hoje · \d{2}\/\d{2}/);
-    expect(hs[1]).toMatch(/^Resultado deste mês.*Mês de /);
-    expect(hs[2]).toBe("Pendências que precisam de atenção");
+    expect(hs[1]).toBe("Pendências que precisam de atenção");
+    expect(hs[2]).toMatch(/^Resultado deste mês.*Mês de /);
     const txt = reg.textContent ?? "";
-    expect(txt.indexOf("Vendas hoje")).toBeLessThan(txt.indexOf("Faltou este mês"));
-    expect(txt.indexOf("Faltou este mês")).toBeLessThan(txt.indexOf("Pendências que precisam"));
+    expect(txt.indexOf("Vendas hoje")).toBeLessThan(txt.indexOf("Pendências que precisam"));
+    expect(txt.indexOf("Pendências que precisam")).toBeLessThan(txt.indexOf("Faltou este mês"));
     for (const n of [/^Vendas hoje/, /^Faltou este mês/]) expect(r.getByRole("button", { name: n })).toBeTruthy();
     await waitFor(() => expect(r.getByRole("button", { name: /Para repor/ }).textContent).toMatch(/^1/));
     for (const n of [/Para resolver agora/, /Para comprar/, /Vencem? em breve/]) expect(r.getByRole("button", { name: n })).toBeTruthy();

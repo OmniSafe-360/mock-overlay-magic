@@ -623,7 +623,7 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
       {modo === "inicio" && stores.length > 0 && (
         <section aria-label="Resumo geral">
           <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-base font-semibold">Resumo de hoje</h2>
+            <h2 className="text-base font-semibold">Situação dos comércios</h2>
             {visao.carregando && <span className="text-xs text-muted-foreground">Atualizando…</span>}
           </div>
           {visao.erro && !visao.carregando && (
@@ -632,7 +632,7 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
               <button type="button" onClick={onTentar} className="min-h-11 rounded-xl border border-border px-3 font-semibold">Tentar de novo</button>
             </div>
           )}
-          <div className="mb-4 grid gap-3 md:grid-cols-2">
+          <div className="mb-4">
           <div className="@container min-w-0">
             <h3 className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Resultado de hoje<span className="font-normal normal-case tracking-normal">{etiquetaHoje(hoje)}</span></h3>
           <button type="button" onClick={onVendas} aria-label={`Vendas hoje: ${vendasCompletas ? brlVenda(t.vendasHojeTotal) : "consulta incompleta"}`}
@@ -649,23 +649,7 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
             </span>
           </button>
           </div>
-          <div className="@container min-w-0">
-            <h3 className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Resultado deste mês<span className="font-normal normal-case tracking-normal">{etiquetaMes(hoje)}</span></h3>
-          <button type="button" onClick={onAntifurto} aria-label={`Faltou este mês: ${afCompleto ? brlVenda(af.faltou) : "consulta incompleta"}`}
-            data-testid="cartao-faltou" className={`flex w-full flex-wrap items-start gap-x-4 gap-y-3 rounded-3xl border p-4 text-left @[26rem]:flex-nowrap @[26rem]:items-center transition hover:border-primary ${af.faltou > 0 || af.alertas > 0 ? "border-destructive/50 bg-destructive/10" : "border-border bg-secondary/70"}`}>
-            <ShieldAlert size={24} className={`shrink-0 ${af.faltou > 0 || af.alertas > 0 ? "text-destructive" : "text-muted-foreground"}`} />
-            <span className="min-w-0 flex-1">
-              <span className="block text-xs text-muted-foreground sm:text-sm">Faltou este mês</span>
-              <span className="block text-2xl font-bold tracking-tight [overflow-wrap:anywhere] sm:text-3xl">{afPronto ? brlVenda(af.faltou) : visao.carregando ? "…" : "—"}</span>
-              <span className="block text-xs leading-snug text-muted-foreground">Faltas e perdas de mercadoria registradas no mês</span>
-            </span>
-            <span data-testid="status-cartao" className="w-full shrink-0 border-t border-border/60 pt-2 text-left text-xs text-muted-foreground @[26rem]:w-auto @[26rem]:border-0 @[26rem]:pt-0 @[26rem]:text-right">
-              {!afCompleto ? "Consulta incompleta" : af.alertas === 0 ? "Nenhum alerta" : af.alertas === 1 ? "1 alerta" : `${af.alertas} alertas`}
-              {afPronto && !afCompleto && <span className="block">Subtotal disponível</span>}
-              <span className="block font-semibold text-primary">Ver antifurto</span>
-            </span>
-          </button>
-          </div>
+
           </div>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pendências que precisam de atenção</h3>
           {tudoCerto ? (
@@ -690,6 +674,25 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
               })}
             </div></div>
           )}
+          <div className="mt-4">
+          <div className="@container min-w-0">
+            <h3 className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Resultado deste mês<span className="font-normal normal-case tracking-normal">{etiquetaMes(hoje)}</span></h3>
+          <button type="button" onClick={onAntifurto} aria-label={`Faltou este mês: ${afCompleto ? brlVenda(af.faltou) : "consulta incompleta"}`}
+            data-testid="cartao-faltou" className={`flex w-full flex-wrap items-start gap-x-4 gap-y-3 rounded-3xl border p-4 text-left @[26rem]:flex-nowrap @[26rem]:items-center transition hover:border-primary ${af.faltou > 0 || af.alertas > 0 ? "border-destructive/50 bg-destructive/10" : "border-border bg-secondary/70"}`}>
+            <ShieldAlert size={24} className={`shrink-0 ${af.faltou > 0 || af.alertas > 0 ? "text-destructive" : "text-muted-foreground"}`} />
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs text-muted-foreground sm:text-sm">Faltou este mês</span>
+              <span className="block text-2xl font-bold tracking-tight [overflow-wrap:anywhere] sm:text-3xl">{afPronto ? brlVenda(af.faltou) : visao.carregando ? "…" : "—"}</span>
+              <span className="block text-xs leading-snug text-muted-foreground">Valor das faltas identificadas nas diferenças do estoque neste mês</span>
+            </span>
+            <span data-testid="status-cartao" className="w-full shrink-0 border-t border-border/60 pt-2 text-left text-xs text-muted-foreground @[26rem]:w-auto @[26rem]:border-0 @[26rem]:pt-0 @[26rem]:text-right">
+              {!afCompleto ? "Consulta incompleta" : af.alertas === 0 ? "Nenhum alerta" : af.alertas === 1 ? "1 alerta" : `${af.alertas} alertas`}
+              {afPronto && !afCompleto && <span className="block">Subtotal disponível</span>}
+              <span className="block font-semibold text-primary">Ver antifurto</span>
+            </span>
+          </button>
+          </div>
+          </div>
         </section>
       )}
     </div>
