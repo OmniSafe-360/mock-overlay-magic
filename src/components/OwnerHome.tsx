@@ -41,6 +41,8 @@ const idDe = (s: StoreData) => (typeof s.id === "string" && s.id.trim() ? s.id :
 
 /** Dados de um comércio para o resumo geral (tela inicial, Comércios e Alertas). */
 type Geral = { estado: "ok" | "carregando" | "erro"; produtos: Product[]; pedidos: Pedido[];
+  /** C2: produtos e pedidos confirmados pela última leitura geral vigente (só apresentação). */
+  base?: boolean;
   /** Vendas de hoje e códigos sem cadastro (null = não deu para ler; não impede o resto). */
   vendas?: { hojeN: number; hojeTotal: number; semCadastro: number } | null | undefined;
   /** Perdas, diferenças (30 dias e as abertas) e o limite do mês, para a aba Diferenças e o antifurto (null = não deu para ler). */
@@ -176,10 +178,10 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
           setProducts((m) => ({ ...m, [id]: r.produtos }));
           setLocais((m) => ({ ...m, [id]: r.locais }));
           setCargas((m) => ({ ...m, [id]: fornecedoresErro ? "erro" : "ok" }));
-          setGeral((m) => ({ ...m, [id]: { estado: fornecedoresErro ? "erro" : "ok", produtos: r.produtos, pedidos: ps, vendas, dif, passos: m[id]?.passos } }));
+          setGeral((m) => ({ ...m, [id]: { estado: fornecedoresErro ? "erro" : "ok", base: true, produtos: r.produtos, pedidos: ps, vendas, dif, passos: m[id]?.passos } }));
         }
       } catch {
-        if (produtoVigente()) setGeral((m) => ({ ...m, [id]: { ...m[id], produtos: m[id]?.produtos ?? [], pedidos: m[id]?.pedidos ?? [], estado: "erro", vendas: null, dif: null } }));
+        if (produtoVigente()) setGeral((m) => ({ ...m, [id]: { ...m[id], produtos: m[id]?.produtos ?? [], pedidos: m[id]?.pedidos ?? [], estado: "erro", base: false, vendas: null, dif: null } }));
       }
     }));
   }, []);
@@ -570,14 +572,16 @@ function HomeContent({ modo, stores, visao, fornecedores, locais, onPasso, onAdd
   const vendasCompletas = stores.every((s) => !!visao.geral[idDe(s) ?? ""]?.vendas);
   const afCompleto = visao.antifurto.length === stores.length && visao.antifurto.every((l) => !!l.alertas);
   const pronto = Object.keys(visao.resumos).length > 0;
+  const dispBase = disponibilidade(stores, visao, false);
+  const dispResolver = disponibilidade(stores, visao, true);
   const kpis = [
-    { label: "Para resolver agora", n: paraResolver(t), Icon: AlertTriangle, cor: "urgente" as const, desc: "Pendências urgentes de vários tipos, não só produtos" },
-    { label: "Para repor", n: t.repor, Icon: ShoppingBasket, cor: "atencao" as const, desc: "Produtos para repor na área de venda" },
-    { label: "Para comprar", n: t.comprar, Icon: ShoppingCart, cor: "atencao" as const, desc: "Produtos para comprar, fora os já pedidos" },
-    { label: t.vencendo === 1 ? "Vence em breve" : "Vencem em breve", n: t.vencendo, Icon: CalendarClock, cor: "atencao" as const, desc: "Produtos com validade perto do fim" },
+    { label: "Para resolver agora", disp: dispResolver, n: paraResolver(dispResolver.soma), Icon: AlertTriangle, cor: "urgente" as const, desc: "Pendências urgentes de vários tipos, não só produtos" },
+    { label: "Para repor", disp: dispBase, n: dispBase.soma.repor, Icon: ShoppingBasket, cor: "atencao" as const, desc: "Produtos para repor na área de venda" },
+    { label: "Para comprar", disp: dispBase, n: dispBase.soma.comprar, Icon: ShoppingCart, cor: "atencao" as const, desc: "Produtos para comprar, fora os já pedidos" },
+    { label: dispBase.soma.vencendo === 1 ? "Vence em breve" : "Vencem em breve", disp: dispBase, n: dispBase.soma.vencendo, Icon: CalendarClock, cor: "atencao" as const, desc: "Produtos com validade perto do fim" },
   ];
   // B10: "Tudo certo!" só quando também não há nada "de olho" (conta vencendo hoje, alerta de antifurto…)
-  const tudoCerto = pronto && !visao.carregando && !visao.erro && kpis.every((k) => k.n === 0) && deOlho(t) === 0;
+  const tudoCerto = pronto && !visao.carregando && !visao.erro && kpis.every((k) => k.n === 0 && k.disp.estado === "total") && deOlho(t) === 0;
   const [ocultos, setOcultos] = useState(passosOcultos);
   const passos = passosDaTela(stores, visao, fornecedores, locais, ocultos);
   const unico = stores.length === 1 ? stores[0]! : null;
@@ -661,15 +665,17 @@ function HomeContent({ modo, stores, visao, fornecedores, locais, onPasso, onAdd
             </p>
           ) : (
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              {kpis.map(({ label, n, Icon, cor, desc }) => {
-                const ativo = n > 0;
+              {kpis.map(({ label, n, Icon, cor, desc, disp }) => {
+                const ativo = disp.estado !== "indisponivel" && n > 0;
                 const borda = !ativo ? "border-border bg-secondary/70" : cor === "urgente" ? "border-destructive/60 bg-destructive/10" : "border-warning/60 bg-warning/10";
                 return (
                   <button key={label} type="button" onClick={onAlertas} className={`rounded-3xl border p-4 text-left transition hover:border-primary ${borda}`}>
                     <Icon size={20} className={!ativo ? "text-muted-foreground" : cor === "urgente" ? "text-destructive" : "text-warning"} />
-                    <p className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">{pronto ? n : "…"}</p>
+                    <p className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">{disp.estado !== "indisponivel" ? n : visao.carregando || Object.keys(visao.geral).length === 0 ? "…" : "—"}</p>
                     <p className="mt-1 text-xs leading-tight text-muted-foreground sm:text-sm">{label}</p>
                     <p className="mt-1 text-[11px] leading-snug text-muted-foreground/80 sm:text-xs">{desc}</p>
+                    {disp.estado === "subtotal" && <p className="mt-1 text-[11px] font-semibold leading-snug text-warning sm:text-xs">Subtotal: {disp.validos} de {disp.total} comércios</p>}
+                    {disp.estado === "indisponivel" && !visao.carregando && Object.keys(visao.geral).length > 0 && <p className="mt-1 text-[11px] font-semibold leading-snug text-warning sm:text-xs">Consulta incompleta</p>}
                   </button>
                 );
               })}
@@ -679,6 +685,18 @@ function HomeContent({ modo, stores, visao, fornecedores, locais, onPasso, onAdd
       )}
     </div>
   );
+}
+
+/** C2: soma só os comércios com dados confirmados na leitura atual (regras de resumoComercio/somaResumos intactas). */
+function disponibilidade(stores: StoreData[], visao: VisaoGeral, comAvisos: boolean) {
+  const ids = stores.map(idDe).filter((x): x is string => !!x);
+  const validos = ids.filter((id) => {
+    const g = visao.geral[id];
+    if (!g || g.estado === "carregando" || !g.base || !visao.resumos[id]) return false;
+    return !comAvisos || (!!g.vendas && !!g.dif);
+  });
+  const estado: "total" | "subtotal" | "indisponivel" = validos.length === 0 ? "indisponivel" : validos.length === ids.length ? "total" : "subtotal";
+  return { estado, validos: validos.length, total: ids.length, soma: somaResumos(validos.map((id) => visao.resumos[id]!)) };
 }
 
 /** RMC-01: vários comércios em lista vertical no celular e grade nas telas maiores, com "Adicionar" no fim. */
