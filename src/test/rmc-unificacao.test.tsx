@@ -91,6 +91,20 @@ describe("RMC-02: Início e Comércios unificados", () => {
     expect(await screen.findByRole("button", { name: /Feijão/ })).toBeTruthy();
     expect(atual()).toMatch(/Produtos/);
   });
+  it("cancelar Adicionar comércio durante a escolha de vendas volta ao Início sem a escolha", async () => {
+    render(<OwnerApp userId="u1" owner="Monica" initial={[lojaA, lojaB]} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Vendas hoje/ }));
+    expect(screen.getByText("Escolha o comércio para ver as vendas")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar comércio" }));
+    expect(await screen.findByText("Qual é o seu tipo de comércio?")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Cancelar/ }));
+    expect(await screen.findByRole("region", { name: "Seus comércios" })).toBeTruthy();
+    expect(screen.queryByText("Escolha o comércio para ver as vendas")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Entrar no Mercado Bom Preço" }));
+    expect(await screen.findByRole("button", { name: /Feijão/ })).toBeTruthy();
+    expect(atual()).toMatch(/Produtos/);
+    expect(atual()).not.toMatch(/Vendas/);
+  });
   it("alertas, antifurto e falha de consulta continuam acessíveis", async () => {
     banco.carregarVendas.mockRejectedValue(new TypeError("Failed to fetch"));
     render(<OwnerApp userId="u1" owner="Monica" initial={[lojaA, lojaB]} />);
