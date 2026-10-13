@@ -89,7 +89,7 @@ A tela inicial deve continuar útil com uma unidade e permanecer curta com seis:
 | 2 | RMC-02C/C3-B | Valores grandes, texto ampliado, nomes longos e tablet; leitura completa e alvo de toque adequado | Implementada em main; publicação/teste manual pendentes |
 | 3 | RMC-04/C4-A | Clareza dos títulos/períodos e ordem dos blocos; manter significado dos totais, neutro entre tipos | Integrada no PR #128; publicação/teste manual pendentes |
 | 4 | RMC-04/C4-B | Destino específico dos indicadores, comércio identificado e retorno preservado; reaproveitar Alertas | Integrada no PR #130; publicação/teste manual pendentes |
-| 5 | RMC-04/C4-C | Atualização explícita e coerência de leitura parcial, inclusive sino/detalhes; falha nunca vira zero | C4-C1 aplicada com aprovação; publicação/teste manual e C4-C2 pendentes |
+| 5 | RMC-04/C4-C | Atualização explícita e coerência de leitura parcial, inclusive sino/detalhes; falha nunca vira zero | C4-C1 integrada no PR #134; proposta C4-C2 preparada abaixo; publicação/teste manual pendentes |
 | 6 | RMC-04/C4-D | Avaliar necessidade de destaque para decisões/conferências; só implementar após mapear fontes e aprovação | Opcional, não implementada |
 | 7 | RMC-06 | Regressão funcional e visual, publicação e homologação do dono em aparelho real | Pendente |
 
@@ -284,3 +284,108 @@ Chromium sobre componente/CSS **do código oficial aplicado**, dados fictícios/
 **Publicação/homologação pendentes:** Publicar → Atualizar no Lovable. No celular: abrir Início, tocar Atualizar e conferir bloqueio/“Atualizando…” enquanto aguarda; abrir Alertas pelo sino e pelo menu; conferir os recortes Repor/Comprar/Validade/Resolver e os retornos; repetir com conexão instável e confirmar que a loja não confirmada está nominalmente no aviso, sem urgência antiga como confirmada; recuperar a conexão e Tentar de novo. Com conta sem comércios, permanece a orientação de cadastro e não aparece Atualizar vazio.
 
 C4-C2 ainda exige proposta própria para estados dos valores financeiros/relatório e eventual horário; **esta entrega não encerra C4-C inteira nem RMC-06**. Sem confirmação de publicação ou teste do dono, o checklist permanece aberto para homologação.
+
+## Proposta C4-C2 — estados dos valores financeiros e relatório geral
+
+13/10/2026, base `main 27393ab` (PR #134, C4-C1 integrada). Pedido do dono: “Sim pode fazer a próxima etapa”. A seção 0 exige mostrar código, arquivos e impactos antes da aplicação funcional. A proposta abaixo foi construída/testada apenas em `/tmp/omni-owner-c4c2-proposta/repo`; **nenhum código oficial aplicado nesta entrega documental**.
+
+### Achado e comportamento proposto
+
+`carregarGeral` preserva dados guardados enquanto marca a leitura como carregando. Hoje, o cartão Vendas considera apenas a existência de `g.vendas`, e as linhas de Antifurto podem conter os alertas anteriores. Isso mantém valores anteriores visíveis como se fossem confirmados durante a nova consulta, inclusive zero antigo.
+
+A C4-C2 reutiliza os IDs confirmados de `disponibilidade` (C2) para criar **somente um recorte de apresentação**, sem alterar `geral`, dados guardados, fórmulas ou funções de leitura:
+
+- Vendas: total completo só quando produtos/pedidos e vendas estiverem confirmados para todas as unidades; enquanto consulta incompleta, continua a política existente “…” consultando ou “—” indisponível. Não introduz subtotal de vendas nem lucro.
+- Faltou este mês: soma somente linhas confirmadas; nenhuma disponível mostra “…”/“—”; parte disponível mantém subtotal identificado; todas confirmadas mantêm o valor completo e o zero verdadeiro.
+- Relatório Antifurto geral: utiliza o mesmo recorte; durante leitura informa “Consultando: X de Y comércios confirmados”; após falha, mantém “Subtotal de X de Y … consulta incompleta” e aviso nominal. Linhas antigas da unidade pendente ficam fora das faltas/“sem faltas” confirmadas.
+- Preservar entradas Vendas/Antifurto, seleção da unidade, retorno, filtros C4-B, sino/Atualizar C4-C1 e resultados das funções `totalAntifurto`, `ehFalta` e resumo geral. A aba Comércios continua usando a visão original.
+
+### Horário de leitura avaliado
+
+Não acrescentar horário nesta correção. A marcação atual não registra uma hora única confiável de leitura completa por módulo; apresentar o relógio do clique ou da primeira resposta como “todos os dados atualizados” seria incorreto em consulta parcial. Exibir apenas os estados comprovados já disponíveis. Se o dono quiser o horário, preparar uma proposta própria com origem, módulo, período, fuso e política de falha, sem alterar movimentações. A ausência dessa opção não impede o aceite dos estados corretos de C4-C2.
+
+### Arquivos exatos e impactos antes de aplicar
+
+1. `src/components/OwnerHome.tsx`: recorte financeiro derivado da disponibilidade C2, seleção do relatório/Início, critério de Vendas completas e texto Consultando do cartão mensal.
+2. `src/components/AntifurtoGeral.tsx`: apenas o texto da quantidade de unidades confirmadas durante consulta; mesmas contas/destinos.
+3. `src/test/rmc-c4c2.test.tsx`: novo teste de cinco cenários (valores anteriores durante carga; relatório parcial/retorno; zero verdadeiro; falha só de diferenças; falha de todas/recuperação). Nenhum teste existente alterado.
+4. `docs/auditoria-painel-global-2026-10-13.md`, `docs/FONTE_DA_VERDADE.md`, `docs/CHECKLIST_PONTA_A_PONTA.md`, `CLAUDE.md`: registros de entrega.
+
+**Impacto visível:** ao tocar Atualizar, números financeiros antigos passam temporariamente a Consultando/“…”; o relatório pode mostrar só unidades já confirmadas e depois completar. Falha final não vira R$ 0. Valores, preços, faltas/perdas consideradas e total final confirmado são os mesmos. Nenhuma venda, baixa, ajuste, operação, migração, permissão, endpoint, dependência ou formulário operacional é modificado. Não apagar registros nem dados guardados.
+
+### Código proposto
+
+```diff
+--- a/src/components/OwnerHome.tsx
++++ b/src/components/OwnerHome.tsx
+@@ -241,6 +241,10 @@
+     return { geral, resumos, alertas, decidir, antifurto, total: somaResumos(Object.values(resumos)), carregando: gs.some((g) => g.estado === "carregando"), erro: gs.some((g) => g.estado === "erro" || (g.estado === "ok" && (!g.vendas || !g.dif))) };
+   }, [stores, geral, hojeGeral]);
+   // C4-C1: o sino usa os mesmos comércios confirmados de Resolver agora.
++  // C4-C2: recorte de apresentação, sem alterar dados guardados ou cálculos.
++  const idsFinanceiros = new Set(disponibilidade(stores, visao, false).idsValidos);
++  const visaoFinanceira: VisaoGeral = { ...visao, antifurto: visao.antifurto.map((l) =>
++    idsFinanceiros.has(l.id) ? l : { ...l, alertas: null, maisSumiu: null }) };
+   const dispSino = disponibilidade(stores, visao, true);
+   const urgentesSino = paraResolver(dispSino.soma);
+   const incompletoSino = stores.length > 0 && (dispSino.estado !== "total" || visao.erro);
+@@ -498,9 +502,9 @@
+               onDiferencasMudou={() => { if (sid) { void recarregar(sid); void atualizarAvisos(sid); } }}
+               onBack={() => { setOpen(null); setSaved(false); setInicioLoja(undefined); if (voltarPara) { setTab(voltarPara); setVoltarPara(null); } }} onNew={() => openWizard()} onEdit={(p) => openWizard(p)} onDismissSaved={() => setSaved(false)} />
+           ) : tab === "inicio" && verAntifurto ? (
+-            <AntifurtoGeral linhas={visao.antifurto} carregando={visao.carregando} onAbrir={(s) => abrirLoja(s, { relatorio: true })} onVoltar={() => setVerAntifurto(false)} />
++            <AntifurtoGeral linhas={visaoFinanceira.antifurto} carregando={visao.carregando} onAbrir={(s) => abrirLoja(s, { relatorio: true })} onVoltar={() => setVerAntifurto(false)} />
+           ) : tab === "inicio" || tab === "comercios" ? (
+-            <HomeContent hoje={hojeGeral} modo={tab} stores={stores} visao={visao} fornecedores={suppliers.length} locais={locais}
++            <HomeContent hoje={hojeGeral} modo={tab} stores={stores} visao={tab === "inicio" ? visaoFinanceira : visao} fornecedores={suppliers.length} locais={locais}
+               onPasso={(s, p) => abrirLoja(s, { aba: p.id === "fornecedor" ? "Fornecedores" : p.id === "equipe" ? "Equipe" : p.id === "caixa" ? "Vendas" : "Produtos" })}
+               onAdd={() => { setEscolherVendas(false); setVoltarPara(null); setAdding(true); }}
+               onOpen={(s) => { if (escolherVendas) { abrirLoja(s, { aba: "Vendas" }); } else { setVoltarPara(null); abrirLoja(s); } }}
+@@ -573,13 +577,13 @@
+ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso, onAdd, onOpen, onAlertas, onVendas, onTentar, onAntifurto, onComercios, escolherVendas = false, onCancelarEscolha }: {
+   hoje?: string; modo: "inicio" | "comercios"; onComercios: () => void; stores: StoreData[]; visao: VisaoGeral; fornecedores: number; locais: Record<string, LocaisCadastrados>; onPasso: (s: StoreData, p: Passo) => void; onAdd: () => void; onOpen: (s: StoreData) => void; onAlertas: (assunto: AssuntoAlertaGlobal) => void; onVendas: () => void; onTentar: () => void; onAntifurto: () => void; escolherVendas?: boolean; onCancelarEscolha?: () => void;
+ }) {
++  const dispBase = disponibilidade(stores, visao, false);
+   const t = visao.total;
+   const af = totalAntifurto(visao.antifurto);
+   const afPronto = visao.antifurto.some((l) => l.alertas);
+-  const vendasCompletas = stores.every((s) => !!visao.geral[idDe(s) ?? ""]?.vendas);
++  const vendasCompletas = stores.every((s) => { const id = idDe(s) ?? ""; return dispBase.idsValidos.includes(id) && !!visao.geral[id]?.vendas; });
+   const afCompleto = visao.antifurto.length === stores.length && visao.antifurto.every((l) => !!l.alertas);
+   const pronto = Object.keys(visao.resumos).length > 0;
+-  const dispBase = disponibilidade(stores, visao, false);
+   const dispResolver = disponibilidade(stores, visao, true);
+   const kpis = [
+     { label: "Para resolver agora", assunto: "resolver" as const, disp: dispResolver, n: paraResolver(dispResolver.soma), Icon: AlertTriangle, cor: "urgente" as const, desc: "Pendências urgentes de vários tipos, não só produtos" },
+@@ -696,7 +700,7 @@
+               <span className="block text-xs leading-snug text-muted-foreground">Valor das faltas identificadas nas diferenças do estoque neste mês</span>
+             </span>
+             <span data-testid="status-cartao" className="w-full shrink-0 border-t border-border/60 pt-2 text-left text-xs text-muted-foreground @[26rem]:w-auto @[26rem]:border-0 @[26rem]:pt-0 @[26rem]:text-right">
+-              {!afCompleto ? "Consulta incompleta" : af.alertas === 0 ? "Nenhum alerta" : af.alertas === 1 ? "1 alerta" : `${af.alertas} alertas`}
++              {!afCompleto ? visao.carregando ? "Consultando…" : "Consulta incompleta" : af.alertas === 0 ? "Nenhum alerta" : af.alertas === 1 ? "1 alerta" : `${af.alertas} alertas`}
+               {afPronto && !afCompleto && <span className="block">Subtotal disponível</span>}
+               <span className="block font-semibold text-primary">Ver antifurto</span>
+             </span>
+
+--- a/src/components/AntifurtoGeral.tsx
++++ b/src/components/AntifurtoGeral.tsx
+@@ -38,7 +38,7 @@
+       <section aria-label="Total de todos os comércios" className="rounded-3xl border border-border bg-secondary/40 p-4">
+         <p className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><ShieldAlert size={18} className="text-destructive" /> Faltou este mês</p>
+         <p className={`mt-1 text-3xl font-bold tabular-nums ${tot.faltou > 0 ? "text-destructive" : ""}`}>{!linhas.some((l) => l.alertas) ? carregando ? "…" : "—" : brl(tot.faltou)}</p>
+-        <p className="text-sm text-muted-foreground">{semDados.length ? `Subtotal de ${linhas.length - semDados.length} de ${linhas.length} comércios · consulta incompleta` : `${tot.alertas === 0 ? "Nenhum alerta" : tot.alertas === 1 ? "1 alerta" : `${tot.alertas} alertas`} · ${linhas.length === 1 ? "1 comércio" : `${linhas.length} comércios`}`}</p>
++        <p className="text-sm text-muted-foreground">{semDados.length ? carregando ? `Consultando: ${linhas.length - semDados.length} de ${linhas.length} comércios confirmados` : `Subtotal de ${linhas.length - semDados.length} de ${linhas.length} comércios · consulta incompleta` : `${tot.alertas === 0 ? "Nenhum alerta" : tot.alertas === 1 ? "1 alerta" : `${tot.alertas} alertas`} · ${linhas.length === 1 ? "1 comércio" : `${linhas.length} comércios`}`}</p>
+       </section>
+
+       {comFalta.length > 0 && (
+```
+
+### Evidências e aceite
+
+Proposta isolada: `npx tsc --noEmit` **duas vezes**, `npx vitest run` **duas vezes**, **1.071 testes em 106 arquivos aprovados em cada rodada**, build com Supabase fictício aprovado. **22 testes focados em três arquivos** aprovados. Cinco casos novos, nenhum teste existente alterado.
+
+Chromium com componente/CSS da proposta, dados fictícios e rede externa bloqueada: **320/390/768/1280 px**, seis tipos, valor de vendas grande/zero mensal anterior, leitura retida artificialmente, valores antigos ocultos no painel/relatório, número de unidades confirmadas e recuperação do zero confirmado; **quatro cenários aprovados e zero erros JavaScript**. Primeiro script procurava “Consultando…” como texto isolado, mas o mesmo contêiner inclui Ver vendas/Ver antifurto; seletor corrigido no script temporário para o botão pelo nome acessível, sem alterar o aplicativo ou ocultar erro. O problema era de seleção no ensaio, não de valor confirmado.
+
+Artefatos locais em `/tmp/omni-owner-c4c2-proposta`: patch, cinco testes, logs, scripts e resultado do navegador. Isso não comprova publicação/aparelho/banco real ou carga de produção. Checks do PR documental validam o código atual (C4-C1); o patch/teste da proposta continuam apenas na cópia até validação prévia.
+
+Depois da aplicação aprovada e Publicar → Atualizar: conferir Vendas/Faltou com um/vários comércios; tocar Atualizar e confirmar Consultando; abrir Antifurto durante a consulta e conferir quantidade de unidades confirmadas; verificar falha/recuperação e zero confirmado; entrar numa unidade e voltar, mantendo origem/relatório. Não registrar como publicado/testado no aparelho sem evidência. RMC-06 permanece pendente para a inspeção final dos fluxos e da versão publicada; C4-D continua opcional.
