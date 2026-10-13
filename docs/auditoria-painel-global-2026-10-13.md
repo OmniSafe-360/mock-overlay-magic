@@ -89,7 +89,7 @@ A tela inicial deve continuar útil com uma unidade e permanecer curta com seis:
 | 2 | RMC-02C/C3-B | Valores grandes, texto ampliado, nomes longos e tablet; leitura completa e alvo de toque adequado | Implementada em main; publicação/teste manual pendentes |
 | 3 | RMC-04/C4-A | Clareza dos títulos/períodos e ordem dos blocos; manter significado dos totais, neutro entre tipos | Integrada no PR #128; publicação/teste manual pendentes |
 | 4 | RMC-04/C4-B | Destino específico dos indicadores, comércio identificado e retorno preservado; reaproveitar Alertas | Integrada no PR #130; publicação/teste manual pendentes |
-| 5 | RMC-04/C4-C | Atualização explícita e coerência de leitura parcial, inclusive sino/detalhes; falha nunca vira zero | Proposta C4-C1 abaixo; C4-C2 pendente; nenhuma aplicada |
+| 5 | RMC-04/C4-C | Atualização explícita e coerência de leitura parcial, inclusive sino/detalhes; falha nunca vira zero | C4-C1 aplicada com aprovação; publicação/teste manual e C4-C2 pendentes |
 | 6 | RMC-04/C4-D | Avaliar necessidade de destaque para decisões/conferências; só implementar após mapear fontes e aprovação | Opcional, não implementada |
 | 7 | RMC-06 | Regressão funcional e visual, publicação e homologação do dono em aparelho real | Pendente |
 
@@ -267,3 +267,20 @@ Proposta: sinal amarelo quando a consulta está incompleta, sem apresentar a ant
 Após aplicação aprovada/publicação: tocar Atualizar; verificar bloqueio enquanto aguarda; simular internet instável e conferir nomes das lojas não confirmadas; abrir sino/lista normal e os quatro recortes C4-B; recuperar internet e repetir; conferir retorno e preservar acesso aos módulos operacionais. RMC-06 permanece pendente para aparelho real/volume/fluxos completos.
 
 **Regra de autorização:** seção 0 da fonte: “antes de alterar o aplicativo ou o banco, apresentar o código proposto, a lista exata dos arquivos e os impactos para validação do dono”. O pedido atual autoriza conferir o que falta e preparar esta próxima correção; aplicar o patch acima depende da validação prévia da proposta concreta.
+
+## Entrega C4-C1
+
+13/10/2026, base `main 8ea2c8f` (PR documental #133). O dono aprovou a proposta concreta respondendo **“Pode fazer”**. Aplicado exatamente o patch acima, sem ampliação de escopo, em `src/components/OwnerHome.tsx` e novo `src/test/rmc-c4c.test.tsx`. Quatro documentos de continuidade atualizados. Os registros acima da proposta isolada descrevem a preparação anterior; nesta entrega a C4-C1 está aplicada ao código oficial.
+
+- Atualizar usa `onTentar`/`carregarGeral`, com botão desabilitado durante a leitura; não cria gravação nem função de negócio.
+- Sino usa a disponibilidade C2 para as urgências; rótulo distingue “atualizando”/“consulta incompleta” e sinal amarelo comunica consulta incompleta. Não mantém urgência antiga como confirmada após falha.
+- Alertas sem filtro só exibe seções com produtos/pedidos confirmados; sem confirmação aparece no aviso pelo nome, Tentar de novo recupera. Falha de vendas/diferenças mantém acesso ao produto confirmado e avisa incompletude. Não retira dados guardados nem mexe em `products`, `pedidos`, banco ou estoque.
+- Cálculos, filtros C4-B, regiões da tela, destinos, formulários operacionais e permissões mantidos. Cinco testes novos conforme proposta; nenhum teste existente modificado.
+
+Validação após aplicação ao repositório oficial: `npx tsc --noEmit` **duas vezes**, `npx vitest run` **duas vezes**, **1.066 testes em 105 arquivos aprovados em cada rodada**, e `npm run build` com Supabase fictício aprovado. Comparação byte a byte confirmou que componente/teste aplicado é idêntico à proposta aprovada.
+
+Chromium sobre componente/CSS **do código oficial aplicado**, dados fictícios/rede externa bloqueada: 320/390/768/1280 px, seis tipos de comércio, falha após leitura bem-sucedida, sino incompleto, ausência da unidade com dados antigos na lista, unidade confirmada presente e botão de 44 px; **quatro cenários aprovados, zero erros JavaScript**. Artefatos locais em `/tmp/omni-owner-c4c1`: logs, scripts, medidas e capturas. Sem aparelho/sessão/banco real; não comprova publicação ou carga de produção. Filtros e demais fluxos cobertos pela suíte existente, sem alteração de seus testes.
+
+**Publicação/homologação pendentes:** Publicar → Atualizar no Lovable. No celular: abrir Início, tocar Atualizar e conferir bloqueio/“Atualizando…” enquanto aguarda; abrir Alertas pelo sino e pelo menu; conferir os recortes Repor/Comprar/Validade/Resolver e os retornos; repetir com conexão instável e confirmar que a loja não confirmada está nominalmente no aviso, sem urgência antiga como confirmada; recuperar a conexão e Tentar de novo. Com conta sem comércios, permanece a orientação de cadastro e não aparece Atualizar vazio.
+
+C4-C2 ainda exige proposta própria para estados dos valores financeiros/relatório e eventual horário; **esta entrega não encerra C4-C inteira nem RMC-06**. Sem confirmação de publicação ou teste do dono, o checklist permanece aberto para homologação.
