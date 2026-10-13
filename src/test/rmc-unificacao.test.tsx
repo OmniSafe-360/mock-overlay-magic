@@ -40,7 +40,7 @@ describe("RMC-02/02B: Início (resumo) e Comércios (cartões)", () => {
     for (const nome of ["Início", "Comércios", "Equipe", "Conta"]) expect(screen.getAllByRole("button", { name: nome })).toHaveLength(2);
     const navs = document.querySelectorAll("nav");
     expect(navs).toHaveLength(2);
-    navs.forEach((n) => expect([...n.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Início", "Comércios", "Alertas", "Equipe", "Conta"]));
+    navs.forEach((n) => expect([...n.querySelectorAll("button")].map((b) => b.textContent?.trim())).toEqual(["Início", "Comércios", "Alertas", "Equipe", "Conta"]));
     expect(document.querySelector("nav .grid")?.className).toMatch(/\bgrid-cols-5\b/);
   });
   it("cada comércio uma única vez, com produtos e Adicionar comércio", async () => {
@@ -90,7 +90,8 @@ describe("RMC-02/02B: Início (resumo) e Comércios (cartões)", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Vendas hoje/ }));
     fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
     expect(screen.queryByText("Escolha o comércio para ver as vendas")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /Vendas hoje/ }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Início" })[0]!);
+    fireEvent.click(await screen.findByRole("button", { name: /Vendas hoje/ }));
     fireEvent.click(screen.getAllByRole("button", { name: "Alertas" })[0]!);
     fireEvent.click(screen.getAllByRole("button", { name: "Comércios" })[0]!);
     expect(screen.queryByText("Escolha o comércio para ver as vendas")).toBeNull();
