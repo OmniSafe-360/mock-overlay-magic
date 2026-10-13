@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OwnerApp } from "@/components/OwnerHome";
 import type { Product } from "@/components/ProductArea";
@@ -75,6 +75,7 @@ describe("primeiros passos", () => {
     expect(screen.queryAllByRole("button", { name: /^Ver / })).toHaveLength(0);
     // 5. "Adicionar comércio" continua funcionando (abre o cadastro)
     fireEvent.click(within(secao).getByRole("button", { name: "Adicionar comércio" }));
-    expect(await screen.findByText(/Cancelar|Dados do comércio|Tipo de comércio/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Seus comércios" })).toBeNull());
+    expect(screen.queryByText("Resumo de hoje")).toBeNull();
   });
 });
