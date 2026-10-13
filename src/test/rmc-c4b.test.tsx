@@ -89,7 +89,7 @@ describe("RMC-04 / C4-B — Alertas por assunto, com dados confirmados", () => {
 
   it("Validade mostra apenas produtos próximos do vencimento, não os outros alertas", async () => {
     render(<OwnerApp userId="u1" owner="M" initial={[a]} />);
-    await abrirAssunto(/Vencem em breve/);
+    await abrirAssunto(/Vence(m)? em breve/);
     expect(screen.getByText("Assunto: Vencem em breve")).toBeTruthy();
     const sec = within(screen.getByRole("region", { name: "Mercado Alfa" }));
     expect(sec.getByRole("button", { name: "Vencem em breve" })).toBeTruthy();
