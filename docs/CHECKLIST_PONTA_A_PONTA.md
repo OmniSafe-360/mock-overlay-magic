@@ -314,11 +314,11 @@ G0.1 está **corrigida no código, com publicação e teste do dono pendentes**;
 Regras e controle obrigatório na seção 16 da [fonte da verdade](FONTE_DA_VERDADE.md). Não altera E1–E8 nem G0–G8. Nenhuma etapa inclui mudança de banco. Cada etapa com código exige proposta com arquivos exatos e aprovação do dono antes de começar.
 
 - [x] **RMC-00 Registro documental e regras de proteção** — 13/10/2026, sobre `main` `8bb3342`: seção 16 na fonte da verdade, esta frente no checklist e registro em `CLAUDE.md`. Só documentação; nenhum código, banco, interface ou dado alterado; não exige Publicar → Atualizar. Aguarda conferência/auditoria do dono.
-- [ ] **RMC-01 Reorganização dos cartões dos comércios.**
+- [ ] **RMC-01 Reorganização dos cartões dos comércios.** — 13/10/2026: **implementada no código, aguardando validação manual.** Início do proprietário: "Seus comércios" antes do "Resumo de hoje"; com vários comércios, lista vertical no celular e grade (2/3 colunas) em telas maiores, sem carrossel/bolinhas; nomes "Entrar no [comércio]" preservados; comércio único, Primeiros passos, resumos, aba Comércios e interior do comércio iguais. Arquivos: `src/components/OwnerHome.tsx`, `src/test/primeiros-passos.test.tsx` (teste do layout antigo trocado com autorização do dono). Tipos e 1.019 testes/98 arquivos duas vezes e build aprovados. Sem banco.
 - [ ] **RMC-02 Unificação visual e de navegação entre Início e Comércios.**
 - [ ] **RMC-03 Organização de Equipe e Primeiros passos.**
 - [ ] **RMC-04 Simplificação dos resumos e alertas**, preservando relatórios e acessos existentes.
 - [ ] **RMC-05 Separação entre a navegação geral do proprietário e a navegação interna da unidade.**
 - [ ] **RMC-06 Testes de regressão e homologação da reorganização.**
 
-Próximo passo: RMC-01 somente após auditoria independente do GitHub e autorização do dono.
+Próximo passo: RMC-02 somente com autorização do dono.
