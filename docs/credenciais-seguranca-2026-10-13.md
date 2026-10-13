@@ -8,6 +8,8 @@ Entrega documental: [PR #115](https://github.com/OmniSafe-360/mock-overlay-magic
 
 ## Confirmação da revogação
 
+Registro da confirmação: [PR #116](https://github.com/OmniSafe-360/mock-overlay-magic/pull/116), `ff3faab`.
+
 Em **13/10/2026**, o dono informou **“Revoguei”** em resposta à orientação sobre o token **Codex Omni Safe 360**. Responsável pela ação: dono, no painel da própria conta. A data registra a confirmação; o horário efetivo da revogação não foi informado.
 
 Essa confirmação é a evidência humana da revogação. O assistente não usou o valor exposto, não testou a rejeição do token antigo por API, não criou outro token e não alterou chaves do projeto. O acesso administrativo `SUPABASE_ACCESS_TOKEN` continua ausente no runtime; manutenção de código pelo GitHub permanece disponível. Novo token não é necessário para esta atualização documental nem para a verificação independente G0.3; será preparado pelo canal seguro quando houver tarefa administrativa no Supabase.
