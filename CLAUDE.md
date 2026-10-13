@@ -252,3 +252,5 @@ G0.3: primeiro CI hospedado confirmou instalação online/frozen sem scripts, sc
 
 
 Registro documental inicial G1.1: commit `114a00e` (código auditado `b05339c`); somente documentação. Matriz local aprovada, comparação do Supabase real pendente.
+
+- **13/10/2026 — RMC-00, registro da reorganização multicomércio** (pedido do dono), sobre `main` `8bb3342`. Acrescentada a seção 16 "Reorganização multicomércio — RMC" à fonte da verdade (objetivo, 12 regras, controle obrigatório por etapa; descrita como plano, seção 3.2/12 preservadas) e a frente RMC-00…RMC-06 no checklist ponta a ponta (só RMC-00 marcada). **Somente documentação:** nenhum código, rota, banco, interface ou dado alterado; não exige Publicar → Atualizar. RMC-01 só após auditoria independente e autorização do dono.

@@ -473,3 +473,30 @@ Para G0–G8, o dono confirmou **várias lojas e vários caixas**. Ainda faltam:
 
 
 **13/10/2026 — G1.1, auditoria de isolamento autorizada:** base `main b05339c`/PR #117 conferida. 243 casos SQL e 74 HTTP (PostgREST local), todos aprovados; dois donos/três lojas/quatro caixas/equipe/fornecedores/fiado/gerente global, UUIDs cruzados, revogação e acessos legítimos. Defaults oficiais Supabase emulados apenas na cópia privada; 122 funções/35 tabelas, 33 helpers fechados. [Evidências, limites e roteiro](isolamento-acessos-2026-10-13.md). **G1.1 permanece aberta:** comparar ACL/RLS/funções e gateway reais depende de leitura administrativa segura, indisponível nesta execução. Diferença local de loja inativa: Conector recusa, equipe/caixa móvel ainda consultam; pertence à G1.2 e requer proposta/validação antes de corrigir. Nenhum app, migração, permissão de produção, dado ou workflow alterado. G0.1/G0.2/G0.3 mantêm seus aceites pendentes; próxima análise independente G1.2. Não exige atualizar app no Lovable.
+
+---
+
+## 16. REORGANIZAÇÃO MULTICOMÉRCIO — RMC
+
+Registrada em 13/10/2026 (RMC-00), sobre o `main` `8bb3342` (PR #123). **Esta seção descreve uma reorganização planejada, não uma implementação já realizada.** O mapa atual da seção 3.2 e o estado da seção 12 continuam valendo até que cada mudança correspondente seja autorizada, implementada e validada pelo dono; só então eles são atualizados.
+
+**Objetivo:** separar o Painel Geral do Proprietário do ambiente individual de cada comércio. O painel geral passa a funcionar principalmente como central de todos os estabelecimentos, sem repetir sem necessidade as informações operacionais exibidas dentro de cada unidade.
+
+**Regras:**
+
+1. O painel geral representa o conjunto dos comércios do proprietário.
+2. Cada comércio mantém suas operações e informações específicas.
+3. A tela inicial geral prioriza todos os comércios: nome, identificação da unidade, localização, situação resumida e entrada para o estabelecimento.
+4. Não repetir no painel geral listas operacionais, cadastros completos, equipes individuais ou detalhes de estoque.
+5. Não eliminar informações importantes nem funcionalidades existentes. Toda funcionalidade permanece acessível em um local coerente.
+6. Recursos realmente consolidados de vários comércios (ex.: relatórios gerais, antifurto geral) têm seu destino avaliado antes de qualquer retirada.
+7. Manter a identidade visual OmniSafe 360°, a responsividade e a facilidade de navegação (seção 8 e memória do projeto).
+8. Preservar integralmente o isolamento de dados por comércio e o compartilhamento de fornecedores conforme as regras atuais.
+9. Preservar todas as regras financeiras, operacionais e de segurança.
+10. Mudanças executadas individualmente, com inspeção de código, testes automáticos e validação manual.
+11. Nenhuma alteração de banco de dados faz parte desta reorganização.
+12. Uma etapa só é concluída após aprovação expressa do proprietário.
+
+**Controle obrigatório antes de cada etapa RMC:** conferir esta fonte e o estado atual do GitHub; apresentar o problema, a mudança proposta e a lista exata de arquivos; explicar o impacto nos fluxos existentes; aguardar aprovação do dono para mudança funcional; alterar só o aprovado; rodar `npx tsc --noEmit` e `npx vitest run` duas vezes cada (etapas com código), build e testes específicos; verificar regressões de navegação e fluxos protegidos; registrar resultados reais; informar se precisa Publicar → Atualizar; fornecer roteiro de teste manual; não iniciar a próxima etapa sem autorização; manter o histórico Git sem force push, rebase ou reescrita. Se surgir necessidade de alterar código fora do escopo, interromper e justificar.
+
+**Etapas** (detalhe e situação no [checklist ponta a ponta](CHECKLIST_PONTA_A_PONTA.md), frente RMC): RMC-00 registro documental; RMC-01 cartões dos comércios; RMC-02 unificação visual e de navegação entre Início e Comércios; RMC-03 Equipe e Primeiros passos; RMC-04 resumos e alertas, preservando relatórios e acessos; RMC-05 navegação geral do proprietário × navegação interna da unidade; RMC-06 regressão e homologação. As frentes E1–E8 e G0–G8 continuam inalteradas.

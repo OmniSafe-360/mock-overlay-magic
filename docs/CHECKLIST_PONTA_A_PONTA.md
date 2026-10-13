@@ -308,3 +308,17 @@ G0.1 está **corrigida no código, com publicação e teste do dono pendentes**;
 | G0.2 | [PR #115](https://github.com/OmniSafe-360/mock-overlay-magic/pull/115), inventário `dc2c005`; código/histórico/artefatos conferidos; [registro](credenciais-seguranca-2026-10-13.md) | Documentação; nenhuma credencial/app/banco alterado | Revogação informada pelo dono em 13/10/2026; consumidores/app normal ainda não confirmados | Confirmar critérios restantes; G0.3 pode ser verificada independentemente |
 | G0.3 | Oito arquivos aprovados/aplicados, código `9830590`; [PR #117](https://github.com/OmniSafe-360/mock-overlay-magic/pull/117) e [CI remoto aprovado](https://github.com/OmniSafe-360/mock-overlay-magic/actions/runs/38381015645); [código/arquivos/impactos](publicacao-seguranca-2026-10-13.md) | Checks funcionando no GitHub; proteção obrigatória pendente; sem alteração no app | Aprovação prévia/primeiro CI remoto confirmados; compatibilidade das regras Lovable e proteção efetiva pendentes | Validar acesso Lovable/alertas/regras e ensaiar bloqueio; G1.1 auditada localmente; próxima análise independente G1.2 |
 | G1.1 | Registro inicial `114a00e`; auditoria local autorizada: 243 SQL +74 HTTP aprovados; [matriz/reprodução](isolamento-acessos-2026-10-13.md) | Só documentação; nenhum app/banco/configuração alterado | Banco real/gateway e teste publicado pendentes | Próxima análise independente G1.2; defaults da base antiga/CI a reforçar com proposta própria |
+
+## Frente RMC — reorganização multicomércio
+
+Regras e controle obrigatório na seção 16 da [fonte da verdade](FONTE_DA_VERDADE.md). Não altera E1–E8 nem G0–G8. Nenhuma etapa inclui mudança de banco. Cada etapa com código exige proposta com arquivos exatos e aprovação do dono antes de começar.
+
+- [x] **RMC-00 Registro documental e regras de proteção** — 13/10/2026, sobre `main` `8bb3342`: seção 16 na fonte da verdade, esta frente no checklist e registro em `CLAUDE.md`. Só documentação; nenhum código, banco, interface ou dado alterado; não exige Publicar → Atualizar. Aguarda conferência/auditoria do dono.
+- [ ] **RMC-01 Reorganização dos cartões dos comércios.**
+- [ ] **RMC-02 Unificação visual e de navegação entre Início e Comércios.**
+- [ ] **RMC-03 Organização de Equipe e Primeiros passos.**
+- [ ] **RMC-04 Simplificação dos resumos e alertas**, preservando relatórios e acessos existentes.
+- [ ] **RMC-05 Separação entre a navegação geral do proprietário e a navegação interna da unidade.**
+- [ ] **RMC-06 Testes de regressão e homologação da reorganização.**
+
+Próximo passo: RMC-01 somente após auditoria independente do GitHub e autorização do dono.
