@@ -87,7 +87,7 @@ describe("RMC-02B: Início com resumo, Comércios com as unidades", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Acabaram/ }));
     fireEvent.click(await screen.findByRole("button", { name: /Café/ }));
     expect(await screen.findByRole("heading", { name: "Café" })).toBeTruthy();
-    fireEvent.click(screen.getAllByRole("button", { name: /Voltar/ })[0]!);
+    fireEvent.click(screen.getByRole("button", { name: "Produtos" }));
     fireEvent.click(await screen.findByRole("button", { name: /Voltar/ }));
     expect(await screen.findByRole("heading", { name: "Alertas" })).toBeTruthy();
     fireEvent.click(screen.getAllByRole("button", { name: "Início" })[0]!);
