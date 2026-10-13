@@ -93,7 +93,8 @@ describe("RMC-04 / C4-B — Alertas por assunto, com dados confirmados", () => {
     await abrirAssunto(/Vence(m)? em breve/);
     expect(screen.getByText("Assunto: Vencem em breve")).toBeTruthy();
     const sec = within(screen.getByRole("region", { name: "Mercado Alfa" }));
-    expect(sec.getByRole("button", { name: /Vencem em breve/ })).toBeTruthy();
+    const detalhes = within(sec.getByRole("region", { name: "Atenção hoje" }));
+    expect(detalhes.getByRole("button", { name: /Vencem em breve/ })).toBeTruthy();
     expect(sec.getByRole("button", { name: /Leite/ })).toBeTruthy();
     expect(sec.queryByRole("button", { name: /Repor a/ })).toBeNull();
     expect(sec.queryByRole("button", { name: /Comprar/ })).toBeNull();
