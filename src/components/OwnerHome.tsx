@@ -493,7 +493,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
           ) : tab === "inicio" && verAntifurto ? (
             <AntifurtoGeral linhas={visao.antifurto} carregando={visao.carregando} onAbrir={(s) => abrirLoja(s, { relatorio: true })} onVoltar={() => setVerAntifurto(false)} />
           ) : tab === "inicio" || tab === "comercios" ? (
-            <HomeContent modo={tab} stores={stores} visao={visao} fornecedores={suppliers.length} locais={locais}
+            <HomeContent hoje={hojeGeral} modo={tab} stores={stores} visao={visao} fornecedores={suppliers.length} locais={locais}
               onPasso={(s, p) => abrirLoja(s, { aba: p.id === "fornecedor" ? "Fornecedores" : p.id === "equipe" ? "Equipe" : p.id === "caixa" ? "Vendas" : "Produtos" })}
               onAdd={() => { setEscolherVendas(false); setVoltarPara(null); setAdding(true); }}
               onOpen={(s) => { if (escolherVendas) { abrirLoja(s, { aba: "Vendas" }); } else { setVoltarPara(null); abrirLoja(s); } }}
@@ -563,8 +563,8 @@ function passosDaTela(stores: StoreData[], visao: VisaoGeral, fornecedores: numb
   return null;
 }
 
-function HomeContent({ modo, stores, visao, fornecedores, locais, onPasso, onAdd, onOpen, onAlertas, onVendas, onTentar, onAntifurto, onComercios, escolherVendas = false, onCancelarEscolha }: {
-  modo: "inicio" | "comercios"; onComercios: () => void; stores: StoreData[]; visao: VisaoGeral; fornecedores: number; locais: Record<string, LocaisCadastrados>; onPasso: (s: StoreData, p: Passo) => void; onAdd: () => void; onOpen: (s: StoreData) => void; onAlertas: () => void; onVendas: () => void; onTentar: () => void; onAntifurto: () => void; escolherVendas?: boolean; onCancelarEscolha?: () => void;
+function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso, onAdd, onOpen, onAlertas, onVendas, onTentar, onAntifurto, onComercios, escolherVendas = false, onCancelarEscolha }: {
+  hoje?: string; modo: "inicio" | "comercios"; onComercios: () => void; stores: StoreData[]; visao: VisaoGeral; fornecedores: number; locais: Record<string, LocaisCadastrados>; onPasso: (s: StoreData, p: Passo) => void; onAdd: () => void; onOpen: (s: StoreData) => void; onAlertas: () => void; onVendas: () => void; onTentar: () => void; onAntifurto: () => void; escolherVendas?: boolean; onCancelarEscolha?: () => void;
 }) {
   const t = visao.total;
   const af = totalAntifurto(visao.antifurto);
@@ -632,8 +632,11 @@ function HomeContent({ modo, stores, visao, fornecedores, locais, onPasso, onAdd
               <button type="button" onClick={onTentar} className="min-h-11 rounded-xl border border-border px-3 font-semibold">Tentar de novo</button>
             </div>
           )}
+          <div className="mb-4 grid gap-3 md:grid-cols-2">
+          <div className="min-w-0">
+            <h3 className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Resultado de hoje<span className="font-normal normal-case tracking-normal">{etiquetaHoje(hoje)}</span></h3>
           <button type="button" onClick={onVendas} aria-label={`Vendas hoje: ${vendasCompletas ? brlVenda(t.vendasHojeTotal) : "consulta incompleta"}`}
-            className="mb-3 flex w-full items-center gap-4 rounded-3xl border border-primary/50 bg-primary/10 p-4 text-left transition hover:border-primary">
+            className="flex h-full w-full items-center gap-4 rounded-3xl border border-primary/50 bg-primary/10 p-4 text-left transition hover:border-primary">
             <ShoppingBag size={24} className="shrink-0 text-primary" />
             <span className="min-w-0 flex-1">
               <span className="block text-xs text-muted-foreground sm:text-sm">Vendas hoje</span>
@@ -645,8 +648,11 @@ function HomeContent({ modo, stores, visao, fornecedores, locais, onPasso, onAdd
               <span className="block font-semibold text-primary">Ver vendas</span>
             </span>
           </button>
+          </div>
+          <div className="min-w-0">
+            <h3 className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Resultado deste mês<span className="font-normal normal-case tracking-normal">{etiquetaMes(hoje)}</span></h3>
           <button type="button" onClick={onAntifurto} aria-label={`Faltou este mês: ${afCompleto ? brlVenda(af.faltou) : "consulta incompleta"}`}
-            className={`mb-3 flex w-full items-center gap-4 rounded-3xl border p-4 text-left transition hover:border-primary ${af.faltou > 0 || af.alertas > 0 ? "border-destructive/50 bg-destructive/10" : "border-border bg-secondary/70"}`}>
+            className={`flex h-full w-full items-center gap-4 rounded-3xl border p-4 text-left transition hover:border-primary ${af.faltou > 0 || af.alertas > 0 ? "border-destructive/50 bg-destructive/10" : "border-border bg-secondary/70"}`}>
             <ShieldAlert size={24} className={`shrink-0 ${af.faltou > 0 || af.alertas > 0 ? "text-destructive" : "text-muted-foreground"}`} />
             <span className="min-w-0 flex-1">
               <span className="block text-xs text-muted-foreground sm:text-sm">Faltou este mês</span>
@@ -659,6 +665,9 @@ function HomeContent({ modo, stores, visao, fornecedores, locais, onPasso, onAdd
               <span className="block font-semibold text-primary">Ver antifurto</span>
             </span>
           </button>
+          </div>
+          </div>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pendências que precisam de atenção</h3>
           {tudoCerto ? (
             <p className="flex items-center gap-2 rounded-3xl border border-accent/50 bg-accent/10 p-4 text-sm font-semibold text-accent">
               <CircleCheck size={20} className="shrink-0" /> Tudo certo! Nenhum comércio precisa de atenção agora.
@@ -686,6 +695,11 @@ function HomeContent({ modo, stores, visao, fornecedores, locais, onPasso, onAdd
     </div>
   );
 }
+
+/** C3: etiquetas a partir da data de referência já usada pelos indicadores (dia do comércio, America/Sao_Paulo). */
+const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+export function etiquetaHoje(hoje?: string) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(hoje ?? ""); return m ? `Hoje · ${m[3]}/${m[2]}` : "Hoje"; }
+export function etiquetaMes(hoje?: string) { const m = /^(\d{4})-(\d{2})-\d{2}$/.exec(hoje ?? ""); return m ? `Mês de ${MESES[Number(m[2]) - 1]}` : "Este mês"; }
 
 /** C2: soma só os comércios com dados confirmados na leitura atual (regras de resumoComercio/somaResumos intactas). */
 function disponibilidade(stores: StoreData[], visao: VisaoGeral, comAvisos: boolean) {
