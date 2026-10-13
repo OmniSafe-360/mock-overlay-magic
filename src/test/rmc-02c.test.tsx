@@ -121,3 +121,37 @@ describe("RMC-02C / C2 — subtotais dos quatro indicadores", () => {
     expect(await screen.findAllByText(/Repor|Tudo certo/)).toBeTruthy();
   });
 });
+
+import { etiquetaHoje, etiquetaMes } from "@/components/OwnerHome";
+describe("RMC-02C / C3 — organização visual", () => {
+  it("etiquetas dinâmicas a partir da data de referência", () => {
+    expect(etiquetaHoje("2026-10-13")).toBe("Hoje · 13/10");
+    expect(etiquetaMes("2026-10-13")).toBe("Mês de outubro");
+    expect(etiquetaHoje("2026-11-01")).toBe("Hoje · 01/11");
+    expect(etiquetaMes("2026-01-31")).toBe("Mês de janeiro");
+    expect(etiquetaHoje(undefined)).toBe("Hoje");
+  });
+  it("ordem dos grupos, nomes acessíveis e ações preservadas", async () => {
+    render(<OwnerApp userId="u1" owner="M" initial={[a]} />);
+    const reg = await screen.findByRole("region", { name: "Resumo geral" });
+    const r = within(reg);
+    const hs = r.getAllByRole("heading", { level: 3 }).map((h) => h.textContent ?? "");
+    expect(hs[0]).toMatch(/^Resultado de hoje.*Hoje · \d{2}\/\d{2}/);
+    expect(hs[1]).toMatch(/^Resultado deste mês.*Mês de /);
+    expect(hs[2]).toBe("Pendências que precisam de atenção");
+    const txt = reg.textContent ?? "";
+    expect(txt.indexOf("Vendas hoje")).toBeLessThan(txt.indexOf("Faltou este mês"));
+    expect(txt.indexOf("Faltou este mês")).toBeLessThan(txt.indexOf("Pendências que precisam"));
+    for (const n of [/^Vendas hoje/, /^Faltou este mês/]) expect(r.getByRole("button", { name: n })).toBeTruthy();
+    await waitFor(() => expect(r.getByRole("button", { name: /Para repor/ }).textContent).toMatch(/^1/));
+    for (const n of [/Para resolver agora/, /Para comprar/, /Vencem? em breve/]) expect(r.getByRole("button", { name: n })).toBeTruthy();
+  });
+  it("subtotal e consulta incompleta continuam após a reorganização", async () => {
+    banco.carregarProdutos.mockImplementation(async (id: string) => { if (id === "c2") throw new TypeError("x"); return { produtos: [p], locais: { deposito: [], venda: [] } }; });
+    banco.carregarVendas.mockRejectedValue(new TypeError("x"));
+    render(<OwnerApp userId="u1" owner="M" initial={[a, b]} />);
+    const r = within(await screen.findByRole("region", { name: "Resumo geral" }));
+    await waitFor(() => expect(r.getByRole("button", { name: /Para repor/ }).textContent).toMatch(/Subtotal: 1 de 2 comércios/));
+    expect(r.getByRole("button", { name: /Para resolver agora/ }).textContent).toMatch(/Consulta incompleta/);
+  });
+});
