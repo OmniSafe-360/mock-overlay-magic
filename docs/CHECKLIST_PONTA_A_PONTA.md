@@ -304,4 +304,4 @@ G0.1 está **corrigida no código, com publicação e teste do dono pendentes**;
 
 | Subitem | Código/provas | Publicação | Teste do dono | Próximo passo |
 |---|---|---|---|---|
-| G0.1 | Proposta aprovada; seis resoluções no lock, tipos/testes duas vezes, build, consulta de avisos e verificações locais aprovados; [registro](dependencias-seguranca-2026-10-13.md) | Pendente no Lovable; sem SQL | Pendente | Publicar → Atualizar e executar roteiro; G0.2 pelo canal seguro |
+| G0.1 | [PR #114](https://github.com/OmniSafe-360/mock-overlay-magic/pull/114), correção `0f9ca43`; proposta aprovada; seis resoluções no lock, tipos/testes duas vezes, build, consulta de avisos e verificações locais aprovados; [registro](dependencias-seguranca-2026-10-13.md) | Pendente no Lovable; sem SQL | Pendente | Publicar → Atualizar e executar roteiro; G0.2 pelo canal seguro |

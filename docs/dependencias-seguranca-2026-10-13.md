@@ -2,6 +2,8 @@
 
 Entrega de **13/10/2026**, baseada no main `0313eca` (PR #113). O dono aprovou explicitamente a proposta de versões, patch, cinco arquivos e impactos antes de aplicar. Este é um registro de entrega vinculado à [fonte central](FONTE_DA_VERDADE.md) e ao [checklist G0–G8](CHECKLIST_PONTA_A_PONTA.md#plano-para-mercados-grandes-g0-a-g8), não outra fonte de regras.
 
+Entrega: [PR #114](https://github.com/OmniSafe-360/mock-overlay-magic/pull/114), correção `0f9ca43`.
+
 **Estado:** pronto no código; publicação no Lovable e teste do dono pendentes. G0.2 (credenciais) e G0.3 (proteção da publicação/fornecimento) continuam abertas. Zero avisos conhecidos na consulta não é garantia de proteção absoluta.
 
 ## Problema e mudança aprovada
