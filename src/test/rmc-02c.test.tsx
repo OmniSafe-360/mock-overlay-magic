@@ -39,7 +39,7 @@ describe("RMC-02C / C1 — clareza da visão global", () => {
     render(<OwnerApp userId="u1" owner="M" initial={[a]} />);
     const r = within(await screen.findByRole("region", { name: "Resumo geral" }));
     await waitFor(() => expect(r.getByRole("button", { name: /Para repor/ }).textContent).toMatch(/^1/));
-    for (const t of ["Valor das vendas finalizadas hoje", "Faltas e perdas de mercadoria registradas no mês", "Pendências urgentes de vários tipos, não só produtos",
+    for (const t of ["Valor das vendas finalizadas hoje", "Valor das faltas identificadas nas diferenças do estoque neste mês", "Pendências urgentes de vários tipos, não só produtos",
       "Produtos para repor na área de venda", "Produtos para comprar, fora os já pedidos", "Produtos com validade perto do fim"]) expect(r.getByText(t)).toBeTruthy();
     expect(screen.queryByText(/furto/i, { selector: "p" })).toBeNull();
     fireEvent.click(r.getByRole("button", { name: /Para repor/ }));
