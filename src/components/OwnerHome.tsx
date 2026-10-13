@@ -240,6 +240,12 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
     const gs = Object.values(geral);
     return { geral, resumos, alertas, decidir, antifurto, total: somaResumos(Object.values(resumos)), carregando: gs.some((g) => g.estado === "carregando"), erro: gs.some((g) => g.estado === "erro" || (g.estado === "ok" && (!g.vendas || !g.dif))) };
   }, [stores, geral, hojeGeral]);
+  // C4-C1: o sino usa os mesmos comércios confirmados de Resolver agora.
+  const dispSino = disponibilidade(stores, visao, true);
+  const urgentesSino = paraResolver(dispSino.soma);
+  const incompletoSino = stores.length > 0 && (dispSino.estado !== "total" || visao.erro);
+  const nomeSino = (urgentesSino ? `Alertas: ${urgentesSino} para resolver agora` : "Alertas")
+    + (visao.carregando ? "; atualizando" : incompletoSino ? "; consulta incompleta" : "");
   const [verAntifurto, setVerAntifurto] = useState(false);
   useEffect(() => { if (tab !== "inicio") setVerAntifurto(false); }, [tab]);
   // RMC-02B: o comércio abre por cima da aba atual; o Voltar devolve à aba (ou ao Antifurto) de origem.
@@ -435,10 +441,10 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
               <span className="md:hidden"><LogoMark size={36} /></span>
               <p className="truncate text-lg font-bold">{owner ? `Olá, ${owner}` : "Olá!"}</p>
             </div>
-            <button type="button" aria-label={paraResolver(visao.total) ? `Alertas: ${paraResolver(visao.total)} para resolver agora` : "Alertas"} onClick={() => irPara("alertas")}
+            <button type="button" aria-label={nomeSino} onClick={() => irPara("alertas")}
               className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-secondary/60 text-foreground hover:border-primary">
               <Bell size={20} />
-              {(paraResolver(visao.total) > 0 || deOlho(visao.total) > 0) && <span className={`absolute right-3 top-3 h-2.5 w-2.5 rounded-full ${paraResolver(visao.total) ? "bg-destructive" : "bg-warning"}`} />}
+              {(urgentesSino > 0 || deOlho(dispSino.soma) > 0 || incompletoSino) && <span className={`absolute right-3 top-3 h-2.5 w-2.5 rounded-full ${urgentesSino ? "bg-destructive" : "bg-warning"}`} />}
             </button>
           </div>
         </header>
@@ -623,9 +629,12 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
       })()}
       {modo === "inicio" && stores.length > 0 && (
         <section aria-label="Resumo geral">
-          <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-base font-semibold">Situação dos comércios</h2>
-            {visao.carregando && <span className="text-xs text-muted-foreground">Atualizando…</span>}
+            <button type="button" aria-label="Atualizar painel" disabled={visao.carregando} onClick={onTentar}
+              className="min-h-11 rounded-xl border border-border px-3 text-sm font-semibold disabled:opacity-50">
+              {visao.carregando ? "Atualizando…" : "Atualizar"}
+            </button>
           </div>
           {visao.erro && !visao.carregando && (
             <div role="alert" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-warning/60 p-3 text-sm">
@@ -848,10 +857,11 @@ function Alertas({ stores, visao, suppliers, onAbrir, onTentar, assunto, onVerTo
   const hoje = useHoje();
   if (assunto) return <AlertasFiltrados stores={stores} visao={visao} suppliers={suppliers} onAbrir={onAbrir} onTentar={onTentar} assunto={assunto} onVerTodos={onVerTodos} hoje={hoje} />;
   const comId = stores.map((s) => ({ s, id: idDe(s) })).filter((x): x is { s: StoreData; id: string } => !!x.id);
-  const prontos = comId.filter((x) => visao.resumos[x.id]);
+  const idsConfirmados = new Set(disponibilidade(stores, visao, false).idsValidos);
+  const prontos = comId.filter((x) => idsConfirmados.has(x.id));
   const comAviso = prontos.filter((x) => paraResolver(visao.resumos[x.id]!) + deOlho(visao.resumos[x.id]!) > 0)
     .sort((a, b) => paraResolver(visao.resumos[b.id]!) - paraResolver(visao.resumos[a.id]!) || deOlho(visao.resumos[b.id]!) - deOlho(visao.resumos[a.id]!));
-  const completo = (id: string) => { const g = visao.geral[id]; return g?.estado === "ok" && !!g.vendas && !!g.dif; };
+  const completo = (id: string) => { const g = visao.geral[id]; return idsConfirmados.has(id) && g?.estado === "ok" && !!g.vendas && !!g.dif; };
   const semAviso = prontos.filter((x) => !comAviso.includes(x) && completo(x.id));
   const faltando = comId.filter((x) => !completo(x.id));
   const comFalha = faltando.some((x) => visao.geral[x.id]?.estado === "erro" || visao.geral[x.id]?.estado === "ok");
