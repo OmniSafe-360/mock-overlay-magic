@@ -488,7 +488,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
           ) : tab === "inicio" ? (
             <HomeContent stores={stores} visao={visao} fornecedores={suppliers.length} locais={locais}
               onPasso={(s, p) => abrirLoja(s, { aba: p.id === "fornecedor" ? "Fornecedores" : p.id === "equipe" ? "Equipe" : p.id === "caixa" ? "Vendas" : "Produtos" })}
-              onAdd={() => setAdding(true)} onOpen={(s) => { if (escolherVendas) { setEscolherVendas(false); abrirLoja(s, { aba: "Vendas" }); } else abrirLoja(s); }}
+              onAdd={() => { setEscolherVendas(false); setAdding(true); }} onOpen={(s) => { if (escolherVendas) { setEscolherVendas(false); abrirLoja(s, { aba: "Vendas" }); } else abrirLoja(s); }}
               escolherVendas={escolherVendas} onCancelarEscolha={() => setEscolherVendas(false)} onAlertas={() => setTab("alertas")} onAntifurto={() => setVerAntifurto(true)}
               onVendas={() => { const com = stores.filter((s) => idDe(s)); if (com.length === 1) abrirLoja(com[0]!, { aba: "Vendas" }); else setEscolherVendas(true); }}
               onTentar={() => { if (idsLojas) void carregarGeral(idsLojas.split(",")); }} />
