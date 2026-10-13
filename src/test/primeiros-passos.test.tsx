@@ -57,7 +57,6 @@ describe("primeiros passos", () => {
   });
 
   it("RMC-01: comércios em lista/grade antes do resumo, sem carrossel", async () => {
-    const onAdd = vi.fn();
     render(<OwnerApp userId="u1" owner="Monica" initial={[loja, { ...loja, id: "c2", nome: "Mercado Dois" }]} />);
     const secao = await screen.findByRole("region", { name: "Seus comércios" });
     // 1. antes do "Resumo de hoje"
@@ -77,6 +76,5 @@ describe("primeiros passos", () => {
     // 5. "Adicionar comércio" continua funcionando (abre o cadastro)
     fireEvent.click(within(secao).getByRole("button", { name: "Adicionar comércio" }));
     expect(await screen.findByText(/Cancelar|Dados do comércio|Tipo de comércio/)).toBeInTheDocument();
-    void onAdd;
   });
 });
