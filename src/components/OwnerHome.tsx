@@ -240,6 +240,10 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
     const gs = Object.values(geral);
     return { geral, resumos, alertas, decidir, antifurto, total: somaResumos(Object.values(resumos)), carregando: gs.some((g) => g.estado === "carregando"), erro: gs.some((g) => g.estado === "erro" || (g.estado === "ok" && (!g.vendas || !g.dif))) };
   }, [stores, geral, hojeGeral]);
+  // C4-C1: dados do sininho somente das fontes confirmadas nesta leitura.
+  const avisosSino = resumoAvisosConfirmados(stores, visao);
+  const urgentesSino = paraResolver(avisosSino.soma);
+  const atencaoSino = deOlho(avisosSino.soma);
   const [verAntifurto, setVerAntifurto] = useState(false);
   useEffect(() => { if (tab !== "inicio") setVerAntifurto(false); }, [tab]);
   // RMC-02B: o comércio abre por cima da aba atual; o Voltar devolve à aba (ou ao Antifurto) de origem.
@@ -435,10 +439,10 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
               <span className="md:hidden"><LogoMark size={36} /></span>
               <p className="truncate text-lg font-bold">{owner ? `Olá, ${owner}` : "Olá!"}</p>
             </div>
-            <button type="button" aria-label={paraResolver(visao.total) ? `Alertas: ${paraResolver(visao.total)} para resolver agora` : "Alertas"} onClick={() => irPara("alertas")}
+            <button type="button" aria-label={avisosSino.incompleto ? "Alertas: consulta incompleta" : urgentesSino ? `Alertas: ${urgentesSino} para resolver agora` : "Alertas"} onClick={() => irPara("alertas")}
               className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-secondary/60 text-foreground hover:border-primary">
               <Bell size={20} />
-              {(paraResolver(visao.total) > 0 || deOlho(visao.total) > 0) && <span className={`absolute right-3 top-3 h-2.5 w-2.5 rounded-full ${paraResolver(visao.total) ? "bg-destructive" : "bg-warning"}`} />}
+              {(urgentesSino > 0 || atencaoSino > 0) && <span className={`absolute right-3 top-3 h-2.5 w-2.5 rounded-full ${urgentesSino ? "bg-destructive" : "bg-warning"}`} />}
             </button>
           </div>
         </header>
@@ -715,6 +719,28 @@ function disponibilidade(stores: StoreData[], visao: VisaoGeral, comAvisos: bool
   });
   const estado: "total" | "subtotal" | "indisponivel" = validos.length === 0 ? "indisponivel" : validos.length === ids.length ? "total" : "subtotal";
   return { estado, validos: validos.length, idsValidos: validos, total: ids.length, soma: somaResumos(validos.map((id) => visao.resumos[id]!)) };
+}
+
+/** C4-C1: resumos somente de fontes confirmadas na leitura vigente, sem tocar na carga.
+ * Lojas com produtos/pedidos confirmados, mas vendas/diferenças incompletas,
+ * contribuem apenas com ocorrências verificáveis dessas duas fontes. */
+function resumoAvisosConfirmados(stores: StoreData[], visao: VisaoGeral) {
+  const base = disponibilidade(stores, visao, false);
+  const completo = disponibilidade(stores, visao, true);
+  const idsCompletos = new Set(completo.idsValidos);
+  const parciais = new Map<string, ResumoComercio>(base.idsValidos.filter((id) => !idsCompletos.has(id)).map((id) => {
+    const r = visao.resumos[id]!;
+    // Zeros neutros apenas na soma INTERNA: dados desconhecidos nunca são anunciados
+    // como zero nem apresentados como uma visão completa.
+    return [id, { ...r, vendidoSemCadastro: 0, diferencasDecidir: 0, antifurto: 0, vendasHojeN: 0, vendasHojeTotal: 0 }] as const;
+  }));
+  return {
+    base: new Set(base.idsValidos),
+    completo: idsCompletos,
+    parciais,
+    incompleto: completo.validos < completo.total,
+    soma: somaResumos([completo.soma, ...parciais.values()]),
+  };
 }
 
 /** RMC-01: vários comércios em lista vertical no celular e grade nas telas maiores, com "Adicionar" no fim. */
