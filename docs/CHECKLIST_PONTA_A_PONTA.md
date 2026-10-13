@@ -2,9 +2,11 @@
 
 Plano de execução pedido pelo dono em **11/10/2026**. As regras continuam em [FONTE_DA_VERDADE.md](FONTE_DA_VERDADE.md); este arquivo detalha suas etapas. O histórico permanece em [CLAUDE.md](../CLAUDE.md). Não há uma segunda fonte de regras.
 
-**Próxima verificação independente: continuar E2.1 — conferir B13 já corrigido no main, retomada e retornos das telas.** Isolamento da conta e salvamento/confirmação do cadastro corrigidos; falta publicação/teste do dono. [Isolamento da conta](conta-isolamento-2026-10-11.md) [salvamento do comércio](comercio-salvamento-2026-10-11.md) e [saída do primeiro cadastro](cadastro-saida-2026-10-11.md). A1–C3 da análise 2 já estão marcados corrigidos por outro acesso; não reaplicar. Falta a validação conjunta. R01–R05 corrigidos no código; publicação e teste do dono pendentes. **E1 não está validada por completo:** reabertura offline de R05 exige aparelho real, junto de E6/item antigo 29. R02 já aplicada no banco oficial, sem alterar dados de comércio/estoque. [Registro de R01](reposicao-retomada-2026-10-11.md), [R02](pedido-conferencia-banco-2026-10-11.md), [R03](fiado-consulta-2026-10-11.md), [R04](recebimento-rascunho-2026-10-11.md) e [R05](caixa-reabertura-offline-2026-10-11.md). O teste geral continua adiado conforme decisão do dono; avançar nas verificações independentes não encerra os aceites pendentes.
+**Atualização de 13/10/2026 — prioridade atual:** plano [G0–G8 para mercados grandes](#plano-para-mercados-grandes-g0-a-g8), alvo confirmado pelo dono: **várias lojas e vários caixas**. **Próxima tarefa: G0.1, apresentar a proposta de correção das dependências com alertas conhecidos**, antes de aplicar. [Auditoria e evidências](auditoria-mercados-seguranca-2026-10-13.md). Esta entrega só documenta; não altera aplicativo, banco, permissões ou dados. E1–E8 e os aceites abaixo permanecem abertos onde já estavam; código entregue não deve ser refeito.
 
-**Análise 2 (11/10/2026, tarde):** uma nova análise ponta a ponta confirmou 31 defeitos em fluxos que já existem: 12 graves (trava, dinheiro ou estoque), 16 de números ou telas e 3 menores. A lista detalhada, com cenário e local no código, está em [checklist-funcional-2.md](checklist-funcional-2.md), com os itens A1 a C3. A12 já foi resolvido por R01 e B13 faz parte de E2.1. **Depois de terminar E2.1, corrigir os itens A1 → C3, um por vez**, antes das verificações de E2 a E8; marcar lá e registrar aqui na tabela de etapas.
+**Verificação independente anterior, preservada em G4.1: continuar E2.1 — conferir B13 já corrigido no main, retomada e retornos das telas.** Isolamento da conta e salvamento/confirmação do cadastro corrigidos; falta publicação/teste do dono. [Isolamento da conta](conta-isolamento-2026-10-11.md) [salvamento do comércio](comercio-salvamento-2026-10-11.md) e [saída do primeiro cadastro](cadastro-saida-2026-10-11.md). A1–C3 da análise 2 já estão marcados corrigidos por outro acesso; não reaplicar. Falta a validação conjunta. R01–R05 corrigidos no código; publicação e teste do dono pendentes. **E1 não está validada por completo:** reabertura offline de R05 exige aparelho real, junto de E6/item antigo 29. R02 já aplicada no banco oficial, sem alterar dados de comércio/estoque. [Registro de R01](reposicao-retomada-2026-10-11.md), [R02](pedido-conferencia-banco-2026-10-11.md), [R03](fiado-consulta-2026-10-11.md), [R04](recebimento-rascunho-2026-10-11.md) e [R05](caixa-reabertura-offline-2026-10-11.md). O teste geral continua adiado conforme decisão do dono; avançar nas verificações independentes não encerra os aceites pendentes.
+
+**Análise 2 (11/10/2026, tarde):** uma nova análise ponta a ponta confirmou 31 defeitos em fluxos que já existem: 12 graves (trava, dinheiro ou estoque), 16 de números ou telas e 3 menores. A lista detalhada, com cenário e local no código, está em [checklist-funcional-2.md](checklist-funcional-2.md), com os itens A1 a C3. A12 já foi resolvido por R01 e B13 faz parte de E2.1. **Situação posterior:** A1–C3 chegaram corrigidos no main; não repetir a antiga sequência de correções. Validar em G4/E2–E4 e manter o registro de cada entrega.
 
 ## Ponto de partida e limites da análise
 
@@ -197,3 +199,105 @@ Gerente com permissões novas, integração direta por API com marcas de PDV, ba
 | E8 | Não iniciado | Nenhuma liberação feita nesta revisão | Pendente | Piloto e conciliação |
 
 Quando uma tarefa avançar, atualizar sua linha com data e link do PR/registro. Se o próximo item mudar por gravidade de uma falha nova ou orientação do dono, atualizar a indicação no início deste arquivo e na seção 13 da fonte da verdade.
+
+
+## Plano para mercados grandes: G0 a G8
+
+Pedido do dono em **13/10/2026**; escopo confirmado: **várias lojas e vários caixas**. Fonte central: [FONTE_DA_VERDADE](FONTE_DA_VERDADE.md#13-roteiro--o-plano). [Evidências da auditoria](auditoria-mercados-seguranca-2026-10-13.md). Os planos anteriores E1–E8, correções 1–30, A1–C6 e frentes de fiado permanecem vinculados; seus números não mudam. Os G são a ordem de fechamento para o novo porte, não uma lista de defeitos já reproduzidos em produção.
+
+**Regra de execução:** um subitem/correção por PR. Antes de qualquer código/SQL, mostrar proposta concreta, arquivos e impactos e obter a validação pedida pelo dono. Cada tarefa registra separadamente implementação, banco, publicação, testes automatizados, teste físico, capacidade e aceite. Nada de mudar estoque real, afrouxar RLS/travas ou descartar fila para obter um teste verde. Tabela/função nova somente se a necessidade for demonstrada e o desenho aprovado. Documentar uma pendência não autoriza sua implementação.
+
+**Prioridades:** P0 = risco de credencial/segurança que exige triagem imediata; P1 = obrigatório antes de liberar o caminho afetado em mercado grande; P2 = depende do escopo acordado. Risco arquitetural exige reprodução/medição antes de chamar de erro. Sem pendência aplicável crítica/alta explorável; risco aceito só com justificativa explícita, responsável e controle compensatório — nunca só porque o teste de tipos passou.
+
+| Etapa | Objetivo | Prioridade | Estado nesta revisão | Ligação com o plano existente |
+|---|---|---|---|---|
+| G0 | Credenciais e dependências com alertas conhecidos | P0 | Triagem identificada; nenhuma correção aplicada | E5.3/E5.6 |
+| G1 | Acesso seguro, permissões e separação entre lojas | P1 | Base existe; auditoria adversarial e painéis pendentes | E2.1/E5.1–E5.3 |
+| G2 | Estoque, dinheiro e reenvios coerentes em todos os caminhos | P1 | Testes atuais aprovados; matriz integrada pendente | E1/E3/E4 |
+| G3 | Conferência independente e investigação completa da mercadoria | P1 | Lacunas de interface/auditoria demonstradas; desenho/código pendentes | C5/C6/E3.5–E3.9 |
+| G4 | Fluxos de comércio e integração real do caixa | P1 | Implementação extensa; aceite conjunto pendente | E2/E3/E4 |
+| G5 | Capacidade comprovada em várias lojas/vários caixas | P1 | Gargalos candidatos identificados; sem benchmark | E3.9/E4.1/E4.6 |
+| G6 | Recuperação, monitoramento e publicação segura | P1 | Configuração real e ensaios pendentes | E5.4–E5.6 |
+| G7 | Aparelhos, base física e ensaio ponta a ponta | P1 | Pendente no app publicado e hardware real | E6/E7/E8.1–E8.4 |
+| G8 | Piloto de rede e expansão com acompanhamento | P1 | Não iniciado | E8.5 ampliada |
+
+### G0 — fechar os riscos imediatos
+
+- [ ] **G0.1 Dependências:** o `bun.lock` consultado possui versões alcançadas por avisos conhecidos de `shell-quote`, `brace-expansion`, `js-yaml`, `nanoid` e `source-map-js`. Primeiro apresentar versões/caminhos/exposição e atualização mínima proposta. Não rodar atualização geral ou `audit fix --force`. Validar build, duas rodadas de tipos/testes, cache/PWA e compatibilidade Lovable/TanStack; repetir consulta de avisos. Criticidade do pacote não prova exploração no app. **Próxima tarefa.**
+- [ ] **G0.2 Credenciais:** trocar/revogar pelo canal seguro tokens administrativos compartilhados, inclusive o token informado na conversa; registrar só identificação/finalidade e data, nunca valor. Conferir configuração e histórico do repositório público, artefatos e logs para segredos. Chave pública do Supabase é esperada; `service_role`/PAT nunca vão ao navegador. Revogar e substituir com teste do acesso necessário, sem derrubar a operação inadvertidamente.
+- [ ] **G0.3 Publicação e cadeia de fornecimento:** confirmar regras do main, quem publica, revisões/checks, alertas de dependências e detecção de segredos no GitHub/Lovable. Preservar histórico, lockfile/integridade dos pacotes e versões compatíveis; separar produção de testes. Nesta auditoria a API de proteção do main respondeu 403: configuração **não verificada**, não “desligada”.
+
+**Aceite G0:** credenciais expostas deixam de valer, atualização validada ou exposição comprovadamente mitigada com registro; nenhum achado crítico/alto aplicável e explorável fica sem tratamento. App/banco permanecem operacionais.
+
+### G1 — impedir acesso indevido e abuso
+
+- [ ] **G1.1 Isolamento por loja e pessoa:** testar diretamente API/banco com dois donos, lojas diferentes, funcionário/caixa revogado, fornecedor e cliente do fiado trocados; IDs adulterados, rota escondida e escrita direta não dão acesso. Matriz de funções/ACL/RLS conferida na versão real, inclusive helpers internos sem EXECUTE público. Não confiar só em esconder botão. `SECURITY DEFINER` público com validação de chave/token não é falha por si só; preservar endpoints necessários.
+- [ ] **G1.2 Proteção de entrada:** limitar abuso de código curto/primeiro PIN, PIN existente e ligação de caixa; definir expiração/uso único ou ativação segura com proposta aprovada. Verificar mensagens que distinguem acesso, tentativas distribuídas, sessões vencidas e recuperação. Bloqueio atual de PIN não comprova limite de tentativas para descobrir o código. Validar revogação e comportamento ao arquivar comércio.
+- [ ] **G1.3 Conta do dono e recuperação:** proteção contra senhas vazadas, MFA e recuperação segura do administrador, sessões/ações sensíveis; validar e-mail/Google/domínios/redirecionamentos em produção. MFA ainda requer desenho para não bloquear o dono fora da conta. Papel do gerente e alcance por loja só entram após decisão, sem conceder aprovação de ajuste por dedução.
+- [ ] **G1.4 Proteção web e disponibilidade:** verificar HTTPS e cabeçalhos publicados, CSP compatível, proteção de links contra vazamento de referrer/cache/logs, XSS/CSRF, limites de tamanho/custo das chamadas e camada de proteção contra abuso/DDoS. Testes controlados em ambiente separado; teste invasivo externo exige escopo autorizado. Limites de autenticação não substituem limites das RPCs. A telemetria atual monta pathname completo, que pode conter token de pedido/fiado: mascarar rotas e sanitizar erros antes de enviar, confirmando os hooks e headers reais. Chaves no aparelho e PIN offline curto exigem revogação/proteção física, não promessa de inviolabilidade por hash. Confirmar monitoramento e resposta a incidentes com G6.
+
+**Aceite G1:** casos adversariais recusados com evidência por acesso/endpoint, sem vazamento entre lojas; revogação efetiva; barreiras de abuso comprovadas sem bloquear os fluxos legítimos. Configurações não acessíveis permanecem pendentes.
+
+### G2 — fechar a conta de estoque e dinheiro
+
+- [ ] **G2.1 Matriz de integridade:** cadastro, recebimento parcial/completo, reposição, venda móvel/importada, cancelamento, perda, contagem e decisão do dono. Conferir `saldos`, lotes, movimentos e `operacoes` após cada passo. Desconhecido não vira zero; embalagem/variação/local/unidade/custo/validade permanecem coerentes. Estoque e trilha na mesma transação.
+- [ ] **G2.2 Repetição, concorrência e interrupção:** resposta perdida após commit, reenvio idêntico, mesmo ID com conteúdo diferente, duas abas/aparelhos, turno fechado e estoque disputado. Uma baixa/venda por intenção, número único, devolução exata uma vez e nenhuma conclusão sem confirmação. Preservar C5/C6, R01–R05 e A1–C3. Testar movimento em produto compartilhado sem travar lojas independentes.
+- [ ] **G2.3 Financeiro:** gaveta versus Pix/cartão/fiado, sangria, pagamentos mistos, cancelamento de fiado já pago, recebimento concorrente, limite/bloqueio e fechamento. Forma de pagamento registrada não é prova de confirmação bancária/TEF; conciliar o provedor real conforme integração escolhida. Nenhum saldo financeiro oculto, duplo ou perdido.
+
+**Aceite G2:** conciliação integral dos cenários; zero efeito financeiro/estoque duplicado ou cruzado. Aprovação dos testes locais atuais não fecha automaticamente os caminhos não ensaiados.
+
+### G3 — conferir e investigar sem ajustar automaticamente
+
+- [ ] **G3.1 Entradas claras:** botão **Conferir gôndola** no mercado/pet ou **Conferir área de venda** nos demais; botão de depósito/estoque com contador real; solicitações do caixa e aguardando dono visíveis. **Repor** mantém sua tarefa e rascunho independentes. Conferência que bate termina sem mandar buscar ou transferir. Urgências não somem na meta diária. Reutilizar conferências/operações existentes; não alterar permissão do conferente silenciosamente.
+- [ ] **G3.2 Contagem física consistente:** registrar começo/rodada/referência; movimento no produto/local enquanto conta exige conciliação/recontagem, sem consumir tentativa injustamente. Carrinhos físicos ainda não vendidos e mercadoria separada entram no protocolo; o app não os conhece automaticamente. Conector/filas com vendas atrasadas precisam ser conciliados antes de declarar falta. Conferências das duas áreas em horários diferentes não são somadas como se fossem simultâneas.
+- [ ] **G3.3 Investigação e rastreabilidade:** pedido preventivo → área de venda → depósito quando necessário → decisão do dono → encerrado. Registrar quem pediu/contou/decidiu, horário de cada rodada, números, movimentos relacionados e motivo; histórico anterior preservado. Até três contagens, duas iguais divergentes ou três diferentes aguardam dono conforme C5/C6. Falta/sobra/diferença entre locais/informação pendente em linguagem simples; não acusar furto ou funcionário automaticamente.
+- [ ] **G3.4 Confirmação do dono:** mostrar antes/depois e motivo; ajustar com decisão e justificativa na mesma transação, idempotente, mantendo movimentos posteriores. A tela atual ajusta e explica em duas chamadas. Referência inicial não contada e perdas hoje têm efeitos anteriores próprios: mostrar a proposta e validar alcance da nova exigência antes de mudá-los. Não bloquear automaticamente vendas/recebimentos/transferências legítimas por interpretar “ajuste” de modo amplo. Nenhum acerto da nova investigação sem confirmação explícita do dono.
+
+**Roteiro G3 em teste:** tentar sexta unidade com cinco registradas não adiciona a sexta nem debita. Contagem física área5/depósito5 confirma; área7/depósito3 preserva total mas não prova transferência; área3/depósito5 aponta falta2 a investigar. Testar até três rodadas, venda no intervalo, fila atrasada, reenvio/novo celular, recusa de funcionário e decisão do dono. Nenhum ajuste antes da aprovação no novo caminho. Não criar referência retroativa/autor/horário que nunca foram registrados.
+
+### G4 — aprovar os fluxos e a integração usada pelas lojas
+
+- [ ] **G4.1 Dono, comércio e produto:** concluir E2.1/B13 já corrigida, retomada/retornos/duas abas, segundo comércio e catálogo real. Validar unidades, embalagens, lotes, validade, código/leitor/etiqueta e referência física inicial. Editor de comércio ou importação em massa, se necessários, dependem de desenho próprio.
+- [ ] **G4.2 Compras e operação:** fornecedor/link revogado, pedido aceito/ajustado/recusado, prazo/preço/pagamento, entrega parcial/fora do pedido, validade vencida, dois conferentes, reposição limitada e perda. Reusar E2–E3; dinheiro da compra e entrada de estoque não se confundem.
+- [ ] **G4.3 Caixa/Conector/fiscal:** decidir se Omni acompanha o PDV fiscal existente ou se pretende substituí-lo. Hoje o Caixa móvel produz comprovante simples; **não emite nota fiscal**. Validar XML/cancelamentos/exportação/contingência do PDV real, loja/caixa, origem única de cupom, embalagem/peso/código de balança quando usado. Emissão fiscal/TEF/ERP completo não é requisito automaticamente atendido pelo botão de venda.
+- [ ] **G4.4 Filas e contingência:** backlog do Conector, navegador suspenso, pasta/permite leitura, XML incompleto/recusado, reinício, venda/cancelamento fora de ordem e rejeições persistentes. Caixa móvel preserva carrinho offline, mas nova finalização exige conexão. Fila antiga recusada não é apagada nem reexecutada como nova; dono concilia com venda fiscal/dinheiro. Definir operação quando internet/energia/banco faltarem.
+
+**Aceite G4:** E2–E4 cumpridas nos caminhos escolhidos, integração/hardware explicitamente compatíveis; nenhuma promessa de suportar todas as marcas de PDV ou fiscal próprio. Produção de açougue/padaria, gerente, devoluções/transferências entre lojas, promoções e balanças específicas só entram se indispensáveis ao alvo e com desenho aprovado.
+
+### G5 — medir e preparar capacidade de rede
+
+- [ ] **G5.1 Perfil de carga:** registrar lojas, SKUs/variações/lotes, histórico, usuários/caixas simultâneos, linhas por venda/pedido, pico e filas. Conferir limites atuais (50 funcionários/50 caixas por comércio, 200 itens por pedido); são regras, não capacidade comprovada. Determinar infraestrutura/custo e tempos aceitáveis com o dono.
+- [ ] **G5.2 Leituras grandes:** medir abertura/busca/resumos/histórico em aparelho modesto e rede de referência. Catálogo atual lê oito coleções, conta todas as operações antes/depois e repete até três vezes; vendas contínuas podem impedir intervalo estável. Catálogo/históricos agregados inteiros e renderização/montagem no navegador exigem prova. Propor paginação/resumos/índices/fotografia consistente somente nos gargalos medidos, sem remover proteção de revisão ou ocultar pendências antigas.
+- [ ] **G5.3 Vários caixas e lojas:** carga progressiva e sustentada em ambiente isolado, infraestrutura comparável, produtos distintos e SKU quente. Medir p95/p99, memória, CPU, banda, locks, erros, quotas e atraso do Conector. Hoje a finalização trava a linha do comércio: medir antes de modificar. Independência entre lojas e integridade sob reenvio permanecem obrigatórias.
+- [ ] **G5.4 Metas e limites:** aprovar capacidade máxima e margem para pico; registrar tempos/condições medidos. Candidatos para negociação, sem garantia atual: busca ≤500ms p95, confirmação de venda ≤2s p95 e Conector sem fila atrasada ≤60s na rede de referência. Definir duração da carga, volume histórico e pico antes do aceite. Nenhum número de SKUs/caixas/uptime é prometido sem ensaio.
+
+**Aceite G5:** relatório reproduzível do envelope aprovado, gargalos tratados e integridade total preservada. Os quatro conflitos SQL locais desta auditoria não equivalem a um teste de carga de supermercado.
+
+### G6 — manter o serviço e recuperar quando houver falha
+
+- [ ] **G6.1 Backup restaurável:** confirmar plano/retenção/PITR reais, dados/configurações/arquivos necessários, prazo aceitável de perda de dados (RPO) e de volta ao serviço (RTO). Restaurar em ambiente isolado, conciliar estoque/vendas/fiado/histórico e provar recuperação sem reapresentar uma venda financeira. Backup contratado sem restauração testada não encerra o item.
+- [ ] **G6.2 Alertas e suporte:** disponibilidade/latência/erro de API, banco/locks/quotas, filas atrasadas, notas recusadas, falhas de acesso e sincronização. Responsável, canal, prazo de resposta e procedimento para incidente. Logs por operação/versão sem PIN, chave, token ou dados pessoais desnecessários; retenção e acessos definidos.
+- [ ] **G6.3 Publicação e reversão:** versionar app/migrações, identificar versão publicada, testes pós-publicação e retorno seguro à versão anterior compatível com o banco. Atualização do PWA não perde carrinho/rascunho/fila. Não reescrever histórico nem restaurar produção como teste.
+- [ ] **G6.4 Privacidade e operação física:** Termos/Privacidade/LGPD, retenção, pedidos de acesso/correção e resposta a vazamento; conteúdo aprovado pelo dono. Internet/energia redundantes e procedimento fiscal/comercial de contingência conforme necessidade de cada loja. Não presumir serviços pagos/24h contratados.
+
+**Aceite G6:** ensaios de alerta/incidente/restauração/reversão aprovados, RPO/RTO medidos, responsáveis e condições de operação documentados.
+
+### G7 — ensaio real com pessoas e aparelhos
+
+- [ ] **G7.1 Aparelhos e interface:** E6 Android, iPhone, tablet/computador, leitores/impressoras/balanças efetivamente usados. Instalação, PIN, câmera/permissão recusada, teclado, 320px, voltar, suspensão/reabertura, atualização e armazenamento indisponível. Frases curtas com próximo passo; nenhum aviso cobre campos.
+- [ ] **G7.2 Base física autorizada:** E7 com catálogo/código/custo/preço/lote/local correto e contagem física inicial aceita. Dados de teste/rascunhos antigos têm lista concreta e decisão do dono; nenhuma limpeza em massa, saldo inventado ou estoque real usado como massa automática.
+- [ ] **G7.3 Dia completo de teste:** E8.2–E8.4 no app publicado, duas lojas e múltiplos caixas do cenário aprovado: cadastrar → comprar → receber → repor → vender → cancelar/fiado → contar/perda → decidir → alertas → fechar. Internet cortada, resposta perdida, acesso revogado, notas atrasadas e fechamento cruzado. Comparar estoque físico, lote, operação, compra, fiscal e gaveta; anotar funcionou/não funcionou por cenário.
+
+**Aceite G7:** versão/aparelho/loja/volume/resultado registrados; serviços simulados ou prints parciais não substituem essa prova. Falha abre item específico, corrigido antes de usar o caminho afetado.
+
+### G8 — liberação gradual para a rede
+
+- [ ] **G8.1 Piloto delimitado:** dono aprova escopo, lojas/equipe/aparelhos, capacidade, contingência e limitações. G0–G7 aplicáveis cumpridas; nenhum defeito crítico/alto explorável ou falha de estoque/dinheiro/acesso sem solução no caminho escolhido.
+- [ ] **G8.2 Período acompanhado:** definir duração e pico esperado antes de começar; conciliar estoque/financeiro/fiscal diariamente, observar filas/alertas/erros e treinamento. Nenhuma expansão acima da capacidade aprovada; procedimento para parar o caminho afetado sem perder a fila.
+- [ ] **G8.3 Expandir e reavaliar:** ampliar lojas/caixas por lotes aprovados, repetir capacidade/isolamento quando ultrapassar o envelope; revisão periódica de dependências/acessos/backup. Aceite explícito do dono, responsáveis e limitações pendentes visíveis.
+
+**Conclusão permitida:** “aprovado para os fluxos, volume, lojas, aparelhos e controles registrados”. Não “100% imune a hackers”. Segurança exige atualização, monitoramento e resposta contínuos; capacidade comercial só vale dentro do escopo ensaiado.
+
+### Registro das novas etapas
+
+Todas as G0–G8 estão **pendentes**, com a análise/documentação entregue. Não há correção nova, migração aplicada, restauração, benchmark ou aceite de produção nesta entrega. Os testes atuais aprovados constam na [auditoria](auditoria-mercados-seguranca-2026-10-13.md). Próxima: **G0.1 — proposta revisável**, sem alterar os fluxos entregues. Ao avançar, acrescentar linha com subitem, PR, testes, publicação, aceite e próximo passo; atualizar também a seção 13 da fonte.
