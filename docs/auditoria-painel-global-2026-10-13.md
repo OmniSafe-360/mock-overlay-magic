@@ -154,3 +154,72 @@ Autorizada pelo dono. Só apresentação em `OwnerHome.tsx`: Vendas hoje e Falto
 - Não houve alteração no banco, SQL, operações das lojas, `StoreSpace.tsx`, `src/lib/resumoGeral.ts`, `src/lib/antifurto.ts`, carga de dados ou destinos da navegação.
 
 **Validação antes da integração:** o workflow de GitHub Actions no PR deve comprovar `tsc --noEmit` e Vitest completos em duas rodadas e `npm run build`. Resultados ainda não confirmados neste registro. A verificação visual completa (incluindo C3-B), a publicação `Publicar → Atualizar` e a homologação no aparelho do proprietário permanecem pendentes. **Não mesclar sem aprovação do proprietário.** C4-B/C4-C/C4-D, RMC-03/05/06 e correção autônoma de Alertas não foram iniciadas.
+
+## Proposta C4-B para aprovação do proprietário (sem mudança no aplicativo)
+
+**Situação:** análise da etapa RMC-04/C4-B, solicitada pelo proprietário após a integração da C4-A. Base `main bf7dae3bb26a` (PR #128). GitHub Actions [38467066361](https://github.com/OmniSafe-360/mock-overlay-magic/actions/runs/38467066361): **success**. O teste manual de publicação/C3-B/C4-A segue pendente. Esta proposta **não implementa** a C4-B; a fonte da verdade, seção 0, exige aprovação prévia do desenho/arquivos/impactos antes da mudança funcional.
+
+### Defeito confirmado em código
+
+- Quatro botões de `HomeContent` usam o mesmo `onClick={onAlertas}`, sem passar o indicador tocado, e `OwnerApp` sempre chama `irPara("alertas")`.
+- `Alertas` ordena e mostra seções completas de todas as unidades sem filtro por assunto. Seu `AtencaoHoje` por loja inclui grupos de produtos, contas, recebimentos, vendas sem cadastro e diferenças; `src/lib/situacao.ts` já define os assuntos `repor`, `comprar`, `vencendo` e tipos urgentes. Não inventar contagens.
+- **Risco separado C4-C:** `Alertas` aceita `visao.resumos` guardado de atualização anterior. A C2 no Início usa `disponibilidade(stores,visao,comAvisos)`, que exige consulta atual de produtos/pedidos (`g.base`) e, em “resolver”, também `g.vendas`/`g.dif`. A nova visualização **filtrada** não deve se basear na lista genérica antiga nem afirmar que totais incompletos são completos. **Não corrigir globalmente sino/lista antiga nesta etapa**.
+
+### Fluxo recomendado — a ser aprovado
+
+1. Clicar em **Para resolver agora / Para repor / Para comprar / Vencem em breve** abre a aba **Alertas**, identificando o assunto no topo: por exemplo, **“Alertas · Para repor”**, com link acessível **“Ver todos os alertas”**. Não duplicar a lista inteira de comércios no Início.
+2. Mostrar somente unidades que têm ocorrências **confirmadas daquele assunto**, identificadas pelo nome do comércio e com suas ocorrências correspondentes. Ordenar por quantidade confirmada do assunto (decrescente), preservando critério determinístico de empate (nome e cadastro). Não misturar unidades ou somar mercadorias de unidades diferentes como um único estoque.
+3. **Para repor**: apenas `ResumoComercio.repor` e grupo `AtencaoHoje` `tipo === "repor"`; **Para comprar**: `.comprar` e grupo `tipo === "comprar"` (produtos já pedidos excluídos pela regra existente); **Vencem em breve**: `.vencendo` e grupo `tipo === "vencendo"`. Preservar tipos de comércio (gôndola/área de venda) e detalhes por produto.
+4. **Para resolver agora**: `paraResolver(resumo)`, composto de produtos urgentes, contas atrasadas, entregas a decidir, vendas sem cadastro e perdas/diferenças pendentes. Não rotular esse total como “produtos”. Em `AtencaoHoje`, restringir os grupos aos produtos urgentes e quadros correspondentes a esses quatro outros componentes; manter seus destinos existentes.
+5. Somente os IDs elegíveis conforme a **mesma validação C2** podem contribuir para essa lista filtrada: `g.base` e `visao.resumos[id]` disponíveis na atualização vigente, `g.estado !== "carregando"`; para `resolver`, também `g.vendas` e `g.dif`. Falha apenas de fornecedores não invalida o subtotal de produtos/pedidos. Sem dados válidos: indicar **“Consulta incompleta”**, nunca fabricar zero, “Tudo certo” ou pendência. Com leitura parcial, declarar **“Entre os X de Y comércios conferidos”** e identificar as unidades não verificadas, sem publicar contagem global enganosa.
+6. A aba **Alertas** aberta diretamente pelo menu (ou sino) continua sem filtro. Ao selecionar **“Ver todos os alertas”**, limpar o filtro sem apagar os dados/carregar o banco. Ao mudar para outra aba, limpar contexto. Ao abrir a unidade a partir dos Alertas filtrados e tocar **Voltar**, manter aba Alertas e assunto selecionado; retornar à unidade correta e ao contexto de origem. Não criar links diretos às operações que ignoram validações atuais.
+7. Na visualização filtrada, não deixar `AtencaoHoje` exibir o aviso global **“Tudo certo”** enquanto o assunto é incompleto ou faltou leitura. Não apresentar grupos não relacionados. Preservar filtros internos, botões, `onOpen`, `onFazerPedido`, `onVerContas`, `onVerEntregas`, `onVerSemCadastro`, `onVerDiferencas` e `onVerAntifurto` nas respectivas ocorrências.
+8. Não iniciar novas consultas nem mudar o significado de nenhum contador. O modo atual **“todos os alertas”** mantém seu comportamento até C4-C: os dados antigos nele ainda exigem correção específica, sem ser confundida com a C4-B.
+
+### Proposta técnica concreta (para revisão, não executada)
+
+No `src/components/OwnerHome.tsx`:
+
+```ts
+type AssuntoAlertaGlobal = "resolver" | "repor" | "comprar" | "vencendo";
+// Em OwnerApp: estado opcional assuntoAlertas e setAssuntoAlertas.
+// Passagem do assunto do KPI em HomeContent.onAlertas(assunto).
+// Navegação do menu/sino: zera assuntoAlertas e mostra todos.
+// Com assunto: Alertas recebe assunto e usa somente resumos C2 validados
+// para filtrar e ordenar; sem assunto mantém a apresentação atual.
+// "Ver todos os alertas": assuntoAlertas = null, tab permanece "alertas".
+// Ao abrir unidade e voltar: contexto filtrado permanece na aba Alertas.
+```
+
+No `src/components/AtencaoHoje.tsx`:
+
+```ts
+// Prop opcional assuntoGlobal, sem alterar comportamento padrão.
+// Filtrar a apresentação para os quadros pertinentes:
+// repor/comprar/vencendo -> o GrupoAtencao de tipo correspondente;
+// resolver -> GrupoAtencao urgente + contas atrasadas + entregas,
+//             vendas sem cadastro e diferenças/perdas pendentes.
+// Os onClick existentes continuam iguais, sem gravação automática.
+// Não gerar mensagem de "Tudo certo" a partir de um subconjunto vazio.
+```
+
+**Limite de alterações futuras após autorização expressa:**
+
+1. `src/components/OwnerHome.tsx`: estado opcional e eventos de navegação, seleção confiável de unidades e apresentação filtrada em `Alertas`; sem mexer em `carregarGeral`, banco, KPIs ou cálculos.
+2. `src/components/AtencaoHoje.tsx`: prop opcional e filtro **somente de exibição**; sem mudar as regras de `atencaoHoje`.
+3. `src/test/rmc-c4b.test.tsx` novo: testes por assunto, sem vazamentos entre comércios, subtotal/incompleto, um/vários, ação e retorno.
+4. `src/test/rmc-02c.test.tsx`: somente se algum teste de navegação para Alertas precisar adequar a expectativa do novo comportamento; não remover asserções.
+5. `docs/FONTE_DA_VERDADE.md`, `docs/CHECKLIST_PONTA_A_PONTA.md`, `CLAUDE.md`, este relatório: status e evidências reais.
+
+Se qualquer outro arquivo for indispensável, **parar e pedir aprovação antes de alterá-lo**. Não alterar Supabase, SQL, RPC, RLS, relatórios, `src/lib/resumoGeral.ts`, `src/lib/situacao.ts`, `StoreSpace.tsx`, fluxos operacionais, sessão/autenticação ou permissões.
+
+### Aceite obrigatório da implementação futura
+
+- Testar os quatro indicadores separadamente: cada um mostra apenas seu assunto, com unidades nomeadas, valores iguais aos KPIs confirmados e acessos corretos aos detalhes.
+- Resolver agora discrimina todas as origens do total (não “N produtos”); Comprar não conta produtos já pedidos; Validade não exibe produtos sem aviso correspondente.
+- Dados novos/antigos: sucesso, carregando, falha de produtos/pedidos, falha de vendas/diferenças, falha somente de fornecedores; em todos os casos, sem zero falso nem dados antigos classificados como confirmados.
+- Testar `Ver todos os alertas`, menu, sino, entrada/Voltar, troca de abas, escolha do comércio, estado vazio e múltiplos tipos de comércios sem mudança de permissões.
+- Tipos duas vezes; Vitest completo duas vezes; build; GitHub Actions; diff restrito; navegação/visual em 320/390/768/1024/1280 e texto ampliado quando possível. Dados fictícios, sem acesso de produção. Sem testes visuais reais, homologação permanece pendente.
+- Implementar em **nova branch e PR**, sem integrar automaticamente; aguardar aprovação e publicação `Publicar → Atualizar` pelo proprietário.
+
+**Pendente de aprovação:** confirmar o fluxo acima e a lista de arquivos, antes de alterar aplicativo ou testes. A C4-C (consistência do sino, histórico/erros e atualização) não faz parte desta implementação.
