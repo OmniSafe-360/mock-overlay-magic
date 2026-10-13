@@ -77,7 +77,7 @@ describe("RMC-02/02B: Início (resumo) e Comércios (cartões)", () => {
     await waitFor(() => expect(atual()).toMatch(/Vendas/));
     fireEvent.click(screen.getByRole("button", { name: /Voltar/ }));
     // vendas pedidas no Início: o Voltar devolve ao Início
-    expect(await screen.findByText("Resumo de hoje")).toBeTruthy();
+    expect(await screen.findByText("Situação dos comércios")).toBeTruthy();
     fireEvent.click(screen.getAllByRole("button", { name: "Comércios" })[0]!);
     await screen.findByRole("region", { name: "Seus comércios" });
     expect(screen.queryByText("Escolha o comércio para ver as vendas")).toBeNull();
