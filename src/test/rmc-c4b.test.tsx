@@ -69,7 +69,8 @@ describe("RMC-04 / C4-B — Alertas por assunto, com dados confirmados", () => {
     expect(sec.queryByRole("button", { name: /Acabaram/ })).toBeNull();
     fireEvent.click(sec.getByRole("button", { name: /Feijão/ }));
     expect(await screen.findByRole("heading", { name: "Feijão" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /Voltar/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Produtos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
     expect(await screen.findByText("Assunto: Para repor")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Ver todos os alertas" }));
     expect(screen.queryByText("Assunto: Para repor")).toBeNull();
@@ -92,7 +93,7 @@ describe("RMC-04 / C4-B — Alertas por assunto, com dados confirmados", () => {
     await abrirAssunto(/Vence(m)? em breve/);
     expect(screen.getByText("Assunto: Vencem em breve")).toBeTruthy();
     const sec = within(screen.getByRole("region", { name: "Mercado Alfa" }));
-    expect(sec.getByRole("button", { name: "Vencem em breve" })).toBeTruthy();
+    expect(sec.getByRole("button", { name: /Vencem em breve/ })).toBeTruthy();
     expect(sec.getByRole("button", { name: /Leite/ })).toBeTruthy();
     expect(sec.queryByRole("button", { name: /Repor a/ })).toBeNull();
     expect(sec.queryByRole("button", { name: /Comprar/ })).toBeNull();
@@ -147,7 +148,7 @@ describe("RMC-04 / C4-B — Alertas por assunto, com dados confirmados", () => {
     render(<OwnerApp userId="u1" owner="M" initial={[a]} />);
     const resumo = within(await screen.findByRole("region", { name: "Resumo geral" }));
     await waitFor(() => expect(resumo.getByRole("button", { name: /Para resolver agora/ }).textContent).toMatch(/^—.*Consulta incompleta/));
-    await abrirAssunto(/Para resolver agora/);
+    fireEvent.click(resumo.getByRole("button", { name: /Para resolver agora/ }));
     expect(screen.getByText(/Entre os 0 de 1 comércios conferidos/)).toBeTruthy();
     expect(screen.queryByRole("region", { name: "Mercado Alfa" })).toBeNull();
     expect(screen.queryByText(/Tudo certo!/)).toBeNull();
@@ -173,7 +174,7 @@ describe("RMC-04 / C4-B — Alertas por assunto, com dados confirmados", () => {
     expect(screen.queryByText("Assunto: Para comprar")).toBeNull();
     fireEvent.click(screen.getAllByRole("button", { name: "Início" })[0]!);
     await abrirAssunto(/Para repor/);
-    const sino = screen.getByRole("button", { name: /Alertas:|^Alertas$/ });
+    const sino = screen.getByRole("button", { name: /^Alertas: \d+ para resolver agora$/ });
     fireEvent.click(sino);
     expect(screen.queryByText("Assunto: Para repor")).toBeNull();
   });
