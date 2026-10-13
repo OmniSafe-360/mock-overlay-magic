@@ -34,6 +34,9 @@ describe("primeiros passos", () => {
 
   it("comércio novo: quadro no topo, comércio único com botão de entrar, passo leva ao lugar certo", async () => {
     render(<OwnerApp userId="u1" owner="Monica" initial={[loja]} />);
+    // RMC-02B: Primeiros passos e cartões ficam na aba Comércios (o Início só tem o resumo)
+    expect(screen.queryByText(/de 6 feitos/)).toBeNull();
+    fireEvent.click(screen.getAllByRole("button", { name: "Comércios" })[0]!);
     expect(await screen.findByText("1 de 6 feitos. Siga a ordem e o Omni fica pronto para usar.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Entrar no Supermercado União/ })).toBeInTheDocument();
     expect(screen.queryByText(/Seus comércios/)).toBeNull();
@@ -46,21 +49,26 @@ describe("primeiros passos", () => {
     banco.carregarFornecedores.mockResolvedValue([{ id: "f1", nome: "Atacadão" }]);
     banco.carregarFuncionarios.mockResolvedValue([{ id: "x" }]); banco.carregarCaixas.mockResolvedValue([{ id: "k", ligadoEm: "2026-10-10T10:00:00Z", desligadoEm: null }]);
     const { unmount } = render(<OwnerApp userId="u1" owner="Monica" initial={[loja]} />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Comércios" })[0]!);
     await waitFor(() => expect(banco.carregarCaixas).toHaveBeenCalled());
     await screen.findByText("Tudo certo");
     expect(screen.queryByText(/Primeiros passos/)).toBeNull();
     unmount();
     banco.carregarCaixas.mockResolvedValue([]);
     render(<OwnerApp userId="u1" owner="Monica" initial={[loja]} />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Comércios" })[0]!);
     fireEvent.click(await screen.findByText("Esconder os primeiros passos"));
     expect(screen.queryByText(/de 6 feitos/)).toBeNull();
   });
 
-  it("RMC-01: comércios em lista/grade antes do resumo, sem carrossel", async () => {
+  it("RMC-01/02B: comércios em lista/grade na aba Comércios, sem carrossel; Início só com o resumo", async () => {
     render(<OwnerApp userId="u1" owner="Monica" initial={[loja, { ...loja, id: "c2", nome: "Mercado Dois" }]} />);
+    // 1. Início: resumo, sem cartões
+    expect(screen.getByText("Resumo de hoje")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Seus comércios" })).toBeNull();
+    fireEvent.click(screen.getAllByRole("button", { name: "Comércios" })[0]!);
     const secao = await screen.findByRole("region", { name: "Seus comércios" });
-    // 1. antes do "Resumo de hoje"
-    expect(secao.compareDocumentPosition(screen.getByText("Resumo de hoje")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText("Resumo de hoje")).toBeNull();
     // 2 e 4. cada comércio uma única vez, com o nome acessível preservado
     expect(within(secao).getAllByRole("button", { name: `Entrar no ${loja.nome}` })).toHaveLength(1);
     expect(within(secao).getAllByRole("button", { name: "Entrar no Mercado Dois" })).toHaveLength(1);
