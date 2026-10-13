@@ -1,6 +1,6 @@
 # G1.2 — bloqueio operacional de loja inativa
 
-Estado: **proposta aprovada pelo dono ("Próxima pode fazer"), aplicada aos sete arquivos em branch separada; PR de rascunho aguardando comparação com o banco real**. Nenhum SQL de produção ou configuração publicada foi alterado. Base: `8bb33423786e311ebd97d4ea6c8524d049a16b82`, remoto conferido em 13/10/2026.
+Estado: **proposta aprovada pelo dono ("Próxima pode fazer"), aplicada aos sete arquivos em branch separada; [PR #124](https://github.com/OmniSafe-360/mock-overlay-magic/pull/124) de rascunho aguardando comparação com o banco real**. Nenhum SQL de produção ou configuração publicada foi alterado. Base: `8bb33423786e311ebd97d4ea6c8524d049a16b82`, remoto conferido em 13/10/2026.
 
 O Conector já exige comércio ativo. A equipe e o Caixa móvel aceitam a mesma loja inativa na versão atual. A proposta alinha quatro funções existentes sem alterar regras de estoque, dinheiro, PIN ou histórico. Não há função de negócio nem tabela nova.
 
@@ -62,7 +62,7 @@ Em lojas de teste autorizadas: confirmar entrada/PIN/Caixa ativos; marcar apenas
 
 ## Registro da aplicação autorizada na branch
 
-Em 13/10/2026, base local/remota `8bb3342` conferida e patch aprovado com SHA256 `c77dcfd13323817a159593fb00de8ff1620065650531f10e1c2c5dc154d40f16` aplicado em `codex/g12-acesso-loja-inativa`. Os três arquivos de SQL/teste/runner são idênticos aos da proposta; somente os quatro documentos registram aprovação, execução e pendências. Nenhuma configuração, aplicativo, migração histórica ou regra de estoque adicional foi alterada.
+Em 13/10/2026, base local/remota `8bb3342` conferida e patch aprovado com SHA256 `c77dcfd13323817a159593fb00de8ff1620065650531f10e1c2c5dc154d40f16` aplicado em `codex/g12-acesso-loja-inativa`, commit `e7a8c9e`, [PR #124](https://github.com/OmniSafe-360/mock-overlay-magic/pull/124). Os três arquivos de SQL/teste/runner são idênticos aos da proposta; somente os quatro documentos registram aprovação, execução e pendências. Nenhuma configuração, aplicativo, migração histórica ou regra de estoque adicional foi alterada.
 
 **Verificação pós-aplicação aprovada:** tipos e 1.019 testes/98 arquivos duas vezes, build com Supabase fictício, runner com 35 novas asserções/regressões/quatro disputas e ensaio nativo Supabase com 243 SQL/74 HTTP. O teste novo reproduziu a falha antes de aplicar no banco privado e passou depois. ACL, dono/search_path/SECURITY DEFINER das funções, RLS e políticas ficaram iguais; reexecução da migração também preservou permissões. Nenhum banco oficial ou dado real usado.
 
