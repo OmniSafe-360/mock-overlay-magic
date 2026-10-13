@@ -1,6 +1,6 @@
 # Auditoria de operação e segurança para mercados grandes
 
-Revisão de **13/10/2026**, solicitada pelo dono. Alvo confirmado: **várias lojas e vários caixas**. Código analisado: `main`, `d35a6020ead28fbf5d8241d8519835210beb0486` (PR #112), conferido com o remoto. Este é um **relatório de evidências**; as regras continuam em [FONTE_DA_VERDADE](FONTE_DA_VERDADE.md) e a execução por etapas no [CHECKLIST_PONTA_A_PONTA](CHECKLIST_PONTA_A_PONTA.md#plano-para-mercados-grandes-g0-a-g8). Não cria outra fonte de regras nem renumera as entregas anteriores.
+Revisão de **13/10/2026**, solicitada pelo dono. Alvo confirmado: **várias lojas e vários caixas**. Código analisado: `main`, `d35a6020ead28fbf5d8241d8519835210beb0486` (PR #112), conferido com o remoto. Este é um **relatório de evidências**; as regras continuam em [FONTE_DA_VERDADE](FONTE_DA_VERDADE.md) e a execução por etapas no [CHECKLIST_PONTA_A_PONTA](CHECKLIST_PONTA_A_PONTA.md#plano-para-mercados-grandes-g0-a-g8). Não cria outra fonte de regras nem renumera as entregas anteriores. Entrega documental: [PR #113](https://github.com/OmniSafe-360/mock-overlay-magic/pull/113), conteúdo inicial `307a952`.
 
 ## Resultado e alcance
 
