@@ -1,0 +1,72 @@
+name: Verificacao
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '17 8 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verificacao-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Verificacao
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      SUPABASE_URL: https://ci.invalid
+      VITE_SUPABASE_URL: https://ci.invalid
+      SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_sem_acesso
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_sem_acesso
+    steps:
+      - name: Obter codigo e historico
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Preparar Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.19.0'
+      - name: Procurar segredos sem mostrar valores
+        run: node scripts/verificar-seguranca.mjs segredos
+      - name: Preparar Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: '1.4.3'
+      - name: Preparar copia de instalacao com integridade conferida
+        run: bun scripts/verificar-seguranca.mjs preparar-instalacao "$RUNNER_TEMP/omni-instalacao"
+      - name: Instalar mesmas versoes sem alterar o lock do repositorio
+        run: |
+          bun install --cwd "$RUNNER_TEMP/omni-instalacao" --frozen-lockfile --ignore-scripts
+          mv "$RUNNER_TEMP/omni-instalacao/node_modules" ./node_modules
+      - name: Testar as verificacoes de seguranca
+        run: node --test scripts/verificar-seguranca.test.mjs
+      - name: Consultar avisos conhecidos das dependencias
+        run: node --use-env-proxy scripts/verificar-seguranca.mjs dependencias
+      - name: Tipos e testes - primeira rodada
+        run: |
+          npx --no-install tsc --noEmit
+          npx --no-install vitest run
+      - name: Tipos e testes - segunda rodada
+        run: |
+          npx --no-install tsc --noEmit
+          npx --no-install vitest run
+      - name: Gerar aplicativo
+        run: npm run build
+      - name: Localizar PostgreSQL do runner
+        run: |
+          comando_pg=$(pg_config --bindir)
+          test -x "$comando_pg/initdb"
+          test -x "$comando_pg/pg_ctl"
+          echo "$comando_pg" >> "$GITHUB_PATH"
+      - name: Testar caixa e estoque em banco descartavel
+        run: bash docs/persistencia/teste/rodar_caixa_estoque.sh

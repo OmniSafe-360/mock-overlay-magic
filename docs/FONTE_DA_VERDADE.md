@@ -467,3 +467,6 @@ Para G0–G8, o dono confirmou **várias lojas e vários caixas**. Ainda faltam:
 - **10/10/2026:**
   - o caixa deve **se ligar ao sistema de caixa do mercado** (vários caixas por loja), descontando da gôndola na hora — proposta na seção 7.6;
   - pedido do dono: **"tudo fácil para o comerciante, bonito, organizado e coerente no lugar onde for implantado"** — virou a seção 3 e a lista da seção 0.
+
+
+**13/10/2026 — G0.3, implementação aprovada pelo dono:** consulta atual confirma `main protected=false` e rulesets vazios; permissões administrativas de Actions respondem 403 e não foram verificadas. Proposta de oito arquivos aprovada explicitamente (“Sim”) e aplicada: workflow de verificações, Dependabot e verificadores de segredos/dependências, sem alterar aplicativo, SQL, dados, package.json ou lock oficial. [Arquivos, impactos e critérios](publicacao-seguranca-2026-10-13.md). **Publicação do PR/primeiro CI remoto em conferência; proteções/alertas administrativos e compatibilidade do Lovable pendentes.** Proteção obrigatória depende da primeira execução remota e validação do acesso Lovable; não ativar bloqueio de push direto sem considerar sua sincronização. G0.3/G0 continuam abertas; G0.1/publicação/teste e G0.2/aceite operacional permanecem pendentes.
