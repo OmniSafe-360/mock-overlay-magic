@@ -166,3 +166,49 @@ Autorizada pelo dono. Só apresentação em `OwnerHome.tsx`: Vendas hoje e Falto
 - Sem mudanças em banco/Supabase, SQL, cálculo de `ResumoComercio`, `StoreSpace.tsx`, controles de vendas, reposição, pedidos, autenticação, RLS ou novos endpoints.
 
 **Status:** implementado na branch de revisão, **ainda não integrado**, aguardando GitHub Actions, inspeção do diff e aprovação do dono. Testes locais e visuais reais não são reivindicados neste registro. **Publicar → Atualizar** e homologar no celular somente depois da aprovação e integração. A aba Alertas normal e o sino continuam com o problema previamente identificado de dados antigos; isso é escopo **C4-C**, não desta etapa.
+
+## Atualização verificável de C4-A e C4-B e auditoria preventiva C4-C (13/10/2026)
+
+**Fatos posteriores ao histórico acima, que era um retrato do momento de abertura dos PRs:**
+- **C4-A implementada e integrada:** [PR #128](https://github.com/OmniSafe-360/mock-overlay-magic/pull/128), merge `bf7dae3bb26ab2bbc8b7cf929ec4079e846eef39`, GitHub Actions pós-merge [38467066361](https://github.com/OmniSafe-360/mock-overlay-magic/actions/runs/38467066361) **success**. Organizou Vendas → Pendências → Faltou; ajustou os textos, sem cálculo novo.
+- **C4-B implementada e integrada:** [PR #130](https://github.com/OmniSafe-360/mock-overlay-magic/pull/130), merge `8aca0661b7afca43e4f6b1cb661bb0bc2fad164c`; [CI do PR](https://github.com/OmniSafe-360/mock-overlay-magic/actions/runs/38469612409) **success** e [CI pós-merge](https://github.com/OmniSafe-360/mock-overlay-magic/actions/runs/38471813822) **success**. 1.061 testes em duas rodadas, TypeScript duas vezes, build e demais passos do workflow aprovados. No diálogo, o proprietário respondeu **“Deu certo”** sobre o fluxo testado, mas **não detalhou aparelhos, versões, todos os quatro indicadores nem todas as condições de falha**. Registrar retorno positivo sem marcar a homologação completa como finalizada.
+- O documento histórico ainda tinha afirmações “PR aberto/CI pendente” porque foi escrito antes da integração; essas afirmações devem ser lidas como **registros da época**, não como estado atual. A C3-B/validação visual ampla e RMC-06 continuam com aceite pendente.
+
+### C4-C — achados confirmados por leitura do código atual (sem alterações funcionais)
+
+Base `main 8aca0661b7af`, `src/components/OwnerHome.tsx`:
+1. `carregarGeral` mantém no estado os arrays anteriores de `produtos` e `pedidos` ao mudar para `estado: "carregando"` (linhas 144–155). Após falha de produtos/pedidos, preserva os arrays antigos e marca `base: false` e `estado: "erro"` (linhas 182–185). **Isso é intencional para diagnóstico e continuidade**, mas esses dados não podem aparecer como leitura atual.
+2. `visao.resumos` é montada para qualquer comércio com `g.estado === "ok" || g.produtos.length` (linhas 220–241); assim, pode conter resumos derivados de dados de uma leitura anterior. A função `disponibilidade(...)` da C2 **já protege os quatro KPIs e os Alertas filtrados da C4-B**, exigindo `g.base`, não carregando e fontes adicionais para Resolver (linhas 709–717, 923–929).
+3. **A lista Alertas sem filtro não usa essa mesma proteção**: calcula `prontos` e `comAviso` com `visao.resumos[id]` sem verificar a confirmação atual (linhas 850–855); abre `AtencaoHoje` com produtos e pedidos presentes no estado mesmo durante erro/carregamento (linhas 877–899). Isso permite listas potencialmente desatualizadas classificadas como atuais. O aviso de “Consulta incompleta” sozinho não elimina esse risco.
+4. **O botão do sino** usa `paraResolver(visao.total)` e `deOlho(visao.total)` (linhas 437–441); esses totais agregam `visao.resumos` sem filtrar por leitura confirmada. Em falha/carregamento, o número e a bolinha podem decorrer de dados anteriores, divergir dos quatro KPIs protegidos ou anunciar falsa certeza.
+5. O Início já possui `Tentar de novo` após erro; o menu Alertas também oferece nova tentativa para parte dos estados, mas não possui uma ação persistente claramente identificada como **Atualizar**. Há `online`/`visibilitychange` para a visão geral; a C4-C **não deve multiplicar consultas nem modificar esses eventos** sem evidência de necessidade.
+
+### Correção mínima recomendada para aprovação — C4-C1 (uma alteração isolada)
+
+**Objetivo:** alinhar a classificação de alertas **sem filtro** e do **sino** à confirmação de dados da C2, mantendo intactos os quatro KPIs da C4-B, todos os botões/destinos e os fluxos de cada comércio.
+
+- Reaproveitar `disponibilidade(stores, visao, false).idsValidos` para identificar lojas com produtos/pedidos confirmados; usar `disponibilidade(..., true).idsValidos` para identificar lojas com fontes completas de **Resolver agora** (produtos/pedidos/vendas/diferenças). Não alterar o contrato nem os cálculos de `resumoComercio`/`paraResolver`/`deOlho`/`somaResumos`.
+- Alertas sem filtro: não exibir como pendências atuais os produtos/pedidos antigos de uma unidade em carregamento/erro. Quando produtos/pedidos estão confirmados mas vendas/diferenças falham, **preservar os grupos de produtos confirmados**; identificar explicitamente que as demais informações estão incompletas e não declarar “Tudo certo” global. Não apagar/zerar o histórico ou impedir que o usuário navegue para a unidade. Contagens de venda/diferença desconhecidas não devem receber rótulo de “confirmadas”.
+- Sino: preservar acesso aos Alertas, mas deixar de anunciar `visao.total` irrestrito como valor confirmado. Usar só os resumos e fontes efetivamente atuais para contagens verificadas; se houver leitura parcial, expor **“Consulta incompleta”** em texto acessível, sem afirmar um total global exato ou gerar zero falso. Não esconder avisos legítimos de produtos confirmados apenas porque uma fonte adicional falhou.
+- Acrescentar **Atualizar alertas** usando a função `onTentar` existente no topo da aba Alertas, sem criar endpoint ou consulta extra e com aviso de atualização/erro; preservar nova tentativa e o retorno da unidade. Nenhuma atualização automática de estoque, vendas ou pedidos será disparada pelo clique nos cartões: apenas releitura.
+- Alteração estritamente visual/estado de consulta; nenhuma migração, autorização adicional, modificação de `Geral` durante `carregarGeral`, `AtencaoHoje` operacional ou regras do banco.
+
+**Desenho de código, somente proposta (NÃO EXECUTADA):**
+```ts
+// Já existe em OwnerHome.tsx e será REUTILIZADO:
+const produtosConfirmados = new Set(disponibilidade(stores, visao, false).idsValidos);
+const resolverConfirmado = new Set(disponibilidade(stores, visao, true).idsValidos);
+// Alertas sem filtro: não classificar unidades ausentes de produtosConfirmados
+// como tendo pendências atuais; identificar fontes parciais.
+// Sino: total verificado / consulta parcial, sem usar visao.total indiscriminado.
+// Botão Atualizar: reutilizar onTentar, sem novos loaders.
+```
+
+**Lista EXATA de arquivos para eventual implementação, somente após aprovação específica:**
+1. `src/components/OwnerHome.tsx` — alterar **apenas** apresentação da aba Alertas sem filtro, critério de confiabilidade de suas seções, indicador do sino e botão de atualização.
+2. `src/test/rmc-c4c.test.tsx` (**novo**) — testar confirmação/erro/carregamento/recuperação, alertas antigos não afirmados, sino, botão e menu, fontes parcialmente disponíveis e nenhum efeito em C4-B.
+3. `docs/FONTE_DA_VERDADE.md`, `docs/CHECKLIST_PONTA_A_PONTA.md`, `CLAUDE.md`, `docs/auditoria-painel-global-2026-10-13.md` — registrar implementação/testes reais e manutenção do aceite pendente.
+
+**Proteções e aceite:** não tocar `src/lib/resumoGeral.ts`, `src/lib/situacao.ts`, `src/components/AtencaoHoje.tsx`, `StoreSpace.tsx`, `carregarGeral`, banco/Supabase, SQL/RLS, estoque/caixa/pedidos, autenticação, permissões, rotas, relatórios e demais frentes. Se outro arquivo for indispensável, interromper e pedir aprovação ANTES. A mudança será em branch/PR próprio, sem merge automático. Verificar `tsc --noEmit` 2×, `vitest run` completo 2×, build, CI, diferença no código e testes manuais de um/vários comércios, falha/reconexão e retorno dos indicadores. **Publicação e homologação real nunca são deduzidas do merge/CI.**
+
+**Status atual:** auditoria documental; C4-C1 **não implementada**. Necessita validação explícita deste escopo concreto pelo proprietário; C4-C2/otimização de desempenho/G5 e C4-D não iniciados.
