@@ -52,3 +52,72 @@ describe("RMC-02C / C1 — clareza da visão global", () => {
     expect(screen.getByRole("button", { name: /Adicionar comércio/ })).toBeTruthy();
   });
 });
+
+describe("RMC-02C / C2 — subtotais dos quatro indicadores", () => {
+  const repor = async () => within(await screen.findByRole("region", { name: "Resumo geral" })).getByRole("button", { name: /Para repor/ });
+  const resolver = async () => within(await screen.findByRole("region", { name: "Resumo geral" })).getByRole("button", { name: /Para resolver agora/ });
+  it("um comércio atualizado: total sem marca de subtotal", async () => {
+    render(<OwnerApp userId="u1" owner="M" initial={[a]} />);
+    await waitFor(async () => expect((await repor()).textContent).toMatch(/^1/));
+    expect(screen.queryByText(/Subtotal:/)).toBeNull();
+  });
+  it("zero verdadeiro aparece como 0", async () => {
+    banco.carregarProdutos.mockResolvedValue({ produtos: [], locais: { deposito: [], venda: [] } });
+    render(<OwnerApp userId="u1" owner="M" initial={[a]} />);
+    expect(await screen.findByText(/Tudo certo!/)).toBeTruthy();
+  });
+  it("falha de produtos em um comércio: subtotal só do válido", async () => {
+    banco.carregarProdutos.mockImplementation(async (id: string) => { if (id === "c2") throw new TypeError("x"); return { produtos: [p], locais: { deposito: [], venda: [] } }; });
+    render(<OwnerApp userId="u1" owner="M" initial={[a, b]} />);
+    await waitFor(async () => expect((await repor()).textContent).toMatch(/^1.*Subtotal: 1 de 2 comércios/));
+  });
+  it("números antigos do comércio que falhou não entram no subtotal; Tentar de novo recupera", async () => {
+    render(<OwnerApp userId="u1" owner="M" initial={[a, b]} />);
+    await waitFor(async () => expect((await repor()).textContent).toMatch(/^2/));
+    banco.carregarProdutos.mockImplementation(async (id: string) => { if (id === "c2") throw new TypeError("x"); return { produtos: [p], locais: { deposito: [], venda: [] } }; });
+    fireEvent(window, new Event("online"));
+    await waitFor(async () => expect((await repor()).textContent).toMatch(/^1.*Subtotal: 1 de 2/));
+    banco.carregarProdutos.mockResolvedValue({ produtos: [p], locais: { deposito: [], venda: [] } });
+    fireEvent.click(await screen.findByRole("button", { name: /Tentar de novo/ }));
+    await waitFor(async () => expect((await repor()).textContent).toMatch(/^2/));
+    expect(screen.queryByText(/Subtotal:/)).toBeNull();
+  });
+  it("falha só em vendas ou só em diferenças afeta só Resolver agora", async () => {
+    banco.carregarVendas.mockImplementation(async (id: string) => { if (id === "c2") throw new TypeError("x"); return []; });
+    banco.carregarDiferencas.mockImplementation(async (id: string) => { if (id === "c1") throw new TypeError("x"); return { diferencas: [], perdas: [] }; });
+    render(<OwnerApp userId="u1" owner="M" initial={[a, b]} />);
+    await waitFor(async () => expect((await repor()).textContent).toMatch(/^2/));
+    expect((await resolver()).textContent).toMatch(/^—.*Consulta incompleta/);
+    expect(screen.queryByText(/Tudo certo!/)).toBeNull();
+  });
+  it("falha só em fornecedores não invalida os indicadores", async () => {
+    banco.carregarFornecedores.mockRejectedValue(new TypeError("x"));
+    render(<OwnerApp userId="u1" owner="M" initial={[a]} />);
+    await waitFor(async () => expect((await repor()).textContent).toMatch(/^1/));
+    expect(screen.queryByText(/Subtotal:|Consulta incompleta/)).toBeNull();
+  });
+  it("todos indisponíveis: — e Consulta incompleta, nunca zero; carregando mostra …", async () => {
+    let soltar!: () => void;
+    banco.carregarProdutos.mockImplementation(() => new Promise((_, rej) => { soltar = () => rej(new TypeError("x")); }));
+    render(<OwnerApp userId="u1" owner="M" initial={[a]} />);
+    await waitFor(async () => expect((await repor()).textContent).toMatch(/^…/));
+    soltar();
+    await waitFor(async () => expect((await repor()).textContent).toMatch(/^—.*Consulta incompleta/));
+    expect(screen.queryByText(/Tudo certo!/)).toBeNull();
+  });
+  it("resposta antiga depois da mais recente não substitui os números", async () => {
+    const r1: Array<(v: unknown) => void> = [];
+    banco.carregarProdutos.mockImplementationOnce(() => new Promise((res) => r1.push(res)));
+    render(<OwnerApp userId="u1" owner="M" initial={[a]} />);
+    fireEvent(window, new Event("online"));
+    await waitFor(async () => expect((await repor()).textContent).toMatch(/^1/));
+    r1[0]!({ produtos: [p, { ...p, id: "p2", db: { id: "p2", contadas: ["deposito:_", "venda:_"] } }], locais: { deposito: [], venda: [] } });
+    await new Promise((r) => setTimeout(r, 20));
+    expect((await repor()).textContent).toMatch(/^1/);
+  });
+  it("clique nos indicadores abre Alertas", async () => {
+    render(<OwnerApp userId="u1" owner="M" initial={[a]} />);
+    fireEvent.click(await resolver());
+    expect(await screen.findAllByText(/Repor|Tudo certo/)).toBeTruthy();
+  });
+});
