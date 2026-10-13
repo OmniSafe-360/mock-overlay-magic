@@ -571,10 +571,10 @@ function HomeContent({ modo, stores, visao, fornecedores, locais, onPasso, onAdd
   const afCompleto = visao.antifurto.length === stores.length && visao.antifurto.every((l) => !!l.alertas);
   const pronto = Object.keys(visao.resumos).length > 0;
   const kpis = [
-    { label: "Para resolver agora", n: paraResolver(t), Icon: AlertTriangle, cor: "urgente" as const },
-    { label: "Para repor", n: t.repor, Icon: ShoppingBasket, cor: "atencao" as const },
-    { label: "Para comprar", n: t.comprar, Icon: ShoppingCart, cor: "atencao" as const },
-    { label: t.vencendo === 1 ? "Vence em breve" : "Vencem em breve", n: t.vencendo, Icon: CalendarClock, cor: "atencao" as const },
+    { label: "Para resolver agora", n: paraResolver(t), Icon: AlertTriangle, cor: "urgente" as const, desc: "Pendências urgentes de vários tipos, não só produtos" },
+    { label: "Para repor", n: t.repor, Icon: ShoppingBasket, cor: "atencao" as const, desc: "Produtos para repor na área de venda" },
+    { label: "Para comprar", n: t.comprar, Icon: ShoppingCart, cor: "atencao" as const, desc: "Produtos para comprar, fora os já pedidos" },
+    { label: t.vencendo === 1 ? "Vence em breve" : "Vencem em breve", n: t.vencendo, Icon: CalendarClock, cor: "atencao" as const, desc: "Produtos com validade perto do fim" },
   ];
   // B10: "Tudo certo!" só quando também não há nada "de olho" (conta vencendo hoje, alerta de antifurto…)
   const tudoCerto = pronto && !visao.carregando && !visao.erro && kpis.every((k) => k.n === 0) && deOlho(t) === 0;
@@ -634,6 +634,7 @@ function HomeContent({ modo, stores, visao, fornecedores, locais, onPasso, onAdd
             <span className="min-w-0 flex-1">
               <span className="block text-xs text-muted-foreground sm:text-sm">Vendas hoje</span>
               <span className="block text-2xl font-bold tracking-tight sm:text-3xl">{vendasCompletas ? brlVenda(t.vendasHojeTotal) : visao.carregando ? "…" : "—"}</span>
+              <span className="block text-xs leading-snug text-muted-foreground">Valor das vendas finalizadas hoje</span>
             </span>
             <span className="shrink-0 text-right text-xs text-muted-foreground">
               {!vendasCompletas ? visao.carregando ? "Consultando…" : "Consulta incompleta" : t.vendasHojeN === 0 ? "Nenhuma venda ainda" : t.vendasHojeN === 1 ? "1 venda" : `${t.vendasHojeN} vendas`}
@@ -646,6 +647,7 @@ function HomeContent({ modo, stores, visao, fornecedores, locais, onPasso, onAdd
             <span className="min-w-0 flex-1">
               <span className="block text-xs text-muted-foreground sm:text-sm">Faltou este mês</span>
               <span className="block text-2xl font-bold tracking-tight sm:text-3xl">{afPronto ? brlVenda(af.faltou) : visao.carregando ? "…" : "—"}</span>
+              <span className="block text-xs leading-snug text-muted-foreground">Faltas e perdas de mercadoria registradas no mês</span>
             </span>
             <span className="shrink-0 text-right text-xs text-muted-foreground">
               {!afCompleto ? "Consulta incompleta" : af.alertas === 0 ? "Nenhum alerta" : af.alertas === 1 ? "1 alerta" : `${af.alertas} alertas`}
@@ -659,7 +661,7 @@ function HomeContent({ modo, stores, visao, fornecedores, locais, onPasso, onAdd
             </p>
           ) : (
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              {kpis.map(({ label, n, Icon, cor }) => {
+              {kpis.map(({ label, n, Icon, cor, desc }) => {
                 const ativo = n > 0;
                 const borda = !ativo ? "border-border bg-secondary/70" : cor === "urgente" ? "border-destructive/60 bg-destructive/10" : "border-warning/60 bg-warning/10";
                 return (
@@ -667,6 +669,7 @@ function HomeContent({ modo, stores, visao, fornecedores, locais, onPasso, onAdd
                     <Icon size={20} className={!ativo ? "text-muted-foreground" : cor === "urgente" ? "text-destructive" : "text-warning"} />
                     <p className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">{pronto ? n : "…"}</p>
                     <p className="mt-1 text-xs leading-tight text-muted-foreground sm:text-sm">{label}</p>
+                    <p className="mt-1 text-[11px] leading-snug text-muted-foreground/80 sm:text-xs">{desc}</p>
                   </button>
                 );
               })}
