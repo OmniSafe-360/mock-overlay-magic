@@ -653,7 +653,7 @@ function HomeContent({ stores, visao, fornecedores, locais, onPasso, onAdd, onOp
 }
 
 /** RMC-01: vários comércios em lista vertical no celular e grade nas telas maiores, com "Adicionar" no fim. */
-function ListaComercios({ stores, visao, onOpen, onAdd, escolherVendas = false, onCancelarEscolha }: { stores: StoreData[]; visao: VisaoGeral; onOpen: (s: StoreData) => void; onAdd: () => void; escolherVendas?: boolean; onCancelarEscolha?: () => void }) {
+function ListaComercios({ stores, visao, onOpen, onAdd, escolherVendas = false, onCancelarEscolha }: { stores: StoreData[]; visao: VisaoGeral; onOpen: (s: StoreData) => void; onAdd: () => void; escolherVendas?: boolean; onCancelarEscolha?: (() => void) | undefined }) {
   const aviso = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!escolherVendas || !aviso.current) return;
