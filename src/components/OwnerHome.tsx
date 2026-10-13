@@ -934,7 +934,8 @@ function AlertasFiltrados({ stores, visao, suppliers, onAbrir, onTentar, assunto
     <div className="mx-auto max-w-3xl space-y-5 animate-in fade-in duration-300">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold">Alertas · {titulos[assunto]}</h1>
+          <h1 className="text-xl font-bold">Alertas</h1>
+          <p className="text-sm font-semibold text-primary">Assunto: {titulos[assunto]}</p>
           <p className="text-sm text-muted-foreground">Somente este assunto, separado por comércio e com dados confirmados.</p>
         </div>
         <button type="button" onClick={onVerTodos} className="min-h-12 rounded-xl border border-border px-4 text-sm font-semibold text-primary">Ver todos os alertas</button>
