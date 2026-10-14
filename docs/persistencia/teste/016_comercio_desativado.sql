@@ -42,7 +42,6 @@ update comercios set ativo=false where id=pg_temp.u('com');
 create temp table antes as select pg_temp.saldo('g','venda') g, pg_temp.saldo('ok','deposito') ok,
  (select count(*) from vendas where comercio_id=pg_temp.u('com')) vendas, (select count(*) from perdas where comercio_id=pg_temp.u('com')) perdas,
  (select count(*) from operacoes where comercio_id=pg_temp.u('com')) ops;
-grant select on antes to anon;
 set local role anon;
 select pg_temp.recusa($q$select conferir_codigo_funcionario('937421')$q$,'comercio_desativado');
 select pg_temp.recusa($q$select entrar_funcionario('583920','2468','teste')$q$,'comercio_desativado');
@@ -70,11 +69,13 @@ select pg_temp.recusa($q$select funcionario_registrar_perda(repeat('f',64),pg_te
 select pg_temp.recusa($q$select funcionario_reposicao_lista(repeat('f',64))$q$,'comercio_desativado');
 select pg_temp.recusa($q$select funcionario_reposicao_contar(repeat('f',64),pg_temp.u('rep'),pg_temp.u('g'),null,3,1)$q$,'comercio_desativado');
 select pg_temp.recusa($q$select funcionario_reposicao_concluir(repeat('f',64),pg_temp.u('rep'),1)$q$,'comercio_desativado');
+reset role;
 -- Nada mudou no estoque, vendas, perdas ou operações de A.
 select pg_temp.ok((select g from antes)=pg_temp.saldo('g','venda') and (select ok from antes)=pg_temp.saldo('ok','deposito'),'desativado: estoque intacto');
 select pg_temp.ok((select vendas from antes)=(select count(*) from vendas where comercio_id=pg_temp.u('com')),'desativado: nenhuma venda nova');
 select pg_temp.ok((select perdas from antes)=(select count(*) from perdas where comercio_id=pg_temp.u('com')),'desativado: nenhuma perda nova');
 select pg_temp.ok((select ops from antes)=(select count(*) from operacoes where comercio_id=pg_temp.u('com')),'desativado: nenhuma operação nova');
+set local role anon;
 -- Isolamento: B continua funcionando.
 select pg_temp.ok((caixa_estado(repeat('b',64))) is not null,'B continua: caixa_estado');
 select pg_temp.ok((funcionario_inicio(repeat('b',64))->>'nome')='Equipe B','B continua: tela inicial');
