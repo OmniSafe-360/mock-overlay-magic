@@ -650,7 +650,7 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
           <div className="@container min-w-0">
             <h3 className="mb-1 flex flex-wrap items-baseline justify-between gap-x-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:mb-2">Resultado de hoje<span className="font-normal normal-case tracking-normal">{etiquetaHoje(hoje)}</span></h3>
           <button type="button" onClick={onVendas} aria-label={`Vendas hoje: ${vendasCompletas ? brlVenda(t.vendasHojeTotal) : "consulta incompleta"}`}
-            data-testid="cartao-vendas" className="flex w-full flex-wrap items-start gap-x-3 gap-y-1 rounded-3xl border border-primary/50 bg-primary/10 p-2.5 text-left transition hover:border-primary md:gap-x-4 md:gap-y-3 md:p-4 @[26rem]:flex-nowrap @[26rem]:items-center>
+            data-testid="cartao-vendas" className="flex w-full flex-wrap items-start gap-x-3 gap-y-1 rounded-3xl border border-primary/50 bg-primary/10 p-2.5 text-left transition hover:border-primary md:gap-x-4 md:gap-y-3 md:p-4 @[26rem]:flex-nowrap @[26rem]:items-center">
             <ShoppingBag size={24} className="shrink-0 text-primary" />
             <span className="min-w-0 flex-1">
               <span className="block text-xs text-muted-foreground sm:text-sm">Vendas hoje</span>
