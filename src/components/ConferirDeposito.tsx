@@ -125,6 +125,7 @@ function Contar({ item, id, rodada, chave, api, t, onVoltar, onFim, mercado }: {
   const [erro, setErro] = useState("");
   const [scan, setScan] = useState(false);
   const [certo, setCerto] = useState<boolean | null>(null);
+  const [lido, setLido] = useState("");
   const embs = aceitaFracao(item.unidade) ? [] : item.embalagens;
   const total = totalConferido(fechadas, soltas, embs, item.unidade);
   const nSoltas = parseNum(soltas, item.unidade, true);
@@ -137,6 +138,7 @@ function Contar({ item, id, rodada, chave, api, t, onVoltar, onFim, mercado }: {
   };
   const conferir = async (codigo: string) => {
     try {
+      setLido(codigo);
       const r = await api.buscar(chave, codigo);
       setCerto(r.some((x) => x.produtoId === item.produtoId && (x.variacaoId ?? null) === (item.variacaoId ?? null)));
     } catch (e) { setErro(erroTexto(e)); }
@@ -156,7 +158,7 @@ function Contar({ item, id, rodada, chave, api, t, onVoltar, onFim, mercado }: {
       )}
       <button type="button" onClick={() => setScan(true)} className={`flex w-full items-center justify-center gap-2 ${btnGhost}`}><Camera size={18} /> Bipar para conferir se é este produto</button>
       {certo === true && <p className="text-sm font-semibold text-accent">É este produto. Pode contar.</p>}
-      {certo === false && <p role="alert" className="text-sm font-semibold text-warning">Este código é de outro produto. Procure {nomeProdutoFunc(item)}.</p>}
+      {certo === false && <p role="alert" className="text-sm font-semibold text-warning">Código lido: {lido}. Este código é de outro produto. Procure {nomeProdutoFunc(item)}.</p>}
       <div className="space-y-3 rounded-3xl border border-border p-4">
         <p className="text-xl font-bold">{t("Quanto tem no depósito?")}</p>
         <p className="text-sm text-muted-foreground">{t("Conte tudo deste produto no depósito, inclusive atrás e em cima.")}</p>

@@ -250,7 +250,7 @@ function Ir({ item, prateleira, chave, api, onVoltar, onCheguei, mercado }: {
       const r = await api.buscar(chave, codigo);
       const certo = r.find((x) => x.produtoId === item.produtoId && (x.variacaoId ?? null) === (item.variacaoId ?? null));
       if (certo) { onCheguei(); return; }
-      setAviso(r.length ? `Este código é de outro produto (${nomeProdutoFunc(r[0]!)}). Procure ${nomeProdutoFunc(item)}.` : "Código não encontrado. Confira se é o produto certo.");
+      setAviso(r.length ? `Código lido: ${codigo}. Este código é de outro produto (${nomeProdutoFunc(r[0]!)}). Procure ${nomeProdutoFunc(item)}.` : `Código lido: ${codigo}. Código não encontrado. Confira se é o produto certo.`);
     } catch (e) { setAviso(erroTexto(e)); }
   };
   return (
