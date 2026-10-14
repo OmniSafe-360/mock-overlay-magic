@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { enableBarcodeScanAudio, playBarcodeScanSound } from "@/lib/barcode-scan-audio";
 import { Flashlight, Keyboard, Loader2, RotateCcw, X } from "lucide-react";
 
 type Controls = { stop: () => void; switchTorch?: ((on: boolean) => Promise<void>) | undefined };
@@ -126,6 +127,7 @@ export function Scanner({ onCode, onType, onClose, mercado = false }: { onCode: 
           done.current = true; alive = false;
           pararStream(); stopAll();
           navigator.vibrate?.(80);
+          playBarcodeScanSound("success");
           onCode(text);
         };
 
@@ -150,6 +152,8 @@ export function Scanner({ onCode, onType, onClose, mercado = false }: { onCode: 
               if (res) {
                 const codigo = textoLeitura(res.getText(), res.getBarcodeFormat(), mercado);
                 if (codigo) { entregar(codigo); return; }
+                // Houve decodificação, mas o formato não passou pela validação existente.
+                playBarcodeScanSound("error");
               }
             } catch { /* nenhum código neste quadro */ }
           }
