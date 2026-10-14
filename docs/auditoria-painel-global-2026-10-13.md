@@ -472,3 +472,21 @@ Patch preparado **somente em cópia isolada** `/tmp/omni-rmc06/proposta/OwnerHom
 8. Informar “funcionou” ou descrever onde falhou; não encerrar os itens sem essa evidência.
 
 **Situação:** parte local da RMC-06 auditada; há uma correção mínima proposta, aguardando aprovação, e publicação/teste do dono ainda sem confirmação. Manter RMC-06 `[ ]`. Próximo passo concreto: aprovar/aplicar a proposta de navegação acima, revalidar e publicar; depois homologar. C4-D opcional; RMC-03/05 e frentes G/E continuam separadas e abertas. Não declara sistema inteiro pronto, resistência total a ataques ou capacidade para várias lojas/caixas.
+
+
+## RMC-06 — retorno ao Início aplicado após aprovação (14/10/2026 UTC)
+
+O dono autorizou **“Pode aplicar”** após apresentação do patch, arquivos e impactos no PR #137. Base `main 47de008`. Aplicada exatamente a proposta: uma condição em `irPara` de `src/components/OwnerHome.tsx`, fechando o Antifurto geral somente na ação explícita do menu Início. Acrescentados os dois casos `nav`/`aside` aprovados em `src/test/rmc-02b.test.tsx`; nenhum caso existente removido ou reescrito. Componente oficial comparado byte a byte com a cópia proposta: igual. Quatro registros existentes atualizados, total de seis arquivos previstos.
+
+**Resultado:** no Antifurto, tocar Início no menu agora mostra o painel consolidado, inclusive quando a aba Início já estava ativa. A seta interna continua funcionando. Abrir uma unidade pelo relatório e usar Voltar mantém o relatório de origem; a regressão existente também confirma origens Comércios/Alertas e seleção de vendas. Sem alteração de cálculos, estoques, leituras, banco, permissões ou dependências.
+
+**Verificação desta aplicação:**
+
+- Tipos duas vezes e **1.073 testes / 106 arquivos duas vezes aprovados**; build com Supabase fictício aprovado.
+- Contraprova isolada com componente anterior: os dois casos novos falham pela ausência do painel Resumo geral após o clique; seis outros casos não selecionados nessa contraprova. A suite completa sobre o código corrigido aprova os oito casos desse arquivo e os demais testes.
+- Chromium com componente/CSS do código oficial aplicado, dados fictícios e rede externa bloqueada: **320/390/768/1280 px**, menu Início e seta interna retornam ao painel em quatro cenários. Não equivale a versão publicada, sessão real ou homologação no telefone.
+- Artefatos locais em `/tmp/omni-rmc06-aplicacao`: logs das duas rodadas/tipos/build, configuração/código anterior da contraprova e roteiro/resultado do navegador.
+
+**Situação atual:** correção pronta no código. O histórico acima de proposta aguardando aprovação é anterior a esta autorização. **RMC-06 permanece `[ ]` por falta de Publicar → Atualizar e teste do dono**, sem nova correção funcional identificada nesta entrega. Não encerrar outras frentes ou adicionar C4-D.
+
+**Teste curto depois da publicação:** abrir Início → Faltou este mês → Antifurto → tocar Início no menu; deve aparecer o painel. Reabrir Antifurto → abrir um comércio → Voltar; deve voltar ao relatório. Testar também a seta Início interna. Depois concluir o roteiro consolidado da auditoria e informar o resultado; não alterar estoque para testar navegação.

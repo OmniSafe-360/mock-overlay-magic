@@ -37,6 +37,18 @@ beforeEach(() => {
 });
 
 describe("RMC-02B: Início com resumo, Comércios com as unidades", () => {
+  it.each(["nav", "aside"])("Início no menu %s fecha o relatório geral", async (menu) => {
+    render(<OwnerApp userId="u1" owner="Monica" initial={[lojaA, lojaB]} />);
+    fireEvent.click(await screen.findByRole("button", { name: /^Faltou este mês:/ }));
+    expect(await screen.findByRole("heading", { name: "Antifurto" })).toBeTruthy();
+    const inicio = [...document.querySelectorAll(`${menu} button`)]
+      .find((button) => button.textContent?.trim() === "Início");
+    expect(inicio).toBeTruthy();
+    fireEvent.click(inicio!);
+    expect(await screen.findByRole("region", { name: "Resumo geral" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Antifurto" })).toBeNull();
+  });
+
   it("Início não mostra cartões nem Primeiros passos; Comércios mostra os dois e recebe dados atualizados", async () => {
     render(<OwnerApp userId="u1" owner="Monica" initial={[lojaA, lojaB]} />);
     expect(await screen.findByRole("region", { name: "Resumo geral" })).toBeTruthy();
