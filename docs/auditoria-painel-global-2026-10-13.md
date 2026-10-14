@@ -490,3 +490,18 @@ O dono autorizou **“Pode aplicar”** após apresentação do patch, arquivos 
 **Situação atual:** correção pronta no código. O histórico acima de proposta aguardando aprovação é anterior a esta autorização. **RMC-06 permanece `[ ]` por falta de Publicar → Atualizar e teste do dono**, sem nova correção funcional identificada nesta entrega. Não encerrar outras frentes ou adicionar C4-D.
 
 **Teste curto depois da publicação:** abrir Início → Faltou este mês → Antifurto → tocar Início no menu; deve aparecer o painel. Reabrir Antifurto → abrir um comércio → Voltar; deve voltar ao relatório. Testar também a seta Início interna. Depois concluir o roteiro consolidado da auditoria e informar o resultado; não alterar estoque para testar navegação.
+
+## Entrega em revisão — Início compacto móvel (autorizada após PR #139, 13/10/2026)
+
+O proprietário aprovou explicitamente a [proposta visual #139](https://github.com/OmniSafe-360/mock-overlay-magic/pull/139) para o **Início sem rolagem habitual no celular**, mantendo todos os elementos acionáveis, regras e acessibilidade. A implementação foi isolada em `codex/rmc-inicio-compacto-implementacao-20261013`, desde `main 4a85d745e543f278af03024ea0cf82b95102d67d` (já contém PRs #134, #136 e #138). **Não usar nem integrar o PR antigo #132**.
+
+**Alteração de código restrita a `src/components/OwnerHome.tsx`, apenas classes CSS responsivas:**
+- `<main>`: reduz o padding superior e o espaço inferior **exclusivamente se `tab === "inicio" && !open && !verAntifurto`**, mantendo o espaço seguro da barra fixa; demais abas e Antifurto mantêm a classe original.
+- `HomeContent`: somente em `modo === "inicio"` usa `space-y-2.5` no celular e `md:space-y-8` nas telas maiores. Em Comércios mantém `space-y-8` original.
+- Resumo do Início: menos margens entre título, Vendas, Pendências e Faltou; botões financeiros com padding/gaps menores e **status + atalho na mesma linha quando couber**, preservando quebra de linha `@[26rem]` da C3-B, o valor completo e o texto de status/ação.
+- Os quatro cartões de pendências permanecem na grade original `@[18rem]:grid-cols-2`/`@[52rem]:grid-cols-4`, com padding, distância do ícone ao número e `gap` reduzidos no celular. Suas frases explicativas secundárias e as dos dois cartões financeiros usam `max-md:sr-only` (continuam presentes no DOM para leitores de tela e ficam visíveis no tablet/desktop). Os seis títulos, números, períodos, mensagens de subtotal/erro, botões e destinos continuam visíveis e iguais.
+- **Não adicionou** `overflow: hidden`, largura/altura fixa, carrossel, `truncate` nos valores, chamadas de dados, operações ou novos componentes.
+
+**Regressão proposta:** arquivo novo `src/test/rmc-inicio-compacto.test.tsx`, conferindo os seis indicadores, cabeçalhos/ordem, mensagens, classes móveis, preservação das abas Comércios e Alertas, acesso por assunto, valores e status, zero lojas e consulta parcial. Nenhum teste existente substituído/enfraquecido. Arquivos adicionais autorizados: `docs/FONTE_DA_VERDADE.md`, `docs/CHECKLIST_PONTA_A_PONTA.md`, `CLAUDE.md` e este relatório, somente evidências.
+
+**Status desta anotação:** PR/CI, verificações de TypeScript 2×, Vitest completo 2× e build **ainda pendentes de confirmação**. Sem evidência de ensaio geométrico real no Android/Chromium desta branch. A exigência de **não rolar habitualmente em ~390×840/850 CSS px** só pode ser homologada mediante captura no aparelho depois de revisão/merge autorizado e `Publicar → Atualizar`. Em 320px, zoom, fontes ampliadas e erro/subtotal, **rolagem continua permitida como proteção**, sem esconder ações. Não afirmar garantia universal de altura. Não iniciar outras etapas.
