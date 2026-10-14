@@ -13,7 +13,7 @@ import { Scanner } from "@/components/Scanner";
 import { ganhoSobreCompra, lerPct, mostrarPct, vendaPorGanho } from "@/lib/preco";
 import { escolhasDoUltimo } from "@/lib/ultimaEscolha";
 import {
-  EMB_VAZIA, MAX_EMBALAGENS, ajudaCodigoEmbalagem, descricaoEmbalagem, embalagensDoTipo, rotuloComoChega, rotuloPrecoEmbalagem, errosEmbalagem, lerQtdEmbalagem, perguntaQtd, precoUnidade, rotuloContarPor, rotuloFechadas,
+  EMB_VAZIA, MAX_EMBALAGENS, ajudaCodigoEmbalagem, descricaoEmbalagem, embalagensDoTipo, rotuloComoChega, rotuloPrecoEmbalagem, errosEmbalagem, lerQtdEmbalagem, perguntaQtd, precoUnidade, rotuloContarPor, rotuloFechadas, umaUnidade, conversaoEmbalagem, ajudaQtdEmbalagem, avisoApresentacao,
   rotuloSoltas, totalContado, type Embalagem,
 } from "@/lib/embalagem";
 import { FichaProduto } from "@/components/FichaProduto";
@@ -721,13 +721,13 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                 <>
                   <div className="grid grid-cols-2 gap-2.5">
                     <Field label="Preço de compra" name="compra" inputMode="numeric" enterKeyHint="next" onKeyDown={nextOnEnter("venda")}
-                      value={compra ? brl2(compra) : ""} placeholder="R$ 0,00" onChange={(e) => mudarCompra(moneyIn(e.target.value))} hint="Quanto você paga." />
+                      value={compra ? brl2(compra) : ""} placeholder="R$ 0,00" onChange={(e) => mudarCompra(moneyIn(e.target.value))} hint={`Quanto você paga por ${umaUnidade(unidade)}.`} />
                     <Field label="Preço de venda" name="venda" inputMode="numeric" enterKeyHint="done"
-                      value={venda ? brl2(venda) : ""} placeholder="R$ 0,00" onChange={(e) => mudarVenda(moneyIn(e.target.value))} hint="Quanto o cliente paga." />
+                      value={venda ? brl2(venda) : ""} placeholder="R$ 0,00" onChange={(e) => mudarVenda(moneyIn(e.target.value))} hint={`Quanto o cliente paga por ${umaUnidade(unidade)}.`} />
                   </div>
                   {avisoPmc && <p role="alert" className="text-sm font-semibold text-destructive">{avisoPmc}</p>}
                   <div className="grid grid-cols-2 gap-2.5 rounded-2xl border border-border bg-background-deep/60 p-3">
-                    <div><p className="text-xs text-muted-foreground">Lucro por unidade</p><p className={`text-base font-bold ${lucro < 0 ? "text-destructive" : "text-accent"}`}>{brl2(lucro)}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Lucro por {umaUnidade(unidade).slice(2)}</p><p className={`text-base font-bold ${lucro < 0 ? "text-destructive" : "text-accent"}`}>{brl2(lucro)}</p></div>
                     <label htmlFor="ganho" className="block min-w-0 cursor-text">
                       <span className="block text-xs text-muted-foreground">Lucro sobre o custo (%)</span>
                       <span className="relative block">
@@ -823,7 +823,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                               <button type="button" onClick={() => setEmbSheet(i)}
                                 className="flex min-h-13 min-w-0 flex-1 flex-col justify-center rounded-2xl border border-border bg-background-deep/60 px-4 py-2 text-left hover:border-primary">
                                 <span className="truncate text-base font-semibold">{descricaoEmbalagem(e, unidade)}</span>
-                                <span className="truncate text-xs text-muted-foreground">{e.codigo ? `Cód. ${e.codigo}` : "Sem código"}{e.preco ? ` · ${brl2(e.preco)} cada ${e.tipo.toLowerCase()}` : ""}</span>
+                                <span className="truncate text-xs text-muted-foreground">{conversaoEmbalagem(e, unidade)} · {e.codigo ? `Cód. ${e.codigo}` : "Sem código"}{e.preco ? ` · ${brl2(e.preco)} cada ${e.tipo.toLowerCase()}` : ""}</span>
                               </button>
                               <button type="button" aria-label={`Remover ${descricaoEmbalagem(e, unidade)}`} onClick={() => setEmbs(embs.filter((_, j) => j !== i))}
                                 className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl border border-border text-muted-foreground hover:text-destructive"><X size={18} /></button>
@@ -835,6 +835,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                             </button>
                           )}
                           <p className={`text-xs ${embs.length ? "text-muted-foreground" : "text-destructive"}`}>{embs.length ? "Toque na embalagem para mudar. O estoque continua contado em unidades de venda." : EMB_VAZIA}</p>
+                          {avisoApresentacao(det["peso"], embs, unidade) && <p role="status" className="text-sm font-semibold text-warning">{avisoApresentacao(det["peso"], embs, unidade)}</p>}
                         </div>
                       )}
                     </div>
@@ -1168,7 +1169,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                     </span>)}
                   </Sum>
                   <Sum t="Fornecedor" onEdit={() => edit(3)}>{fornNome}</Sum>
-                  {!isRoupas && <Sum t="Como chega" onEdit={() => edit(3)}>{embModo === "unidade" || !embs.length ? "Por unidade" : embs.map((e) => descricaoEmbalagem(e, unidade)).join(" · ")}</Sum>}
+                  {!isRoupas && <Sum t="Como chega" onEdit={() => edit(3)}>{embModo === "unidade" || !embs.length ? "Por unidade" : embs.map((e) => conversaoEmbalagem(e, unidade)).join(" · ")}</Sum>}
                   {manterSem ? (
                     <Sum t={T("Depósito")} onEdit={() => edit(STEP_DEP, 0)}>{T(SEM_CONFIG)}</Sum>
                   ) : (
@@ -1472,7 +1473,7 @@ function EmbalagemSheet({ tipoComercio, index, lista, unidade, codigoProduto, us
           <Chips label="Tipo de embalagem" hint="Como vem do fornecedor." opts={opcoesTipo} value={tipo} onChange={setTipo} />
           <Field label={perguntaQtd(unidade)} name="eqtd" id="eqtd" inputMode={aceitaFracao(unidade) ? "decimal" : "numeric"} enterKeyHint="next" onKeyDown={nextOnEnter("ecod")}
             placeholder={aceitaFracao(unidade) ? "Ex.: 25" : "Ex.: 12"} value={qtdTxt} onChange={(e) => setQtdTxt(e.target.value.replace(/[^\d,.-]/g, "").slice(0, 10))}
-            error={qErr} hint={`Ex.: ${tipo === unidade ? "fardo" : tipo.toLowerCase()} com ${qtdUn(12, unidade)}.`} />
+            error={qErr} hint={q.v && !q.err ? conversaoEmbalagem({ tipo, qtd: q.v }, unidade) : unidade === "Unidade" || !unidade ? ajudaQtdEmbalagem(tipo, unidade) : `Ex.: ${tipo.toLowerCase()} com ${qtdUn(12, unidade)}.`} />
           <Field label="Código de barras da embalagem (opcional)" name="ecod" id="ecod" inputMode="numeric" autoComplete="off" enterKeyHint="next" onKeyDown={nextOnEnter("epreco")}
             placeholder="Ex.: 17891234567890" value={cod} onChange={(e) => setCod(e.target.value.replace(/\s/g, "").slice(0, 60))} error={errs.codigo ?? ""}
             hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : gerador.criado && cod === gerador.criado ? CODIGO_CRIADO : ajudaCodigo(cod, ajudaCodigoEmbalagem(tipo, unidade))}
@@ -1491,7 +1492,7 @@ function EmbalagemSheet({ tipoComercio, index, lista, unidade, codigoProduto, us
             value={preco ? brl2(preco) : ""} onChange={(e) => setPreco(moneyIn(e.target.value))} hint="Quanto você paga pela embalagem inteira." />
           {unit > 0 && (
             <div className="space-y-2 rounded-2xl border border-border bg-background-deep/60 p-3">
-              <p className="text-sm">Cada {nomeUn} sai por <span className="font-bold text-accent">{brl2(unit)}</span></p>
+              <p className="text-sm">Cada {nomeUn} sai por <span className="font-bold text-accent">{brl2(unit)}</span> <span className="text-muted-foreground">({brl2(preco)} ÷ {fmtQ(q.v!)})</span></p>
               {mudaCompra && compra <= 0 && (
                 <Pick on={usar} onClick={() => setUsar(!usar)}><span className="text-sm">Usar {brl2(unit)} como preço de compra</span></Pick>
               )}

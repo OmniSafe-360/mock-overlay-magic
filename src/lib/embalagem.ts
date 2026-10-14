@@ -107,3 +107,27 @@ export function totalContado(
   }
   return { total: Math.round(total * 1000) / 1000, err: "" };
 }
+
+/* ---------- Etapa 1 do cadastro: textos de unidade e conversão (só exibição; não mudam nenhuma conta) ---------- */
+/** "1 unidade", "1 Kg": a unidade comercial à qual o preço de compra e o de venda se referem. */
+export const umaUnidade = (unidade: string) => `1 ${unSingular(unidade) || "unidade"}`;
+/** "1 caixa = 6 unidades de venda". Usa só a quantidade digitada na embalagem. */
+export const conversaoEmbalagem = (e: Pick<Embalagem, "tipo" | "qtd">, unidade: string) =>
+  `1 ${e.tipo.toLowerCase()} = ${qtdUn(e.qtd, unidade)}${unidade === "Unidade" || !unidade ? " de venda" : ""}`;
+/** Lembra o que é a "unidade" na hora de dizer quanto vem dentro da embalagem. */
+export const ajudaQtdEmbalagem = (tipo: string, unidade: string) =>
+  `Conte quantas vezes o cliente leva este produto no caixa (cada ${unSingular(unidade) || "unidade"} vendida), não o que existe dentro de cada uma. Ex.: ${tipo.toLowerCase()} com 6 bandejas de ovos = 6.`;
+/**
+ * Aviso (não bloqueia, não converte): o texto "6 u" do produto tem o mesmo número que uma embalagem.
+ * Pode ser certo (caixa com 6 bandejas) ou engano (a caixa é a própria bandeja). Só o comerciante sabe.
+ */
+export function avisoApresentacao(peso: string | undefined, embs: Pick<Embalagem, "tipo" | "qtd">[], unidade: string): string {
+  if (unidade !== "Unidade" || !peso) return "";
+  const m = /^\s*(\d+)\s*(u|un|und|unid|unidades?)\.?\s*$/i.exec(peso);
+  if (!m) return "";
+  const n = Number(m[1]);
+  const e = embs.find((x) => x.qtd === n);
+  if (!e) return "";
+  const t = e.tipo.toLowerCase();
+  return `Confira: o produto diz "${peso.trim()}" e ${e.tipo === "Caixa" ? "a" : "o"} ${t} tem ${n}. ${e.tipo === "Caixa" ? "A" : "O"} ${t} traz ${n} produtos iguais a este (cada um com ${peso.trim()} dentro)? Se ${e.tipo === "Caixa" ? "a" : "o"} ${t} for o próprio produto, escolha "Por unidade".`;
+}
