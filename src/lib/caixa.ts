@@ -204,10 +204,11 @@ export function bip() {
     const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Ctx) return;
     audio ??= new Ctx();
+    if (audio.state === "suspended") void audio.resume().catch(() => {});
     const o = audio.createOscillator(); const g = audio.createGain();
-    o.frequency.value = 1900; g.gain.value = 0.08;
+    o.type = "square"; o.frequency.value = 2700; g.gain.value = 0.5;
     o.connect(g); g.connect(audio.destination);
-    o.start(); o.stop(audio.currentTime + 0.08);
+    o.start(); o.stop(audio.currentTime + 0.12);
   } catch { /* sem som: segue */ }
 }
 
