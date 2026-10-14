@@ -10,7 +10,7 @@ import { carregarPedidoPublico, responderPedido, type ItemPublico, type PedidoPu
 import { aceitaFracao, fmtQ } from "@/lib/deposito";
 import { CampoQtd } from "@/components/CampoQtd";
 import { mensagemErro } from "@/lib/persistencia";
-import { FORMA_TXT, dataEntregaTexto, formaTexto, hojeISO, qtdItemTexto, respostaItem, type FormaPagamento } from "@/lib/pedido";
+import { FORMA_TXT, SITUACAO_TXT, dataEntregaTexto, formaTexto, hojeISO, qtdItemTexto, respostaItem, type FormaPagamento } from "@/lib/pedido";
 
 const dataHora = (ts: string) => new Date(ts).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const PRAZOS = [7, 14, 21, 28, 30];
@@ -48,7 +48,7 @@ export function PaginaFornecedor({ token, carregar = carregarPedidoPublico, resp
   return (
     <div className="min-h-dvh bg-app text-foreground">
       <main className="mx-auto max-w-[560px] space-y-4 px-4 pb-10 pt-5">
-        <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><LogoMark size={28} /> Omni Safe 360</div>
+        <div className="flex items-center gap-3"><LogoMark size={40} /><div className="leading-tight"><p className="text-base font-bold">OmniSafe 360°</p><p className="text-xs text-muted-foreground">Pedidos de compra</p></div></div>
         {estado.t === "carregando" && <p className="py-16 text-center text-base text-muted-foreground">Abrindo o pedido…</p>}
         {estado.t === "invalido" && (
           <Aviso icone={<AlertTriangle size={30} />} titulo="Este link não vale mais"
@@ -95,16 +95,36 @@ function Aviso({ icone, titulo, texto }: { icone: ReactNode; titulo: string; tex
 function Cabecalho({ p }: { p: PedidoPublico }) {
   const end = enderecoTexto(p.comercio);
   return (
-    <header className="rounded-3xl border border-border bg-secondary/60 p-4">
-      <p className="text-sm text-muted-foreground">Pedido de compra</p>
-      <h1 className="break-words text-2xl font-bold leading-tight">{p.comercio.nome}</h1>
-      <p className="mt-1 text-base font-semibold">Pedido nº {p.numero}{p.fornecedor ? <span className="font-normal text-muted-foreground"> · para {p.fornecedor}</span> : null}</p>
-      {p.enviadoEm && <p className="text-sm text-muted-foreground">Enviado em {dataHora(p.enviadoEm)}</p>}
-      {end && <p className="mt-3 flex items-start gap-2 text-sm"><MapPin size={17} className="mt-0.5 shrink-0 text-primary" /><span><span className="block text-xs text-muted-foreground">Entregar em</span>{end}</span></p>}
-      {p.comercio.telefone && (
-        <a href={`tel:${digits(p.comercio.telefone)}`} className="mt-2 flex min-h-11 items-center gap-2 text-sm font-semibold text-primary"><Phone size={17} /> {telTexto(p.comercio.telefone)}</a>
+    <header className="space-y-3">
+      <div className="overflow-hidden rounded-3xl border border-border bg-secondary/60">
+        <div className="flex items-start justify-between gap-3 border-b border-border bg-primary/10 px-4 py-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">Pedido de compra</p>
+            <p className="mt-0.5 text-xl font-bold">Pedido nº {p.numero}</p>
+            {p.enviadoEm && <p className="text-xs text-muted-foreground">Enviado em {dataHora(p.enviadoEm)}</p>}
+          </div>
+          <span className="shrink-0 rounded-full border border-border bg-background-deep/60 px-3 py-1 text-xs font-semibold">{SITUACAO_TXT[p.situacao]}</span>
+        </div>
+        <div className="space-y-3 p-4">
+          <div>
+            <p className="text-xs text-muted-foreground">Comércio</p>
+            <h1 className="break-words text-2xl font-bold leading-tight">{p.comercio.nome}</h1>
+          </div>
+          {p.fornecedor && (
+            <div><p className="text-xs text-muted-foreground">Fornecedor</p><p className="break-words text-base font-semibold">{p.fornecedor}</p></div>
+          )}
+          {p.comercio.telefone && (
+            <a href={`tel:${digits(p.comercio.telefone)}`} className="flex min-h-11 items-center gap-2 text-sm font-semibold text-primary"><Phone size={17} /> {telTexto(p.comercio.telefone)}</a>
+          )}
+        </div>
+      </div>
+      {end && (
+        <div className="flex items-start gap-3 rounded-3xl border border-border bg-secondary/60 p-4 text-sm">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary"><MapPin size={18} /></span>
+          <span><span className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Local de entrega</span>{end}</span>
+        </div>
       )}
-      {p.observacao && <p className="mt-2 rounded-2xl bg-background-deep/50 p-3 text-sm"><span className="block text-xs text-muted-foreground">Recado do comércio</span>{p.observacao}</p>}
+      {p.observacao && <p className="rounded-3xl border border-border bg-secondary/60 p-4 text-sm"><span className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Recado do comércio</span>{p.observacao}</p>}
     </header>
   );
 }
@@ -149,7 +169,7 @@ function Resumo({ p, feito, onAlterar }: { p: PedidoPublico; feito: boolean; onA
             return (
               <li key={i.id} className="py-2.5">
                 <p className="break-words text-sm font-semibold">{nomeItem(i)}</p>
-                <p className="text-xs text-muted-foreground">Pedido: {qtdItemTexto(i, i.qtdEmbalagens)}</p>
+                <p className="mt-1 inline-block rounded-xl bg-primary/10 px-2.5 py-1 text-sm font-semibold text-primary">Quantidade: {qtdItemTexto(i, i.qtdEmbalagens)}</p>
                 {s === "tudo" && <p className="text-xs font-semibold text-accent">Vai mandar {qtdItemTexto(i, i.qtdConfirmada!)}</p>}
                 {s === "parte" && <p className="text-xs font-semibold text-warning">Vai mandar {qtdItemTexto(i, i.qtdConfirmada!)}</p>}
                 {s === "nada" && <p className="text-xs font-semibold text-destructive">Não tem</p>}

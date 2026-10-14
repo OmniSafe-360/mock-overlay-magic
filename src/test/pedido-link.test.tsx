@@ -239,7 +239,7 @@ describe("pedido do dono com a resposta do fornecedor", () => {
     fireEvent.click(screen.getByRole("button", { name: /Novo pedido/ }));
     fireEvent.click(within(screen.getByRole("region", { name: "Distribuidora Sol" })).getByRole("button", { name: /Salvar e enviar/ }));
     const dlg = within(await screen.findByRole("dialog"));
-    expect(dlg.getByText(new RegExp(`Veja e confirme o pedido aqui: .*/pedido/${TOKEN}`))).toBeTruthy();
-    expect(decodeURIComponent(dlg.getByRole("link", { name: /WhatsApp/ }).getAttribute("href")!)).toMatch(new RegExp(`/pedido/${TOKEN}$`));
+    expect(dlg.getByText(new RegExp(`VISUALIZAR E CONFIRMAR PEDIDO[\\s\\S]*/pedido/${TOKEN}`))).toBeTruthy();
+    expect(decodeURIComponent(dlg.getByRole("link", { name: /WhatsApp/ }).getAttribute("href")!)).toMatch(new RegExp(`/pedido/${TOKEN}\\n`));
   });
 });

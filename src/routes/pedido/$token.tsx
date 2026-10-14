@@ -5,8 +5,14 @@ import { PaginaFornecedor } from "@/components/PaginaFornecedor";
 export const Route = createFileRoute("/pedido/$token")({
   head: () => ({
     meta: [
-      { title: "Pedido de compra — Omni Safe 360" },
-      { name: "description", content: "Veja o pedido e confirme a entrega." },
+      { title: "Pedido de compra | OmniSafe 360°" },
+      { name: "description", content: "Consulte os produtos solicitados e confirme o pedido com segurança." },
+      { property: "og:title", content: "Pedido de compra | OmniSafe 360°" },
+      { property: "og:description", content: "Consulte os produtos solicitados e confirme o pedido com segurança." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "Pedido de compra | OmniSafe 360°" },
+      { name: "twitter:description", content: "Consulte os produtos solicitados e confirme o pedido com segurança." },
       { name: "robots", content: "noindex, nofollow" },
       { name: "referrer", content: "no-referrer" },
     ],

@@ -47,8 +47,14 @@ describe("regras do pedido", () => {
     const s = sugerirPedido([arroz, cafe], [sol], new Set()).porFornecedor.get(1)!;
     expect(quantidadeTexto(s[0]!)).toBe("5 caixas (60 pacotes)");
     expect(totalLinhas(s)).toBe(5 * 3000 + 10 * 250);
-    expect(textoPedido({ numero: 7, comercio, fornecedor: "Distribuidora Sol", linhas: s, observacao: "Entregar de manhã" })).toBe(
-      "Olá, Distribuidora Sol! Segue o pedido nº 7 de Mercado Bom Preço:\n\n• Arroz Camil 5 kg — 5 caixas (60 pacotes)\n• Café Pilão — 10 pacotes\n\nEntrega: Rua X, 123 – Centro – Ourinhos/SP\nRecado: Entregar de manhã\nPor favor, confirme o preço e a previsão de entrega. Obrigado!");
+    expect(textoPedido({ numero: 7, comercio, fornecedor: "Distribuidora Sol", linhas: s, observacao: "Entregar de manhã", link: "https://x/pedido/abc" })).toBe([
+      "📦 *PEDIDO DE COMPRA*", "", "*OMNISAFE 360°*", "", "Olá, Distribuidora Sol!", "",
+      "Você recebeu um pedido de compra de *Mercado Bom Preço*.", "", "*PEDIDO Nº 7*", "", "*PRODUTOS SOLICITADOS*", "",
+      "1. Arroz Camil 5 kg", "   Quantidade: 5 caixas (60 pacotes)", "", "2. Café Pilão", "   Quantidade: 10 pacotes", "",
+      "📍 *LOCAL DE ENTREGA*", "", "Rua X, 123 – Centro – Ourinhos/SP", "", "*RECADO*", "", "Entregar de manhã", "",
+      "✅ *VISUALIZAR E CONFIRMAR PEDIDO*", "", "Acesse o link abaixo para consultar os detalhes:", "", "https://x/pedido/abc", "",
+      "Agradecemos pela parceria!", "", "*Mercado Bom Preço*", "_Organizado pelo OmniSafe 360°_"].join("\n"));
+    expect(textoPedido({ numero: 7, comercio, fornecedor: "Distribuidora Sol", linhas: s })).toMatch(/confirme o preço e a previsão de entrega/);
   });
 });
 
@@ -84,7 +90,7 @@ describe("aba Pedidos", () => {
     const dlg = within(await screen.findByRole("dialog"));
     expect(dlg.getByText(/Pedido nº 8 salvo/)).toBeTruthy();
     const wa = dlg.getByRole("link", { name: /Enviar pelo WhatsApp/ });
-    expect(wa.getAttribute("href")).toMatch(/^https:\/\/wa\.me\/5511988887777\?text=Ol%C3%A1%2C%20Distribuidora%20Sol!%20Segue%20o%20pedido%20n%C2%BA%208/);
+    expect(wa.getAttribute("href")).toMatch(/^https:\/\/wa\.me\/5511988887777\?text=%F0%9F%93%A6%20\*PEDIDO%20DE%20COMPRA\*.*PEDIDO%20N%C2%BA%208/);
     fireEvent.click(wa);
     expect(t.onEnviado).toHaveBeenCalledWith("novo", "whatsapp");
     fireEvent.click(await dlg.findByRole("button", { name: "Pronto" }));
