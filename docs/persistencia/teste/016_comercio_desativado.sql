@@ -1,6 +1,6 @@
 -- Dados fictícios. Usar com 015_base_caixa_estoque.sql + 016_comercio_desativado.sql, entre begin e rollback.
 -- Comércio A (dono, chave 'f'x64) e comércio B (outro dono, chave 'b'x64).
-update funcionarios set caixa=true where id=pg_temp.u('func');
+update funcionarios set caixa=true, pin_hash=extensions.crypt('1357',extensions.gen_salt('bf',4)) where id=pg_temp.u('func');
 insert into comercios(id,dono_id,tipo,nome,documento_tipo,documento,telefone,cep,rua,numero,bairro,cidade,uf)
  values(pg_temp.u('comB'),pg_temp.u('outro'),'mercado','Comércio B fictício','cpf','11144477735','11999997777','01001000','Rua B','2','Teste','São Paulo','SP');
 insert into funcionarios(id,comercio_id,nome,funcao,codigo,criado_por,caixa) values(pg_temp.u('funcB'),pg_temp.u('comB'),'Equipe B','ambos','624813',pg_temp.u('outro'),true);
