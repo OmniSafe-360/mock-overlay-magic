@@ -363,3 +363,8 @@ Os registros anteriores “em PR/CI pendente” de C4-A/B são históricos: os P
 ### RMC-06 — auditoria consolidada de 14/10/2026 UTC
 
 - [ ] **RMC-06:** validação técnica local executada em `main 58bf648`: tipos duas vezes, 1.071 testes/106 arquivos duas vezes, build; Chromium 30 cenários visuais e atualização/recuperação em quatro larguras. Encontrado defeito no menu Início quando Antifurto já está aberto; seta interna funciona. [Proposta exata e roteiro](auditoria-painel-global-2026-10-13.md#rmc-06--regressão-consolidada-e-proposta-de-navegação-14102026-utc), preparada somente em cópia isolada, **aguardando aprovação para aplicação**. Publicar → Atualizar/teste do dono sem evidência; item não encerrado. Próximo: aprovar a mudança pequena de navegação, aplicar/revalidar/publicar e homologar. Demais entregas implementadas preservadas; C4-D opcional, RMC-03/05/G/E abertas.
+
+
+### RMC-06 — correção de retorno aprovada e aplicada, 14/10/2026 UTC
+
+- [ ] **RMC-06:** dono autorizou “Pode aplicar” após proposta do PR #137. Menu Início fecha o Antifurto geral com patch exato de uma condição; seta e retorno da unidade ao relatório preservados. Dois casos nav/aside acrescentados, tipos e **1.073 testes/106 arquivos duas vezes**, build aprovados; contraprova falha antes e Chromium oficial aprova em quatro larguras. [Entrega/roteiro](auditoria-painel-global-2026-10-13.md#rmc-06--retorno-ao-início-aplicado-após-aprovação-14102026-utc). **Pronto no código, falta Publicar → Atualizar e o teste do dono.** Não reaplicar a proposta histórica: próximo passo é publicação/homologação do painel. Outras frentes e C4-D opcional preservadas.

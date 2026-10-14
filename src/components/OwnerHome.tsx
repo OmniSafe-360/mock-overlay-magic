@@ -71,7 +71,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
   const [escolherVendas, setEscolherVendas] = useState(false);
   /** Para onde o Voltar do comércio leva quando não é a aba de onde ele foi aberto (vendas pedidas no Início). */
   const [voltarPara, setVoltarPara] = useState<Tab | null>(null);
-  const irPara = (id: Tab) => { setEscolherVendas(false); setVoltarPara(null); setAssuntoAlertas(null); setTab(id); setOpen(null); };
+  const irPara = (id: Tab) => { if (id === "inicio") setVerAntifurto(false); setEscolherVendas(false); setVoltarPara(null); setAssuntoAlertas(null); setTab(id); setOpen(null); };
   const [toast, setToast] = useState("");
   const [products, setProducts] = useState<Record<string, Product[]>>({});
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
