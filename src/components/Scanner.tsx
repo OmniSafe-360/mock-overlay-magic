@@ -183,7 +183,7 @@ export function Scanner({ onCode, onType, onClose, mercado = false }: { onCode: 
 
   if (!mounted) return null;
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label="Escanear código" className="fixed inset-0 z-[100] bg-background-deep animate-in fade-in duration-200">
+    <div onPointerDownCapture={enableBarcodeScanAudio} role="dialog" aria-modal="true" aria-label="Escanear código" className="fixed inset-0 z-[100] bg-background-deep animate-in fade-in duration-200">
       <video ref={video} className="absolute inset-0 h-full w-full object-cover" muted playsInline autoPlay />
       <div className="absolute inset-0 flex flex-col items-center justify-between safe-area">
         <div className="flex w-full justify-end">
