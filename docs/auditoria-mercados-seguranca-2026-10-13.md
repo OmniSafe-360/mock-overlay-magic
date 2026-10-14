@@ -377,3 +377,125 @@ GitHub Actions `38553899695`, commit documental `61c488a`: primeira rodada aprov
 Diagnóstico de leitura: o teste de Fiado injeta a API financeira em PainelFiado, mas a consulta do subcomponente AcessoClienteFiado usa a API padrão. Em cópia de configuração de teste, mantendo o arquivo original e interceptando todo fetch com resposta fictícia, **seis casos passaram** e foram observadas **cinco consultas a `/rest/v1/rpc/fiado_acesso_info`**, sem rede real. Isso confirma a consulta assíncrona fora da fixture financeira; não é alteração introduzida pelos quatro documentos. A atualização depois do encerramento do ambiente é compatível com essa dependência, mas não prova resolução definitiva nem deve ser escondida como aprovação. Rever isolamento/ciclo de vida em uma proposta própria se persistir; não mudar assertions, timeouts ou aplicativo para liberar este PR.
 
 Mantidos app/testes/CI oficiais intactos. A ocorrência foi registrada e uma nova execução remota verifica a mesma base funcional após o diagnóstico. O resultado final será conferido antes de integrar; nenhum teste foi removido, desativado ou ignorado. Artefatos locais `diagnostico` dentro de `/tmp/omni-g14-publicado`.
+
+
+## G1.4-B — proposta de bloquear coletores automáticos (14/10/2026 UTC)
+
+Pedido do dono: “Pode fazer”, após o achado do PR #143. Base `main fafbc1c`. **Esta entrega é uma proposta concreta; código oficial e hospedagem não alterados**, conforme validação prévia da seção 0. A versão publicada observada anteriormente é `4d35d8e`, com G1.4-A. Não reaplicar aquela correção.
+
+### Desenho escolhido e motivo da ampliação
+
+Não foi encontrada configuração pública de exclusão/consentimento no pacote instalado `@lovable.dev/vite-tanstack-config` 2.25.3 ou nos métodos expostos do SDK baixado. Isso não prova que o painel/provedor não tenha configuração administrativa; ela **não foi confirmada**. Não inventar toggle ou atribuir um commit à configuração do provedor.
+
+Foi preparada uma alternativa pelo padrão **Content-Security-Policy (CSP)**: o navegador só carrega scripts externos da pasta `/assets/` no próprio domínio do app. Scripts inline/eval e workers continuam permitidos para preservar hidratação, bibliotecas e recuperação existentes. A regra é inserida pelo servidor **apenas em documentos HTML de produção**, incluindo páginas de erro, sem alterar JSON, RPCs, manifest, CSS, imagens ou arquivos JS.
+
+O primeiro protótipo limitado a Pedido/Fiado passou para abertura direta, mas **não basta**: se a página inicial já carregou os coletores, uma navegação interna para o link registra o token antes de qualquer documento novo. Esse caminho foi reproduzido em duas páginas mínimas isoladas: `history.pushState` produz `lovable.page_viewed`/`page_hit` com o token fictício. Por isso a proposta final aplica a regra em **todos os documentos HTML de produção**, impedindo carregar os coletores antes da navegação. O protótipo limitado foi descartado; não é o código proposto abaixo.
+
+### Impactos que precisam de validação do dono
+
+- **Métricas automáticas da hospedagem deixam de funcionar em todo o app**, incluindo page views, vitals, replay e captura de erros que dependam dos scripts bloqueados. O painel Analytics/diagnósticos da plataforma pode perder essas informações. Não é uma simples máscara de URL.
+- Relatórios comerciais, totais de vendas/estoque/fiado, alertas e painel multicomércio usam consultas do banco; não dependem desses coletores. Nenhum cálculo, fluxo, token, rota ou permissão de negócio é reescrito.
+- Preview de desenvolvimento fica fora da regra para preservar HMR/ferramentas existentes; **não usar tokens reais em ensaios do editor**. Preview que use build de produção pode perder integrações de diagnóstico da hospedagem. CSP continua ativa no documento durante navegação interna; documentos já abertos antes da publicação exigem recarga completa. Não forçar recarga de carrinho/fila nem apagar dados de usuário.
+- JS externo fora de `/assets/` será bloqueado. Não há SDK de pagamento/captcha externo identificado nos fluxos atuais; futuras integrações precisam compatibilidade explícita. Inline/eval permanecem permitidos: **esta política não é endurecimento completo contra XSS**. Connect-src, câmera, imagens, fontes e estilos não recebem nova restrição; worker-src permite próprio domínio/blob.
+- Políticas CSP anteriores permanecem válidas em conjunto, preservando status, cookies, cache e corpo. Sem acrescentar relatório CSP para um terceiro ou remover dados de histórico.
+- O pacote de build inspeciona leituras de URL na entrada do servidor. A nova leitura pode mudar `urlInspection` para `server_entry` e tornar o manifesto de rotas consultivo, em vez da rejeição antecipada no gateway; revisar comportamento/custo de URLs desconhecidas depois da publicação em G5. Isso não muda ACL/RLS nem autoriza endpoints.
+- **Dependência de publicação:** a hospedagem deve preservar esse cabeçalho e a origem deve corresponder ao domínio externo usado pelos assets. Isso **ainda não foi provado no gateway real**. Se o cabeçalho for removido/sobrescrito, ou o provedor mudar scripts para `/assets/`/inline, a proteção não fica comprovada. Uma origem divergente pode bloquear JS legítimo: testar imediatamente e reverter apenas o patch novo se houver regressão. Reversão concreta: remover import/chamadas do helper e restaurar as duas respostas originais de `src/server.ts`, publicar novamente; preservar todo negócio/dado.
+- Logs de servidor, retenção/acesso do provedor, cache de links e demais frentes continuam pendentes. Não garante que nenhum terceiro tenha recebido link anterior, não revoga links existentes e não encerra toda a segurança.
+
+### Arquivos exatos de futura aplicação (sete)
+
+1. Novo `src/lib/privacidade-metricas.ts`, abaixo.
+2. `src/server.ts`, somente import e composição das duas respostas, conforme diff.
+3. Novo `src/test/privacidade-metricas.test.ts`, abaixo; nenhum caso anterior modificado.
+4. `docs/auditoria-mercados-seguranca-2026-10-13.md`.
+5. `docs/FONTE_DA_VERDADE.md`.
+6. `docs/CHECKLIST_PONTA_A_PONTA.md`.
+7. `CLAUDE.md`.
+
+**Helper completo:**
+
+```ts
+/** Política para impedir os coletores externos inseridos pela hospedagem.
+ * Vale para documentos HTML de produção; também protege mudanças internas de rota.
+ * Inline/eval e workers existentes permanecem permitidos: não é uma defesa completa de XSS.
+ */
+export function protegerMetricas(request: Request, response: Response): Response {
+  if (!response.headers.get("content-type")?.toLowerCase().includes("text/html")) return response;
+  const url = new URL(request.url);
+  if (url.protocol !== "https:" && url.protocol !== "http:") return response;
+  const headers = new Headers(response.headers);
+  // Políticas anteriores continuam valendo; a política adicional não as amplia.
+  headers.append("Content-Security-Policy", `script-src 'unsafe-inline' 'unsafe-eval' ${url.origin}/assets/; worker-src 'self' blob:`);
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
+```
+
+**Diff exato de `src/server.ts`:**
+
+```diff
+--- a/src/server.ts
++++ b/src/server.ts
+@@ -4,0 +5 @@
++import { protegerMetricas } from "./lib/privacidade-metricas";
+@@ -52 +53,2 @@
+-      return await normalizeCatastrophicSsrResponse(response);
++      const normalized = await normalizeCatastrophicSsrResponse(response);
++      return import.meta.env.PROD ? protegerMetricas(request, normalized) : normalized;
+@@ -55 +57 @@
+-      return new Response(renderErrorPage(), {
++      const response = new Response(renderErrorPage(), {
+@@ -58,0 +61 @@
++      return import.meta.env.PROD ? protegerMetricas(request, response) : response;
+
+```
+
+**Teste completo proposto:**
+
+```ts
+import { describe, expect, it } from "vitest";
+import { protegerMetricas } from "@/lib/privacidade-metricas";
+const html = () => new Response("<html>Teste</html>", { headers: { "content-type": "text/html; charset=utf-8" } });
+describe("G1.4-B — bloquear coletores antes da navegação", () => {
+  it.each(["/", "/caixa", "/funcionario", "/conector", "/pedido/ficticio", "/fiado/ficticio"])("protege o documento HTML %s", async (path) => {
+    const response = protegerMetricas(new Request("https://loja.example" + path), html());
+    expect(response.headers.get("content-security-policy")).toBe("script-src 'unsafe-inline' 'unsafe-eval' https://loja.example/assets/; worker-src 'self' blob:");
+    expect(await response.text()).toBe("<html>Teste</html>");
+  });
+  it.each(["application/json", "application/javascript", "text/css", "image/svg+xml", "application/manifest+json", ""])("preserva resposta não HTML %s", (mime) => {
+    const original = new Response("Teste", { headers: { "content-type": mime } });
+    expect(protegerMetricas(new Request("https://loja.example/fiado/ficticio"), original)).toBe(original);
+  });
+  it("preserva status, cookies, cache, CSP anterior e corpo", async () => {
+    const original = new Response("Recuperação", { status: 500, headers: { "content-type": "text/html", "set-cookie": "teste=ficticio; Secure", "cache-control": "no-store", "content-security-policy": "object-src 'none'" } });
+    const response = protegerMetricas(new Request("https://loja.example/pedido/ficticio"), original);
+    expect(response.status).toBe(500);
+    expect(response.headers.get("set-cookie")).toBe("teste=ficticio; Secure");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("content-security-policy")).toBe("object-src 'none', script-src 'unsafe-inline' 'unsafe-eval' https://loja.example/assets/; worker-src 'self' blob:");
+    expect(await response.text()).toBe("Recuperação");
+  });
+  it("cabeçalho não contém token/query e usa o próprio domínio/porta", () => {
+    const response = protegerMetricas(new Request("http://localhost:4209/fiado/token-ficticio?pin=ficticio"), html());
+    expect(response.headers.get("content-security-policy")).toContain("http://localhost:4209/assets/");
+    expect(response.headers.get("content-security-policy")).not.toContain("ficticio");
+  });
+});
+
+```
+
+### Evidências da proposta final, separadas do código oficial
+
+- **Base oficial:** tipos duas vezes e **1.101 testes/108 arquivos duas vezes aprovados**, sem novo build oficial nesta entrega documental.
+- **Cópia isolada final** `/tmp/omni-g14b-proposta/repo`: tipos duas vezes, **1.115 testes/109 arquivos duas vezes**, build com Supabase fictício aprovados. Quatorze casos novos, nenhum teste anterior alterado. O projeto oficial não contém o helper/patch/teste novo nesta entrega.
+- Worker de produção da cópia: seis GET locais (Início, Caixa, Funcionário, Conector, Pedido, Fiado) HTTP200 com CSP global final. Não é gateway Lovable real. A instância anterior foi mantida separada; a conferência final usa processo novo com a saída recompilada.
+- Chromium sobre HTML/JS/CSS **publicados** baixados, servido em replay com CSP proposta e API/rede simuladas: **12 cenários** (320/1280 × seis entradas), scripts Flock/Events bloqueados, nenhum envio de métricas, zero erros JavaScript/asset legítimo bloqueado. Entrada do dono: controle Mostrar senha funcionando e mudança interna para Fiado sem iniciar coletores. Caixa/Funcionário/Conector: campos de código interativos. Pedido: confirmação e recarga via RPC fictícia. Fiado: PIN, sessão/consulta fictícios e valor R$12,50. Não equivale a Google real, caixa ativo, câmera ou venda em produção.
+- Worker do cliente de Fiado registrado/ativado no Chromium, na origem local com **build final/CSP final**, sem backend real. Não comprova instalação no Android/iPhone ou atualização de um PWA usado na operação.
+- Ajustes do roteiro isolado: data obrigatória de entrega preenchida e valor da API pública de fiado em reais (12,5), conforme contratos existentes; esperas de seletor/fixture não são defeitos do app. Nenhum componente de negócio foi alterado para passar os cenários.
+- Scripts de replay, respostas/cabeçalhos e resultados em `/tmp/omni-g14b-proposta`; downloads públicos do ensaio anterior em `/tmp/omni-g14-publicado`. Tokens/contexto fictícios, SDKs executados somente na cópia e envios interceptados; nenhum POST real a métricas/banco ou alteração administrativa.
+
+### Aplicação e aceite, somente depois da aprovação concreta
+
+Aplicar exatamente esses três arquivos de código/teste, repetir tipos/testes duas vezes e build, comparar o patch, integrar pelo PR. **Publicar → Atualizar**; abrir documentos novos, conferir cabeçalho/origem/coletores, funcionamento de entrada/Google/links/PIN/caixa/worker, recuperação e navegação interna. Ensaios com tokens fictícios e capturas sem divulgar credencial real; não realizar vendas/alterar estoque apenas para testar CSP. Conferir 320px/aparelhos reais e que a regra não foi removida pelo provedor. Reverter somente a mudança nova se quebrar hidratação/entrada. Só encerrar G1.4-B com evidência publicada e aceite do dono, mantendo os demais critérios abertos.
+
+**Situação:** proposta final pronta para aprovação, com impacto explícito de **desligar métricas automáticas em todo o app**. Não aplicada oficialmente, sem alteração de hospedagem/banco. Os quatro documentos desta entrega não exigem nova publicação do app. A G1.4-A publicada permanece preservada; PR #124/G1.2, instabilidade assíncrona de teste do Fiado registrada no PR #143 e outras frentes continuam com seus critérios pendentes.
