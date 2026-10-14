@@ -111,3 +111,17 @@ begin
   update funcionarios set pin_tentativas = 0, travado_ate = null, ultimo_acesso = now() where id = v.id;
   return jsonb_build_object('ok', true);
 end $function$;
+
+-- funcionario_inicio: antes, qualquer erro diferente de pin_necessario virava NULL, e o app
+-- entende NULL como "celular saiu do app" (apaga a chave e com ela o acesso às vendas guardadas).
+-- Aqui, comercio_desativado é repassado como erro, para o app mostrar o aviso sem apagar nada.
+-- Troca só este trecho do corpo em produção; falha se o trecho não existir (versão divergente).
+DO $migr$
+declare d text; antes text := E'    return null;\n  end;'; depois text := E'    if sqlerrm = ''comercio_desativado'' then raise; end if;\n    return null;\n  end;';
+begin
+  d := pg_get_functiondef('public.funcionario_inicio(text)'::regprocedure);
+  if position(antes in d) = 0 or position('comercio_desativado' in d) > 0 then
+    raise exception 'funcionario_inicio diferente do conferido; nada foi alterado';
+  end if;
+  execute replace(d, antes, depois);
+end $migr$;
