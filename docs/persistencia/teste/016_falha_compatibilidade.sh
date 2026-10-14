@@ -19,7 +19,7 @@ cenario "segunda função divergente" "select set_config('x.d', replace(pg_get_f
 # Estraga a ÚLTIMA (5ª): prova que as 4 primeiras não foram trocadas antes da conferência.
 cenario "última função divergente" "select set_config('x.d', replace(pg_get_functiondef('public.funcionario_inicio(text)'::regprocedure), 'return null;', 'return  null;'), true); do \$\$ begin execute current_setting('x.d'); end \$\$;" "$proposta" "compatibilidade: public.funcionario_inicio"
 # Correção já aplicada: rodar de novo recusa sem mexer.
-cenario "aplicar duas vezes" "\\i $proposta" "$proposta" "já tem a correção"
+cenario "aplicar duas vezes" "\\i $proposta" "$proposta" "compatibilidade: public._funcionario_da_chave(text) diferente"
 # Reverter um banco sem a correção: recusa sem mexer.
 cenario "reverter sem correção" "select 1;" "$reverter" "reversão: public._funcionario_da_chave"
 # Reverter quando a 5ª foi mexida depois: recusa e as 4 primeiras continuam corrigidas.
