@@ -170,6 +170,7 @@ export function erroCaixa(e: unknown, naoFeito = "A venda não foi enviada"): st
   if (m.includes("resposta_venda_invalida")) return "O envio ainda não foi confirmado. Confira o mesmo envio antes de vender novamente.";
   if (m.includes("produto_inativo")) return "Este produto foi desativado. Atualize os produtos antes de vender.";
   if (m.includes("pin_necessario")) return "Por segurança, o app travou. Volte ao início e digite seu PIN.";
+  if (m.includes("comercio_desativado")) return "Este comércio foi desativado pelo dono. Nada foi apagado: as vendas guardadas neste celular continuam aqui e sobem quando o dono reativar.";
   if (m.includes("acesso_encerrado")) return "Este celular saiu do app. Entre de novo com o código do dono.";
   if (m.includes("funcao_nao_permite_caixa")) return "O dono ainda não liberou o caixa para você. Peça para ele ligar \"Caixa\" no seu nome, na Equipe.";
   if (m.includes("caixa_desligado")) return "O dono desligou este caixa.";

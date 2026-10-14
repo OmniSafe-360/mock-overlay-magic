@@ -197,6 +197,7 @@ const MSG: [string, string][] = [
   ["unidade_incompativel", "Unidade incompatível com este comércio. Escolha uma opção válida."],
   ["categoria_incompativel", "Categoria incompatível com este comércio. Escolha uma opção válida."],
   // Recusas que não se resolvem tentando de novo: dizem o que fazer (checklist item 25).
+  ["comercio_desativado", "Este comércio foi desativado pelo dono. Fale com ele para reativar."],
   ["sem_permissao", "Você não tem permissão para fazer isso neste comércio."],
   ["sem_comercio", "Cadastre um comércio antes de continuar."],
   ["app_desatualizado", "O app está desatualizado. Feche e abra de novo para atualizar."],

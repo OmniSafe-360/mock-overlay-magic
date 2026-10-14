@@ -51,7 +51,8 @@ type Tela =
   | { t: "conferir" }
   | { t: "perda"; tipo: string }
   | { t: "caixa" }
-  | { t: "erro" };
+  | { t: "erro" }
+  | { t: "desativado" };
 
 /** Minutos com o app fora da tela (minimizado, celular apagado) antes de pedir o PIN de novo. */
 export const MINUTOS_PARA_TRAVAR = 5;
@@ -113,6 +114,8 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO, modoCaixa = fa
       apagarChave();
       setTela({ t: "codigo", ...(avisoSeDesligado ? { aviso: "Este celular saiu do app (o dono bloqueou ou gerou um acesso novo). Peça o código ao dono." } : {}) });
     } catch (e) {
+      // Comércio desativado pelo dono: avisa sem apagar a chave nem as vendas guardadas.
+      if (String((e as { message?: string } | null)?.message ?? e ?? "").includes("comercio_desativado")) { setTela({ t: "desativado" }); return; }
       // Atualização da tela inicial falhou: continua com os números de antes e avisa (não joga para "Sem conexão").
       if (atualizando && telaRef.current.t === "inicio") { setFalhaAtualizar(true); return; }
       if (atualizando && telaRef.current.t !== "inicio") return;
@@ -168,6 +171,13 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO, modoCaixa = fa
             <p className="text-lg font-bold">Sem conexão</p>
             <p className="text-sm text-muted-foreground">Confira a internet do celular e tente de novo.</p>
             <button type="button" onClick={() => { const c = lerChave(); if (c) void abrirInicio(c, true, !destravado.current); else setTela({ t: "codigo" }); }} className={btnPrimary(true)}>Tentar de novo</button>
+          </div>
+        )}
+        {tela.t === "desativado" && (
+          <div className="m-auto w-full space-y-3 text-center">
+            <p className="text-lg font-bold">Comércio desativado</p>
+            <p className="text-sm text-muted-foreground">O dono desativou este comércio. Nada foi apagado: as vendas guardadas neste celular continuam aqui e sobem quando ele reativar.</p>
+            <button type="button" onClick={() => { const c = lerChave(); if (c) void abrirInicio(c, true, true); else setTela({ t: "codigo" }); }} className={btnPrimary(true)}>Tentar de novo</button>
           </div>
         )}
         {tela.t === "codigo" && (
