@@ -556,3 +556,66 @@ Atualização concorrente do painel compacto (PR #140) preservada por fast-forwa
 
 
 **14/10/2026 UTC — proposta G1.4-B, base `main fafbc1c`:** após “Pode fazer”, preparada alternativa CSP em cópia isolada; nenhuma configuração de exclusão do provedor confirmada. Proteger só Pedido/Fiado não cobre coletores previamente carregados antes de navegação interna (duas reproduções fictícias). [Proposta final, código completo, sete arquivos futuros, impactos e reversão](auditoria-mercados-seguranca-2026-10-13.md#g14-b--proposta-de-bloquear-coletores-automáticos-14102026-utc): permitir scripts próprios de /assets e bloquear coletores em todos os documentos HTML de produção. **Impacto: métricas/diagnósticos automáticos da hospedagem deixam de funcionar em todo o app**; relatórios comerciais do banco preservados. Inline/eval mantidos por compatibilidade, sem promessa de XSS integral. Pacote pode tornar manifesto de rotas consultivo por inspeção da URL; gateway/origem/novos SDKs/atualização física ainda precisam de prova. Protótipo: tipos e 1.115 testes duas vezes/build, 12 cenários de Chromium/API fictícia, seis respostas do worker e registro/ativação de worker local; base: tipos e 1.101 testes duas vezes. **Somente documentação oficial; aplicação aguarda validação prévia da seção 0.** Não fechar G1.4-B/publicação ou demais frentes.
+
+## 17. MATRIZ OFICIAL DE STATUS POR ÁREA (avaliação de 14/10/2026)
+
+Pedido do dono: lista de tudo que o sistema deve ter, com status. Consultar esta seção antes de qualquer conversa. Base: código `main` atual, 1.101 testes automáticos aprovados (108 arquivos; 1 erro solto já conhecido no teste do fiado, `window is not defined`), banco oficial consultado (9 comércios, 10 produtos, 7 fornecedores, 5 pedidos, 7 recebimentos, 5 vendas, 5 conferências, 73 operações — quase tudo dado de teste) e os checklists (117 itens ainda abertos em `CHECKLIST_PONTA_A_PONTA.md`, a maioria esperando teste do dono/publicação).
+
+Legenda: **Funciona** (código + testes + banco conferidos) · **Incompleto** (existe, falta parte) · **Corrigir** (problema conhecido) · **Não existe** · **Não confirmado** (sem teste real em aparelho/produção — não afirmar que funciona).
+
+### Estoque
+- Cadastro de produto (6 tipos, variações, embalagens, código interno, catálogo do mercado): Funciona.
+- Saldos por área (depósito/venda), lote e validade, leitura coerente: Funciona.
+- Ficha, lista, painéis de locais, etiquetas: Funciona.
+- Editar comércio já salvo: Não existe (precisa desenho aprovado).
+- Importar produtos pela nota de compra (XML): Não existe.
+- Balança do mercado (etiqueta 2…): Não existe.
+
+### Entradas e Saídas
+- Recebimento cego pelo Omni Operação, com recontagem, avaria, lote/validade e decisão do dono: Funciona (teste em celular real: Não confirmado).
+- Reposição da gôndola (transferência depósito → venda): Funciona.
+- Venda pelo Caixa no celular (desconta da gôndola, bloqueia acima do saldo, fila offline): Funciona; reabertura offline em aparelho real: Não confirmado.
+- Venda pelo caixa do computador (Omni Conector, NFC-e/SAT): Incompleto — nunca testado com caixa real.
+- Perdas (funcionário e dono): Funciona.
+- Histórico: movimentos + operações gravados em toda mudança: Funciona; tela de histórico por produto para o dono: Incompleto (só via relatório/diferenças).
+
+### Alertas de Reposição
+- "Atenção hoje", Repor/Comprar/Acabou, menu Alertas, Início com subtotais: Funciona.
+- Aviso imediato ao dono quando uma venda deixa pouco estoque (notificação/push): Não existe (aparece só ao abrir o app).
+- Sino e Alertas com dados parciais: Incompleto (C4-C1/C4-C2 no código, falta publicar e testar).
+
+### Vencimento de Produtos
+- Avisos 30/60/90 dias, vencido à venda, reposição não leva vencido, recebimento recusa vencido: Funciona.
+- Sugestão de quanto pedir considerando validade: Incompleto (sugestão usa mínimo/máximo, não vencimento).
+
+### Antifraude / Contagem
+- Conferência cega diária (5 + visados), 3 tentativas, decisão do dono: Funciona.
+- Diferenças com valor, motivo, relatório antifurto, limite mensal, produto visado: Funciona.
+- Fechamento de caixa cego e falta de caixa: Funciona.
+- Contadores independentes / auditoria mais forte (G1–G8): Incompleto.
+
+### Fornecedores
+- Cadastro, edição, contatos, produtos por fornecedor: Funciona.
+
+### Pedidos de Compra
+- Montar pelo mínimo/máximo, enviar por WhatsApp/e-mail com link, resposta do fornecedor, contas a pagar, bloqueio durante conferência: Funciona.
+- E-mail automático: Não existe (previsto etapa J).
+
+### Usuários e Segurança
+- Login e-mail/Google, perfil, papéis separados, RLS em todas as tabelas, gravação só por funções: Funciona.
+- Equipe por código + PIN, trava, bloqueio, PIN do dono: Funciona.
+- Fiado do cliente com PIN: Funciona (teste com cliente real: Não confirmado).
+- "Esqueci minha senha": Corrigir (falhou por limite de e-mails do Supabase).
+- Proteção contra senhas vazadas, MFA: Não existe/desligado (dono liga no painel).
+- Loja inativa ainda acessível pela equipe/caixa (G1.2, PR #124): Corrigir.
+- Métricas da hospedagem com link secreto na URL (G1.4-B): Corrigir (proposta aguardando aprovação).
+- Proteção do branch e cabeçalhos de segurança (G0.3, CSP): Incompleto.
+- Termos de uso / Privacidade: Não existe.
+- Backup/restauração testada, monitoramento: Não confirmado.
+
+### Prioridade para fechar
+1. Publicar → Atualizar e o dono testar no celular os fluxos já corrigidos (maior parte dos 117 itens abertos).
+2. Segurança: G1.2 (loja inativa), G1.4-B (links nas métricas), "Esqueci minha senha", senhas vazadas.
+3. Piloto num mercado real: Omni Conector com caixa real.
+4. Limpar comércios de teste; Termos/Privacidade.
+5. Funções novas (só com desenho aprovado): XML de compra, balança, aviso de estoque baixo, e-mail automático, editar comércio.
