@@ -42,4 +42,7 @@ tail -3 "$temp_cega/casos.log"
 for regressao in 005_melhorias_operacionais.sql 011_coerencia_recebimento.sql; do
   "${psql_cega[@]}" -f "$base_cega/$regressao" >>"$temp_cega/regressao.log" 2>&1 || { tail -16 "$temp_cega/regressao.log"; exit 1; }
 done
+"${psql_cega[@]}" -1 -f "$base_cega/../016_comercio_desativado_reverter.sql" >>"$temp_cega/setup.log" 2>&1 || { tail -12 "$temp_cega/setup.log"; exit 1; }
+"${psql_cega[@]}" -f "$temp_cega/reg.sql" >"$temp_cega/reg3.log" 2>&1 || { tail -16 "$temp_cega/reg3.log"; exit 1; }
+echo 'OK: reversão aplicada e caixa/estoque continuam iguais.'
 echo 'OK: comércio desativado + regressões; banco descartado.'
