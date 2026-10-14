@@ -729,7 +729,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                   <div className="grid grid-cols-2 gap-2.5 rounded-2xl border border-border bg-background-deep/60 p-3">
                     <div><p className="text-xs text-muted-foreground">Lucro por unidade</p><p className={`text-base font-bold ${lucro < 0 ? "text-destructive" : "text-accent"}`}>{brl2(lucro)}</p></div>
                     <label htmlFor="ganho" className="block min-w-0 cursor-text">
-                      <span className="block text-xs text-muted-foreground">Quero ganhar</span>
+                      <span className="block text-xs text-muted-foreground">Lucro sobre o custo (%)</span>
                       <span className="relative block">
                         <input id="ganho" name="ganho" inputMode="decimal" autoComplete="off" enterKeyHint="done" disabled={compra <= 0}
                           placeholder={compra > 0 ? "Ex.: 30" : "—"} aria-describedby="ganho-dica"
