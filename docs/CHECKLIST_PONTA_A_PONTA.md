@@ -385,3 +385,11 @@ Atualização concorrente do painel compacto (PR #140) preservada por fast-forwa
 ### G1.4-A — aplicação autorizada em 14/10/2026 UTC
 
 - [ ] **G1.4-A: pronto no código, falta publicação e teste do dono.** Após “Pode fazer”, aplicado exatamente o código da proposta do PR #141: erro/rota classificados nos dois hooks e console da fronteira, sem detalhes brutos, com impacto de diagnóstico aprovado. 18 testes novos; tipos e **1.101 testes/108 arquivos duas vezes**, build aprovados; Chromium oficial com dados fictícios/hooks espiados, oito cenários, zero erros JS. [Entrega/roteiro/limites](auditoria-mercados-seguranca-2026-10-13.md#g14-a--proteção-dos-relatórios-aplicada-após-aprovação-14102026-utc). Próximo aceite desta etapa: Publicar → Atualizar e conferir navegação/recuperação/canais reais com dados fictícios em ambiente controlado. G1.4 completa mantém SDK/metadados/logs/headers/abuso pendentes; G1.2 banco real/PR #124 permanece em rascunho. Não reaplicar a proposta histórica ou encerrar outras frentes.
+
+
+### G1.4 — consulta publicada, 14/10/2026 10h54–10h59 UTC
+
+- [ ] **G1.4-A:** publicação confirmada em mock-overlay-magic.lovable.app (commit declarado `4d35d8e` e código seguro no bundle). Falta aceite funcional/manual; não reaplicar ou anunciar toda segurança concluída.
+- [ ] **G1.4-B, próxima prioridade:** métricas da hospedagem Flock/Events incluem pathname/href/url_path com segredo de Pedido/Fiado. Dois cenários com tokens fictícios em replay isolado, fetch/Beacon/XHR capturados localmente e POST bloqueado; sem incidente real demonstrado. [Evidências/limites/próximo desenho](auditoria-mercados-seguranca-2026-10-13.md#g14--versão-publicada-e-métricas-da-hospedagem-14102026-10h5410h59-utc). Confirmar mecanismo suportado de exclusão/máscara e preparar proposta para validação; configuração/implementação ainda pendentes. CSP/anti-frame não observados, endurecimento compatível segue aberto.
+
+Base desta documentação: tipos e **1.101 testes/108 arquivos duas vezes**. Sem alteração de código/SQL/dados/hospedagem ou nova publicação exigida pelo documento. G1.2/banco real/PR #124 e demais frentes continuam pendentes.

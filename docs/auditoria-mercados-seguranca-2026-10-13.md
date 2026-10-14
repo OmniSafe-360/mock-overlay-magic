@@ -312,3 +312,59 @@ Após a proposta completa do PR #141, o dono autorizou **“Pode fazer”**. Bas
 **Situação:** pronto no código; **falta Publicar → Atualizar e teste do dono**. Manter G1.4-A `[ ]` para publicação/validação. G1.4 completa ainda depende de SDK/metadados automáticos, logs de servidor, cabeçalhos e controles de abuso; não inferir proteção integral desses canais. PR #124/G1.2 continua em rascunho pela comparação do Supabase real, sem aplicação de SQL nesta etapa.
 
 **Roteiro depois da publicação:** abrir Início/Comércios, Caixa/Funcionário e links de fornecedor/fiado já autorizados, sem efetuar transações só para este teste; conferir que acesso/navegação continuam normais. Em ambiente controlado, provocar erro com **token/dados fictícios**, verificar a tela de recuperação e seus botões e os argumentos da fronteira; conferir separadamente o tráfego/metadados dos serviços externos, sem divulgar token real ou coleta com dados de clientes. Registrar versão/data/aparelho/resultado e falhas. Não provocar erro com cliente/estoque real em produção apenas para testar telemetria. A checagem do provedor real continua pendente até evidência.
+
+
+## G1.4 — versão publicada e métricas da hospedagem (14/10/2026, 10h54–10h59 UTC)
+
+URL fornecida pelo dono: **https://mock-overlay-magic.lovable.app**. O primeiro acesso foi recusado pelo proxy do ambiente, antes de chegar ao site. Foi acrescentado apenas esse domínio ao rascunho de rede, preservando GitHub/Supabase e as instruções existentes. Após o dono responder “Pode aplicar”, nova consulta retornou HTTP 200: liberação efetiva demonstrada. Sem mudança de configuração do app/hospedagem ou dados reais. A política de rede do Codex é independente dos controles de segurança do site.
+
+**Base oficial:** `main 4d35d8e194cb741346ac2bccda0ebb461556ec23` (merge do PR #142). A tag pública do script de eventos contém esse mesmo `data-commit-sha`. O bundle `/assets/index-Yu-ju63y.js` contém a mensagem segura, classificador `/pedido/:token`/`/fiado/:token`, envio sem stack/cause brutos e console pelo helper. **Publicação da G1.4-A confirmada nesta consulta**, sem inferir teste do dono logado ou encerramento de G1.4 inteira.
+
+### Consultas públicas de leitura
+
+HTTP GET da raiz, Caixa/Funcionário, Pedido/Fiado com identificadores fictícios, manifest, worker e scripts referenciados no HTML. Sem login, tentativa de código/PIN, carga, acesso administrativo ou transação. Cookies, identificadores de sessão e contexto assinado da plataforma não foram copiados para este documento. A primeira tentativa com urllib retornou 403; os mesmos caminhos pela rota suportada de curl retornaram 200, então não registrar esses 403 como falha do app.
+
+| Controle observado | Resultado | Alcance/limite |
+| --- | --- | --- |
+| HTTPS / disponibilidade pública | HTTP 200 nas cinco páginas consultadas | Conexão pelo proxy autorizado; sem auditoria de TLS do gateway inteiro |
+| HSTS | `max-age=31536000; includeSubDomains` | Cabeçalho presente nas respostas consultadas |
+| Tipo de arquivo | `X-Content-Type-Options: nosniff` | Presente |
+| Referrer | HTTP `strict-origin-when-cross-origin`; meta `no-referrer` nas duas rotas de links e Caixa/Funcionário | Não mascara dados escritos explicitamente em métricas |
+| Indexação de Pedido/Fiado | Meta `noindex, nofollow` | Identificadores fictícios; sem teste com contas reais |
+| Cache de HTML | `no-cache, must-revalidate, max-age=0` | `no-store` não observado; não significa que dados autenticados foram lidos/cacheados no ensaio |
+| CSP e bloqueio de enquadramento | CSP/CSP-Report-Only e X-Frame-Options ausentes nas respostas consultadas | Lacuna de endurecimento; não foi demonstrado ataque/XSS/clickjacking. Desenhar compatibilidade antes de alterar headers |
+| Permissions-Policy | Ausente nas respostas consultadas | Não é prova de uso indevido da câmera; permissão/fluxo real não ensaiados |
+| Arquivos públicos | 19 bundles JS e manifest/worker/scripts da hospedagem responderam 200 | Sem examinar todos os endpoints ou dados privados |
+
+### Achado G1.4-B — coleta automática ainda inclui o segredo do link
+
+O HTML publicado insere **`/~flock.js`** e **`/__l5e/events.33a4189afb1076e3.js`**. Eles estão fora do envio explícito que a G1.4-A corrigiu:
+
+- Flock: `page_hit` e métricas usam `window.location.pathname`/`href`; o filtro por nomes de campos como token/PIN não remove segredo embutido nesses dois campos.
+- Events SDK: `lovable.page_viewed`/`lovable.web_vital` usam `url_path` com o pathname completo. O contexto seguro do erro continua mascarado, mas outras métricas do mesmo lote incluem o link.
+
+**Reprodução controlada:** scripts baixados da publicação executados em páginas mínimas isoladas, com as URLs **fictícias** `/pedido/auditoria-token-ficticio` e `/fiado/auditoria-token-ficticio`. Dados de configuração/identidade eram fictícios; nenhum contexto assinado copiado. `fetch`, Beacon e XMLHttpRequest foram substituídos por coletores locais, e qualquer outra requisição bloqueada. A flag de automação foi desativada apenas nessa cópia para exercitar o ramo `page_hit` de um navegador comum; nenhum controle remoto contornado. **Nenhum POST foi enviado à hospedagem ou a outro serviço.**
+
+Dois cenários reproduzem:
+
+```json
+{"endpoint":"/~api/analytics","action":"page_hit","payload":{"pathname":"/fiado/auditoria-token-ficticio","href":"https://mock-overlay-magic.lovable.app/fiado/auditoria-token-ficticio"}}
+```
+
+```json
+{"endpoint":"/__l5e/trackevents","event":"lovable.page_viewed","properties":{"url_path":"/pedido/auditoria-token-ficticio"}}
+```
+
+A chamada de erro segura no mesmo ensaio mantém a mensagem genérica e `context.route` mascarado. Isso confirma a separação dos dois caminhos: a G1.4-A está publicada e não sanitiza automaticamente métricas de um SDK externo. Não demonstra invasão, leitura de conta por terceiro ou recebimento/retenção efetivos no backend do provedor; demonstra que os scripts publicados constroem payload com o segredo da URL.
+
+**Próxima prioridade G1.4-B:** confirmar um mecanismo suportado da hospedagem para **excluir ou mascarar métricas nas rotas Pedido/Fiado antes de coletar/enviar**, incluindo page views, vitals, engajamento, replay e erros. Conferir também logs/retention/acessos do provedor. Não inventar toggle que não foi confirmado, editar scripts remotos, alterar links/rotas existentes, bloquear todo JavaScript, colocar monkeypatch global de rede ou ativar CSP rígida sem desenho e teste de compatibilidade. Preparar proposta concreta/arquivos/impactos para validação conforme seção 0 antes de qualquer alteração funcional. Se o mecanismo depender do painel/provedor, declarar essa dependência sem fingir que um commit no app configurou a hospedagem.
+
+### Evidências e situação
+
+- Base oficial: tipos **duas vezes** e **1.101 testes/108 arquivos duas vezes aprovados**; sem novo build nesta entrega documental.
+- Artefatos locais `/tmp/omni-g14-publicado`: respostas/cabeçalhos, scripts públicos, leitura curl, replay Chromium e resultados. Não são um ensaio completo autenticado ou de capacidade.
+- SHA-256 do bundle `index-Yu-ju63y.js`: `0ce72201ecd537ff119cd81cb34348077828e6d0625f57ebef1a51d9a9c10438`.
+- SHA-256 de Flock: `a86e084b4f82709814be6c15fd6305daa783fda87ad95402da9a4d3a1dd6d748`.
+- SHA-256 de Events SDK: `90022cf49a0bbdedf3fea505ad945985b373d96793a906f6d01dbaa697dd3a21`.
+
+**Somente quatro documentos existentes alterados nesta entrega.** G1.4-A: publicação observada, validação funcional/manual pendente; não marcar todo G1.4 como encerrado. G1.4-B: achado reproduzido, configuração/desenho/correção pendentes. Headers compatíveis e demais ameaças seguem no plano; G1.1/G1.2/banco real/PR #124 continuam pendentes. Não reabrir ou reaplicar a correção G1.4-A nem afirmar segurança integral. Esta documentação não exige nova publicação do app.
