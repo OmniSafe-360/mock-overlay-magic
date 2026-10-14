@@ -28,15 +28,15 @@ export function playBarcodeScanSound(result: ScanResult): void {
     if (!context || context.state !== "running") return;
     const start = context.currentTime;
     const notes = result === "success"
-      ? [{ hz: 880, offset: 0, duration: 0.085 }]
+      ? [{ hz: 2700, offset: 0, duration: 0.12 }]
       : [{ hz: 330, offset: 0, duration: 0.12 }, { hz: 260, offset: 0.15, duration: 0.14 }];
     for (const note of notes) {
       const oscillator = context.createOscillator();
       const gain = context.createGain();
-      oscillator.type = "sine";
+      oscillator.type = "square";
       oscillator.frequency.setValueAtTime(note.hz, start + note.offset);
       gain.gain.setValueAtTime(0.0001, start + note.offset);
-      gain.gain.exponentialRampToValueAtTime(0.13, start + note.offset + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.5, start + note.offset + 0.012);
       gain.gain.exponentialRampToValueAtTime(0.0001, start + note.offset + note.duration);
       oscillator.connect(gain);
       gain.connect(context.destination);
