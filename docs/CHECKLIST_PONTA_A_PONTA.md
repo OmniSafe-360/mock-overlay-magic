@@ -358,3 +358,8 @@ Os registros anteriores “em PR/CI pendente” de C4-A/B são históricos: os P
 ### Situação do código após C4-C2
 
 **Cinco das seis etapas principais do painel estão implementadas no código**: C3-A/B e C4-A/B/C (C4-C1 e C4-C2). Todas mantêm publicação/teste do dono pendentes onde não há confirmação. Próxima etapa principal: **RMC-06**, regressão e inspeção visual da versão consolidada, Publicar → Atualizar e teste do dono. C4-D continua opcional; não acrescentar automaticamente funcionalidades ou encerrar as frentes G/E/RMC-03/05.
+
+
+### RMC-06 — auditoria consolidada de 14/10/2026 UTC
+
+- [ ] **RMC-06:** validação técnica local executada em `main 58bf648`: tipos duas vezes, 1.071 testes/106 arquivos duas vezes, build; Chromium 30 cenários visuais e atualização/recuperação em quatro larguras. Encontrado defeito no menu Início quando Antifurto já está aberto; seta interna funciona. [Proposta exata e roteiro](auditoria-painel-global-2026-10-13.md#rmc-06--regressão-consolidada-e-proposta-de-navegação-14102026-utc), preparada somente em cópia isolada, **aguardando aprovação para aplicação**. Publicar → Atualizar/teste do dono sem evidência; item não encerrado. Próximo: aprovar a mudança pequena de navegação, aplicar/revalidar/publicar e homologar. Demais entregas implementadas preservadas; C4-D opcional, RMC-03/05/G/E abertas.

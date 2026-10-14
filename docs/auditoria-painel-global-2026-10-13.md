@@ -406,3 +406,69 @@ Chromium sobre componente/CSS **do código oficial aplicado**, com dados fictíc
 **Publicar → Atualizar e testar no celular:** abrir Início; comparar os totais confirmados; tocar Atualizar e conferir Consultando; abrir Antifurto durante leitura e conferir número de unidades confirmadas/subtotal; repetir com internet instável, recuperar e conferir valores/zero verdadeiro; abrir a unidade correta e voltar ao relatório; confirmar recortes/sino/Atualizar da C4-C1. Não apagar registros ou criar ajustes para testar.
 
 **Situação:** cinco das seis etapas principais do painel implementadas no código, todas aguardam evidência de publicação/homologação quando pendente. Próxima principal **RMC-06**, validação da versão consolidada e teste publicado. C4-D opcional; nenhuma funcionalidade adicional ou outra frente iniciada nesta entrega. Não fechar C4-C como homologada com apenas testes locais/CI.
+
+
+## RMC-06 — regressão consolidada e proposta de navegação (14/10/2026 UTC)
+
+Base oficial: `main 58bf648`, merge do PR #136. Pedido do dono: “Pode fazer a próxima”. Etapa executada como auditoria de leitura, sem aplicar nova correção funcional. Nenhum aplicativo, teste do repositório, SQL, configuração, saldo ou dependência alterado nesta entrega. A regra de validação prévia da seção 0 continua em vigor.
+
+### Evidência e resultado
+
+| Verificação | Resultado | Limite |
+| --- | --- | --- |
+| TypeScript | Duas execuções aprovadas | Código local da base indicada |
+| Regressão | 1.071 testes / 106 arquivos, duas execuções aprovadas | Mocks e ambientes de teste; não certifica produção |
+| Build | Aprovado com endereço/chave Supabase fictícios | Não equivale a publicar no Lovable |
+| Painel no Chromium | 30 combinações: 320/390/768/1024/1280 px × 0/1/6 comércios × texto 100%/200%; sem rolagem horizontal, cartões financeiros dentro da tela e sem sobreposição entre eles; zero erros JavaScript | Componente/CSS oficiais, dados fictícios, rede externa bloqueada; não é aparelho real |
+| Retorno pelo botão interno do Antifurto | Aprovado nos cenários com comércios da matriz | A seta do relatório funciona |
+| Atualização retida, valores antigos e recuperação | Aprovado em 320/390/768/1280 px; número anterior oculto e zero confirmado depois da leitura; zero erros JavaScript | Leitura simulada, não falha real de internet |
+| Rotas de vendas, quatro recortes, sino/menu, falha parcial e recuperação | Testes existentes aprovados na regressão completa | Sem novas gravações ou teste de venda em produção |
+| Início pelo menu dentro do Antifurto | **Defeito confirmado** em 390 e 1280 px | Tocar o mesmo item ativo não fecha o relatório |
+
+Artefatos locais: `/tmp/omni-rmc06` (scripts, logs, medições JSON e capturas 320/768 px com texto 200%). Os scripts tiveram ajuste de seletor para distinguir a seta interna do menu; a falha do menu foi então reproduzida separadamente. Não tratar erro de seletor como defeito visual. Inspeção das capturas complementa as medições; a matriz não certifica toda combinação possível de dados/zoom.
+
+### Defeito e proposta exata — aplicação aguarda aprovação
+
+Abrir **Faltou este mês → Antifurto → Início no menu** mantém o relatório. A seta “Início” dentro do relatório retorna corretamente. `irPara` mantém `verAntifurto`; o efeito existente só o limpa quando a aba muda para outra. O clique em Início, já ativo, não troca a aba.
+
+**Código funcional proposto, somente `src/components/OwnerHome.tsx:74`:**
+
+```diff
+- const irPara = (id: Tab) => { setEscolherVendas(false); setVoltarPara(null); setAssuntoAlertas(null); setTab(id); setOpen(null); };
++ const irPara = (id: Tab) => { if (id === "inicio") setVerAntifurto(false); setEscolherVendas(false); setVoltarPara(null); setAssuntoAlertas(null); setTab(id); setOpen(null); };
+```
+
+**Teste proposto, acrescentar em `src/test/rmc-02b.test.tsx`, dentro do `describe` atual, sem remover casos existentes:**
+
+```tsx
+it.each(["nav", "aside"])("Início no menu %s fecha o relatório geral", async (menu) => {
+  render(<OwnerApp userId="u1" owner="Monica" initial={[lojaA, lojaB]} />);
+  fireEvent.click(await screen.findByRole("button", { name: /^Faltou este mês:/ }));
+  expect(await screen.findByRole("heading", { name: "Antifurto" })).toBeTruthy();
+  const inicio = [...document.querySelectorAll(`${menu} button`)]
+    .find((button) => button.textContent?.trim() === "Início");
+  expect(inicio).toBeTruthy();
+  fireEvent.click(inicio!);
+  expect(await screen.findByRole("region", { name: "Resumo geral" })).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: "Antifurto" })).toBeNull();
+});
+```
+
+**Arquivos exatos de futura aplicação:** esses dois arquivos, mais os quatro registros existentes: `docs/auditoria-painel-global-2026-10-13.md`, `docs/FONTE_DA_VERDADE.md`, `docs/CHECKLIST_PONTA_A_PONTA.md` e `CLAUDE.md`.
+
+**Impacto para validação:** somente a ação explícita do menu Início passa a fechar o relatório geral e exibir o painel. O Voltar da unidade continua retornando ao relatório de origem; a seta interna continua funcionando; filtros e escolha de vendas continuam sendo limpos pela lógica existente. Não muda cálculos, leitura, estoque, gravação, autorização ou outros menus. Rodar novamente tipos/testes duas vezes, build e regressão de origem/retorno após aplicação autorizada.
+
+Patch preparado **somente em cópia isolada** `/tmp/omni-rmc06/proposta/OwnerHome.tsx`; Chromium 390/1280 px confirma retorno pelo menu e pela seta com a proposta. Não é implementação oficial, nem substitui tipos/regressão da futura aplicação.
+
+### Roteiro de homologação — depois da correção aprovada e publicação
+
+1. No Lovable, **Publicar → Atualizar**. Registrar versão/data e link publicado; merge no GitHub não comprova publicação.
+2. No celular, abrir Início com um e vários comércios quando disponíveis. Conferir títulos, valores completos e ausência de texto sobreposto; repetir com fonte maior.
+3. Tocar Vendas: uma unidade abre suas vendas; várias pedem a escolha. Cancelar e voltar sem perder a origem.
+4. Abrir cada indicador Resolver/Repor/Comprar/Validade; conferir assunto e unidade. Abrir a unidade e voltar; sino/menu mostram todos os alertas.
+5. Abrir Faltou este mês, uma unidade e Voltar; retorno ao relatório. Depois usar a seta e o menu Início: ambos devem mostrar o painel.
+6. Tocar Atualizar: botão bloqueado durante consulta, números antigos não apresentados como atuais; ao finalizar, dados confirmados. Com conexão instável, identificar consulta incompleta; recuperar e tentar de novo.
+7. Confirmar entradas Comércios, Alertas, Equipe e Conta; conferir que cada comércio continua no contexto certo. Não criar venda/ajuste de estoque apenas para esta homologação do painel.
+8. Informar “funcionou” ou descrever onde falhou; não encerrar os itens sem essa evidência.
+
+**Situação:** parte local da RMC-06 auditada; há uma correção mínima proposta, aguardando aprovação, e publicação/teste do dono ainda sem confirmação. Manter RMC-06 `[ ]`. Próximo passo concreto: aprovar/aplicar a proposta de navegação acima, revalidar e publicar; depois homologar. C4-D opcional; RMC-03/05 e frentes G/E continuam separadas e abertas. Não declara sistema inteiro pronto, resistência total a ataques ou capacidade para várias lojas/caixas.
