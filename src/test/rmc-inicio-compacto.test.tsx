@@ -43,7 +43,8 @@ describe("RMC — Início compacto, somente apresentação móvel", () => {
   it("mantém os seis indicadores e a ordem original, valores, datas, estados e atalhos", async () => {
     render(<OwnerApp userId="u1" owner="M" initial={[a]} />);
     await waitFor(() => expect(resumo().getByRole("button", { name: /Para repor/ }).textContent).toMatch(/^1/));
-    expect(screen.getByRole("banner", { name: "Visão geral" })).toHaveTextContent("1 comércio cadastrado");
+    expect(screen.getByText("Visão geral dos seus comércios")).toBeInTheDocument();
+    expect(screen.getByText(/1 comércio cadastrado/)).toBeInTheDocument();
     expect(resumo().getByRole("heading", { level: 2 })).toHaveTextContent("Situação dos comércios");
     const grupos = resumo().getAllByRole("heading", { level: 3 }).map((h) => h.textContent ?? "");
     expect(grupos[0]).toMatch(/^Resultado de hoje/);
@@ -141,7 +142,7 @@ describe("RMC — Início compacto, somente apresentação móvel", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Comércios" })[0]!);
     expect(screen.getByRole("main").className).toContain("pt-5");
     expect(screen.getByRole("main").className).toContain("pb-[calc(6rem+env(safe-area-inset-bottom))]");
-    const comerc = within(screen.getByRole("region", { name: "Seus comércios" }));
+    const comerc = within(screen.getByRole("region", { name: "Mercado Alfa" }));
     expect(comerc.getByRole("button", { name: /Entrar no Mercado Alfa/ })).toBeInTheDocument();
   });
 
