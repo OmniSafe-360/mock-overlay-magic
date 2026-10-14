@@ -490,3 +490,55 @@ O dono autorizou **“Pode aplicar”** após apresentação do patch, arquivos 
 **Situação atual:** correção pronta no código. O histórico acima de proposta aguardando aprovação é anterior a esta autorização. **RMC-06 permanece `[ ]` por falta de Publicar → Atualizar e teste do dono**, sem nova correção funcional identificada nesta entrega. Não encerrar outras frentes ou adicionar C4-D.
 
 **Teste curto depois da publicação:** abrir Início → Faltou este mês → Antifurto → tocar Início no menu; deve aparecer o painel. Reabrir Antifurto → abrir um comércio → Voltar; deve voltar ao relatório. Testar também a seta Início interna. Depois concluir o roteiro consolidado da auditoria e informar o resultado; não alterar estoque para testar navegação.
+
+## Proposta para revisão — Início compacto no celular, sem rolagem habitual (capturas do proprietário, 13/10/2026)
+
+**Solicitação:** o proprietário enviou duas capturas do Início do OmniSafe 360° no Android, em retrato (imagens originais 1220×2712, correspondente a uma interface estreita, aproximadamente 390 CSS px conforme a escala do aparelho). Na primeira, aparecem Vendas, quatro KPIs e apenas o começo de Faltou este mês; na segunda, após rolar, o cartão mensal inteiro. O proprietário quer **ver tudo sem precisar rolar para cima/baixo**, sem alterar nenhum fluxo ou funcionalidade.
+
+**Estado atual conferido:** `main 4a85d745e543f278af03024ea0cf82b95102d67d` (12 commits posteriores ao `main 8aca066` usado pelo PR antigo #132). Os PRs #134 (C4-C1), #136 (C4-C2) e #138 (retorno Início/Antifurto) já foram integrados e os checks do último merge estão aprovados. O PR #132 permanece aberto com base anterior e **não pode ser confundido com o atual main nem integrado por esta tarefa**. Os dados/valores vistos no aparelho são tratados como exemplo de **layout**, não como validação financeira/estoque.
+
+**Diagnóstico pontual em `src/components/OwnerHome.tsx`:**
+- Em `HomeContent`, contêiner externo `space-y-8`, título informativo “Visão geral dos seus comércios”, depois outro cabeçalho “Situação dos comércios”; os espaços verticais somam-se ao `main pt-5` e aos espaços `mb-3`/`mb-4`/`mt-4`.
+- Cartões de Vendas e Faltou são largos mas com padding `p-4`, ícone, título, valor, descrição de múltiplas linhas, linha separadora e estado/atalho abaixo; a altura ocupa espaço sem necessidade no celular.
+- Os quatro KPIs estão corretamente em **duas colunas** para ~390px, mas o ícone separado do valor, `mt-3`, descrição de duas ou três linhas e `p-4` aumentam a altura das duas filas.
+- O menu inferior de cinco itens e o cabeçalho são fixos/correctos. **Não alterar a posição dos menus nem introduzir `overflow: hidden`** para simular caber: cortaria botões/informações em fontes ampliadas, tela menor, consulta incompleta ou avisos de erro.
+
+### Desenho técnico proposto — código ainda NÃO modificado
+
+**Meta principal:** na largura aproximada de **390 CSS px e altura útil correspondente à captura**, com fonte padrão e dados normais (incluindo os seis indicadores), todo o Início deve ficar visível **entre cabeçalho e barra inferior, sem rolagem necessária**. O desenho poderá ficar em modo de rolagem natural nas telas fisicamente menores, com texto ampliado, subtotais longos, mensagens de erro, zoom ou acessibilidade — para não esconder informações ou ações.
+
+**Alteração visual contida (somente quando `modo === "inicio"` e em viewport móvel, nunca nas abas Comércios, Alertas, Equipe, Conta ou `StoreSpace`):**
+1. Reduzir apenas o `padding-top` do `main` quando Início está efetivamente aberto, por exemplo a variante móvel `max-md:pt-2`, preservando `pt-5` nas demais telas e o espaço inferior seguro do menu (não encolher `safe-area-inset-bottom`).
+2. Em `HomeContent`, trocar a separação externa para a variante condicional `modo === "inicio" ? "space-y-3" : "space-y-8"`. Conservar os **dois títulos oficiais**, os períodos, `aria-label="Resumo geral"`, a ordem Vendas → Pendências → Faltou, e as mensagens de erro. Permitir reduzir apenas `mb`/`mt` internos no modo compacto.
+3. Em cada cartão financeiro, reduzir padding e espaçamento vertical em celular, manter o valor completo e legível, sem `truncate`, sem perder o comportamento C3-B de `flex-wrap`, `@[26rem]:flex-nowrap`, `@container` e a largura do status. Manter status “Nenhuma venda ainda/Nenhum alerta/Consulta incompleta” e atalhos “Ver vendas/Ver antifurto”; quando couber, exibir estado e atalho na **mesma faixa horizontal**, sem ocultá-los. Não alterar textos de moeda, cálculo ou `onClick`.
+4. Quatro KPIs continuam visíveis em grade **2×2**, com ícone e número próximos, menos padding e `gap` móvel. Número, assunto e status de subtotal/consulta incompleta são **sempre visíveis**. Para evitar ocupar mais de uma linha apenas com descrições redundantes, pode-se aplicar **`max-md:sr-only` exclusivamente às quatro frases explicativas secundárias no retrato normal**, mantendo o texto inteiro no DOM e para tecnologias assistivas, além de mantê-lo visualmente em telas maiores. Não retirar o nome dos KPIs.
+5. No cartão financeiro, conservar as descrições oficiais completas no DOM/testes e leitor de tela; caso a captura exija mais compactação, aplicar `max-md:sr-only` **apenas às descrições explicativas**, jamais ao valor, título, status ou ao atalho. Preferir primeiro compactar espaços, não reduzir demais fontes nem áreas clicáveis.
+6. Sem `height: 100vh` fixo, `overflow-y: hidden` global, `position: absolute`, rolagem artificial/carrossel, `display: none` de cartões, truncamento de preços ou sobreposição à barra inferior. Usar viewport dinâmica apenas para **testar** a adequação, não para esconder o excesso.
+
+**Exemplos do patch visual proposto, para aprovação do proprietário:**
+```tsx
+// No wrapper de HomeContent; Comércios mantém espaçamento anterior:
+<div className={modo === "inicio"
+  ? "space-y-3 animate-in fade-in duration-300"
+  : "space-y-8 animate-in fade-in duration-300"}>
+
+// No main do OwnerApp, somente quando Início está visível:
+className={`mx-auto max-w-[1100px] px-5 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-10
+  ${tab === "inicio" && !open && !verAntifurto ? "pt-2 md:pt-5" : "pt-5"}`}
+
+// Nos KPIs, classes responsivas sobre o mesmo botão e conteúdo:
+// reduzir p-4 e mt-3 só no móvel, preservando nomes/valor/status
+className="min-w-0 rounded-3xl border p-2.5 md:p-4 ..."
+// Descrição redundante: continua presente e acessível
+<p className="max-md:sr-only md:mt-1 ...">{desc}</p>
+```
+**Os exemplos não são patch definitivo:** qualquer pequena alteração exigida pelos testes geométricos será documentada e permanecerá restrita aos arquivos autorizados. Não alterar a semântica dos fluxos, os dados ou textos obrigatórios.
+
+**Arquivos exatos de futura implementação (somente após o dono aprovar esta proposta):**
+1. `src/components/OwnerHome.tsx` — classes e organização visual **exclusivas do Início**. Não tocar `carregarGeral`, `HomeContent` cálculos/condições, `onClick`, `Alertas` ou `AntifurtoGeral` além da classe de margem do `main` condicional para Início.
+2. `src/test/rmc-inicio-compacto.test.tsx` (**novo**) — testes de preservação dos seis cartões, cabeçalhos, estados, atalhos, ordenação e exibição de subtotais; 1/várias lojas e falha/releitura sem mutação.
+3. `docs/auditoria-painel-global-2026-10-13.md`, `docs/FONTE_DA_VERDADE.md`, `docs/CHECKLIST_PONTA_A_PONTA.md` e `CLAUDE.md` — somente registro factual de aprovação, diff, CI e validação manual, sem marcar “homologado” cedo.
+
+**Aceite obrigatório:** uma branch/PR **diferente dos PRs abertos**; nenhuma integração automática; conferir que `main` não mudou novamente antes de editar. Testar Início em 320×640, 360×740, 390×840/850, 412×915, tablet e desktop, fonte normal e 200%, 0/1/vários comércios, zero/alertas grandes, carregando/parcial/erro. Em **390×840/850** com fonte normal e dados da captura, todos os seis indicadores e links devem caber entre cabeçalho e menu; nos cenários extremos a rolagem é **permitida por acessibilidade**, sem cortes ou elementos sobrepostos. Conferir tamanho mínimo dos alvos (44px), safe area, nenhum botão inacessível e contraste legível. `npx tsc --noEmit` e `npx vitest run` **duas vezes cada**, `npm run build` e GitHub Actions remoto. Não afirmar ensaio visual executado sem captura/Chromium real. Atualizar no Lovable **somente após integração expressamente aprovada** e pedir teste no Android do dono.
+
+**Status:** análise/proposta apenas. Nenhum código, teste, banco, fluxo ou tela publicada alterado nesta etapa. O proprietário ainda precisa validar esta proposta e a visibilidade compacta das frases explicativas antes de aplicar.
