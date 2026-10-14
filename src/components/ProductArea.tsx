@@ -1,3 +1,4 @@
+import { enableBarcodeScanAudio } from "@/lib/barcode-scan-audio";
 import { Sheet } from "@/components/parts/Sheet";
 import { formatarCentavos as brl2, normLocal } from "@/lib/formatacao";
 import type { Product, Supplier, Variation } from "@/lib/produto";
@@ -664,7 +665,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                 <>
                   {codeMode === "choose" && !codigo ? (
                     <div className="grid grid-cols-2 gap-3">
-                      <BigChoice Icon={ScanLine} label="Escanear código" onClick={() => { setDenied(false); setScan(true); }} />
+                      <BigChoice Icon={ScanLine} label="Escanear código" onClick={() => { enableBarcodeScanAudio(); setDenied(false); setScan(true); }} />
                       <BigChoice Icon={Keyboard} label="Digitar código" onClick={() => setCodeMode("type")} />
                       {onGerarCodigo && (
                         <button type="button" onClick={criarCodigo} disabled={gerador.gerando}
@@ -680,7 +681,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                       autoFocus={!codigo} onKeyDown={nextOnEnter("pnome")} value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\s/g, "").slice(0, 60))}
                       error={codeErr}
                       hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : gerador.criado && codigo === gerador.criado ? CODIGO_CRIADO : ajudaCodigo(codigo, "Os números abaixo do código de barras.")}
-                      extra={<button type="button" onClick={() => { setDenied(false); setScan(true); }} className="flex min-h-9 items-center gap-1 text-sm font-semibold text-primary"><ScanLine size={16} /> Escanear</button>} />
+                      extra={<button type="button" onClick={() => { enableBarcodeScanAudio(); setDenied(false); setScan(true); }} className="flex min-h-9 items-center gap-1 text-sm font-semibold text-primary"><ScanLine size={16} /> Escanear</button>} />
                   )}
                   {onGerarCodigo && codeMode === "type" && !codigo.trim() && (
                     <button type="button" onClick={criarCodigo} disabled={gerador.gerando} className="-mt-1 flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary disabled:opacity-60">
@@ -1418,7 +1419,7 @@ function VariationSheet({ index, vars, categoria, mainCode, used, onGerarCodigo,
             value={cod} onChange={(e) => setCod(e.target.value.replace(/\s/g, "").slice(0, 60))}
             error={cod.trim() || init ? errs.codigo ?? "" : ""}
             hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : gerador.criado && cod === gerador.criado ? CODIGO_CRIADO : ajudaCodigo(cod, "Código próprio deste tamanho e cor.")}
-            extra={<button type="button" onClick={() => { setDenied(false); setScan(true); }} className="flex min-h-9 items-center gap-1 text-sm font-semibold text-primary"><ScanLine size={16} /> Escanear</button>} />
+            extra={<button type="button" onClick={() => { enableBarcodeScanAudio(); setDenied(false); setScan(true); }} className="flex min-h-9 items-center gap-1 text-sm font-semibold text-primary"><ScanLine size={16} /> Escanear</button>} />
           {onGerarCodigo && !cod.trim() && (
             <button type="button" disabled={gerador.gerando} className="-mt-1 flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary disabled:opacity-60"
               onClick={() => gerador.gerar((c) => { setCod(c); setTimeout(() => document.getElementById("vqtd")?.focus(), 80); })}>
@@ -1475,7 +1476,7 @@ function EmbalagemSheet({ tipoComercio, index, lista, unidade, codigoProduto, us
           <Field label="Código de barras da embalagem (opcional)" name="ecod" id="ecod" inputMode="numeric" autoComplete="off" enterKeyHint="next" onKeyDown={nextOnEnter("epreco")}
             placeholder="Ex.: 17891234567890" value={cod} onChange={(e) => setCod(e.target.value.replace(/\s/g, "").slice(0, 60))} error={errs.codigo ?? ""}
             hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : gerador.criado && cod === gerador.criado ? CODIGO_CRIADO : ajudaCodigo(cod, ajudaCodigoEmbalagem(tipo, unidade))}
-            extra={<button type="button" onClick={() => { setDenied(false); setScan(true); }} className="flex min-h-9 items-center gap-1 text-sm font-semibold text-primary"><ScanLine size={16} /> Escanear</button>} />
+            extra={<button type="button" onClick={() => { enableBarcodeScanAudio(); setDenied(false); setScan(true); }} className="flex min-h-9 items-center gap-1 text-sm font-semibold text-primary"><ScanLine size={16} /> Escanear</button>} />
           {cod.trim() && cod.trim() === codigoProduto.trim() && (
             <button type="button" onClick={() => setCod("")} className="-mt-1 flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary"><X size={16} /> Apagar e deixar sem código</button>
           )}

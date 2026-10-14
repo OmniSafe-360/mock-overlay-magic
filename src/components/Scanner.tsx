@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { enableBarcodeScanAudio, playBarcodeScanSound } from "@/lib/barcode-scan-audio";
 import { Flashlight, Keyboard, Loader2, RotateCcw, X } from "lucide-react";
 
 type Controls = { stop: () => void; switchTorch?: ((on: boolean) => Promise<void>) | undefined };
@@ -126,6 +127,7 @@ export function Scanner({ onCode, onType, onClose, mercado = false }: { onCode: 
           done.current = true; alive = false;
           pararStream(); stopAll();
           navigator.vibrate?.(80);
+          playBarcodeScanSound("success");
           onCode(text);
         };
 
@@ -150,6 +152,8 @@ export function Scanner({ onCode, onType, onClose, mercado = false }: { onCode: 
               if (res) {
                 const codigo = textoLeitura(res.getText(), res.getBarcodeFormat(), mercado);
                 if (codigo) { entregar(codigo); return; }
+                // Houve decodificação, mas o formato não passou pela validação existente.
+                playBarcodeScanSound("error");
               }
             } catch { /* nenhum código neste quadro */ }
           }
@@ -179,7 +183,7 @@ export function Scanner({ onCode, onType, onClose, mercado = false }: { onCode: 
 
   if (!mounted) return null;
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label="Escanear código" className="fixed inset-0 z-[100] bg-background-deep animate-in fade-in duration-200">
+    <div onPointerDownCapture={enableBarcodeScanAudio} role="dialog" aria-modal="true" aria-label="Escanear código" className="fixed inset-0 z-[100] bg-background-deep animate-in fade-in duration-200">
       <video ref={video} className="absolute inset-0 h-full w-full object-cover" muted playsInline autoPlay />
       <div className="absolute inset-0 flex flex-col items-center justify-between safe-area">
         <div className="flex w-full justify-end">
