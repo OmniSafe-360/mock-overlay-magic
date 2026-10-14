@@ -453,7 +453,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
           </div>
         </header>
 
-        <main className="mx-auto max-w-[1100px] px-5 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 md:pb-10">
+        <main className={`mx-auto max-w-[1100px] px-5 md:pb-10 ${tab === "inicio" && !open && !verAntifurto ? "pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-2 md:pt-5" : "pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5"}`}>
           {cur && (
             <>
               {(pendentes.length > 0 || registroErro) && <div role="alert" className="mb-4 space-y-3 rounded-2xl border border-warning/60 bg-warning/10 p-4">
@@ -597,7 +597,7 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
   const passos = passosDaTela(stores, visao, fornecedores, locais, ocultos);
   const unico = stores.length === 1 ? stores[0]! : null;
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
+    <div className={modo === "inicio" ? "space-y-2.5 md:space-y-8 animate-in fade-in duration-300" : "space-y-8 animate-in fade-in duration-300"}>
       {modo === "comercios" && <h1 className="text-xl font-bold">Comércios</h1>}
       {modo === "inicio" && stores.length === 0 && (
         <section aria-label="Comece por aqui" className="rounded-3xl border border-border bg-secondary/70 p-5">
@@ -633,7 +633,7 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
       })()}
       {modo === "inicio" && stores.length > 0 && (
         <section aria-label="Resumo geral">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-2 md:mb-3">
             <h2 className="text-base font-semibold">Situação dos comércios</h2>
             <button type="button" aria-label="Atualizar painel" disabled={visao.carregando} onClick={onTentar}
               className="min-h-11 rounded-xl border border-border px-3 text-sm font-semibold disabled:opacity-50">
@@ -646,18 +646,18 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
               <button type="button" onClick={onTentar} className="min-h-11 rounded-xl border border-border px-3 font-semibold">Tentar de novo</button>
             </div>
           )}
-          <div className="mb-4">
+          <div className="mb-2 md:mb-4">
           <div className="@container min-w-0">
-            <h3 className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Resultado de hoje<span className="font-normal normal-case tracking-normal">{etiquetaHoje(hoje)}</span></h3>
+            <h3 className="mb-1 flex flex-wrap items-baseline justify-between gap-x-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:mb-2">Resultado de hoje<span className="font-normal normal-case tracking-normal">{etiquetaHoje(hoje)}</span></h3>
           <button type="button" onClick={onVendas} aria-label={`Vendas hoje: ${vendasCompletas ? brlVenda(t.vendasHojeTotal) : "consulta incompleta"}`}
-            data-testid="cartao-vendas" className="flex w-full flex-wrap items-start gap-x-4 gap-y-3 rounded-3xl border border-primary/50 bg-primary/10 p-4 text-left transition hover:border-primary @[26rem]:flex-nowrap @[26rem]:items-center">
+            data-testid="cartao-vendas" className="flex w-full flex-wrap items-start gap-x-3 gap-y-1 rounded-3xl border border-primary/50 bg-primary/10 p-2.5 text-left transition hover:border-primary md:gap-x-4 md:gap-y-3 md:p-4 @[26rem]:flex-nowrap @[26rem]:items-center">
             <ShoppingBag size={24} className="shrink-0 text-primary" />
             <span className="min-w-0 flex-1">
               <span className="block text-xs text-muted-foreground sm:text-sm">Vendas hoje</span>
               <span className="block text-2xl font-bold tracking-tight [overflow-wrap:anywhere] sm:text-3xl">{vendasCompletas ? brlVenda(t.vendasHojeTotal) : visao.carregando ? "…" : "—"}</span>
-              <span className="block text-xs leading-snug text-muted-foreground">Valor das vendas finalizadas hoje</span>
+              <span className="block max-md:sr-only text-xs leading-snug text-muted-foreground">Valor das vendas finalizadas hoje</span>
             </span>
-            <span data-testid="status-cartao" className="w-full shrink-0 border-t border-border/60 pt-2 text-left text-xs text-muted-foreground @[26rem]:w-auto @[26rem]:border-0 @[26rem]:pt-0 @[26rem]:text-right">
+            <span data-testid="status-cartao" className="flex w-full shrink-0 flex-wrap items-center justify-between gap-x-2 border-t border-border/60 pt-1.5 text-left text-xs text-muted-foreground md:pt-2 @[26rem]:block @[26rem]:w-auto @[26rem]:border-0 @[26rem]:pt-0 @[26rem]:text-right">
               {!vendasCompletas ? visao.carregando ? "Consultando…" : "Consulta incompleta" : t.vendasHojeN === 0 ? "Nenhuma venda ainda" : t.vendasHojeN === 1 ? "1 venda" : `${t.vendasHojeN} vendas`}
               <span className="block font-semibold text-primary">Ver vendas</span>
             </span>
@@ -665,22 +665,22 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
           </div>
 
           </div>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pendências que precisam de atenção</h3>
+          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:mb-2">Pendências que precisam de atenção</h3>
           {tudoCerto ? (
             <p className="flex items-center gap-2 rounded-3xl border border-accent/50 bg-accent/10 p-4 text-sm font-semibold text-accent">
               <CircleCheck size={20} className="shrink-0" /> Tudo certo! Nenhum comércio precisa de atenção agora.
             </p>
           ) : (
-            <div className="@container"><div data-testid="grade-pendencias" className="grid grid-cols-1 gap-3 @[18rem]:grid-cols-2 @[52rem]:grid-cols-4">
+            <div className="@container"><div data-testid="grade-pendencias" className="grid grid-cols-1 gap-2 md:gap-3 @[18rem]:grid-cols-2 @[52rem]:grid-cols-4">
               {kpis.map(({ label, assunto, n, Icon, cor, desc, disp }) => {
                 const ativo = disp.estado !== "indisponivel" && n > 0;
                 const borda = !ativo ? "border-border bg-secondary/70" : cor === "urgente" ? "border-destructive/60 bg-destructive/10" : "border-warning/60 bg-warning/10";
                 return (
-                  <button key={label} type="button" onClick={() => onAlertas(assunto)} className={`min-w-0 rounded-3xl border p-4 text-left [overflow-wrap:anywhere] transition hover:border-primary ${borda}`}>
+                  <button key={label} type="button" onClick={() => onAlertas(assunto)} className={`min-w-0 rounded-3xl border p-2.5 text-left [overflow-wrap:anywhere] transition hover:border-primary md:p-4 ${borda}`}>
                     <Icon size={20} className={!ativo ? "text-muted-foreground" : cor === "urgente" ? "text-destructive" : "text-warning"} />
-                    <p className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">{disp.estado !== "indisponivel" ? n : visao.carregando || Object.keys(visao.geral).length === 0 ? "…" : "—"}</p>
-                    <p className="mt-1 text-xs leading-tight text-muted-foreground sm:text-sm">{label}</p>
-                    <p className="mt-1 text-[11px] leading-snug text-muted-foreground/80 sm:text-xs">{desc}</p>
+                    <p className="mt-1 text-2xl font-bold tracking-tight md:mt-3 sm:text-3xl">{disp.estado !== "indisponivel" ? n : visao.carregando || Object.keys(visao.geral).length === 0 ? "…" : "—"}</p>
+                    <p className="mt-0.5 text-xs leading-tight text-muted-foreground sm:text-sm md:mt-1">{label}</p>
+                    <p className="max-md:sr-only md:mt-1 text-[11px] leading-snug text-muted-foreground/80 sm:text-xs">{desc}</p>
                     {disp.estado === "subtotal" && <p className="mt-1 text-[11px] font-semibold leading-snug text-warning sm:text-xs">Subtotal: {disp.validos} de {disp.total} comércios</p>}
                     {disp.estado === "indisponivel" && !visao.carregando && Object.keys(visao.geral).length > 0 && <p className="mt-1 text-[11px] font-semibold leading-snug text-warning sm:text-xs">Consulta incompleta</p>}
                   </button>
@@ -688,18 +688,18 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
               })}
             </div></div>
           )}
-          <div className="mt-4">
+          <div className="mt-2 md:mt-4">
           <div className="@container min-w-0">
-            <h3 className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Resultado deste mês<span className="font-normal normal-case tracking-normal">{etiquetaMes(hoje)}</span></h3>
+            <h3 className="mb-1 flex flex-wrap items-baseline justify-between gap-x-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:mb-2">Resultado deste mês<span className="font-normal normal-case tracking-normal">{etiquetaMes(hoje)}</span></h3>
           <button type="button" onClick={onAntifurto} aria-label={`Faltou este mês: ${afCompleto ? brlVenda(af.faltou) : "consulta incompleta"}`}
-            data-testid="cartao-faltou" className={`flex w-full flex-wrap items-start gap-x-4 gap-y-3 rounded-3xl border p-4 text-left @[26rem]:flex-nowrap @[26rem]:items-center transition hover:border-primary ${af.faltou > 0 || af.alertas > 0 ? "border-destructive/50 bg-destructive/10" : "border-border bg-secondary/70"}`}>
+            data-testid="cartao-faltou" className={`flex w-full flex-wrap items-start gap-x-3 gap-y-1 rounded-3xl border p-2.5 text-left md:gap-x-4 md:gap-y-3 md:p-4 @[26rem]:flex-nowrap @[26rem]:items-center transition hover:border-primary ${af.faltou > 0 || af.alertas > 0 ? "border-destructive/50 bg-destructive/10" : "border-border bg-secondary/70"}`}>
             <ShieldAlert size={24} className={`shrink-0 ${af.faltou > 0 || af.alertas > 0 ? "text-destructive" : "text-muted-foreground"}`} />
             <span className="min-w-0 flex-1">
               <span className="block text-xs text-muted-foreground sm:text-sm">Faltou este mês</span>
               <span className="block text-2xl font-bold tracking-tight [overflow-wrap:anywhere] sm:text-3xl">{afPronto ? brlVenda(af.faltou) : visao.carregando ? "…" : "—"}</span>
-              <span className="block text-xs leading-snug text-muted-foreground">Valor das faltas identificadas nas diferenças do estoque neste mês</span>
+              <span className="block max-md:sr-only text-xs leading-snug text-muted-foreground">Valor das faltas identificadas nas diferenças do estoque neste mês</span>
             </span>
-            <span data-testid="status-cartao" className="w-full shrink-0 border-t border-border/60 pt-2 text-left text-xs text-muted-foreground @[26rem]:w-auto @[26rem]:border-0 @[26rem]:pt-0 @[26rem]:text-right">
+            <span data-testid="status-cartao" className="flex w-full shrink-0 flex-wrap items-center justify-between gap-x-2 border-t border-border/60 pt-1.5 text-left text-xs text-muted-foreground md:pt-2 @[26rem]:block @[26rem]:w-auto @[26rem]:border-0 @[26rem]:pt-0 @[26rem]:text-right">
               {!afCompleto ? visao.carregando ? "Consultando…" : "Consulta incompleta" : af.alertas === 0 ? "Nenhum alerta" : af.alertas === 1 ? "1 alerta" : `${af.alertas} alertas`}
               {afPronto && !afCompleto && <span className="block">Subtotal disponível</span>}
               <span className="block font-semibold text-primary">Ver antifurto</span>
