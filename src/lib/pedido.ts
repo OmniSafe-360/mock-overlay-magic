@@ -143,16 +143,25 @@ export function linhaManual(p: Product, v: Variation | null = null): LinhaPedido
   return { chave: chaveLinha(p, v), p, variacao: v, embalagem: s.embalagem, qtd: s.qtd };
 }
 
-/** Texto do pedido para WhatsApp e e-mail. */
+/** Texto do pedido para WhatsApp e e-mail (negrito/itálico do WhatsApp). Só usa dados reais do pedido. */
 export function textoPedido(a: { numero: number; comercio: StoreData; fornecedor: string; linhas: LinhaPedido[]; observacao?: string; link?: string | undefined }): string {
   const c = a.comercio;
   const endereco = [c.rua && `${c.rua}${c.numero ? `, ${c.numero}` : ""}`, c.bairro, c.cidade && `${c.cidade}/${c.uf}`].filter(Boolean).join(" – ");
-  const itens = a.linhas.map((l) => `• ${nomeLinha(l)} — ${quantidadeTexto(l)}`).join("\n");
-  const linhas = [`Olá, ${a.fornecedor}! Segue o pedido nº ${a.numero} de ${c.nome}:`, "", itens, ""];
-  if (endereco) linhas.push(`Entrega: ${endereco}`);
-  if (a.observacao?.trim()) linhas.push(`Recado: ${a.observacao.trim()}`);
-  linhas.push(a.link ? `Veja e confirme o pedido aqui: ${a.link}` : "Por favor, confirme o preço e a previsão de entrega. Obrigado!");
-  return linhas.join("\n");
+  const itens = a.linhas.flatMap((l, k) => [`${k + 1}. ${nomeLinha(l)}`, `   Quantidade: ${quantidadeTexto(l)}`, ""]);
+  const t = [
+    "📦 *PEDIDO DE COMPRA*", "", "*OMNISAFE 360°*", "",
+    `Olá, ${a.fornecedor}!`, "",
+    `Você recebeu um pedido de compra de *${c.nome}*.`, "",
+    `*PEDIDO Nº ${a.numero}*`, "",
+    "*PRODUTOS SOLICITADOS*", "",
+    ...itens,
+  ];
+  if (endereco) t.push("📍 *LOCAL DE ENTREGA*", "", endereco, "");
+  if (a.observacao?.trim()) t.push("*RECADO*", "", a.observacao.trim(), "");
+  if (a.link) t.push("✅ *VISUALIZAR E CONFIRMAR PEDIDO*", "", "Acesse o link abaixo para consultar os detalhes:", "", a.link, "");
+  else t.push("Por favor, confirme o preço e a previsão de entrega.", "");
+  t.push("Agradecemos pela parceria!", "", `*${c.nome}*`, "_Organizado pelo OmniSafe 360°_");
+  return t.join("\n");
 }
 
 /** Linhas de um pedido salvo, para mostrar e reenviar. A conversão é a registrada
