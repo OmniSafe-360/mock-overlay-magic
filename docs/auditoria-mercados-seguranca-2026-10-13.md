@@ -368,3 +368,12 @@ A chamada de erro segura no mesmo ensaio mantém a mensagem genérica e `context
 - SHA-256 de Events SDK: `90022cf49a0bbdedf3fea505ad945985b373d96793a906f6d01dbaa697dd3a21`.
 
 **Somente quatro documentos existentes alterados nesta entrega.** G1.4-A: publicação observada, validação funcional/manual pendente; não marcar todo G1.4 como encerrado. G1.4-B: achado reproduzido, configuração/desenho/correção pendentes. Headers compatíveis e demais ameaças seguem no plano; G1.1/G1.2/banco real/PR #124 continuam pendentes. Não reabrir ou reaplicar a correção G1.4-A nem afirmar segurança integral. Esta documentação não exige nova publicação do app.
+
+
+### Ocorrência na verificação remota desta documentação
+
+GitHub Actions `38553899695`, commit documental `61c488a`: primeira rodada aprovada; segunda rodada falhou com erro assíncrono não tratado `ReferenceError: window is not defined`, em `AcessoClienteFiado.tsx:16`, originado durante `src/test/fiado.test.tsx`. Anotação obtida pela API de checks; download do log integral recusado pelo proxy, sem contornar a política de rede.
+
+Diagnóstico de leitura: o teste de Fiado injeta a API financeira em PainelFiado, mas a consulta do subcomponente AcessoClienteFiado usa a API padrão. Em cópia de configuração de teste, mantendo o arquivo original e interceptando todo fetch com resposta fictícia, **seis casos passaram** e foram observadas **cinco consultas a `/rest/v1/rpc/fiado_acesso_info`**, sem rede real. Isso confirma a consulta assíncrona fora da fixture financeira; não é alteração introduzida pelos quatro documentos. A atualização depois do encerramento do ambiente é compatível com essa dependência, mas não prova resolução definitiva nem deve ser escondida como aprovação. Rever isolamento/ciclo de vida em uma proposta própria se persistir; não mudar assertions, timeouts ou aplicativo para liberar este PR.
+
+Mantidos app/testes/CI oficiais intactos. A ocorrência foi registrada e uma nova execução remota verifica a mesma base funcional após o diagnóstico. O resultado final será conferido antes de integrar; nenhum teste foi removido, desativado ou ignorado. Artefatos locais `diagnostico` dentro de `/tmp/omni-g14-publicado`.
