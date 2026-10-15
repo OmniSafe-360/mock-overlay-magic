@@ -247,9 +247,13 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
     idsFinanceiros.has(l.id) ? l : { ...l, alertas: null, maisSumiu: null }) };
   const dispSino = disponibilidade(stores, visao, true);
   const urgentesSino = paraResolver(dispSino.soma);
-  const incompletoSino = stores.length > 0 && (dispSino.estado !== "total" || visao.erro);
+  // H3: "ainda não consultado" ou "consultando" não é "consulta incompleta".
+  // Comércio com ID válido e sem resultado ainda (primeiro instante) conta como consultando.
+  // Falha já identificada (visao.erro) sempre acende, mesmo com outra loja carregando.
+  const consultandoSino = visao.carregando || stores.some((s) => { const id = idDe(s); return !!id && !visao.geral[id]; });
+  const incompletoSino = stores.length > 0 && (visao.erro || (!consultandoSino && dispSino.estado !== "total"));
   const nomeSino = (urgentesSino ? `Alertas: ${urgentesSino} para resolver agora` : "Alertas")
-    + (visao.carregando ? "; atualizando" : incompletoSino ? "; consulta incompleta" : "");
+    + (incompletoSino ? "; consulta incompleta" : "") + (consultandoSino ? "; atualizando" : "");
   const [verAntifurto, setVerAntifurto] = useState(false);
   useEffect(() => { if (tab !== "inicio") setVerAntifurto(false); }, [tab]);
   // RMC-02B: o comércio abre por cima da aba atual; o Voltar devolve à aba (ou ao Antifurto) de origem.
