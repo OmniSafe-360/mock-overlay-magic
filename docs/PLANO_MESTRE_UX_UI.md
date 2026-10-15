@@ -507,3 +507,5 @@ Artefatos locais: `/workspace/entregas/omnisafe-m01-b-implementacao-2026-10-15/`
 **Estado:** M01-B implementada e verificada na branch, pronta para revisão; falta validação do dono. Sem merge/publicação; M02 não iniciada. M01 completa não é declarada validada antes do aceite da M01-B.
 
 Roteiro de aceite: em versão de teste disponível, provocar falha de abertura; ler título e orientação, tocar Tentar de novo e confirmar recuperação pelo caminho habitual, sem pular PIN. Registrar aparelho e versão. Não publicar automaticamente para executar esse roteiro. Reversão: reverter apenas as duas frases e três expectativas, mantendo a rastreabilidade documental.
+
+Rastreabilidade M01-B: [PR #150](https://github.com/OmniSafe-360/mock-overlay-magic/pull/150), implementação `808394d`. Aberto para revisão, sem merge/publicação; CI remoto pendente na abertura, separado das verificações locais aprovadas.
