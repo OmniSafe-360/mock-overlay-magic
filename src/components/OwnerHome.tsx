@@ -594,6 +594,18 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
   ];
   // B10: "Tudo certo!" só quando também não há nada "de olho" (conta vencendo hoje, alerta de antifurto…)
   const tudoCerto = pronto && !visao.carregando && !visao.erro && kpis.every((k) => k.n === 0 && k.disp.estado === "total") && deOlho(t) === 0;
+  // H1: lembra (só para a apresentação) se a última consulta COMPLETA terminou em "Tudo certo", e para quais comércios.
+  // Falha, consulta parcial ou dados iniciais desconhecidos apagam a lembrança. Atualizado em efeito, nunca na renderização.
+  const chaveLojas = stores.map((s) => idDe(s) ?? "").join(",");
+  const [ultimoTudoCerto, setUltimoTudoCerto] = useState<string | null>(null);
+  useEffect(() => {
+    if (visao.carregando) return;
+    setUltimoTudoCerto(tudoCerto ? chaveLojas : null);
+  }, [visao.carregando, tudoCerto, chaveLojas]);
+  // Durante a atualização: mantém o quadro verde apenas se a lembrança é desta mesma lista de comércios
+  // e se nenhum comércio já confirmado nesta leitura trouxe pendência.
+  const manterVerde = visao.carregando && ultimoTudoCerto !== null && ultimoTudoCerto === chaveLojas
+    && kpis.every((k) => k.n === 0) && deOlho(dispResolver.soma) === 0;
   const [ocultos, setOcultos] = useState(passosOcultos);
   const passos = passosDaTela(stores, visao, fornecedores, locais, ocultos);
   const unico = stores.length === 1 ? stores[0]! : null;
@@ -670,6 +682,10 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
           {tudoCerto ? (
             <p className="flex items-center gap-2 rounded-3xl border border-accent/50 bg-accent/10 p-4 text-sm font-semibold text-accent">
               <CircleCheck size={20} className="shrink-0" /> Tudo certo! Nenhum comércio precisa de atenção agora.
+            </p>
+          ) : manterVerde ? (
+            <p data-testid="tudo-certo-anterior" className="flex items-center gap-2 rounded-3xl border border-accent/30 bg-accent/5 p-4 text-sm font-semibold text-accent/70">
+              <CircleCheck size={20} className="shrink-0" /> Tudo certo na última consulta · atualizando…
             </p>
           ) : (
             <div className="@container"><div data-testid="grade-pendencias" className="grid grid-cols-1 gap-2 md:gap-3 @[18rem]:grid-cols-2 @[52rem]:grid-cols-4">
