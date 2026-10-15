@@ -611,9 +611,13 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
   // Sem IDs válidos não há consulta a esperar, então o estado neutro não se aplica.
   const idsTela = stores.map(idDe).filter((x): x is string => !!x);
   const nenhumConfirmado = idsTela.every((id) => !visao.geral[id]?.base);
-  const primeiraLeitura = idsTela.length > 0 && nenhumConfirmado
+  // Falha já conhecida (um comércio terminou com erro) não pode ficar escondida atrás do quadro neutro.
+  const falharam = idsTela.filter((id) => visao.geral[id]?.estado === "erro").length;
+  const consultando = idsTela.filter((id) => visao.geral[id]?.estado === "carregando").length;
+  const primeiraLeitura = idsTela.length > 0 && nenhumConfirmado && falharam === 0
     && (visao.carregando || idsTela.every((id) => !visao.geral[id]));
   const carregandoTela = visao.carregando || primeiraLeitura;
+  const falhaDuranteConsulta = visao.carregando && falharam > 0;
   const [ocultos, setOcultos] = useState(passosOcultos);
   const passos = passosDaTela(stores, visao, fornecedores, locais, ocultos);
   const unico = stores.length === 1 ? stores[0]! : null;
@@ -665,6 +669,12 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
             <div role="alert" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-warning/60 p-3 text-sm">
               <span>Não foi possível atualizar algum comércio. Os números podem estar incompletos.</span>
               <button type="button" onClick={onTentar} className="min-h-11 rounded-xl border border-border px-3 font-semibold">Tentar de novo</button>
+            </div>
+          )}
+          {falhaDuranteConsulta && (
+            <div role="alert" className="mb-3 rounded-2xl border border-warning/60 p-3 text-sm">
+              Não foi possível atualizar {falharam === 1 ? "1 comércio" : `${falharam} comércios`}. Os números podem estar incompletos.
+              {consultando > 0 && <span className="block text-xs text-muted-foreground">Ainda consultando {consultando === 1 ? "1 comércio" : `${consultando} comércios`}…</span>}
             </div>
           )}
           <div className="mb-2 md:mb-4">
