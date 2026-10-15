@@ -25,7 +25,7 @@ echo 'OK: sem a proteção os casos falham (o problema existe).'
 if "${p[@]}" -1 -f "$base/../017_embalagem_protegida.sql" >"$tmp/rep.log" 2>&1; then echo 'FALHOU: repetição aceita'; exit 1; fi
 grep -q 'proteção já aplicada' "$tmp/rep.log" || falha "$tmp/rep.log"
 echo 'OK: repetir a migração é recusado sem alterar nada.'
-casos || falha "$tmp/c.log"; tail -1 "$tmp/c.log"
+casos || falha "$tmp/c.log"; grep -o "OK: 017[^|]*" "$tmp/c.log"
 # Regressões existentes com a proteção ligada.
 for par in "015_base_caixa_estoque.sql 015_caixa_estoque_contagens.sql" "014_base_contagem_cega.sql 014_contagem_cega.sql"; do
   set -- $par; { echo 'begin;'; cat "$base/$1" "$base/$2"; echo 'rollback;'; } >"$tmp/r.sql"
@@ -34,7 +34,7 @@ done
 for r in 005_melhorias_operacionais.sql 011_coerencia_recebimento.sql; do "${p[@]}" -f "$base/$r" >>"$tmp/reg.log" 2>&1 || falha "$tmp/reg.log"; done
 echo 'OK: regressões caixa/estoque, contagem, operacionais e recebimento.'
 # Concorrência com conexões reais (dados fictícios em banco descartável).
-"${p[@]}" -f "$base/015_base_caixa_estoque.sql" >"$tmp/b.log" 2>&1 || falha "$tmp/b.log"
+"${p[@]}" -1 -f "$base/015_base_caixa_estoque.sql" >"$tmp/b.log" 2>&1 || falha "$tmp/b.log"
 python3 "$base/017_embalagem_concorrencia.py" "${con[@]}"
 # Reversão: volta ao comportamento anterior.
 "${p[@]}" -1 -f "$base/../017_embalagem_protegida_reverter.sql" >>"$tmp/setup.log" 2>&1 || falha "$tmp/setup.log"
