@@ -103,14 +103,14 @@ export function LeitorContinuo({ onCode, mercado = false, pausado = false }: { o
 
   const erro = status !== "loading" && status !== "ready" ? status : null;
   return (
-    <div className="relative h-40 w-full overflow-hidden rounded-3xl border border-border bg-background-deep">
+    <div className={`relative w-full overflow-hidden rounded-3xl border border-border bg-background-deep ${erro ? "min-h-40" : "h-40"}`}>
       <video ref={video} className="absolute inset-0 h-full w-full object-cover" muted playsInline autoPlay />
       {erro ? (
-        <div role="alert" className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background-deep/90 p-3 text-center">
+        <div role="alert" className="relative flex min-h-40 flex-col items-center justify-center gap-2 bg-background-deep/90 p-3 text-center">
           <CameraOff size={22} className="text-muted-foreground" />
           <p className="text-sm">{SCAN_ERROR_MSG[erro]}</p>
           {erro !== "insecure" && erro !== "unsupported" && erro !== "nocamera" && (
-            <button type="button" onClick={() => setTentativa((t) => t + 1)} className="flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"><RotateCcw size={16} /> Tentar de novo</button>
+            <button type="button" onClick={() => setTentativa((t) => t + 1)} className="flex min-h-12 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"><RotateCcw size={16} className="shrink-0" /> Tentar de novo</button>
           )}
         </div>
       ) : (
@@ -123,7 +123,7 @@ export function LeitorContinuo({ onCode, mercado = false, pausado = false }: { o
           <p className="absolute inset-x-0 bottom-1.5 text-center text-xs font-semibold text-white drop-shadow">{status === "loading" ? "Abrindo a câmera…" : pausado ? "Câmera em pausa" : "Aponte para o código de barras"}</p>
           {temTorch && (
             <button type="button" aria-pressed={torch} aria-label="Lanterna" onClick={() => { const v = !torch; void torchRef.current?.(v).then(() => setTorch(v), () => setTemTorch(false)); }}
-              className={`absolute right-2 top-2 flex h-10 w-10 items-center justify-center rounded-xl backdrop-blur ${torch ? "bg-accent text-accent-foreground" : "bg-background/60 text-foreground"}`}><Flashlight size={18} /></button>
+              className={`absolute right-2 top-2 flex h-12 w-12 items-center justify-center rounded-xl backdrop-blur ${torch ? "bg-accent text-accent-foreground" : "bg-background/60 text-foreground"}`}><Flashlight size={18} /></button>
           )}
         </>
       )}

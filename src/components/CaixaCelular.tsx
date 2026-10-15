@@ -435,29 +435,28 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
     <Tela>
       <header className="flex shrink-0 items-center gap-2 px-4 pb-2 pt-3">
         <button type="button" onClick={onSair} aria-label="Voltar ao início" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border"><ArrowLeft size={20} /></button>
-        <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1.5 text-lg font-bold"><span className="h-2.5 w-2.5 rounded-full bg-accent" /> Caixa aberto</p>
-          <p className="truncate text-xs text-muted-foreground">{estado.nome.split(" ")[0]} · {t ? `${t.vendas === 1 ? "1 venda" : `${t.vendas} vendas`} · ${brl(t.total)}` : ""}</p>
-        </div>
         <button type="button" onClick={() => setCamera((v) => !v)} aria-pressed={camera} aria-label={camera ? "Desligar a câmera" : "Ligar a câmera"}
-          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border ${camera ? "border-primary text-primary" : "border-border text-muted-foreground"}`}>
+          className={`ml-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border ${camera ? "border-primary text-primary" : "border-border text-muted-foreground"}`}>
           {camera ? <Camera size={20} /> : <CameraOff size={20} />}
         </button>
         <button type="button" onClick={() => { onAtualizar(); setJanela({ j: "menu" }); }} aria-label="Menu do caixa"
           className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border"><Menu size={20} /></button>
       </header>
-      {offline && (
-        <p role="status" className="mx-4 mb-2 flex items-center gap-2 rounded-2xl bg-warning/15 px-3 py-2 text-sm font-semibold text-warning">
-          <CloudOff size={16} className="shrink-0" /> Sem internet: o carrinho fica guardado. Conecte para conferir o estoque e finalizar.
-        </p>
-      )}
-
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3">
       <div className="space-y-2">
+        <div className="min-w-0 pb-1">
+          <p className="flex items-center gap-1.5 break-words text-lg font-bold"><span className="h-2.5 w-2.5 shrink-0 rounded-full bg-accent" /> Caixa aberto</p>
+          <p className="break-words text-xs text-muted-foreground">{estado.nome.split(" ")[0]} · {t ? `${t.vendas === 1 ? "1 venda" : `${t.vendas} vendas`} · ${brl(t.total)}` : ""}</p>
+        </div>
+        {offline && (
+          <p role="status" className="flex items-center gap-2 rounded-2xl bg-warning/15 px-3 py-2 text-sm font-semibold text-warning">
+            <CloudOff size={16} className="shrink-0" /> Sem internet: o carrinho fica guardado. Conecte para conferir o estoque e finalizar.
+          </p>
+        )}
         {camera && <LeitorContinuo mercado={mercado} pausado={!!janela} onCode={lerCodigo} />}
-        <div className="grid grid-cols-2 gap-2">
-          <button type="button" onClick={() => setJanela({ j: "buscar" })} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-border bg-secondary/50 px-3 text-sm font-semibold"><Search size={18} /> Código ou nome</button>
-          <button type="button" onClick={() => setJanela({ j: "sem_cadastro", codigo: null })} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-border bg-secondary/50 px-3 text-sm font-semibold"><PackagePlus size={18} className="shrink-0" /> Produto não encontrado</button>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8em),1fr))] gap-2">
+          <button type="button" onClick={() => setJanela({ j: "buscar" })} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-border bg-secondary/50 px-3 py-2 text-sm font-semibold"><Search size={18} className="shrink-0" /> Código ou nome</button>
+          <button type="button" onClick={() => setJanela({ j: "sem_cadastro", codigo: null })} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-border bg-secondary/50 px-3 py-2 text-sm font-semibold"><PackagePlus size={18} className="shrink-0" /> Produto não encontrado</button>
         </div>
         {aviso && !aviso.estoque && !erroEstoque && (
           <p role="status" className={`flex items-center gap-2 rounded-2xl px-3 py-2 text-sm font-semibold ${aviso.ok ? "bg-accent/10 text-accent" : "bg-warning/10 text-warning"}`}>
@@ -472,7 +471,7 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
           <div className="flex items-center gap-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-warning/10 text-warning"><TriangleAlert size={20} aria-hidden="true" /></span>
             <h2 className="min-w-0 flex-1 text-sm font-bold leading-snug text-foreground">{conferindo ? "Conferindo a quantidade…" : !erroEstoque && aviso?.estoque ? "Quantidade não adicionada" : "Confira antes de continuar"}</h2>
-            <button type="button" disabled={conferindo} aria-label="Fechar aviso de estoque" onClick={() => { setAviso(null); onFecharAviso(); }} className="-mr-2 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-warning/10 disabled:opacity-50"><X size={18} /></button>
+            <button type="button" disabled={conferindo} aria-label="Fechar aviso de estoque" onClick={() => { setAviso(null); onFecharAviso(); }} className="-mr-2 -mt-2 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-warning/10 disabled:opacity-50"><X size={18} /></button>
           </div>
           <p className="mt-3 break-words text-sm leading-relaxed text-foreground">{erroEstoque || aviso?.texto}</p>
           <p className="mt-3 border-t border-warning/15 pt-3 text-xs leading-relaxed text-muted-foreground">O carrinho foi mantido.</p>
@@ -488,8 +487,8 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
         ) : (
           <ul aria-label="Produtos da venda" className="divide-y divide-border">
             {carrinho.map((i) => (
-              <li key={i.id} className="flex items-center gap-2 py-2.5">
-                <div className="min-w-0 flex-1">
+              <li key={i.id} className="flex flex-wrap items-center gap-2 py-2.5">
+                <div className="w-full min-w-0">
                   <p className="break-words text-base font-semibold leading-snug">{i.nome}</p>
                   <p className="text-xs text-muted-foreground">
                     {i.detalhe ? `${i.detalhe} · ` : ""}{i.fracionado ? `${qtdTexto(i.qtd)} ${unPlural(i.unidade).toLowerCase()} × ${brl(i.preco)}` : `${brl(i.preco)} cada`}
@@ -497,35 +496,33 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
                   </p>
                 </div>
                 {i.fracionado ? (
-                  <button type="button" disabled={conferindo} aria-label={`Tirar ${i.nome}`} onClick={() => tirar(i.id)} className="flex h-11 w-11 items-center justify-center rounded-xl text-muted-foreground"><Trash2 size={18} /></button>
+                  <button type="button" disabled={conferindo} aria-label={`Tirar ${i.nome}`} onClick={() => tirar(i.id)} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-muted-foreground"><Trash2 size={18} /></button>
                 ) : (
-                  <div className="flex items-center rounded-2xl border border-border">
-                    <button type="button" disabled={conferindo} aria-label={i.qtd === 1 ? `Tirar ${i.nome}` : `Menos ${i.nome}`} onClick={() => mudarQtd(i.id, -1)} className="flex h-11 w-10 items-center justify-center text-primary">
+                  <div className="flex max-w-full items-center rounded-2xl border border-border">
+                    <button type="button" disabled={conferindo} aria-label={i.qtd === 1 ? `Tirar ${i.nome}` : `Menos ${i.nome}`} onClick={() => mudarQtd(i.id, -1)} className="flex h-12 w-12 shrink-0 items-center justify-center text-primary">
                       {i.qtd === 1 ? <Trash2 size={17} /> : <Minus size={18} />}
                     </button>
-                    <span aria-label={`Quantidade de ${i.nome}`} className="min-w-7 text-center text-base font-bold tabular-nums">{i.qtd}</span>
-                    <button type="button" disabled={conferindo} aria-label={`Mais ${i.nome}`} onClick={() => mudarQtd(i.id, 1)} className="flex h-11 w-10 items-center justify-center text-primary"><Plus size={18} /></button>
+                    <span aria-label={`Quantidade de ${i.nome}`} className="min-w-7 break-words text-center text-base font-bold tabular-nums">{i.qtd}</span>
+                    <button type="button" disabled={conferindo} aria-label={`Mais ${i.nome}`} onClick={() => mudarQtd(i.id, 1)} className="flex h-12 w-12 shrink-0 items-center justify-center text-primary"><Plus size={18} /></button>
                   </div>
                 )}
-                <span className="w-20 shrink-0 text-right text-base font-bold tabular-nums">{brl(subtotal(i))}</span>
+                <span className="ml-auto max-w-full break-words text-right text-base font-bold tabular-nums">{brl(subtotal(i))}</span>
               </li>
             ))}
           </ul>
         )}
         <div ref={fimLista} />
       </div>
+        <div className="mt-3 space-y-2 border-t border-border pt-3">
+          <p className="text-sm text-muted-foreground">Total{carrinho.length ? ` · ${contarItens(carrinho) === 1 ? "1 item" : `${qtdTexto(contarItens(carrinho))} itens`}` : ""}</p>
+          <p aria-label="Total da venda" className="break-words text-2xl font-bold tabular-nums">{brl(total)}</p>
+          {carrinho.length > 0 && <button type="button" disabled={conferindo} onClick={() => setJanela({ j: "limpar" })} className="min-h-12 min-w-12 text-xs font-semibold text-muted-foreground underline">Limpar venda</button>}
+        </div>
       </div>
 
-      <footer className="shrink-0 space-y-2 border-t border-border bg-background/80 px-4 pt-3 backdrop-blur">
-        <div className="flex items-end justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground">Total{carrinho.length ? ` · ${contarItens(carrinho) === 1 ? "1 item" : `${qtdTexto(contarItens(carrinho))} itens`}` : ""}</p>
-            {carrinho.length > 0 && <button type="button" disabled={conferindo} onClick={() => setJanela({ j: "limpar" })} className="text-xs font-semibold text-muted-foreground underline">Limpar venda</button>}
-          </div>
-          <p aria-label="Total da venda" className="text-4xl font-bold tabular-nums">{brl(total)}</p>
-        </div>
-        <button type="button" disabled={!carrinho.length || conferindo} onClick={onReceber} className={`flex items-center justify-center gap-2 ${btnPrimary(!!carrinho.length)}`}>
-          <Banknote size={22} /> Receber {carrinho.length ? brl(total) : ""}
+      <footer className="shrink-0 border-t border-border bg-background/80 px-4 pt-3 backdrop-blur">
+        <button type="button" disabled={!carrinho.length || conferindo} onClick={onReceber} className={`relative flex items-center justify-center gap-2 py-2 ${btnPrimary(!!carrinho.length)}`}>
+          <Banknote size={22} className="absolute left-4 top-1/2 -translate-y-1/2" /><span className="min-w-0 flex-1 break-words pl-6">Receber {carrinho.length ? brl(total) : ""}</span>
         </button>
       </footer>
 

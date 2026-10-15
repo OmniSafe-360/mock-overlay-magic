@@ -444,3 +444,11 @@ Rastreabilidade M03: [PR #152](https://github.com/OmniSafe-360/mock-overlay-magi
 
 - [ ] M04-B (15/10/2026) — unidades nos indicadores, "Soma de todos os comércios" só com dados completos e "Subtotal: X de Y comércios" no antifurto; só apresentação em OwnerHome.tsx + teste rmc-m04b. Pendências separadas: sino durante atualização e contador de resumo completo. Aguarda revisão; sem publicação.
 - [ ] M05 (15/10/2026) — explicação "Ganho bruto por {unidade}, antes de impostos e despesas. A porcentagem é calculada sobre o preço de compra." abaixo do quadro de lucro no cadastro/edição (ProductArea.tsx, opção A); nomes e cálculos iguais; ficha intacta. Teste m05-ganho-bruto. Aguarda revisão; sem publicação.
+
+
+## Correção independente AC01 — acessibilidade do caixa, 15/10/2026 UTC
+
+- [ ] **Implementada/testada na branch, falta revisão e validação do dono.** Autorizada antes da M07, base `main 43658db`, branch `codex/caixa-acessibilidade-20261015`. Dois componentes: apresentação de `Vender` em `CaixaCelular.tsx` e erro/targets de `LeitorContinuo.tsx`; três documentos por acréscimo. Fonte/regras/estado/callbacks, cálculos, estoque, carrinho, pagamentos, câmera e offline preservados; sem banco, configuração ou teste oficial alterado.
+- **Provas:** tipos 2×; 1.189 testes/118 arquivos 2×; build; verificadores/segredos/dependências; 96 cenários Chromium, 48 pares com valores/rascunhos/payloads iguais e 204 capturas em320/390/1280 ×100/200%; alvos envolvidos48px, sem estouro horizontal verificado depois. Seis fluxos completos antes/depois com serviços fictícios. Centro320/200 passa de86 para363px. [Escopo, alterações visuais exatas, tentativas, riscos e roteiro](PLANO_MESTRE_UX_UI.md#18-ac01--acessibilidade-do-caixa-correção-independente--15102026-utc).
+- **Pendente:** PR/CI do commit exato, revisão, autorização de merge/publicação e teste físico no Android; iPhone/hardware/teclado/PWA reais não verificados. Não declara acessibilidade de outras janelas nem encerra E/G/RMC. M07–M24 e X01–X10 permanecem separadas.
+- **Continuidade:** conforme transferência do dono, M01–M06 e H1–H3 concluídas/publicadas/validadas por ele; implementações conferidas no main43658db, CI38790121635 aprovado. Relato não repetido fisicamente nesta entrega; registros históricos anteriores preservados.
