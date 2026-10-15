@@ -556,3 +556,5 @@ Artefatos locais: `/workspace/entregas/omnisafe-m02-implementacao-2026-10-15/` (
 **M02: pronta no código da branch e testada; falta revisão/validação do dono. Sem merge/publicação, sem avanço para M03.** M01-B mantém apenas a integração confirmada; demais frentes E/G/RMC preservadas.
 
 Roteiro do dono em versão de teste autorizada: com carrinho vazio e preenchido, abrir Produto não encontrado; conferir instrução, código quando houver e frase do carrinho; fechar por Entendi/X; verificar itens, quantidades e total. Em 320 px, confirmar botão de duas linhas sem corte e ícone preservado. Não publicar automaticamente para obter esse teste. Reversão restrita: reverter textos/classe e as duas expectativas, preservando acompanhamento histórico.
+
+Rastreabilidade M02: [PR #151](https://github.com/OmniSafe-360/mock-overlay-magic/pull/151), implementação `a16695a`. Aberto para revisão; sem merge/publicação, CI remoto pendente na abertura. Não avançar à M03.
