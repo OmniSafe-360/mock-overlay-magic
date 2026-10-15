@@ -216,9 +216,9 @@ describe("caixa no celular", () => {
     const api = apiCaixa();
     render(<CaixaCelular chave={CH} api={api} onSair={() => {}} />);
     fireEvent.click(await screen.findByRole("button", { name: "ler desconhecido" }));
-    expect(await screen.findByText(/não está no Omni/)).toBeTruthy();
+    expect(await screen.findByText(/não foi encontrado no caixa/)).toBeTruthy();
     expect(screen.queryByRole("list", { name: "Produtos da venda" })).toBeNull();
-    expect(screen.getByText(/Peça ao dono para cadastrar/)).toBeTruthy();
+    expect(screen.getByText(/Peça ao dono para verificar o cadastro/)).toBeTruthy();
     expect(screen.queryByLabelText("Preço de cada um")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Entendi" }));
     fireEvent.click(screen.getByRole("button", { name: "ler queijo" }));

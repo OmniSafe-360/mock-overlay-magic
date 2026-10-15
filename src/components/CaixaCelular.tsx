@@ -457,7 +457,7 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
         {camera && <LeitorContinuo mercado={mercado} pausado={!!janela} onCode={lerCodigo} />}
         <div className="grid grid-cols-2 gap-2">
           <button type="button" onClick={() => setJanela({ j: "buscar" })} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-border bg-secondary/50 px-3 text-sm font-semibold"><Search size={18} /> Código ou nome</button>
-          <button type="button" onClick={() => setJanela({ j: "sem_cadastro", codigo: null })} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-border bg-secondary/50 px-3 text-sm font-semibold"><PackagePlus size={18} /> Sem cadastro</button>
+          <button type="button" onClick={() => setJanela({ j: "sem_cadastro", codigo: null })} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-border bg-secondary/50 px-3 text-sm font-semibold"><PackagePlus size={18} className="shrink-0" /> Produto não encontrado</button>
         </div>
         {aviso && !aviso.estoque && !erroEstoque && (
           <p role="status" className={`flex items-center gap-2 rounded-2xl px-3 py-2 text-sm font-semibold ${aviso.ok ? "bg-accent/10 text-accent" : "bg-warning/10 text-warning"}`}>
@@ -606,9 +606,9 @@ function BuscarProduto({ produtos, onEscolher, onCodigo, onClose }: { produtos: 
 }
 
 function SemCadastro({ codigo, onClose }: { codigo: string | null; onClose: () => void }) {
-  return <Sheet title="Produto sem cadastro" onClose={onClose}>
+  return <Sheet title="Produto não encontrado" onClose={onClose}>
     <div className="space-y-3 px-5 py-3">
-      <p className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">{codigo ? <>O código <b>{codigo}</b> não está no Omni.</> : "Este produto precisa ser identificado."} Peça ao dono para cadastrar o produto e conferir a área de venda antes de vender.</p>
+      <p className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">{codigo ? <>O código <b>{codigo}</b> não foi encontrado no caixa.</> : "Não encontrou o produto?"} Peça ao dono para verificar o cadastro do produto e a área de venda antes de vender.</p>
       <p className="text-sm text-muted-foreground">O carrinho atual continua preservado.</p>
       <button type="button" onClick={onClose} className={`w-full ${btnGhost}`}>Entendi</button>
     </div>

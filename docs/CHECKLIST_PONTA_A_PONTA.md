@@ -418,3 +418,10 @@ Os registros anteriores refletem a situação na entrega original; este acompanh
 - **Continuidade:** aguardar revisão e aceite da M01-B; M02 não iniciada. Não encerra E/G/RMC, segurança, banco real ou outras pendências. Fonte da Verdade intacta.
 
 Rastreabilidade M01-B: [PR #150](https://github.com/OmniSafe-360/mock-overlay-magic/pull/150), implementação `808394d`. Aberto para revisão, sem merge/publicação; CI remoto pendente na abertura, separado das verificações locais aprovadas.
+
+
+## Modernização UX/UI — M02 e continuidade M01-B, 15/10/2026 UTC
+
+- **M01-B:** M01-B integrada ao GitHub pelo PR #150 em 15/10/2026 às 08h37m02s UTC, merge `560b2d7a8c6fb54559857dfaa407b16aab6bbfc6`, confirmado no remoto. Publicação e validação física da M01-B não confirmadas; não declarar aceite geral. Os registros anteriores de PR aberto/sem merge são históricos.
+- [ ] **M02 pronta no código da branch; falta revisão/validação do dono.** Base `main 560b2d7a`, branch `codex/ux-m02-produto-nao-encontrado-20261015`. Somente textos aprovados, orientação revisada pelo dono, frase do carrinho intacta e proteção do ícone; duas expectativas textuais e três documentos. Tipos 2×, 1.129 testes/112 arquivos 2×, build e Chromium 320/390/1280 aprovados; 15 capturas, botão48/ícone18, buscas/códigos desconhecidos/quatro fechamentos, carrinho e rascunho iguais, excesso de estoque recusado sem venda. Primeira tentativa visual interrompida na bancada, rodada estabilizada aprovada sem alteração funcional. [Plano Mestre: escopo, limites e aceite](PLANO_MESTRE_UX_UI.md#14-m02--ajuda-para-produto-não-encontrado-execução-autorizada--15102026-utc).
+- **Limites:** nenhuma alteração na Fonte da Verdade, operações, banco/Supabase, permissões, estados, eventos ou recuperação. Sem teste físico/publicação da M02. Sem merge/publicação/M03; aguardar aprovação específica. E/G/RMC e demais pendências preservadas.

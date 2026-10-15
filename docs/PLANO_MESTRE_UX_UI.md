@@ -6,6 +6,8 @@
 
 > **Atualização posterior — M01-B (15/10/2026):** M01-A integrada pelo PR #149 e validada pelo proprietário no Android somente nos pontos registrados na seção 13. M01-B autorizada exclusivamente para os dois textos e três expectativas, com acompanhamento nestes três documentos. Registros anteriores de pendência são históricos; M02 não autorizada. Sem merge ou publicação da M01-B.
 
+> **Atualização posterior — M02 (15/10/2026):** implementação expressamente autorizada, restrita à ajuda de produto não encontrado e aos cinco arquivos da seção 14. M01-B integrada pelo PR #150; publicação/validação física não confirmadas. M02 aguarda revisão do dono, sem merge/publicação; M03 não autorizada.
+
 **Autorização desta entrega:** criar somente este documento. Nenhuma etapa de implementação está autorizada. Não alterar aplicação, testes, dependências, configurações, banco, migrações, Supabase, integrações ou a Fonte da Verdade. Não fazer merge nem publicar.
 
 ## 1. Autoridade, referências e controle da versão
@@ -385,8 +387,8 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | Etapa | Aprovação de implementação | Execução / testes de aplicação | Merge/publicação | Validação do dono |
 |---|---|---|---|---|
 | DOC-01 — este plano | Somente documentação autorizada | Documento criado; nenhuma implementação | Não realizados | Pendente |
-| M01 — textos equipe/erro | M01-A e M01-B autorizadas em escopos próprios | M01-A integrada; M01-B implementada/testada em branch exclusiva (§13) | M01-A: merge confirmado; publicação relatada pelo dono. M01-B: não realizados | M01-A: aceite Android restrito (§13). M01-B: aguarda validação do dono |
-| M02 — produto não encontrado | Pendente | Não iniciados | Não realizados | Pendente |
+| M01 — textos equipe/erro | M01-A e M01-B autorizadas em escopos próprios | Ambas integradas; M01-B pelo PR #150 (§14) | M01-A: merge confirmado/publicação relatada. M01-B: merge confirmado/publicação não confirmada | M01-A: aceite Android restrito (§13). M01-B: validação física não confirmada |
+| M02 — produto não encontrado | Autorizada exclusivamente em 15/10/2026, com ajustes do dono (§14) | Implementada/testada na branch exclusiva (§14) | Não realizados | Aguarda revisão/validação do dono |
 | M03 — promessa primeiro cadastro | Pendente | Não iniciados | Não realizados | Pendente |
 | M04 — indicadores globais | Pendente | Não iniciados | Não realizados | Pendente |
 | M05 — ganho bruto | Pendente | Não iniciados | Não realizados | Pendente |
@@ -509,3 +511,48 @@ Artefatos locais: `/workspace/entregas/omnisafe-m01-b-implementacao-2026-10-15/`
 Roteiro de aceite: em versão de teste disponível, provocar falha de abertura; ler título e orientação, tocar Tentar de novo e confirmar recuperação pelo caminho habitual, sem pular PIN. Registrar aparelho e versão. Não publicar automaticamente para executar esse roteiro. Reversão: reverter apenas as duas frases e três expectativas, mantendo a rastreabilidade documental.
 
 Rastreabilidade M01-B: [PR #150](https://github.com/OmniSafe-360/mock-overlay-magic/pull/150), implementação `808394d`. Aberto para revisão, sem merge/publicação; CI remoto pendente na abertura, separado das verificações locais aprovadas.
+
+
+## 14. M02 — ajuda para produto não encontrado, execução autorizada — 15/10/2026 UTC
+
+### Continuidade da M01-B
+
+M01-B integrada ao GitHub pelo PR #150 em 15/10/2026 às 08h37m02s UTC, merge `560b2d7a8c6fb54559857dfaa407b16aab6bbfc6`, confirmado no remoto. Publicação e validação física da M01-B não confirmadas; não declarar aceite geral. Os registros anteriores de PR aberto/sem merge são históricos.
+
+### Autorização, base e arquivos
+
+O dono autorizou exclusivamente a proposta M02, com duas revisões: orientar a **verificar o cadastro** em vez de pedir cadastro novo e conservar “O carrinho atual continua preservado.”. Base `main 560b2d7a8c6fb54559857dfaa407b16aab6bbfc6`, reconferida no remoto antes da edição. Branch própria `codex/ux-m02-produto-nao-encontrado-20261015`; sem merge/publicação/M03.
+
+Somente cinco arquivos: `src/components/CaixaCelular.tsx`, `src/test/caixa.test.tsx`, este plano, `CLAUDE.md` e `docs/CHECKLIST_PONTA_A_PONTA.md`. Fonte da Verdade e demais documentos/regras intactos; históricos anteriores preservados.
+
+### Patch e comportamento preservado
+
+- Botão “Sem cadastro” e título “Produto sem cadastro” → “Produto não encontrado”.
+- Ajuda sem código: “Este produto precisa ser identificado.” → “Não encontrou o produto?”. Com código: “O código [código] não está no Omni.” → “O código [código] não foi encontrado no caixa.”.
+- Orientação aprovada: “Peça ao dono para verificar o cadastro do produto e a área de venda antes de vender.”. Frase do carrinho mantida literalmente.
+- Somente o ícone desse botão ganha `shrink-0`, preservando seus 18 px; nenhuma outra classe, paleta, fonte, componente ou geometria alterada.
+- Teste `caixa.test.tsx`: duas expectativas textuais atualizadas (código desconhecido e orientação revisada). Nenhuma verificação funcional, descrição, timeout ou configuração alterada. `caixa-estoque-contagem.test.tsx` executado sem edição.
+- Mesmo acionador, estados, callbacks, fechamento, pesquisa, leitor, pausa de leitura, autenticação, permissões, preços, estoque, pagamentos, vendas e recuperação offline. Sem cadastro automático, venda avulsa, API, SQL, banco/Supabase ou integração alterados. Aviso separado “Código … não está cadastrado” e ausência de resultado por nome mantidos.
+
+### Verificações e limites
+
+| Verificação | Resultado |
+|---|---|
+| `npx tsc --noEmit` | Duas rodadas aprovadas, saída 0. |
+| `npx vitest run` | Duas rodadas completas aprovadas: 1.129 testes em 112 arquivos por rodada; sem falhas ou erros não tratados no resumo. Inclui caixa, estoque/contagem, pagamentos, recusas e recuperação. |
+| `npm run build` | Aprovado, saída 0, variáveis fictícias somente no processo; sem configuração/dependências alteradas. |
+| Chromium, componente e CSS reais da branch | 320×568, 390×844 e 1280×900: 15 capturas (ajuda vazia, carrinho, ajuda preenchida, código desconhecido, recusa de estoque). Sem corte horizontal ou erro JS na rodada concluída. |
+| Dimensões | Nas três larguras, botão 48 px de altura, rótulo em duas linhas, ícone 18×18 px; X com 48 px e Entendi ≥48 px; janela dentro da tela. |
+| Operações simuladas | Ajuda vazia/preenchida; Entendi/X/Escape/fundo; busca por nome com/sem resultado, busca sem acento; códigos desconhecidos por entrada manual e teclado; leitura ignorada na janela; sem preço avulso. Ajuda/códigos desconhecidos não chamam abrir/conferir/registrar. |
+| Carrinho e estoque | Dois produtos, três unidades e R$ 20,97 preservados, com rascunho literalmente igual antes/depois da ajuda. Excesso acima de cinco unidades de Bala mantém cinco, solicita conferência uma vez e não registra venda. |
+| Auditoria do diff | Aplicação equivalente somente às substituições aprovadas e classe do ícone; testes equivalentes somente às duas expectativas. Demais diferenças restritas aos três documentos autorizados. |
+
+A primeira tentativa do roteiro visual parou ao procurar a busca após fechamento; o log do Vite registra otimização de dependências e recarga da bancada. Com o servidor estabilizado, o mesmo roteiro passou nas três larguras, sem alterar aplicação/testes para contornar a falha; apenas diagnóstico temporário no roteiro externo. Isso não é evidência de defeito do fluxo publicado.
+
+Artefatos locais: `/workspace/entregas/omnisafe-m02-implementacao-2026-10-15/` (capturas, `visual.json`, logs e diff final). API fictícia, rede externa bloqueada nos cenários visuais, sem escrita em banco real. Não foi possível verificar aparelho físico, câmera/leitor físico, publicação, instalação Android/iPhone ou dados reais nesta entrega. CI remoto será acompanhado no PR; não confundir verificações locais com um CI ainda pendente.
+
+### Estado e aceite
+
+**M02: pronta no código da branch e testada; falta revisão/validação do dono. Sem merge/publicação, sem avanço para M03.** M01-B mantém apenas a integração confirmada; demais frentes E/G/RMC preservadas.
+
+Roteiro do dono em versão de teste autorizada: com carrinho vazio e preenchido, abrir Produto não encontrado; conferir instrução, código quando houver e frase do carrinho; fechar por Entendi/X; verificar itens, quantidades e total. Em 320 px, confirmar botão de duas linhas sem corte e ícone preservado. Não publicar automaticamente para obter esse teste. Reversão restrita: reverter textos/classe e as duas expectativas, preservando acompanhamento histórico.
