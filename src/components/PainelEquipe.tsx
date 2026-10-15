@@ -58,7 +58,7 @@ export function PainelEquipe({ comercioId, comercioNome, api = API_PADRAO, titul
           <p className="flex items-center gap-2 text-base font-bold"><Users size={20} className="text-primary" /> Equipe</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Os funcionários usam o app <b className="text-foreground">{NOME_APP_FUNCIONARIO}</b> no próprio celular para receber mercadoria, repor a gôndola e vender no caixa.
-            Eles nunca veem preços nem quanto deveria ter.
+            Nas contagens, a equipe não vê a quantidade esperada. Quem tem acesso ao caixa vê os preços de venda.
           </p>
         </div>
       )}
