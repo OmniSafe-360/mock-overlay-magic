@@ -438,3 +438,5 @@ Rastreabilidade M02: [PR #151](https://github.com/OmniSafe-360/mock-overlay-magi
 Rastreabilidade M03: [PR #152](https://github.com/OmniSafe-360/mock-overlay-magic/pull/152), implementação `b9924e4`. Aberto para revisão; sem merge/publicação, CI remoto pendente na abertura. Não avançar à M04.
 
 - [ ] M04-A — textos dos indicadores globais: pronto no código, aguarda revisão/validação do dono (15/10/2026).
+
+- [ ] **H2 — abertura estável do Início** (15/10/2026): implementada e testada no código (quadro "Conferindo pendências…", contador "conferindo resumo…", sem zero/falha provisórios; H1 preservada). Falta: decisão sobre o caso falha+carregando, revisão do dono, publicação e teste no Android.

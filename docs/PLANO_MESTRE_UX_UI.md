@@ -605,3 +605,7 @@ Rastreabilidade M03: [PR #152](https://github.com/OmniSafe-360/mock-overlay-magi
 ## M04-A — textos dos indicadores globais (15/10/2026)
 
 Só textos em OwnerHome.tsx; ver registro em CLAUDE.md. Aguarda revisão do dono; sem merge/publicação; M04-B não iniciada.
+
+## 16. H2 — estabilidade na abertura do Início, execução autorizada — 15/10/2026 UTC
+
+Autorizada exclusivamente pelo proprietário, base `2045a3831ff0`. Arquivos: `src/components/OwnerHome.tsx` (apresentação), `src/test/rmc-h2-abertura.test.tsx` (novo), `src/test/rmc-02c.test.tsx` (somente o caso "todos indisponíveis", autorizado) e registros. Primeira leitura sem resultado confirmado: quadro neutro "Conferindo pendências…" com altura do quadro verde, contador "conferindo resumo…", valores "…"/"Consultando…", sem "—", "Consulta incompleta" ou R$ 0,00 provisórios. H1 preservada (quadro da última consulta tem prioridade). Cálculos, consultas, banco, sino (H3) e M04-B intactos. Verificações: tipos 2×, 1.151 testes 2×, build, segredos/dependências, capturas 320/390/1280 a 100% e 200% com dados fictícios. Pendências: ajuste do caso falha+carregando (proposto, não aplicado), diferença de altura em 320 px a 200%, contador na atualização interna, saudação truncada; revisão do dono, merge, publicação e teste no Android. **Executada/testada; não validada.**
