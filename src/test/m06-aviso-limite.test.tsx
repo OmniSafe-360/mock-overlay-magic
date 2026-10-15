@@ -86,8 +86,8 @@ describe("M06 — cartão do caixa", () => {
   it("erro na conferência e falta de internet usam o título neutro", async () => {
     const a = api({ conferir: vi.fn(async () => { throw new Error("falha_fictícia"); }) }); await abrir(a); bip(3);
     const card = await screen.findByRole("alert", { name: "Aviso de estoque" });
-    await screen.findByText(/A conferência não foi confirmada/);
-    expect(card).toHaveTextContent("Confira antes de continuar"); expect(qtd()).toHaveTextContent("2");
+    await waitFor(() => expect(card).toHaveTextContent("Confira antes de continuar"));
+    expect(card).not.toHaveTextContent("Não foi possível adicionar esta quantidade."); expect(qtd()).toHaveTextContent("2");
   });
 
   it("sem internet ao receber mantém o carrinho e o título neutro", async () => {
