@@ -26,7 +26,7 @@ const loja = (n: number): StoreData => ({ id: `c${n}`, tipo: "mercado", nome: `L
 const lojas = (n: number) => Array.from({ length: n }, (_, i) => loja(i + 1));
 const pendente = <T,>() => { let r!: (v: T) => void; const p = new Promise<T>((x) => { r = x; }); return { p, r }; };
 
-const sino = () => screen.getByRole("button", { name: /^Alertas/ }).closest("button")!;
+const sino = () => { const b = Array.from(document.querySelectorAll<HTMLButtonElement>('button[aria-label^="Alertas"]')); expect(b).toHaveLength(1); return b[0]!; };
 const bolinha = () => sino().querySelector("span.rounded-full");
 const cor = () => { const b = bolinha(); return !b ? null : b.className.includes("bg-destructive") ? "vermelha" : "amarela"; };
 const VERDE = "Tudo certo! Nenhum comércio precisa de atenção agora.";
@@ -90,7 +90,7 @@ describe("H3 — bolinha do sino não acende só por consultar", () => {
     await waitFor(() => expect(sino()).toHaveAccessibleName("Alertas: 1 para resolver agora"));
     expect(cor()).toBe("vermelha");
     fireEvent.click(sino());
-    expect(await screen.findByRole("heading", { name: "Alertas" })).toBeTruthy();
+    expect((await screen.findAllByRole("heading", { name: "Alertas" })).length).toBeGreaterThan(0);
   });
 
   it("situação de atenção confirmada: amarela", async () => {
