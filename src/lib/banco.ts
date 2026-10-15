@@ -838,3 +838,18 @@ export async function salvarClienteFiado(id: string, comercioId: string, nome: s
   const { error } = await rpc("salvar_cliente_fiado", { _id: id, _comercio: comercioId, _nome: nome, _telefone: telefone, _ativo: ativo });
   if (error) throw error;
 }
+
+/** Embalagens (ids do banco) que já aparecem em algum pedido de compra ou num código ligado do caixa.
+ *  Só leitura; usado para travar, na tela, a troca de "quanto vem dentro" (o pedido guarda o total da época). */
+export async function embalagensEmUso(ids: string[]): Promise<Set<string>> {
+  const usadas = new Set<string>();
+  if (!ids.length) return usadas;
+  const [pedidos, pdv] = await Promise.all([
+    db.from("pedido_itens").select("embalagem_id").in("embalagem_id", ids),
+    db.from("codigos_pdv").select("embalagem_id").in("embalagem_id", ids),
+  ]);
+  if (pedidos.error) throw pedidos.error;
+  if (pdv.error) throw pdv.error;
+  for (const r of [...(pedidos.data ?? []), ...(pdv.data ?? [])]) if (r.embalagem_id) usadas.add(r.embalagem_id);
+  return usadas;
+}

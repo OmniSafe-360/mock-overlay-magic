@@ -131,3 +131,16 @@ export function avisoApresentacao(peso: string | undefined, embs: Pick<Embalagem
   const t = e.tipo.toLowerCase();
   return `Confira: o produto diz "${peso.trim()}" e ${e.tipo === "Caixa" ? "a" : "o"} ${t} tem ${n}. ${e.tipo === "Caixa" ? "A" : "O"} ${t} traz ${n} produtos iguais a este (cada um com ${peso.trim()} dentro)? Se ${e.tipo === "Caixa" ? "a" : "o"} ${t} for o próprio produto, escolha "Por unidade".`;
 }
+
+/* ---------- Etapa 2: embalagem já usada (só tela; o banco ainda não trava) ---------- */
+export type UsoEmbalagens = { estado: "livre" | "carregando" | "erro" | "ok"; usadas: Set<string> };
+export const QTD_TRAVADA_MSG = "Esta embalagem já foi usada em pedido ou no caixa. A quantidade que vem dentro não pode mudar, para não dar diferença no recebimento. Se o fornecedor mudou a embalagem, cadastre uma embalagem nova.";
+export const QTD_CONFERINDO_MSG = "Conferindo se esta embalagem já foi usada…";
+export const QTD_SEM_CONFERIR_MSG = "Não foi possível conferir se esta embalagem já foi usada. Por segurança, a quantidade que vem dentro não pode mudar agora. Confira a internet e abra o cadastro de novo.";
+/** Mensagem de trava da quantidade, ou "" se pode editar. Embalagem nova (ainda não salva) nunca trava. */
+export function travaQtdEmbalagem(uid: string | undefined, salvas: Set<string>, uso: UsoEmbalagens): string {
+  if (!uid || !salvas.has(uid) || uso.estado === "livre") return "";
+  if (uso.estado === "carregando") return QTD_CONFERINDO_MSG;
+  if (uso.estado === "erro") return QTD_SEM_CONFERIR_MSG;
+  return uso.usadas.has(uid) ? QTD_TRAVADA_MSG : "";
+}
