@@ -659,3 +659,5 @@ Artefatos locais: `/workspace/entregas/omnisafe-m04-a-implementacao-2026-10-15/`
 **M04-A pronta na branch e testada no escopo autorizado, falta revisão/validação do dono. Sem merge/publicação. M04-B/M05 não iniciadas.** M04 inteira não é declarada concluída. Demais frentes E/G/RMC preservadas.
 
 Roteiro do dono em versão de teste autorizada: Início → conferir “com resumo completo”, Vendas de hoje e Faltas no estoque neste mês; verificar valores, tocar cartões e retornar. No computador, ler as duas explicações; no celular, preservar a compactação atual. Não publicar automaticamente para obter esse teste. Reversão restrita às frases/expectativas, conservando rastreabilidade documental.
+
+Rastreabilidade M04-A: [PR #153](https://github.com/OmniSafe-360/mock-overlay-magic/pull/153), implementação `cbf512d`. Aberto para revisão; sem merge/publicação, CI remoto pendente na abertura. M04-B/M05 não iniciadas; limitação preexistente do menu a 200% preservada e documentada.
