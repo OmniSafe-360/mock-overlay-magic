@@ -310,7 +310,7 @@ export function StoreSetup({ mode = "first", userId, onFinish, onCancel, onExit 
             <form noValidate onSubmit={(ev) => { ev.preventDefault(); next(); }} className="flex min-h-0 flex-1 flex-col">
               <div className={`shrink-0 overflow-hidden text-center transition-all duration-300 ${kb ? "max-h-0 opacity-0" : "mt-5 max-h-24 opacity-100 short:mt-3 tiny:mt-2"}`}>
                   <h1 className="text-xl font-bold text-foreground short:text-lg tiny:text-base">{mode === "add" ? "Adicionar comércio" : "Vamos cadastrar o seu comércio"}</h1>
-                  <p className="mt-1 text-sm text-muted-foreground tiny:hidden">Leva menos de 2 minutos. Você pode mudar tudo depois.</p>
+                  <p className="mt-1 text-sm text-muted-foreground tiny:hidden">Informe os dados do seu comércio para começar.</p>
               </div>
               <div className={`shrink-0 transition-all duration-300 ${kb ? "mt-0" : "mt-5 short:mt-3 tiny:mt-2"}`}>
                 <div className={`flex items-center justify-between gap-2 ${kb ? "mb-1.5" : "mb-2"}`}>
