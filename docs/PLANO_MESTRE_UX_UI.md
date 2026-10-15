@@ -10,6 +10,8 @@
 
 > **Atualização posterior — M03 (15/10/2026):** autorizada exclusivamente a troca de uma frase de `StoreSetup.tsx`, com acompanhamento nos três documentos da seção 15. M02 integrada pelo PR #151 e roteiro aceito por relato do dono, com os limites ali registrados. M03 aguarda revisão/validação do dono; sem merge/publicação/M04.
 
+> **Atualização posterior — M04-A (15/10/2026):** autorizados somente os textos dos indicadores globais e expectativas textuais relacionadas, com “com resumo completo”, conforme seção 16. M03 integrada, publicada e frase validada no Android conforme relato do dono. M04-A aguarda revisão, sem merge/publicação; M04-B e M05 não iniciadas.
+
 **Autorização desta entrega:** criar somente este documento. Nenhuma etapa de implementação está autorizada. Não alterar aplicação, testes, dependências, configurações, banco, migrações, Supabase, integrações ou a Fonte da Verdade. Não fazer merge nem publicar.
 
 ## 1. Autoridade, referências e controle da versão
@@ -391,8 +393,8 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | DOC-01 — este plano | Somente documentação autorizada | Documento criado; nenhuma implementação | Não realizados | Pendente |
 | M01 — textos equipe/erro | M01-A e M01-B autorizadas em escopos próprios | Ambas integradas; M01-B pelo PR #150 (§14) | M01-A: merge confirmado/publicação relatada. M01-B: merge confirmado/publicação não confirmada | M01-A: aceite Android restrito (§13). M01-B: validação física não confirmada |
 | M02 — produto não encontrado | Autorizada exclusivamente em 15/10/2026, com ajustes do dono (§14) | Integrada pelo PR #151 (§15) | Merge confirmado; publicação não verificada independentemente | Roteiro aceito por relato do dono; aparelho/versão não informados (§15) |
-| M03 — promessa primeiro cadastro | Autorizada exclusivamente em 15/10/2026 (§15) | Implementada/testada na branch exclusiva (§15) | Não realizados | Aguarda revisão/validação do dono |
-| M04 — indicadores globais | Pendente | Não iniciados | Não realizados | Pendente |
+| M03 — promessa primeiro cadastro | Autorizada exclusivamente em 15/10/2026 (§15) | Integrada pelo PR #152 (§16) | Merge confirmado; publicação relatada pelo dono | Frase validada visualmente no Android por relato do dono (§16) |
+| M04 — indicadores globais | Somente M04-A autorizada, com ajuste “com resumo completo” (§16) | M04-A implementada/testada na branch; M04-B não iniciada | Não realizados para M04-A | Aguarda revisão/validação do dono; limitação preexistente a 200% registrada (§16) |
 | M05 — ganho bruto | Pendente | Não iniciados | Não realizados | Pendente |
 | M06 — mensagem limite caixa | Pendente | Não iniciados | Não realizados | Pendente |
 | M07 — saldo por área | Pendente | Não iniciados | Não realizados | Pendente |
@@ -601,3 +603,59 @@ Artefatos locais: `/workspace/entregas/omnisafe-m03-implementacao-2026-10-15/` (
 Roteiro para versão de teste autorizada: abrir primeiro cadastro ou Adicionar comércio; quando houver altura disponível, conferir “Informe os dados do seu comércio para começar.”; passar e voltar pelas quatro etapas, sem envio real desnecessário, e confirmar aparência/controles. Registrar resultado/aparelho/versão; não presumir publicação. Reversão restrita à frase, conservando o acompanhamento documental.
 
 Rastreabilidade M03: [PR #152](https://github.com/OmniSafe-360/mock-overlay-magic/pull/152), implementação `b9924e4`. Aberto para revisão; sem merge/publicação, CI remoto pendente na abertura. Não avançar à M04.
+
+
+## 16. M04-A — clareza dos textos dos indicadores globais, execução autorizada — 15/10/2026 UTC
+
+### Continuidade da M03
+
+M03 integrada pelo PR #152, merge `7ec33fa2bdf3f1f80b5971fb6b7386d3f079e914`, confirmado no GitHub. O proprietário informou que publicou a atualização e validou visualmente a nova frase no seu celular Android. Aceite limitado à frase/apresentação da M03; não estender a outras funcionalidades. Modelo, versão instalada e horário do teste não informados; publicação/aparelho não verificados independentemente nesta execução. Registros anteriores de PR aberto/sem merge são históricos.
+
+### Autorização, base e patch delimitado
+
+O proprietário autorizou exclusivamente M04-A, substituindo a proposta de “consulta completa” por **“resumo completo”**, sem alterar classes/compactação e sem tornar descrições visíveis no celular. `main` reconferido antes da edição: `7ec33fa2bdf3f1f80b5971fb6b7386d3f079e914`; branch exclusiva `codex/ux-m04-a-textos-indicadores-20261015`.
+
+Em `src/components/OwnerHome.tsx`, somente:
+
+| Antes | Depois |
+|---|---|
+| Resultado de hoje | Vendas de hoje |
+| Resultado deste mês | Faltas no estoque neste mês |
+| N com dados completos | N com resumo completo (mesmas expressões e condições, singular/plural) |
+| Valor das vendas finalizadas hoje | Vendas finalizadas hoje. Não é lucro nem saldo do caixa. |
+| Valor das faltas identificadas nas diferenças do estoque neste mês | Faltas nas diferenças do estoque, ao preço de compra. O valor não identifica a causa. |
+
+Somente expectativas/seletores textuais correspondentes atualizados nos cinco arquivos autorizados: `rmc-inicio-compacto.test.tsx`, `rmc-c4a.test.tsx`, `rmc-02c.test.tsx`, `rmc-c4c.test.tsx`, `rmc-c4c2.test.tsx`. Nenhuma verificação funcional, asserção numérica, regex de data, timeout, descrição de teste ou configuração alterada. Documentos: este plano, `CLAUDE.md` e `docs/CHECKLIST_PONTA_A_PONTA.md`. Total de nove arquivos; históricos preservados.
+
+Nomes oficiais, valores, somas, períodos, consultas, filtros, estados, eventos, navegação, botões, permissões, autenticação, cores, tipografia, classes, ordem e compactação intactos. `max-md:sr-only` continua ocultando visualmente as descrições no celular e mantendo-as no conteúdo acessível. Fonte da Verdade, `AntifurtoGeral.tsx`, arquivos de cálculo, banco/Supabase, SQL, integrações e dependências intactos. Não cria contador de lojas afetadas nem altera a causa/classificação das diferenças.
+
+### Verificações executadas
+
+| Verificação | Resultado |
+|---|---|
+| `npx tsc --noEmit` | Duas rodadas aprovadas, saída 0. |
+| `npx vitest run` | Duas rodadas completas aprovadas: 1.129 testes em 112 arquivos por rodada. Expectativas funcionais preservadas. |
+| `npm run build` | Aprovado, saída 0; variáveis fictícias só no processo, sem configuração alterada. |
+| Comparação real antes/depois | Componente da base e componente implementado, mesmo CSS/dados/API fictícia, data fixa 15/10/2026 e rede externa bloqueada. 66 pares/132 capturas: 320×568, 390×844, 1280×900, texto 100%/200%, 11 cenários. |
+| Cenários | Zero comércios; um completo/zero financeiro verdadeiro/indisponível/erro financeiro/carregando; seis completos/parciais/indisponíveis/erro financeiro/carregando. Em um comércio, indisponibilidade não é apresentada como subtotal entre várias lojas. |
+| Invariantes comparados | Texto completo do DOM igual após reverter somente as substituições autorizadas (também sua apresentação em maiúsculas); árvore de elementos/classes, valores de cada cartão, contagens, avisos de subtotal/erro, períodos e chamadas à API fictícia iguais em cada par. Nenhum extravasamento horizontal do documento antes/depois. |
+| Valores/períodos de referência | Seis comércios completos: R$ 615,00/6 vendas hoje e R$ 210,00 de faltas no mês, iguais antes/depois. Vendas canceladas/do dia anterior e diferença do mês anterior não entram. Consulta parcial de três de seis mantém os subtotais e indisponibilidade financeira previstos. Zero financeiro verdadeiro permanece R$ 0,00, distinto de “—”/“…”/consulta incompleta. |
+| Acessibilidade e visibilidade | Conteúdo novo presente na árvore de acessibilidade do Chromium nas três larguras; `sr-only` permanece com recorte de 1 px em larguras móveis, sem expor descrições. Isto não certifica leitor de tela ou sistema operacional físico. |
+| Destinos e retornos | 12 cenários adicionais: antes/depois × 320/390/1280 × um/seis comércios. Quatro cartões abrem os mesmos assuntos em Alertas; Vendas abre a unidade única ou exige escolha quando há várias; Voltar retorna ao Início; Faltou abre Antifurto e Início fecha/retorna. Mesma sequência de destinos antes/depois. |
+| Escopo | Aplicação literalmente equivalente à base após somente as cinco substituições textuais (contagem dinâmica preservada). Testes equivalentes somente às substituições autorizadas. Nenhum ajuste funcional/visual adicional. |
+
+A ampliação a 200% foi simulada na bancada duplicando fontes e alturas de linha calculadas, em memória, sem alterar classes ou arquivos. Permanece rolagem vertical quando necessária; isso não equivale ao teste de tamanho de fonte do Android/iPhone físico.
+
+### Limitação preexistente observada a 200%
+
+Na comparação visual em 320 px, os rótulos do menu inferior se sobrepõem com a ampliação tipográfica de 200%, **tanto na base quanto na implementação**. Evidências: `320-200-6-completo-antes.png` e `320-200-6-completo-depois.png`. Não foi corrigido: menu/classes/compactação estão fora da autorização M04-A. Não declarar acessibilidade integral aprovada nem ausência geral de sobreposição. Não iniciar correção paralela/M04-B/M05; eventual tratamento exige escopo e aprovação próprios.
+
+Dois ajustes ocorreram somente nos roteiros externos: comparação de `innerText` passou a reconhecer os títulos em maiúsculas produzidos pela classe existente; navegação corrigiu a expectativa de retorno de Vendas para o Início, que já era o comportamento da base, em vez da seleção de lojas. Nenhum arquivo de aplicação ou teste oficial foi alterado para contornar essas verificações.
+
+Artefatos locais: `/workspace/entregas/omnisafe-m04-a-implementacao-2026-10-15/` (`visual.json`, `comparacoes.json`, `navegacao.json`, capturas, logs e diff). Sem banco/sessão reais, aparelho físico, publicação ou teste de permissões implantadas nesta execução. CI remoto deve ser acompanhado no PR; o estado de abertura não antecipa sua conclusão.
+
+### Estado e aceite
+
+**M04-A pronta na branch e testada no escopo autorizado, falta revisão/validação do dono. Sem merge/publicação. M04-B/M05 não iniciadas.** M04 inteira não é declarada concluída. Demais frentes E/G/RMC preservadas.
+
+Roteiro do dono em versão de teste autorizada: Início → conferir “com resumo completo”, Vendas de hoje e Faltas no estoque neste mês; verificar valores, tocar cartões e retornar. No computador, ler as duas explicações; no celular, preservar a compactação atual. Não publicar automaticamente para obter esse teste. Reversão restrita às frases/expectativas, conservando rastreabilidade documental.

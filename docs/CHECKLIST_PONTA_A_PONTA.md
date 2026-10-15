@@ -436,3 +436,11 @@ Rastreabilidade M02: [PR #151](https://github.com/OmniSafe-360/mock-overlay-magi
 - **Limites:** sem merge/publicação/M04; sem teste de aparelho/sessão/banco reais. Aguardar revisão do dono. Não encerra outras funcionalidades nem as frentes E/G/RMC.
 
 Rastreabilidade M03: [PR #152](https://github.com/OmniSafe-360/mock-overlay-magic/pull/152), implementação `b9924e4`. Aberto para revisão; sem merge/publicação, CI remoto pendente na abertura. Não avançar à M04.
+
+
+## Modernização UX/UI — M04-A e continuidade M03, 15/10/2026 UTC
+
+- **M03 integrada e frase aceita no Android por relato do dono:** M03 integrada pelo PR #152, merge `7ec33fa2bdf3f1f80b5971fb6b7386d3f079e914`, confirmado no GitHub. O proprietário informou que publicou a atualização e validou visualmente a nova frase no seu celular Android. Aceite limitado à frase/apresentação da M03; não estender a outras funcionalidades. Modelo, versão instalada e horário do teste não informados; publicação/aparelho não verificados independentemente nesta execução. Registros anteriores de PR aberto/sem merge são históricos.
+- [ ] **M04-A pronta na branch; falta revisão/validação do dono.** Base `main 7ec33fa2`, branch `codex/ux-m04-a-textos-indicadores-20261015`. Somente textos aprovados, “com resumo completo”, cinco testes com expectativas textuais e três documentos. Tipos2×, 1.129 testes/112 arquivos2×, build aprovados; comparação66pares/132capturas em320/390/1280 e fonte100/200%, 0/1/6lojas e estados de leitura, números/períodos/classes/chamadas iguais, destinos/retornos iguais em12cenários. Descrições continuam ocultas no móvel e acessíveis. [Plano Mestre: escopo e limites](PLANO_MESTRE_UX_UI.md#16-m04-a--clareza-dos-textos-dos-indicadores-globais-execução-autorizada--15102026-utc).
+- **Ressalva de acessibilidade preexistente:** menu inferior com rótulos sobrepostos em320px/200%, reproduzido na base e na branch; não corrigido fora do escopo, sem atestar acessibilidade geral. Fonte, AntifurtoGeral, cálculos, banco e regras intactos.
+- **Continuidade:** sem merge/publicação/M04-B/M05; aguardar revisão. Sem aparelho/sessão/banco reais. Não encerrar M04 inteira nem outras frentes E/G/RMC.

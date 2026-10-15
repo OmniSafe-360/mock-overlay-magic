@@ -63,7 +63,7 @@ describe("C4-C2 — proposta, valores com leitura atual",()=>{
  const venda=()=>({id:'v',caixaId:'cx',total:1000,situacao:'finalizada',emitidaEm:new Date().toISOString(),recebidaEm:new Date().toISOString(),itens:[],pagamentos:[]});
  const falta=(valor=-1000)=>({id:'d',produtoId:'p4',variacaoId:null,area:'deposito',origem:'contagem',esperado:10,contado:9,diferenca:-1,valor,funcionario:null,situacao:'explicada',motivo:'sumiu',observacao:null,tentativas:[],resolvida:false,motivoInformado:null,criadaEm:new Date().toISOString()});
  const setup=()=>{banco.carregarProdutos.mockResolvedValue(carga);banco.carregarVendas.mockImplementation(async()=>[venda()]);banco.carregarDiferencas.mockResolvedValue({diferencas:[falta()],perdas:[]});render(<OwnerApp userId='u1' owner='M' initial={[a,b]}/>);};
- const ready=async()=>await screen.findByText('2 comércios cadastrados · 2 com dados completos');
+ const ready=async()=>await screen.findByText('2 comércios cadastrados · 2 com resumo completo');
  const card=(label:string)=>screen.getByRole('button',{name:new RegExp('^'+label+':')});
  it('não apresenta valores anteriores enquanto aguarda a atualização',async()=>{
   setup();await ready();expect(card('Vendas hoje')).toHaveTextContent(/R\$\s*20,00/);expect(card('Faltou este mês')).toHaveTextContent(/R\$\s*20,00/);

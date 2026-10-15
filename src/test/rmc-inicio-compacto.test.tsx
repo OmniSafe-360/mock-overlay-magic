@@ -47,9 +47,9 @@ describe("RMC — Início compacto, somente apresentação móvel", () => {
     expect(screen.getByText(/1 comércio cadastrado/)).toBeInTheDocument();
     expect(resumo().getByRole("heading", { level: 2 })).toHaveTextContent("Situação dos comércios");
     const grupos = resumo().getAllByRole("heading", { level: 3 }).map((h) => h.textContent ?? "");
-    expect(grupos[0]).toMatch(/^Resultado de hoje/);
+    expect(grupos[0]).toMatch(/^Vendas de hoje/);
     expect(grupos[1]).toBe("Pendências que precisam de atenção");
-    expect(grupos[2]).toMatch(/^Resultado deste mês/);
+    expect(grupos[2]).toMatch(/^Faltas no estoque neste mês/);
     expect(resumo().getByRole("button", { name: /^Vendas hoje:/ })).toHaveTextContent(/R\$/);
     expect(resumo().getByRole("button", { name: /^Vendas hoje:/ })).toHaveTextContent("Ver vendas");
     expect(resumo().getByRole("button", { name: /^Faltou este mês:/ })).toHaveTextContent(/R\$/);
@@ -103,8 +103,8 @@ describe("RMC — Início compacto, somente apresentação móvel", () => {
     await waitFor(() => expect(resumo().getByRole("button", { name: /Para repor/ }).textContent).toMatch(/^1/));
     const financeiro = resumo().getByTestId("cartao-vendas");
     const mensal = resumo().getByTestId("cartao-faltou");
-    const vendaDescricao = within(financeiro).getByText("Valor das vendas finalizadas hoje");
-    const mesDescricao = within(mensal).getByText("Valor das faltas identificadas nas diferenças do estoque neste mês");
+    const vendaDescricao = within(financeiro).getByText("Vendas finalizadas hoje. Não é lucro nem saldo do caixa.");
+    const mesDescricao = within(mensal).getByText("Faltas nas diferenças do estoque, ao preço de compra. O valor não identifica a causa.");
     expect(vendaDescricao.className).toContain("max-md:sr-only");
     expect(mesDescricao.className).toContain("max-md:sr-only");
     const descricoes = [
