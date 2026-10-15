@@ -86,3 +86,33 @@ test('cache Lovable so muda na copia se nome, versao, SHA512 e origem baterem', 
   ]) await assert.rejects(lockParaCI(original, responder(errado)));
   await assert.rejects(lockParaCI(original, async () => ({ ok: false })));
 });
+
+test('espelho europe-west1 aceito so com endereco exato; antigo continua; outros recusados', async () => {
+  const meta = { name: 'exemplo', version: '1.2.3', dist: { integrity: integridade, tarball: 'https://registry.npmjs.org/exemplo/-/exemplo-1.2.3.tgz' } };
+  const responder = (valor) => async () => ({ ok: true, json: async () => valor });
+  const com = (url, res = 'exemplo@1.2.3', sha = integridade) => ({ lockfileVersion: 1, packages: { exemplo: [res, url, {}, sha] } });
+  for (const regiao of ['europe-west1', 'europe-west4']) {
+    const original = com(`https://${regiao}-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/exemplo/-/exemplo-1.2.3.tgz`);
+    const antes = JSON.stringify(original);
+    assert.deepEqual(pacotesDoLock(original), { exemplo: ['1.2.3'] });
+    assert.equal((await lockParaCI(original, responder(meta))).packages.exemplo[1], meta.dist.tarball);
+    assert.equal(JSON.stringify(original), antes);
+  }
+  for (const url of [
+    'https://europe-west2-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/exemplo/-/exemplo-1.2.3.tgz',
+    'https://evil.invalid/lovable-core-prod/sandbox-npm-cache/exemplo/-/exemplo-1.2.3.tgz',
+    'https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/outro/-/outro-1.2.3.tgz',
+    'https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/exemplo/-/exemplo-1.2.4.tgz',
+    'https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/exemplo/-/exemplo-1.2.3.tgz?x=1',
+    'https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/../exemplo/-/exemplo-1.2.3.tgz',
+  ]) {
+    assert.throws(() => pacotesDoLock(com(url)));
+    await assert.rejects(lockParaCI(com(url), responder(meta)));
+  }
+  const bom = com('https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/exemplo/-/exemplo-1.2.3.tgz');
+  for (const errado of [
+    { ...meta, name: 'outro' }, { ...meta, version: '1.2.4' },
+    { ...meta, dist: { ...meta.dist, integrity: 'sha512-' + Buffer.alloc(64, 2).toString('base64') } },
+    { ...meta, dist: { ...meta.dist, tarball: 'https://registry.npmjs.org.evil.invalid/exemplo-1.2.3.tgz' } },
+  ]) await assert.rejects(lockParaCI(bom, responder(errado)));
+});
