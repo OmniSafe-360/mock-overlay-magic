@@ -730,7 +730,7 @@ export function textoBloqueioCaixa(r: Extract<ResultadoCaixa, { situacao: "bloqu
     const p = produtos.find((p) => p.id === b.produtoId);
     const quantidade = b.disponivel != null ? `${b.disponivel.toLocaleString("pt-BR", { maximumFractionDigits: 3 })}${p ? ` ${b.disponivel === 1 ? unSingular(p.unidade) : unPlural(p.unidade)}` : ""}` : null;
     const saldo = quantidade != null ? `o sistema registra ${quantidade} na área de venda.` : b.motivo === "gondola_nao_contada" ? "a quantidade na área de venda ainda precisa ser conferida." : "a quantidade solicitada ultrapassa o disponível no sistema.";
-    return `${b.nome}: ${saldo} ${b.contagemSolicitada ? "A equipe já foi avisada para conferir o produto. Para vender mais, aguarde a conferência ou a reposição." : "Confira a quantidade do carrinho. Para vender mais, registre a reposição primeiro."}`;
+    return `${b.nome}: ${saldo} ${b.contagemSolicitada ? "Contagem solicitada. Para vender mais, aguarde a conferência ou a reposição." : "Confira a quantidade da venda. Se necessário, aguarde a conferência ou a reposição na área de venda."}`;
   }).join(" ");
 }
 export async function caixaConferirVenda(chave: string, venda: ReturnType<typeof import("@/lib/caixa").montarVenda>): Promise<{ situacao: "aprovada" } | Extract<ResultadoCaixa, { situacao: "bloqueada" }>> {

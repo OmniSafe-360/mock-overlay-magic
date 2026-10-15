@@ -42,7 +42,7 @@ it("bip e Mais não passam de 5; excesso solicita contagem com ID estável", asy
  const a=api({conferir:vi.fn(async()=>bloqueada)});await abrir(a);
  for(let n=0;n<5;n++)fireEvent.click(screen.getByRole("button",{name:"ler bala"}));
  expect(screen.getByLabelText("Quantidade de Bala de banana")).toHaveTextContent("5");
- fireEvent.click(screen.getByRole("button",{name:"ler bala"})); await screen.findByText(/A equipe já foi avisada/);
+ fireEvent.click(screen.getByRole("button",{name:"ler bala"})); await screen.findByText(/Contagem solicitada\./);
  expect(screen.getByLabelText("Quantidade de Bala de banana")).toHaveTextContent("5");
  expect(screen.getAllByRole("alert",{name:"Aviso de estoque"})).toHaveLength(1);
  expect(screen.getByRole("alert",{name:"Aviso de estoque"})).toHaveTextContent("5 unidades");
@@ -52,7 +52,7 @@ it("bip e Mais não passam de 5; excesso solicita contagem com ID estável", asy
 });
 it("recusa na conferência antes do pagamento mantém carrinho", async () => {
  const a=api({conferir:vi.fn(async()=>bloqueada)});await abrir(a);fireEvent.click(screen.getByRole("button",{name:"ler bala"}));
- fireEvent.click(screen.getByRole("button",{name:/Receber R\$/}));await screen.findByText(/A equipe já foi avisada/);
+ fireEvent.click(screen.getByRole("button",{name:/Receber R\$/}));await screen.findByText(/Contagem solicitada\./);
  expect(screen.queryByRole("button",{name:/Finalizar venda/})).toBeNull();expect(screen.getByLabelText("Quantidade de Bala de banana")).toHaveTextContent("1");expect(a.registrar).not.toHaveBeenCalled();
 });
 it("conferência pendente impede scanner e alteração de quantidade", async () => {
@@ -77,7 +77,7 @@ it("só anuncia conclusão após confirmação; carrinho fica guardado durante e
 });
 it("saldo mudou entre conferir e finalizar: recusa sem apagar carrinho/pagamento", async () => {
  const a=api({registrar:vi.fn(async()=>bloqueada)});await abrir(a);fireEvent.click(screen.getByRole("button",{name:"ler bala"}));await pagar();
- await screen.findByText(/A equipe já foi avisada/);expect(screen.queryByText("Venda finalizada")).toBeNull();expect(screen.getByRole("button",{name:/Finalizar venda/})).toBeEnabled();
+ await screen.findByText(/Contagem solicitada\./);expect(screen.queryByText("Venda finalizada")).toBeNull();expect(screen.getByRole("button",{name:/Finalizar venda/})).toBeEnabled();
  expect(Object.entries(localStorage).filter(([k])=>k.startsWith("omni.caixa.fila"))).toHaveLength(0);
  fireEvent.click(screen.getByRole("button",{name:"Voltar para a venda"}));expect(screen.getByLabelText("Quantidade de Bala de banana")).toHaveTextContent("1");
 });
@@ -106,7 +106,7 @@ it("resposta sem confirmação válida mantém envio incerto na fila", async () 
 it("fila antiga recusada por estoque é preservada para conciliação", async () => {
  const f=filaCaixa(await escopoAcesso(chave));const antiga={venda:montarVenda("v-antiga",estado.turno!.id,[item(7)],[{forma:"pix",valor:2793}],null),total:2793,troco:0,formas:"Pix"};f.por(antiga);
  const a=api({registrar:vi.fn(async()=>bloqueada)});await abrir(a);fireEvent.click(screen.getByRole("button",{name:"Enviar agora"}));
- await waitFor(()=>expect(f.ler()[0]?.problema).toMatch(/A equipe já foi avisada/));expect(f.ler()).toHaveLength(1);expect(f.ler()[0]?.venda).toEqual(antiga.venda);expect(f.ler()[0]?.conciliacaoDono).toBe(true);
+ await waitFor(()=>expect(f.ler()[0]?.problema).toMatch(/Contagem solicitada\./));expect(f.ler()).toHaveLength(1);expect(f.ler()[0]?.venda).toEqual(antiga.venda);expect(f.ler()[0]?.conciliacaoDono).toBe(true);
  f.tentarDeNovo(antiga.venda.id);expect(f.ler()[0]?.problema).toBeTruthy();expect(screen.queryByText("Venda finalizada")).toBeNull();
 });
 it("o início não retira envio novo antes da tela do caixa confirmar", async () => {
@@ -125,7 +125,7 @@ it("envio automático do início conserva fila antiga bloqueada para o dono", as
  f.por({venda:montarVenda("v-legada-inicio",estado.turno!.id,[item(7)],[{forma:"pix",valor:2793}],null),total:2793,troco:0,formas:"Pix"});
  const a=api({registrar:vi.fn(async()=>bloqueada)});const app={inicio:vi.fn(async()=>({nome:"Monica",funcao:"ambos",caixa:true,comercio:{nome:"Mercado",tipo:"mercado"},avisos:{entregas:0,entregasHoje:0,repor:0}})),desbloquear:vi.fn(async()=>{}),caixa:a};
  render(<AppFuncionario api={app as never} />);await screen.findByText("Digite seu PIN");for(const n of "7391")fireEvent.click(screen.getByRole("button",{name:n}));
- await waitFor(()=>expect(f.ler()[0]?.conciliacaoDono).toBe(true));expect(f.ler()).toHaveLength(1);expect(f.ler()[0]?.problema).toMatch(/A equipe já foi avisada/);
+ await waitFor(()=>expect(f.ler()[0]?.conciliacaoDono).toBe(true));expect(f.ler()).toHaveLength(1);expect(f.ler()[0]?.problema).toMatch(/Contagem solicitada\./);
 });
 it("diferenças dos dois locais não viram perda total durante revisão ou com total preservado", () => {
  const d={diferenca:-2,valor:-800,motivo:null,origem:"conferencia_inconsistente",resolvida:true,criadaEm:"2026-10-12T12:00:00Z",situacao:"aberta"} as Diferenca;
