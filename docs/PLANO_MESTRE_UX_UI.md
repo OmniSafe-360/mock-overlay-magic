@@ -8,6 +8,8 @@
 
 > **Atualização posterior — M02 (15/10/2026):** implementação expressamente autorizada, restrita à ajuda de produto não encontrado e aos cinco arquivos da seção 14. M01-B integrada pelo PR #150; publicação/validação física não confirmadas. M02 aguarda revisão do dono, sem merge/publicação; M03 não autorizada.
 
+> **Atualização posterior — M03 (15/10/2026):** autorizada exclusivamente a troca de uma frase de `StoreSetup.tsx`, com acompanhamento nos três documentos da seção 15. M02 integrada pelo PR #151 e roteiro aceito por relato do dono, com os limites ali registrados. M03 aguarda revisão/validação do dono; sem merge/publicação/M04.
+
 **Autorização desta entrega:** criar somente este documento. Nenhuma etapa de implementação está autorizada. Não alterar aplicação, testes, dependências, configurações, banco, migrações, Supabase, integrações ou a Fonte da Verdade. Não fazer merge nem publicar.
 
 ## 1. Autoridade, referências e controle da versão
@@ -388,8 +390,8 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 |---|---|---|---|---|
 | DOC-01 — este plano | Somente documentação autorizada | Documento criado; nenhuma implementação | Não realizados | Pendente |
 | M01 — textos equipe/erro | M01-A e M01-B autorizadas em escopos próprios | Ambas integradas; M01-B pelo PR #150 (§14) | M01-A: merge confirmado/publicação relatada. M01-B: merge confirmado/publicação não confirmada | M01-A: aceite Android restrito (§13). M01-B: validação física não confirmada |
-| M02 — produto não encontrado | Autorizada exclusivamente em 15/10/2026, com ajustes do dono (§14) | Implementada/testada na branch exclusiva (§14) | Não realizados | Aguarda revisão/validação do dono |
-| M03 — promessa primeiro cadastro | Pendente | Não iniciados | Não realizados | Pendente |
+| M02 — produto não encontrado | Autorizada exclusivamente em 15/10/2026, com ajustes do dono (§14) | Integrada pelo PR #151 (§15) | Merge confirmado; publicação não verificada independentemente | Roteiro aceito por relato do dono; aparelho/versão não informados (§15) |
+| M03 — promessa primeiro cadastro | Autorizada exclusivamente em 15/10/2026 (§15) | Implementada/testada na branch exclusiva (§15) | Não realizados | Aguarda revisão/validação do dono |
 | M04 — indicadores globais | Pendente | Não iniciados | Não realizados | Pendente |
 | M05 — ganho bruto | Pendente | Não iniciados | Não realizados | Pendente |
 | M06 — mensagem limite caixa | Pendente | Não iniciados | Não realizados | Pendente |
@@ -558,3 +560,44 @@ Artefatos locais: `/workspace/entregas/omnisafe-m02-implementacao-2026-10-15/` (
 Roteiro do dono em versão de teste autorizada: com carrinho vazio e preenchido, abrir Produto não encontrado; conferir instrução, código quando houver e frase do carrinho; fechar por Entendi/X; verificar itens, quantidades e total. Em 320 px, confirmar botão de duas linhas sem corte e ícone preservado. Não publicar automaticamente para obter esse teste. Reversão restrita: reverter textos/classe e as duas expectativas, preservando acompanhamento histórico.
 
 Rastreabilidade M02: [PR #151](https://github.com/OmniSafe-360/mock-overlay-magic/pull/151), implementação `a16695a`. Aberto para revisão; sem merge/publicação, CI remoto pendente na abertura. Não avançar à M03.
+
+
+## 15. M03 — explicação do cadastro, execução autorizada — 15/10/2026 UTC
+
+### Continuidade da M02
+
+M02 integrada pelo PR #151 em 15/10/2026 às 09h36m21s UTC, merge `12e72e42d7daef1eab601cb322a9757063ed1e0b`, confirmado no GitHub. Depois do roteiro apresentado, o dono informou “Sim passou mande o M03”. Registrar somente esse aceite do roteiro da M02, sem estender a outras funcionalidades. Aparelho, versão instalada e horário do teste não informados; publicação e teste físico não verificados independentemente. Registros anteriores de PR aberto/sem merge são históricos.
+
+### Autorização e patch exato
+
+O proprietário autorizou exclusivamente substituir a frase do cadastro e atualizar os três documentos de acompanhamento, sem editar testes/Fonte da Verdade, sem merge/publicação e sem iniciar M04. `main` reconferido antes da edição: `12e72e42d7daef1eab601cb322a9757063ed1e0b`; nenhuma mudança posterior da frase encontrada. Branch exclusiva `codex/ux-m03-explicacao-cadastro-20261015`.
+
+- `src/components/StoreSetup.tsx`: “Leva menos de 2 minutos. Você pode mudar tudo depois.” → “Informe os dados do seu comércio para começar.”.
+- Documentos autorizados: este Plano Mestre, `CLAUDE.md` e `docs/CHECKLIST_PONTA_A_PONTA.md`, preservando históricos anteriores. Fonte da Verdade intacta.
+- Nenhuma outra frase, classe, elemento, paleta, tipografia, componente, passo, campo, validação, evento, estado, botão, salvamento, cancelamento, saída, autenticação, permissão, banco/Supabase ou integração alterados. Não cria editor de comércio nem promete prazo de preenchimento.
+- Todos os arquivos de teste, dependências, configurações, SQL e migrações permanecem intactos.
+
+### Verificações e evidências
+
+| Verificação | Resultado |
+|---|---|
+| `npx tsc --noEmit` | Duas rodadas aprovadas, saída 0. |
+| `npx vitest run` | Duas rodadas completas aprovadas, 1.129 testes em 112 arquivos por rodada; sem editar testes/assertions/timeouts. Inclui `cadastro-sair.test.tsx`, `comercio-salvamento.test.tsx` e `cadastro-etapa1-textos.test.ts`. |
+| `npm run build` | Aprovado, saída 0; variáveis fictícias no processo, sem mudança de configuração. |
+| Chromium, componente/CSS reais da branch | 320×568, 390×844 e 1280×900: quatro passos em `first` e `add`, sucesso do primeiro cadastro; complemento 320×844 para leitura da frase. Total de 28 capturas; sem corte horizontal ou erro JavaScript nos cenários examinados. Continuar/Cadastrar mantêm alvo ≥48 px e ficam dentro da tela. |
+| Navegação e validação | Voltar/Continuar mantém seleção; passo sem tipo/dados não avança; CPF inválido recusado; nome/documento/telefone/CEP/número aceitos pelos caminhos existentes. CEP simulado; revisão mostra os dados. |
+| Cancelamento e saída | Cancelar em `add` após revisão chama callback uma vez e não insere; Sair da conta no primeiro passo de `first` chama callback de saída uma vez, sem inserção. Autenticação/saída reais cobertas pelos testes existentes com serviços simulados, não por sessão real nesta tarefa. |
+| Salvamento | `first`: uma inserção simulada, confirmação de sucesso e um `onFinish` ao ir ao painel; sem gravação em banco real. A suíte existente cobre falhas de sessão/salvamento, bloqueios durante envio e conservação dos campos. |
+| Auditoria do diff | Aplicação literalmente igual à base após somente uma substituição de frase; demais diferenças limitadas aos três documentos. Todos os testes e a Fonte da Verdade intactos. |
+
+A classe preexistente `tiny:hidden` oculta esta explicação em alturas até 620 px: em 320×568 ela continua oculta, sem remover/alterar a regra para forçar sua exibição. O complemento 320×844 confirma o novo texto visível em duas linhas. Em 390×844 e 1280×900 a frase aparece sem corte. Truncamentos/visibilidades preexistentes de outros elementos não foram reformulados nesta etapa.
+
+Artefatos locais: `/workspace/entregas/omnisafe-m03-implementacao-2026-10-15/` (capturas, `visual.json`, logs e diff). Bancada temporária fora do repositório, componente/CSS reais, Supabase/CEP simulados e rede externa bloqueada, sem alteração de aplicação para executar o roteiro. Não foi possível verificar instalação PWA, teclado/câmera/aparelho Android/iPhone físicos, Google ou sessão/banco reais. Verificação automática do GitHub deve ser acompanhada no PR; aprovação local não equivale a CI remoto ainda pendente.
+
+### Estado e próximo aceite
+
+**M03 pronta no código da branch e testada, falta revisão/validação do dono. Sem merge/publicação; M04 não iniciada.** Demais frentes E/G/RMC e validações pendentes preservadas.
+
+Roteiro para versão de teste autorizada: abrir primeiro cadastro ou Adicionar comércio; quando houver altura disponível, conferir “Informe os dados do seu comércio para começar.”; passar e voltar pelas quatro etapas, sem envio real desnecessário, e confirmar aparência/controles. Registrar resultado/aparelho/versão; não presumir publicação. Reversão restrita à frase, conservando o acompanhamento documental.
+
+Rastreabilidade M03: [PR #152](https://github.com/OmniSafe-360/mock-overlay-magic/pull/152), implementação `b9924e4`. Aberto para revisão; sem merge/publicação, CI remoto pendente na abertura. Não avançar à M04.

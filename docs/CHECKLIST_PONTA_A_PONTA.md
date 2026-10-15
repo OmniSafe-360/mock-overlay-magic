@@ -427,3 +427,12 @@ Rastreabilidade M01-B: [PR #150](https://github.com/OmniSafe-360/mock-overlay-ma
 - **Limites:** nenhuma alteração na Fonte da Verdade, operações, banco/Supabase, permissões, estados, eventos ou recuperação. Sem teste físico/publicação da M02. Sem merge/publicação/M03; aguardar aprovação específica. E/G/RMC e demais pendências preservadas.
 
 Rastreabilidade M02: [PR #151](https://github.com/OmniSafe-360/mock-overlay-magic/pull/151), implementação `a16695a`. Aberto para revisão; sem merge/publicação, CI remoto pendente na abertura. Não avançar à M03.
+
+
+## Modernização UX/UI — M03 e continuidade M02, 15/10/2026 UTC
+
+- **M02 integrada e roteiro aceito em alcance limitado:** M02 integrada pelo PR #151 em 15/10/2026 às 09h36m21s UTC, merge `12e72e42d7daef1eab601cb322a9757063ed1e0b`, confirmado no GitHub. Depois do roteiro apresentado, o dono informou “Sim passou mande o M03”. Registrar somente esse aceite do roteiro da M02, sem estender a outras funcionalidades. Aparelho, versão instalada e horário do teste não informados; publicação e teste físico não verificados independentemente. Registros anteriores de PR aberto/sem merge são históricos.
+- [ ] **M03 pronta na branch; falta revisão/validação do dono.** Base `main 12e72e42`, branch `codex/ux-m03-explicacao-cadastro-20261015`. Só a frase aprovada de `StoreSetup.tsx` e três documentos; testes e Fonte intactos, demais mensagens/classes/eventos/regras preservados. Tipos 2×, 1.129 testes/112 arquivos 2× e build aprovados. Chromium 320/390/1280: 28 capturas, quatro passos nos dois modos, validações/retorno, cancelamento/saída sem inserção e salvamento simulado único; sem corte horizontal/erro JS. Frase oculta pela regra original em 320×568 e conferida visível em 320×844. [Plano Mestre: roteiro/limites](PLANO_MESTRE_UX_UI.md#15-m03--explicação-do-cadastro-execução-autorizada--15102026-utc).
+- **Limites:** sem merge/publicação/M04; sem teste de aparelho/sessão/banco reais. Aguardar revisão do dono. Não encerra outras funcionalidades nem as frentes E/G/RMC.
+
+Rastreabilidade M03: [PR #152](https://github.com/OmniSafe-360/mock-overlay-magic/pull/152), implementação `b9924e4`. Aberto para revisão; sem merge/publicação, CI remoto pendente na abertura. Não avançar à M04.
