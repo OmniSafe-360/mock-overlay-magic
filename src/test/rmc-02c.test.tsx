@@ -96,12 +96,13 @@ describe("RMC-02C / C2 — subtotais dos quatro indicadores", () => {
     await waitFor(async () => expect((await repor()).textContent).toMatch(/^1/));
     expect(screen.queryByText(/Subtotal:|Consulta incompleta/)).toBeNull();
   });
-  it("todos indisponíveis: — e Consulta incompleta, nunca zero; carregando mostra …", async () => {
-    let soltar!: () => void;
+  it("todos indisponíveis: — e Consulta incompleta, nunca zero; na primeira leitura mostra Conferindo pendências (H2)", async () => {
+    let soltar: (() => void) | undefined;
     banco.carregarProdutos.mockImplementation(() => new Promise((_, rej) => { soltar = () => rej(new TypeError("x")); }));
     render(<OwnerApp userId="u1" owner="M" initial={[a]} />);
-    await waitFor(async () => expect((await repor()).textContent).toMatch(/^…/));
-    soltar();
+    expect(await screen.findByText("Conferindo pendências…")).toBeTruthy();
+    await waitFor(() => expect(soltar).toBeDefined());
+    soltar!();
     await waitFor(async () => expect((await repor()).textContent).toMatch(/^—.*Consulta incompleta/));
     expect(screen.queryByText(/Tudo certo!/)).toBeNull();
   });

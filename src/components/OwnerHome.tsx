@@ -696,8 +696,10 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
               <CircleCheck size={20} className="shrink-0" /> Tudo certo na última consulta · atualizando…
             </p>
           ) : primeiraLeitura ? (
-            <p role="status" data-testid="conferindo-pendencias" className="flex items-center gap-2 rounded-3xl border border-border bg-secondary/70 p-4 text-sm font-semibold text-muted-foreground">
-              <Loader2 size={20} aria-hidden="true" className="shrink-0 animate-spin motion-reduce:animate-none" /> Conferindo pendências…
+            // Mesma caixa do quadro verde: o texto definitivo, invisível e fora do texto da página (só CSS), dá a altura em qualquer largura e letra.
+            <p role="status" data-testid="conferindo-pendencias" data-medida="Tudo certo! Nenhum comércio precisa de atenção agora."
+              className="grid rounded-3xl border border-border bg-secondary/70 p-4 text-sm font-semibold text-muted-foreground before:invisible before:col-start-1 before:row-start-1 before:pl-[28px] before:content-[attr(data-medida)]">
+              <span className="col-start-1 row-start-1 flex items-center gap-2"><Loader2 size={20} aria-hidden="true" className="shrink-0 animate-spin motion-reduce:animate-none" /> Conferindo pendências…</span>
             </p>
           ) : (
             <div className="@container"><div data-testid="grade-pendencias" className="grid grid-cols-1 gap-2 md:gap-3 @[18rem]:grid-cols-2 @[52rem]:grid-cols-4">
