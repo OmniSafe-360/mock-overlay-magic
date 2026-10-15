@@ -615,3 +615,46 @@ Autorizada exclusivamente pelo proprietário, base `2045a3831ff0`. Arquivos: `sr
 Alterada só a apresentação/semântica do sino em `OwnerHome.tsx`: consulta em andamento ou comércio ainda não consultado não acende a bolinha; falha já identificada (`visao.erro`) e consulta encerrada incompleta acendem amarela; urgência confirmada continua vermelha. Nome acessível: "Alertas[: N para resolver agora][; consulta incompleta][; atualizando]". Sem temporizador; `disponibilidade`, `visao`, consultas e cálculos iguais; H1/H2 preservadas. Limitação conhecida, não tratada: aviso confirmado antes some do sino durante a nova consulta do mesmo comércio (retenção exige nova autorização). Testes: `src/test/rmc-h3-sino.test.tsx` (10). **Implementada no código, aguardando revisão do dono; não publicada.**
 
 - [ ] M04-B (15/10/2026) — unidades nos indicadores, "Soma de todos os comércios" só com dados completos e "Subtotal: X de Y comércios" no antifurto; só apresentação em OwnerHome.tsx + teste rmc-m04b. Pendências separadas: sino durante atualização e contador de resumo completo. Aguarda revisão; sem publicação.
+
+
+## 18. AC01 — acessibilidade do caixa, correção independente — 15/10/2026 UTC
+
+### Autorização, continuidade e base
+
+O proprietário autorizou: “executar primeiro essa correção independente do caixa, antes da M07”, após a análise técnica e visual dos dois componentes. Escopo: apresentação da tela **Vender** e da indisponibilidade da câmera, sem alteração operacional. Base `main 43658dbe2e0098b5c22a473f2b569cf3a554c3b2`, reconferida no remoto antes de editar; branch exclusiva `codex/caixa-acessibilidade-20261015`. M07–M24 e X01–X10 não iniciadas por esta autorização. Sem merge/publicação automáticos.
+
+Continuidade informada no documento de transferência do dono: M01–M06 e H1–H3 concluídas, publicadas e validadas por ele; última versão informada `43658db`. Implementações presentes no main; Actions `38790121635` aprovado no mesmo SHA, conferido pela API. Publicação/validação física são relato do dono, não nova inspeção de produção nesta execução. Os registros antigos que dizem “aguarda revisão/sem publicação” são históricos; este registro não amplia os aceites para outros fluxos, segurança ou aparelhos. Fonte da Verdade integralmente preservada.
+
+### Alterações aplicadas e limites
+
+- `src/components/CaixaCelular.tsx`, somente JSX/classes de `Vender`: faixa superior mantém Voltar, câmera e menu; identificação do turno e aviso offline entram na área rolável. Identificação deixa de truncar. Resumo, total e Limpar venda passam ao final dessa área; rodapé contém apenas Receber com o valor atual, mesmas condições/callback.
+- Nome de cada produto ocupa a largura completa; controles e subtotal podem quebrar de linha. Removida largura fixa de 80 px do subtotal. Busca e Produto não encontrado usam grade com mínimo em `em`, empilhando quando falta largura para a fonte atual. Mesmos textos, acionadores e efeitos.
+- Total detalhado usa `text-2xl` (24 px na referência, 48 px na simulação 200%), em vez de `text-4xl` (36/72 px), para evitar partir o exemplo R$ 6.172,80. Não há teto fixo, escala inversa ou supressão da ampliação. Valor e formatação `brl` não mudam; palavras/valores excepcionalmente longos podem continuar em outra linha, sem ocultação.
+- Quantidade/remover item, fechar aviso e Limpar venda recebem alvos mínimos de 48 px. Ícone do Receber fica separado do fluxo do texto para não ocupar uma linha sozinho. Fonte Inter, tokens de cores, fundos, estados, mensagens da M06 e cantos existentes preservados.
+- `src/components/LeitorContinuo.tsx`: erro usa altura natural com mínimo de 160 px e mensagem no fluxo; vídeo/carregamento continuam com 160 px. Tentar de novo e Lanterna com mínimo de 48 px. Mesmos efeitos, leitura, pausa, recorte, callbacks, tentativas e condições da câmera/lanterna.
+- Nenhuma alteração em `Tela`, `Sheet`, `btnPrimary`, CSS global, testes oficiais, configurações, dependências, cálculos, autenticação/PIN, permissões, banco/Supabase/SQL, estoque, pagamentos, offline, IDs ou integrações. Outros estados/janelas do caixa não foram redesenhados; não afirmar acessibilidade integral de todos eles.
+- Documentação: este plano, `CLAUDE.md` e checklist ponta a ponta, somente acréscimos com históricos preservados. Nenhum outro arquivo autorizado implicitamente para correção funcional.
+
+### Verificações concluídas no código final
+
+| Verificação | Resultado e alcance |
+|---|---|
+| Tipos | `npx --no-install tsc --noEmit`, duas rodadas finais aprovadas. |
+| Suíte completa | `npx --no-install vitest run`, duas rodadas finais: **1.189 testes / 118 arquivos aprovados por rodada**, sem erros não tratados no resumo. Inclui caixa, estoque/contagem, mensagens M06, pagamentos, PIN, fiado, recuperação e scanner. Nenhum teste/assertion/timeout editado. |
+| Build | `npm run build` aprovado, variáveis fictícias somente no processo; sem publicar nem alterar configuração. |
+| Segurança | Sete testes do verificador aprovados; scan de 1.852 blobs sem ocorrências administrativas nos padrões pesquisados; consulta de 554 pacotes sem avisos conhecidos. Não é certificação de segurança integral. |
+| Auditoria de código | AST antes/depois: lógica fora do JSX, expressões de conteúdo e todos os atributos exceto `className` iguais. Complemento, não substituto dos testes funcionais. |
+| Visual | **96 cenários / 48 pares antes–depois / 204 capturas**, Chromium, componentes reais e CSS real, Inter oficial carregada localmente. 320×568, 390×844 e 1280×900; texto normal e 200%; vazio, carrinho, estoque recusado, câmera desligada, nome/valor longos, 12 linhas, câmera simulada pronta e erro de rede/offline. |
+| Geometria | Nenhum estouro horizontal nos elementos verificados depois; alvos envolvidos ≥48 px. Em 320×568/200%, carrinho comum: centro **86 → 363 px**; 390×844/200%: **406 → 687 px**. Cabeçalho/Receber permanecem acessíveis e conteúdo rola entre eles. |
+| Equivalência visual | Nos 48 pares: mesmo total, mesmo rascunho e mesmas chamadas/payloads simulados. Data fictícia fixada para comparação. Nenhuma escrita em produção. |
+| Fluxos no navegador | Seis roteiros completos (antes/depois × três larguras, fonte normal): ajuda por Entendi/X/Escape, código desconhecido por teclado, busca, menu, câmera sem remontar nas janelas, ligar/desligar, lanterna simulada, −/+, cancelar limpeza, conferir e finalizar em Pix. Mesmas chamadas/payloads, um registro por venda simulada. Fechamento do aviso e cinco unidades preservadas também verificados nos cenários visuais 100/200%. |
+
+Na primeira conferência visual apareceu estouro do botão Produto não encontrado em 320/200%; grade responsiva ajustada dentro do componente autorizado. O total grande partia o valor e o ícone do CTA ficava sozinho; apresentação ajustada, seguida de novas rodadas finais de tipos/testes/capturas. Uma comparação inicial encontrou apenas horários diferentes nas fixtures; relógio fixado somente na bancada. Roteiro de fluxos corrigido por vídeo fictício sem quadro e seletor que procurava “Menu” em diálogo oficialmente chamado “Caixa”. Nenhum app/teste oficial foi alterado para contornar esses problemas da bancada. Logs das tentativas preservados.
+
+Artefatos: `/workspace/entregas/omnisafe-caixa-acessibilidade-2026-10-15/` — capturas, métricas, comparações, fluxos, logs, auditoria e diff completo. Bancada fora do repositório, dados fictícios, APIs simuladas e rede externa bloqueada. Fonte 200% é ampliação simulada de fonte/entrelinha, não teste físico nem zoom nativo do navegador. Câmera/lanterna simuladas não comprovam hardware. Android/iPhone instalados, teclado nativo, safe areas reais e produção não foram verificados. Aumento de rolagem nos estados com mensagem de câmera longa é intencional para preservar a leitura.
+
+### Estado, aceite e próxima ação
+
+**AC01 implementada e testada na branch; aguarda revisão e validação do proprietário. Não integrada nem publicada.** CI do novo PR será registrado separadamente; aprovação local não equivale à do commit remoto. M07 continua pendente, sem autorização automática. Pendências do sino, contador, saudação, cadastro e segurança seguem separadas.
+
+Roteiro do dono, após acesso a uma versão autorizada: abrir o caixa com letra normal e ampliada; conferir Voltar/câmera/menu e identificação; abrir busca/ajuda e retornar sem mudar carrinho; verificar nomes, quantidades, subtotal, resumo e Receber; tentar quantidade acima do saldo e fechar aviso; câmera negada deve mostrar mensagem e Tentar de novo completos por rolagem. Registrar aparelho, navegador/versão publicada e resultado. Não provocar venda real somente para testar aparência. Publicar/mesclar somente após autorização própria. Reversão: patch inverso apenas dos dois componentes, preservando histórico e registros.
