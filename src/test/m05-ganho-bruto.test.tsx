@@ -38,8 +38,9 @@ describe("M05 — explicação do ganho bruto", () => {
 
   it("aparece no cadastro novo", () => {
     render(<ProductWizard store={store} products={[]} suppliers={[]} onAddSupplier={() => 1} onCancel={() => {}} onSave={vi.fn()} />);
+    fireEvent.click(screen.getByText("Digitar código"));
     fireEvent.change(document.querySelector('input[name="codigo"]')!, { target: { value: "7891000100103" } });
-    fireEvent.change(document.querySelector('input[name="nome"]')!, { target: { value: "Leite" } });
+    fireEvent.change(document.querySelector('input[name="pnome"]')!, { target: { value: "Leite" } });
     fireEvent.submit(document.querySelector("form")!);
     expect(screen.getByTestId("ganho-bruto").textContent).toBe(frase("unidade"));
   });
