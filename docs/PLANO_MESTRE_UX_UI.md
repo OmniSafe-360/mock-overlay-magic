@@ -471,3 +471,5 @@ Artefatos locais de entrega: `/workspace/entregas/omnisafe-m01-a-implementacao-2
 Roteiro simples do dono, quando houver versão de teste acessível: Comércios → escolher unidade → Equipe → ler a explicação; abrir Adicionar funcionário e voltar sem salvar. Confirmar que distingue contagem cega de acesso ao caixa e que o texto/botão não se sobrepõem. Registrar aparelho, versão e “funcionou/não funcionou”. Android/iPhone físicos e publicação permanecem pendentes; não publicar automaticamente para obter esse teste.
 
 Próxima ação: proprietário revisar exclusivamente M01-A. Aguardar validação; não iniciar M01-B/M02, mesclar ou publicar sem nova autorização. Registros posteriores de PR/commit devem ser acrescentados sem substituir este histórico.
+
+**Rastreabilidade da entrega:** [PR #149](https://github.com/OmniSafe-360/mock-overlay-magic/pull/149), commit de implementação `1d18c92`. PR aberto para revisão, sem merge/publicação. Verificação automática do GitHub em andamento no momento da criação; não confundir os testes locais aprovados com um CI ainda sem resultado.
