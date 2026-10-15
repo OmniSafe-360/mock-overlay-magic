@@ -168,8 +168,8 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO, modoCaixa = fa
         {tela.t === "abrindo" && <p className="m-auto text-base text-muted-foreground">Abrindo…</p>}
         {tela.t === "erro" && (
           <div className="m-auto w-full space-y-3 text-center">
-            <p className="text-lg font-bold">Sem conexão</p>
-            <p className="text-sm text-muted-foreground">Confira a internet do celular e tente de novo.</p>
+            <p className="text-lg font-bold">Não foi possível abrir o app</p>
+            <p className="text-sm text-muted-foreground">Tente de novo. Se o problema continuar, peça ajuda ao dono do comércio.</p>
             <button type="button" onClick={() => { const c = lerChave(); if (c) void abrirInicio(c, true, !destravado.current); else setTela({ t: "codigo" }); }} className={btnPrimary(true)}>Tentar de novo</button>
           </div>
         )}

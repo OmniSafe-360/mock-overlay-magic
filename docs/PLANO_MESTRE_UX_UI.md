@@ -4,6 +4,8 @@
 
 > **Atualização de execução — M01-A (15/10/2026):** a autorização documental inicial abaixo é histórica. Depois dela, o proprietário autorizou exclusivamente a implementação da M01-A, registrada na seção 12. M01-B e demais etapas continuam sem autorização; merge, publicação e validação do dono permanecem pendentes.
 
+> **Atualização posterior — M01-B (15/10/2026):** M01-A integrada pelo PR #149 e validada pelo proprietário no Android somente nos pontos registrados na seção 13. M01-B autorizada exclusivamente para os dois textos e três expectativas, com acompanhamento nestes três documentos. Registros anteriores de pendência são históricos; M02 não autorizada. Sem merge ou publicação da M01-B.
+
 **Autorização desta entrega:** criar somente este documento. Nenhuma etapa de implementação está autorizada. Não alterar aplicação, testes, dependências, configurações, banco, migrações, Supabase, integrações ou a Fonte da Verdade. Não fazer merge nem publicar.
 
 ## 1. Autoridade, referências e controle da versão
@@ -383,7 +385,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | Etapa | Aprovação de implementação | Execução / testes de aplicação | Merge/publicação | Validação do dono |
 |---|---|---|---|---|
 | DOC-01 — este plano | Somente documentação autorizada | Documento criado; nenhuma implementação | Não realizados | Pendente |
-| M01 — textos equipe/erro | M01-A autorizada expressamente em 15/10/2026; M01-B pendente | M01-A aplicada/testada em branch exclusiva; M01-B não iniciada | Não realizados | M01-A aguarda validação do dono |
+| M01 — textos equipe/erro | M01-A e M01-B autorizadas em escopos próprios | M01-A integrada; M01-B implementada/testada em branch exclusiva (§13) | M01-A: merge confirmado; publicação relatada pelo dono. M01-B: não realizados | M01-A: aceite Android restrito (§13). M01-B: aguarda validação do dono |
 | M02 — produto não encontrado | Pendente | Não iniciados | Não realizados | Pendente |
 | M03 — promessa primeiro cadastro | Pendente | Não iniciados | Não realizados | Pendente |
 | M04 — indicadores globais | Pendente | Não iniciados | Não realizados | Pendente |
@@ -473,3 +475,35 @@ Roteiro simples do dono, quando houver versão de teste acessível: Comércios �
 Próxima ação: proprietário revisar exclusivamente M01-A. Aguardar validação; não iniciar M01-B/M02, mesclar ou publicar sem nova autorização. Registros posteriores de PR/commit devem ser acrescentados sem substituir este histórico.
 
 **Rastreabilidade da entrega:** [PR #149](https://github.com/OmniSafe-360/mock-overlay-magic/pull/149), commit de implementação `1d18c92`. PR aberto para revisão, sem merge/publicação. Verificação automática do GitHub em andamento no momento da criação; não confundir os testes locais aprovados com um CI ainda sem resultado.
+
+
+## 13. M01-A: aceite restrito; M01-B: execução autorizada — 15/10/2026 UTC
+
+### Validação anterior, sem ampliação de alcance
+
+O proprietário informou que a M01-A foi publicada e testada por ele no Android: a nova explicação apareceu corretamente, a aparência original foi preservada, a janela Adicionar funcionário abriu e o botão X a fechou. O merge do PR #149 foi confirmado no GitHub em 15/10/2026 às 08h06m05s UTC, commit `a1564ba6cb15b3da412232abb03739e835351fcd`. Publicação e teste no aparelho são relato do proprietário; não foram repetidos nesta execução. Modelo, versão instalada e horário exato do teste não informados. Esse aceite não valida cadastro/salvamento de funcionário, PIN, permissões, vendas nem outras funcionalidades.
+
+### M01-B: escopo e preservação
+
+Autorização expressa do proprietário para implementar somente a proposta M01-B. Base `main a1564ba6cb15b3da412232abb03739e835351fcd`, reconferida no remoto antes da edição; branch exclusiva `codex/ux-m01-b-mensagem-abertura-20261015`.
+
+- `src/components/AppFuncionario.tsx`: somente “Sem conexão” → “Não foi possível abrir o app”; “Confira a internet do celular e tente de novo.” → “Tente de novo. Se o problema continuar, peça ajuda ao dono do comércio.”
+- `src/test/equipe.test.tsx`: somente três expectativas com o título novo (duas ausências e uma presença); nenhuma verificação funcional, descrição de teste ou timeout alterado.
+- Documentação: este plano, `CLAUDE.md` e `docs/CHECKLIST_PONTA_A_PONTA.md`, preservando registros anteriores. Fonte da Verdade intacta.
+- Estrutura, classes, paleta, botão, eventos, estados, chamadas, autenticação, PIN, permissões, armazenamento, offline, banco/Supabase e operações intactos. Mensagem separada de falha na atualização do Início preservada literalmente.
+
+A falha genérica deixa de atribuir uma causa não comprovada à internet. Não foi acrescentada classificação de erros: resposta nula continua levando ao código com o aviso de acesso encerrado; comércio desativado mantém a tela específica; falha de rede com cópia válida de Caixa mantém o caminho offline/PIN. Erros lançados de permissão ou HTTP 401/403 que já chegavam ao estado genérico continuam nele, agora com texto neutro, sem liberar acesso nem serem anunciados como falta de internet. Não declarar que toda falha de autenticação passou a ter diagnóstico específico.
+
+### Verificações e evidências
+
+- Tipos: `npx tsc --noEmit`, duas rodadas aprovadas.
+- Testes: `npx vitest run`, duas rodadas completas aprovadas, 1.129 testes em 112 arquivos por rodada; mantém verificações de PIN, recuperação offline, acesso revogado e falha separada na atualização do Início.
+- Build: `npm run build` aprovado com variáveis fictícias no processo; nenhuma configuração ou dependência alterada.
+- Chromium local, componente/CSS reais da branch e API simulada: 30 cenários em 320×568, 390×844 e 1280×900. Falha desconhecida, rede sem cópia, permissão, HTTP 401, HTTP 403, acesso revogado, comércio desativado, PIN, offline com cópia/PIN e nova tentativa. Sem corte horizontal ou erro JavaScript; botão Tentar de novo de 52 px. Nova tentativa: duas chamadas ao Início, exige PIN e não chama desbloqueio antes dele. Revogação apaga chave; demais cenários preservam conforme comportamento existente.
+- Comparação literal contra a base: aplicação equivalente a somente duas substituições; teste equivalente a somente três substituições. Diff limitado aos cinco arquivos previstos; sem mudança de Fonte, SQL, banco, configuração ou lógica.
+
+Artefatos locais: `/workspace/entregas/omnisafe-m01-b-implementacao-2026-10-15/` (capturas, métricas, logs e diff). Rede externa bloqueada nos cenários visuais; nenhuma operação no banco real. Chromium responsivo não comprova aparelho físico, instalação PWA, Android/iPhone reais ou sessão publicada. O texto pode ocupar uma linha adicional; classes e fluxo visual permanecem iguais.
+
+**Estado:** M01-B implementada e verificada na branch, pronta para revisão; falta validação do dono. Sem merge/publicação; M02 não iniciada. M01 completa não é declarada validada antes do aceite da M01-B.
+
+Roteiro de aceite: em versão de teste disponível, provocar falha de abertura; ler título e orientação, tocar Tentar de novo e confirmar recuperação pelo caminho habitual, sem pular PIN. Registrar aparelho e versão. Não publicar automaticamente para executar esse roteiro. Reversão: reverter apenas as duas frases e três expectativas, mantendo a rastreabilidade documental.

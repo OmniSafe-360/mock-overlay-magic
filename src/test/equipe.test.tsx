@@ -196,7 +196,7 @@ describe("app do funcionário (Omni Operação)", () => {
     inicioApi.mockRejectedValueOnce(new TypeError("Failed to fetch"));
     fireEvent.click(screen.getByRole("button", { name: "Atualizar" }));
     expect(await screen.findByText(/Sem conexão com o Omni agora/)).toBeTruthy();
-    expect(screen.queryByText("Sem conexão")).toBeNull();
+    expect(screen.queryByText("Não foi possível abrir o app")).toBeNull();
     expect(screen.getByRole("button", { name: /Repor gôndola/ }).textContent).toMatch(/5 produtos/);
     inicioApi.mockResolvedValueOnce(inicio({ avisos: { entregas: 0, entregasHoje: 0, repor: 2 } }));
     fireEvent.click(screen.getByRole("button", { name: "Atualizar" }));
@@ -290,13 +290,13 @@ describe("app do funcionário (Omni Operação)", () => {
       expect(await screen.findByText("PIN errado. Você ainda tem 4 tentativas.")).toBeTruthy();
       digitar("2580");
       await waitFor(() => expect(api.caixa!.estado).toHaveBeenCalled());
-      expect(screen.queryByText("Sem conexão")).toBeNull();
+      expect(screen.queryByText("Não foi possível abrir o app")).toBeNull();
     });
     it("sem cópia guardada (ou sem função Caixa) mostra Sem conexão; Tentar de novo pede o PIN", async () => {
       localStorage.setItem("omni.funcionario.chave", CHAVE);
       const api = apiFunc({ inicio: vi.fn(async () => semRede()) });
       render(<AppFuncionario api={api} />);
-      expect(await screen.findByText("Sem conexão")).toBeTruthy();
+      expect(await screen.findByText("Não foi possível abrir o app")).toBeTruthy();
       vi.mocked(api.inicio).mockImplementation(async () => inicio());
       fireEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
       expect(await screen.findByText("Digite seu PIN")).toBeTruthy();
