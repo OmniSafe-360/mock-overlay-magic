@@ -754,6 +754,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                     </label>
                     <span id="ganho-dica" className="sr-only">Digite quanto quer ganhar em cima do preço de compra. O preço de venda é calculado sozinho.</span>
                   </div>
+                  <p data-testid="ganho-bruto" className="-mt-1 break-words text-xs text-muted-foreground">Ganho bruto por {umaUnidade(unidade).slice(2)}, antes de impostos e despesas. A porcentagem é calculada sobre o preço de compra.</p>
                   {compra > 0 && venda > 0 && venda < compra && (
                     <p className="-mt-1 text-xs text-warning">O preço de venda está menor que o de compra. Você terá prejuízo.</p>
                   )}
