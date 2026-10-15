@@ -65,7 +65,7 @@ describe("M06 — cartão do caixa", () => {
   });
 
   it("limite pelo botão + mostra o título local quando não há resposta do servidor", async () => {
-    const a = api({ conferir: undefined }); await abrir(a); bip(2);
+    const a = api(); delete (a as { conferir?: unknown }).conferir; await abrir(a); bip(2);
     fireEvent.click(screen.getByRole("button", { name: "Mais Bala fictícia" }));
     const card = await screen.findByRole("alert", { name: "Aviso de estoque" });
     await waitFor(() => expect(card).not.toHaveTextContent("Conferindo"));
