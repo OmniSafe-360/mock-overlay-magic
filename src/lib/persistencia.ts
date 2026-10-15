@@ -155,6 +155,8 @@ const MSG: [string, string][] = [
   ["observacao_longa", "O recado para o fornecedor pode ter no máximo 500 letras."],
   ["produto_de_outro_comercio", "Um dos produtos não pertence a este comércio. Atualize a página e monte o pedido de novo."],
   ["produto_nao_salvo", "Um dos produtos ainda não foi salvo. Atualize a página e monte o pedido de novo."],
+  ["embalagem_em_uso", "Esta embalagem já foi usada em pedido ou no caixa. A quantidade que vem dentro não pode mudar. Se o fornecedor mudou a embalagem, cadastre uma embalagem nova."],
+  ["embalagem_mudou", "A embalagem deste produto mudou enquanto o pedido era montado. Atualize a página e monte o pedido de novo."],
   ["embalagem_invalida", "Uma das embalagens foi removida do produto. Escolha outra e tente de novo."],
   ["embalagem_inteira", "Peça embalagens inteiras (sem vírgula)."],
   ["item_repetido", "O mesmo produto aparece duas vezes no pedido. Junte numa linha só."],
