@@ -394,7 +394,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M03 — promessa primeiro cadastro | Autorizada exclusivamente em 15/10/2026 (§15) | Implementada/testada na branch exclusiva (§15) | Não realizados | Aguarda revisão/validação do dono |
 | M04 — indicadores globais | Pendente | Não iniciados | Não realizados | Pendente |
 | M05 — ganho bruto | Implementada (opção A, 15/10/2026), aguarda revisão | `m05-ganho-bruto` + preço/margem/farmácia aprovados; suíte 2× | Capturas responsivas não realizadas | Pendente |
-| M06 — mensagem limite caixa | Pendente | Não iniciados | Não realizados | Pendente |
+| M06 — mensagem limite caixa | Implementada, aguarda revisão | 1.189 testes 2× | 30 capturas | Pendente |
 | M07 — saldo por área | Pendente | Não iniciados | Não realizados | Pendente |
 | M08 — busca/resumo | Pendente | Não iniciados | Não realizados | Pendente |
 | M09 — cartões pedidos | Pendente | Não iniciados | Não realizados | Pendente |
