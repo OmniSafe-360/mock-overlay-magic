@@ -103,7 +103,7 @@ function Linha({ p, s, onOpen }: { p: Product; s: Situacao; onOpen: () => void }
   const outros = s.alertas.filter((a) => a.nivel === "urgente" || a.nivel === "atencao").length - (precisaAtencao(s) ? 1 : 0);
   return (
     <button type="button" onClick={onOpen}
-      className="relative flex w-full items-stretch gap-3 overflow-hidden rounded-3xl border border-border bg-secondary/70 p-4 pl-5 text-left transition hover:border-primary focus-visible:outline-2 focus-visible:outline-ring">
+      className="relative flex w-full flex-col items-stretch gap-3 overflow-hidden rounded-3xl border border-border bg-secondary/70 p-4 pl-5 text-left transition hover:border-primary focus-visible:outline-2 focus-visible:outline-ring">
       <span aria-hidden className={`absolute inset-y-0 left-0 w-1.5 ${BARRA[s.nivel]}`} />
       <span className="min-w-0 flex-1">
         <span className="line-clamp-2 block break-words text-base font-semibold leading-snug">{p.nome}</span>
@@ -113,13 +113,14 @@ function Linha({ p, s, onOpen }: { p: Product; s: Situacao; onOpen: () => void }
           <span className="min-w-0">{fraseSituacao(s)}</span>
           {outros > 0 && <span className="shrink-0 text-xs text-muted-foreground">+{outros}</span>}
         </span>
-        {t != null && (
-          <span className="mt-1 block truncate text-xs text-muted-foreground">{s.nomes.dep} {s.qtd.dep == null ? "—" : fmtQ(s.qtd.dep)} · {s.nomes.ven} {s.qtd.ven == null ? "—" : fmtQ(s.qtd.ven)}</span>
-        )}
       </span>
-      <span className="flex shrink-0 flex-col items-end justify-center text-right">
-        <span className={`text-2xl font-bold leading-none tabular-nums ${t != null && Math.round(t * 1000) === 0 ? "text-destructive" : ""}`}>{t == null ? "—" : fmtQ(t)}</span>
+      <span className="flex min-w-0 flex-col gap-1 text-left">
+        <span className="text-xs text-muted-foreground">Total</span>
+        <span className={`break-words text-2xl font-bold leading-none tabular-nums ${t != null && Math.round(t * 1000) === 0 ? "text-destructive" : ""}`}>{t == null ? "—" : fmtQ(t)}</span>
         <span className="mt-1 text-xs text-muted-foreground">{t == null ? "não contado" : t >= 1 && t < 2 ? unSingular(p.unidade) : unPlural(p.unidade)}</span>
+        {t != null && (
+          <span className="mt-1 block break-words text-sm text-muted-foreground">{s.nomes.dep} {s.qtd.dep == null ? "—" : fmtQ(s.qtd.dep)} · {s.nomes.ven} {s.qtd.ven == null ? "—" : fmtQ(s.qtd.ven)}</span>
+        )}
       </span>
     </button>
   );
