@@ -658,3 +658,39 @@ Artefatos: `/workspace/entregas/omnisafe-caixa-acessibilidade-2026-10-15/` — c
 **AC01 implementada e testada na branch; aguarda revisão e validação do proprietário. Não integrada nem publicada.** CI do novo PR será registrado separadamente; aprovação local não equivale à do commit remoto. M07 continua pendente, sem autorização automática. Pendências do sino, contador, saudação, cadastro e segurança seguem separadas.
 
 Roteiro do dono, após acesso a uma versão autorizada: abrir o caixa com letra normal e ampliada; conferir Voltar/câmera/menu e identificação; abrir busca/ajuda e retornar sem mudar carrinho; verificar nomes, quantidades, subtotal, resumo e Receber; tentar quantidade acima do saldo e fechar aviso; câmera negada deve mostrar mensagem e Tentar de novo completos por rolagem. Registrar aparelho, navegador/versão publicada e resultado. Não provocar venda real somente para testar aparência. Publicar/mesclar somente após autorização própria. Reversão: patch inverso apenas dos dois componentes, preservando histórico e registros.
+
+
+## 19. M07 — saldo por área no cartão do produto — 15/10/2026 UTC
+
+**Continuidade AC01:** PR #154 integrado em `main b08fb99cce74969ba23b6c3e5931e8e7d8d94ecb`, em 15/10/2026 às 20h00m37s UTC, confirmado no GitHub; conteúdo idêntico ao head aprovado `ab8bf0c`. Após o roteiro de Publicar → Atualizar e conferência do caixa, o proprietário informou “tudo ok pode ir para a M07”. Aceite restrito a esse roteiro, por relato do dono; publicação relatada nesse contexto, não reinspecionada independentemente. Aparelho, navegador e versão desse teste não foram informados novamente; não ampliar o aceite para offline, hardware, estoque, segurança ou outras funcionalidades. Pendências fora desse roteiro permanecem. Registros anteriores de branch/merge/publicação pendentes são históricos.
+
+### Autorização, base e arquivos
+
+Após receber o diff, riscos e prévias da M07, o dono autorizou “SIM PODE FAZER”. Base remota reconferida antes da edição: `b08fb99cce74969ba23b6c3e5931e8e7d8d94ecb`, sem mudanças desde a proposta. Branch exclusiva `codex/ux-m07-saldo-areas-20261015`. Somente o patch aprovado de `src/components/ListaProdutos.tsx` e acréscimos neste plano, no `CLAUDE.md` e no checklist ponta a ponta. Fonte da Verdade e seus históricos intactos; nenhum teste oficial, dependência, configuração, SQL ou integração alterados.
+
+### Resultado e preservação
+
+- Apenas `Linha`: cartão em coluna, bloco próprio com rótulo “Total”, número e unidade atuais; divisão por área após o total, fonte `text-sm` e quebra natural em vez de `truncate`. Mesmo tamanho do total, paleta, Inter, borda, situação e cores. Categoria/nome conservam suas regras preexistentes, fora deste patch.
+- Mesmas expressões `s.qtd.total/dep/ven`, `fmtQ`, singular/plural, condição `t != null`, títulos por tipo e `onOpen`. Zero continua zero; desconhecido continua “— / não contado”. Área única e variações seguem a regra atual; não torna saldo físico elegível para venda.
+- Busca, filtros, ordem, Novo produto, quantidade adicional de alertas, preço e destino do toque iguais. Sem mudança de API, banco, cálculo, estoque, contagem cega, autenticação, permissão, venda ou navegação. M08 não iniciada.
+- Efeito visual aprovado: cartão mais alto e maior rolagem natural. No exemplo Nescau com nome em duas linhas/fonte normal, altura medida de 141 para 229 px na bancada; não há promessa de maior densidade. Demais controles não foram reformulados.
+
+### Verificações e alcance
+
+| Verificação | Resultado |
+|---|---|
+| Tipos | `npx --no-install tsc --noEmit`, duas rodadas aprovadas. |
+| Suíte completa | `npx --no-install vitest run`, duas rodadas: **1.189 testes / 118 arquivos aprovados por rodada**; sem erro não tratado no resumo. Nenhum teste/assertion editado. |
+| Específicos | 19 testes em `lista-produtos.test.tsx`, `situacao-uma-area.test.ts`, `vocabulario-tipo.test.tsx` aprovados; executados também na suíte completa. |
+| Build | `npm run build` aprovado com variáveis fictícias somente no processo; sem publicar/configurar serviço. |
+| Segurança | Sete testes do verificador aprovados; padrões de segredos em 1.857 blobs sem ocorrências; 554 dependências sem avisos conhecidos. Não comprova segurança integral. |
+| Auditoria do patch | Arquivo literalmente igual ao protótipo aprovado. AST antes/depois: lógica fora do JSX, expressões e atributos funcionais iguais, excluindo apenas `className`; novo texto estático “Total”. |
+| Navegador | **96 cenários / 48 pares / 96 capturas** antes/depois: 320×568, 390×844, 768×1024 e 1280×900; seis tipos de comércio; texto normal/200%. Componente/CSS reais e Inter local, dados fictícios, rede externa bloqueada. |
+| Dados e geometria | 11 produtos por cenário: 1.001/1.000/1, zeros, desconhecido em cada área, sem áreas, área única, unidade singular, decimais, valor grande e variação de roupa. Mesmos valores/textos informativos nos 48 pares; sem estouro horizontal dos cartões ou corte da divisão por área nas versões novas medidas; cartões >48 px. |
+| Ações | Toque e Enter abrem os mesmos IDs; Novo produto chama o mesmo callback. Em fonte normal, busca por código/nome, sem resultado, Precisam de atenção e retorno a Todos verificados nas duas versões/seis tipos/quatro larguras. Não é nova prova de navegação autenticada/publicada. |
+
+Artefatos locais: `/workspace/entregas/omnisafe-m07-implementacao-2026-10-15/` — comparação visual, capturas, métricas, auditoria, logs e diff completo. Bancada temporária fora do repositório. Fonte 200% é simulação de fonte/entrelinha, não zoom nativo nem aparelho físico. Não foi possível verificar Android/iPhone/PWA instalados, teclado nativo ou dados/sessão de produção. Limitações preexistentes de nome/categoria e demais telas permanecem fora do escopo. CI do commit remoto registrado no PR; aprovação local não equivale a CI ainda pendente.
+
+### Estado e validação seguinte
+
+**M07 implementada/testada na branch; aguarda revisão e validação do dono. Sem merge/publicação automáticos, sem M08.** Os registros antigos de M07 pendente são anteriores a esta execução. Roteiro do dono após acesso a versão autorizada: abrir Produtos, conferir Total e áreas com letra normal/ampliada; buscar/filtrar; abrir e voltar da mesma ficha. Comparar números existentes sem alterar estoque para teste visual. Registrar versão e resultado. Reversão restrita ao patch de Linha, conservando os registros históricos.
