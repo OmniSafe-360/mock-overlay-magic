@@ -441,3 +441,5 @@ Rastreabilidade M03: [PR #152](https://github.com/OmniSafe-360/mock-overlay-magi
 
 - [ ] **H2 — abertura estável do Início** (15/10/2026): implementada e testada no código (quadro "Conferindo pendências…", contador "conferindo resumo…", sem zero/falha provisórios; H1 preservada). Falta: decisão sobre o caso falha+carregando, revisão do dono, publicação e teste no Android.
 - [ ] **H3 — sino sem bolinha amarela só por consultar** (15/10/2026): implementada e testada no código (`consultandoSino`; falha conhecida continua acendendo; nome acessível junta incompleta + atualizando). Limitação: pendência confirmada antes pode sumir do sino durante a nova consulta. Falta: revisão do dono, publicação e teste no Android.
+
+- [ ] M04-B (15/10/2026) — unidades nos indicadores, "Soma de todos os comércios" só com dados completos e "Subtotal: X de Y comércios" no antifurto; só apresentação em OwnerHome.tsx + teste rmc-m04b. Pendências separadas: sino durante atualização e contador de resumo completo. Aguarda revisão; sem publicação.
