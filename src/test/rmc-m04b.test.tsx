@@ -33,19 +33,21 @@ describe("M04-B — unidades e alcance dos indicadores", () => {
   });
   it("um comércio: singular para 1, plural para 0, sem 'Soma de todos'", async () => {
     render(<OwnerApp userId="u1" owner="M" initial={lojas(1)} />);
-    await waitFor(async () => expect((await kpi(/Para repor/)).textContent).toMatch(/^1produtoPara repor/));
-    expect((await kpi(/Para comprar/)).textContent).toMatch(/^0produtosPara comprar/);
-    expect((await kpi(/Para resolver agora/)).textContent).toMatch(/^0pendênciasPara resolver/);
+    await waitFor(async () => expect((await kpi(/Para repor/)).textContent).toMatch(/^1 produtoPara repor/));
+    expect((await kpi(/Para comprar/)).textContent).toMatch(/^0 produtosPara comprar/);
+    expect((await kpi(/Para resolver agora/)).textContent).toMatch(/^0 pendênciasPara resolver/);
+    expect(await kpi(/^1 produto Para repor/)).toBeTruthy();
+    expect(await kpi(/^0 pendências Para resolver agora/)).toBeTruthy();
     expect(screen.queryByTestId("soma-todos")).toBeNull();
   });
   it("dois comércios completos: plural e 'Soma de todos os comércios'", async () => {
     render(<OwnerApp userId="u1" owner="M" initial={lojas(2)} />);
-    await waitFor(async () => expect((await kpi(/Para repor/)).textContent).toMatch(/^2produtos/));
+    await waitFor(async () => expect((await kpi(/Para repor/)).textContent).toMatch(/^2 produtos/));
     await waitFor(() => expect(screen.getByTestId("soma-todos")).toHaveTextContent("Soma de todos os comércios"));
   });
   it("seis comércios completos: soma 6 e destino do botão preservado", async () => {
     render(<OwnerApp userId="u1" owner="M" initial={lojas(6)} />);
-    await waitFor(async () => expect((await kpi(/Para repor/)).textContent).toMatch(/^6produtos/));
+    await waitFor(async () => expect((await kpi(/Para repor/)).textContent).toMatch(/^6 produtos/));
     expect(screen.getByTestId("soma-todos")).toBeTruthy();
     fireEvent.click(await kpi(/Para repor/));
     expect(await screen.findAllByText(/Repor/)).toBeTruthy();
@@ -53,7 +55,7 @@ describe("M04-B — unidades e alcance dos indicadores", () => {
   it("consulta parcial: mantém subtotal e não afirma soma de todos", async () => {
     banco.carregarProdutos.mockImplementation(async (id: string) => { if (id === "c2") throw new TypeError("x"); return { produtos: [p], locais: { deposito: [], venda: [] } }; });
     render(<OwnerApp userId="u1" owner="M" initial={lojas(2)} />);
-    await waitFor(async () => expect((await kpi(/Para repor/)).textContent).toMatch(/^1produto.*Subtotal: 1 de 2 comércios/));
+    await waitFor(async () => expect((await kpi(/Para repor/)).textContent).toMatch(/^1 produto.*Subtotal: 1 de 2 comércios/));
     expect(screen.queryByTestId("soma-todos")).toBeNull();
   });
   it("só Resolver indisponível (vendas falharam): sem 'Soma de todos'", async () => {
