@@ -386,7 +386,7 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
     if (conferindoAtual.current) return;
     const candidato = adicionar(carrinhoAtual.current, item);
     const limite = limiteCarrinho(candidato, produtos);
-    if (limite) { avisar({ ok: false, estoque: true, texto: "A quantidade extra não foi adicionada. Estamos conferindo o disponível no sistema." }); onSolicitarContagem(candidato); return; }
+    if (limite) { avisar({ ok: false, estoque: true, texto: "Não foi possível adicionar esta quantidade." }); onSolicitarContagem(candidato); return; }
     carrinhoAtual.current = candidato; onCarrinho(() => candidato);
     avisar({ ok: true, texto: `${item.nome}${item.detalhe ? ` · ${item.detalhe}` : ""} · ${brl(subtotal(item))}` });
     setTimeout(() => fimLista.current?.scrollIntoView?.({ block: "end", behavior: "smooth" }), 30);
@@ -426,7 +426,7 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
     if (conferindoAtual.current) return;
     const candidato = carrinhoAtual.current.flatMap((x) => x.id !== id ? [x] : x.qtd + delta <= 0 ? [] : [{ ...x, qtd: x.qtd + delta }]);
     const limite = limiteCarrinho(candidato, produtos);
-    if (delta > 0 && limite) { avisar({ ok: false, estoque: true, texto: "A quantidade extra não foi adicionada. Estamos conferindo o disponível no sistema." }); onSolicitarContagem(candidato); return; }
+    if (delta > 0 && limite) { avisar({ ok: false, estoque: true, texto: "Não foi possível adicionar esta quantidade." }); onSolicitarContagem(candidato); return; }
     carrinhoAtual.current = candidato; onCarrinho(() => candidato);
   };
   const tirar = (id: string) => { if (!conferindoAtual.current) onCarrinho((c) => c.filter((x) => x.id !== id)); };
@@ -471,11 +471,11 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
         <section role="alert" aria-label="Aviso de estoque" className="mt-3 rounded-2xl border border-warning/30 bg-warning/5 p-4">
           <div className="flex items-center gap-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-warning/10 text-warning"><TriangleAlert size={20} aria-hidden="true" /></span>
-            <h2 className="min-w-0 flex-1 text-sm font-bold leading-snug text-foreground">{conferindo ? "Conferindo a quantidade…" : aviso?.estoque ? "Limite de quantidade atingido" : "Confira antes de continuar"}</h2>
+            <h2 className="min-w-0 flex-1 text-sm font-bold leading-snug text-foreground">{conferindo ? "Conferindo a quantidade…" : !erroEstoque && aviso?.estoque ? "Quantidade não adicionada" : "Confira antes de continuar"}</h2>
             <button type="button" disabled={conferindo} aria-label="Fechar aviso de estoque" onClick={() => { setAviso(null); onFecharAviso(); }} className="-mr-2 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-warning/10 disabled:opacity-50"><X size={18} /></button>
           </div>
           <p className="mt-3 break-words text-sm leading-relaxed text-foreground">{erroEstoque || aviso?.texto}</p>
-          <p className="mt-3 border-t border-warning/15 pt-3 text-xs leading-relaxed text-muted-foreground">{aviso?.estoque ? "A quantidade extra não foi adicionada. " : ""}Seu carrinho foi mantido.</p>
+          <p className="mt-3 border-t border-warning/15 pt-3 text-xs leading-relaxed text-muted-foreground">O carrinho foi mantido.</p>
         </section>
       )}
       <div className="mt-3">
