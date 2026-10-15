@@ -188,4 +188,44 @@ describe("H2 — estabilidade na abertura do Início", () => {
     expect(screen.queryByText(VERDE)).toBeNull();
     expect(screen.queryByText(NEUTRO)).toBeNull();
   });
+
+  it("atualização depois de Tudo certo: uma loja falha e outra carrega — o quadro anterior some na hora e só fica o aviso; Tentar de novo recupera", async () => {
+    render(<OwnerApp userId="u1" owner="M" initial={lojas(2)} />);
+    await screen.findByText(VERDE);
+    const { p, r } = pendente<typeof emDia>();
+    banco.carregarProdutos.mockImplementation(async (id: string) => { if (id === "c1") throw new TypeError("Failed to fetch"); return p; });
+    atualizar();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Ainda consultando 1 comércio");
+    expect(screen.queryByText(ANTERIOR)).toBeNull();
+    expect(screen.queryByText(VERDE)).toBeNull();
+    r(emDia);
+    expect(await screen.findByRole("button", { name: "Tentar de novo" })).toBeTruthy();
+    expect(screen.queryByText(ANTERIOR)).toBeNull();
+    banco.carregarProdutos.mockResolvedValue(emDia);
+    fireEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
+    expect(await screen.findByText(VERDE)).toBeTruthy();
+  });
+
+  it.each(["vendas", "diferenças"])("atualização depois de Tudo certo com %s indisponíveis numa loja: sem quadro verde anterior durante a espera", async (qual) => {
+    render(<OwnerApp userId="u1" owner="M" initial={lojas(2)} />);
+    await screen.findByText(VERDE);
+    const { p } = pendente<typeof emDia>();
+    banco.carregarProdutos.mockImplementation(async (id: string) => (id === "c1" ? emDia : p));
+    if (qual === "vendas") banco.carregarVendas.mockImplementation(async (id: string) => { if (id === "c1") throw new Error("x"); return []; });
+    else banco.carregarDiferencas.mockImplementation(async (id: string) => { if (id === "c1") throw new Error("x"); return { diferencas: [], perdas: [] }; });
+    atualizar();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Atualizar painel" })).toBeDisabled());
+    await waitFor(() => expect(screen.queryByText(ANTERIOR)).toBeNull());
+    expect(screen.queryByText(VERDE)).toBeNull();
+  });
+
+  it("quadro neutro: a frase de medida é invisível e escondida dos leitores de tela; só Conferindo pendências é anunciado", async () => {
+    const { p } = pendente<typeof emDia>(); banco.carregarProdutos.mockReturnValue(p);
+    render(<OwnerApp userId="u1" owner="M" initial={lojas(1)} />);
+    const box = await screen.findByTestId("conferindo-pendencias");
+    const medida = box.querySelector("[data-medida]")!;
+    expect(medida.closest("[aria-hidden=true]")).toBeTruthy();
+    expect(medida.textContent).toBe("");
+    expect(box).toHaveTextContent(/^Conferindo pendências…$/);
+  });
 });
