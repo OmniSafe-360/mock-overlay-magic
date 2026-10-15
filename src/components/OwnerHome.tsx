@@ -604,7 +604,8 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
   }, [visao.carregando, tudoCerto, chaveLojas]);
   // Durante a atualização: mantém o quadro verde apenas se a lembrança é desta mesma lista de comércios
   // e se nenhum comércio já confirmado nesta leitura trouxe pendência.
-  const manterVerde = visao.carregando && ultimoTudoCerto !== null && ultimoTudoCerto === chaveLojas
+  // Falha ou consulta parcial já identificada nesta leitura derruba a lembrança (sem mensagem contraditória).
+  const manterVerde = visao.carregando && !visao.erro && ultimoTudoCerto !== null && ultimoTudoCerto === chaveLojas
     && kpis.every((k) => k.n === 0) && deOlho(dispResolver.soma) === 0;
   // H2: primeira leitura (abertura ou recarga da página) — nenhum comércio com resultado confirmado e a consulta
   // pendente, inclusive no instante antes de o efeito iniciá-la (resumo ainda vazio). Só apresentação: não muda `visao`.
@@ -707,9 +708,13 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
             </p>
           ) : primeiraLeitura ? (
             // Mesma caixa do quadro verde: o texto definitivo, invisível e fora do texto da página (só CSS), dá a altura em qualquer largura e letra.
-            <p role="status" data-testid="conferindo-pendencias" data-medida="Tudo certo! Nenhum comércio precisa de atenção agora."
-              className="grid rounded-3xl border border-border bg-secondary/70 p-4 text-sm font-semibold text-muted-foreground before:invisible before:col-start-1 before:row-start-1 before:pl-[calc(20px+0.5rem)] before:content-[attr(data-medida)]">
-              <span className="col-start-1 row-start-1 flex items-center gap-2"><Loader2 size={20} aria-hidden="true" className="shrink-0 animate-spin motion-reduce:animate-none" /> Conferindo pendências…</span>
+            <p role="status" data-testid="conferindo-pendencias"
+              className="grid rounded-3xl border border-border bg-secondary/70 p-4 text-sm font-semibold text-muted-foreground">
+              <span aria-hidden="true" className="invisible col-start-1 row-start-1 flex items-center gap-2">
+                <span className="size-5 shrink-0" />
+                <span data-medida="Tudo certo! Nenhum comércio precisa de atenção agora." className="before:content-[attr(data-medida)]" />
+              </span>
+              <span className="col-start-1 row-start-1 flex min-w-0 items-center gap-2"><Loader2 size={20} aria-hidden="true" className="shrink-0 animate-spin motion-reduce:animate-none" /><span className="min-w-0 [overflow-wrap:anywhere]">Conferindo pendências…</span></span>
             </p>
           ) : (
             <div className="@container"><div data-testid="grade-pendencias" className="grid grid-cols-1 gap-2 md:gap-3 @[18rem]:grid-cols-2 @[52rem]:grid-cols-4">
