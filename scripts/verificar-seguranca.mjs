@@ -3,7 +3,18 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
-const cacheLovable = 'https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/';
+// Somente estes dois espelhos exatos do cache Lovable (sem curinga de dominio/regiao).
+const cachesLovable = [
+  'https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/',
+  'https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/',
+];
+
+// O endereco precisa ser exatamente <espelho><nome>/-/<base>-<versao>.tgz do proprio pacote.
+export function enderecoDoCache(endereco, nome, versao) {
+  if (typeof endereco !== 'string') return false;
+  const base = nome.split('/').pop();
+  return cachesLovable.some((espelho) => endereco === `${espelho}${nome}/-/${base}-${versao}.tgz`);
+}
 
 const padroes = [
   ['PAT Supabase', /\bsbp_[a-f0-9]{40,}\b/i],
@@ -70,7 +81,7 @@ export function pacotesDoLock(lock) {
   for (const entrada of Object.values(lock.packages)) {
     const [resolucao, registro, , integridade] = Array.isArray(entrada) ? entrada : [];
     const partes = typeof resolucao === 'string' && resolucao.match(/^((?:@[a-z0-9._~-]+\/)?[a-z0-9._~-]+)@(\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?)$/);
-    if (!partes || (registro !== '' && !(typeof registro === 'string' && registro.startsWith(cacheLovable))) || typeof integridade !== 'string' || !/^sha512-[A-Za-z0-9+/]{86}==$/.test(integridade)) {
+    if (!partes || (registro !== '' && !enderecoDoCache(registro, partes[1], partes[2])) || typeof integridade !== 'string' || !/^sha512-[A-Za-z0-9+/]{86}==$/.test(integridade)) {
       throw new Error('Pacote fora do formato npm com SHA512: exige revisao antes de seguir.');
     }
     const [, nome, versao] = partes;
@@ -86,9 +97,10 @@ export async function lockParaCI(lock, requisitar = fetch) {
   pacotesDoLock(lock);
   const copia = structuredClone(lock);
   for (const entrada of Object.values(copia.packages)) {
-    if (!entrada[1].startsWith(cacheLovable)) continue;
+    if (entrada[1] === '') continue;
     const posicao = entrada[0].lastIndexOf('@');
     const nome = entrada[0].slice(0, posicao), versao = entrada[0].slice(posicao + 1);
+    if (!enderecoDoCache(entrada[1], nome, versao)) throw new Error('Pacote com endereco nao autorizado. Instalacao recusada.');
     const resposta = await requisitar(`https://registry.npmjs.org/${encodeURIComponent(nome)}/${versao}`, {
       signal: AbortSignal.timeout(30000),
     });
