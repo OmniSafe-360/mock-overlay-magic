@@ -732,7 +732,7 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
                 return (
                   <button key={label} type="button" onClick={() => onAlertas(assunto)} className={`min-w-0 rounded-3xl border p-2.5 text-left [overflow-wrap:anywhere] transition hover:border-primary md:p-4 ${borda}`}>
                     <Icon size={20} className={!ativo ? "text-muted-foreground" : cor === "urgente" ? "text-destructive" : "text-warning"} />
-                    <p className="mt-1 text-2xl font-bold tracking-tight md:mt-3 sm:text-3xl">{disp.estado !== "indisponivel" ? <>{n}<span data-testid="unidade-kpi" className="ml-1 text-xs font-normal tracking-normal text-muted-foreground sm:text-sm">{n === 1 ? un[0] : un[1]}</span></> : carregandoTela || Object.keys(visao.geral).length === 0 ? "…" : "—"}</p>
+                    <p className="mt-1 text-2xl font-bold tracking-tight md:mt-3 sm:text-3xl">{disp.estado !== "indisponivel" ? <>{n}{" "}<span data-testid="unidade-kpi" className="text-xs font-normal tracking-normal text-muted-foreground sm:text-sm">{n === 1 ? un[0] : un[1]}</span></> : carregandoTela || Object.keys(visao.geral).length === 0 ? "…" : "—"}</p>
                     <p className="mt-0.5 text-xs leading-tight text-muted-foreground sm:text-sm md:mt-1">{label}</p>
                     <p className="max-md:sr-only md:mt-1 text-[11px] leading-snug text-muted-foreground/80 sm:text-xs">{desc}</p>
                     {disp.estado === "subtotal" && <p className="mt-1 text-[11px] font-semibold leading-snug text-warning sm:text-xs">Subtotal: {disp.validos} de {disp.total} comércios</p>}
