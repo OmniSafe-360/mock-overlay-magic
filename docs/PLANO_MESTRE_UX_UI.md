@@ -393,7 +393,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M02 — produto não encontrado | Autorizada exclusivamente em 15/10/2026, com ajustes do dono (§14) | Integrada pelo PR #151 (§15) | Merge confirmado; publicação não verificada independentemente | Roteiro aceito por relato do dono; aparelho/versão não informados (§15) |
 | M03 — promessa primeiro cadastro | Autorizada exclusivamente em 15/10/2026 (§15) | Implementada/testada na branch exclusiva (§15) | Não realizados | Aguarda revisão/validação do dono |
 | M04 — indicadores globais | Pendente | Não iniciados | Não realizados | Pendente |
-| M05 — ganho bruto | Pendente | Não iniciados | Não realizados | Pendente |
+| M05 — ganho bruto | Implementada (opção A, 15/10/2026), aguarda revisão | `m05-ganho-bruto` + preço/margem/farmácia aprovados; suíte 2× | Capturas responsivas não realizadas | Pendente |
 | M06 — mensagem limite caixa | Pendente | Não iniciados | Não realizados | Pendente |
 | M07 — saldo por área | Pendente | Não iniciados | Não realizados | Pendente |
 | M08 — busca/resumo | Pendente | Não iniciados | Não realizados | Pendente |
