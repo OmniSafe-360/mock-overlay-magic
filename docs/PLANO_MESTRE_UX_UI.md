@@ -599,3 +599,5 @@ Artefatos locais: `/workspace/entregas/omnisafe-m03-implementacao-2026-10-15/` (
 **M03 pronta no código da branch e testada, falta revisão/validação do dono. Sem merge/publicação; M04 não iniciada.** Demais frentes E/G/RMC e validações pendentes preservadas.
 
 Roteiro para versão de teste autorizada: abrir primeiro cadastro ou Adicionar comércio; quando houver altura disponível, conferir “Informe os dados do seu comércio para começar.”; passar e voltar pelas quatro etapas, sem envio real desnecessário, e confirmar aparência/controles. Registrar resultado/aparelho/versão; não presumir publicação. Reversão restrita à frase, conservando o acompanhamento documental.
+
+Rastreabilidade M03: [PR #152](https://github.com/OmniSafe-360/mock-overlay-magic/pull/152), implementação `b9924e4`. Aberto para revisão; sem merge/publicação, CI remoto pendente na abertura. Não avançar à M04.
