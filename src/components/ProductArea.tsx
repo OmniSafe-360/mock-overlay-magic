@@ -13,7 +13,7 @@ import { Scanner } from "@/components/Scanner";
 import { ganhoSobreCompra, lerPct, mostrarPct, vendaPorGanho } from "@/lib/preco";
 import { escolhasDoUltimo } from "@/lib/ultimaEscolha";
 import {
-  EMB_VAZIA, MAX_EMBALAGENS, ajudaCodigoEmbalagem, descricaoEmbalagem, embalagensDoTipo, rotuloComoChega, rotuloPrecoEmbalagem, errosEmbalagem, lerQtdEmbalagem, perguntaQtd, precoUnidade, rotuloContarPor, rotuloFechadas, umaUnidade, conversaoEmbalagem, ajudaQtdEmbalagem, avisoApresentacao,
+  EMB_VAZIA, MAX_EMBALAGENS, ajudaCodigoEmbalagem, descricaoEmbalagem, embalagensDoTipo, rotuloComoChega, rotuloPrecoEmbalagem, errosEmbalagem, lerQtdEmbalagem, perguntaQtd, precoUnidade, rotuloContarPor, rotuloFechadas, umaUnidade, conversaoEmbalagem, ajudaQtdEmbalagem, avisoApresentacao, travaQtdEmbalagem, type UsoEmbalagens,
   rotuloSoltas, totalContado, type Embalagem,
 } from "@/lib/embalagem";
 import { FichaProduto } from "@/components/FichaProduto";
@@ -120,7 +120,7 @@ function linhasIniciais(v: Validade | undefined, farm: boolean): Record<string, 
 
 type VarDep = { qtd?: string | undefined; min: string; max: string };
 
-export function ProductWizard({ store, products, initial, suppliers, onAddSupplier, onCancel, onSave, saving = false, erro = "", locaisCadastrados, onGerarCodigo, onBuscarCatalogo }: {
+export function ProductWizard({ store, products, initial, suppliers, onAddSupplier, onCancel, onSave, saving = false, erro = "", locaisCadastrados, onGerarCodigo, onBuscarCatalogo, onConferirEmbalagens }: {
   store: StoreData; products: Product[]; initial?: Product | undefined; suppliers: Supplier[];
   onAddSupplier: (s: Omit<Supplier, "id">) => EntityId | Promise<EntityId>; onCancel: () => void; onSave: (p: Product) => void;
   saving?: boolean; erro?: string;
@@ -128,6 +128,8 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   locaisCadastrados?: { deposito: string[]; venda: string[] } | undefined;
   /** Cria um código interno no banco para produto sem código de barras (ex.: 2900000000018). */
   onGerarCodigo?: (() => Promise<string>) | undefined;
+  /** Diz quais embalagens já salvas aparecem em pedidos/caixa (trava a quantidade dentro). */
+  onConferirEmbalagens?: ((ids: string[]) => Promise<Set<string>>) | undefined;
   /** Procura o código no catálogo (Open Food Facts) para sugerir o nome do produto novo. */
   onBuscarCatalogo?: ((codigo: string) => Promise<ItemCatalogo | null>) | undefined;
 }) {
@@ -194,6 +196,18 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   const [embs, setEmbs] = useState<Embalagem[]>(initial?.embalagens ?? []);
   const [embModo, setEmbModo] = useState<"unidade" | "embalagem">((initial?.embalagens ?? []).length ? "embalagem" : "unidade");
   const [embSheet, setEmbSheet] = useState<number | null>(null);
+  /* Embalagens já gravadas no banco: se já foram usadas, a quantidade dentro fica travada (só na tela). */
+  const embsSalvas = useMemo(() => new Set(initial?.db ? (initial.embalagens ?? []).map((e) => e.uid) : []), [initial]);
+  const [usoEmbs, setUsoEmbs] = useState<UsoEmbalagens>(() => ({ estado: onConferirEmbalagens && embsSalvas.size ? "carregando" : "livre", usadas: new Set() }));
+  useEffect(() => {
+    if (!onConferirEmbalagens || !embsSalvas.size) return;
+    let vivo = true;
+    onConferirEmbalagens([...embsSalvas]).then(
+      (usadas) => { if (vivo) setUsoEmbs({ estado: "ok", usadas }); },
+      () => { if (vivo) setUsoEmbs({ estado: "erro", usadas: new Set() }); });
+    return () => { vivo = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [embsSalvas]);
   const [varMsg, setVarMsg] = useState("");
   const [unitMsg, setUnitMsg] = useState("");
 
@@ -1249,6 +1263,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
           setVarSheet(null);
         }} />}
       {embSheet !== null && <EmbalagemSheet tipoComercio={tipo} index={embSheet} lista={embs} unidade={unidade} codigoProduto={codigo} usados={used} compra={compra}
+        travaQtd={embSheet >= 0 ? travaQtdEmbalagem(embs[embSheet]?.uid, embsSalvas, usoEmbs) : ""}
         onGerarCodigo={onGerarCodigo} onClose={() => setEmbSheet(null)}
         onSave={(e, novaCompra) => {
           const uid = embSheet < 0 ? newUid() : embs[embSheet]?.uid ?? newUid();
@@ -1440,8 +1455,10 @@ function VariationSheet({ index, vars, categoria, mainCode, used, onGerarCodigo,
     </Sheet>
   );
 }
-function EmbalagemSheet({ tipoComercio, index, lista, unidade, codigoProduto, usados, compra, onGerarCodigo, onClose, onSave }: {
+function EmbalagemSheet({ tipoComercio, index, lista, unidade, codigoProduto, usados, compra, travaQtd = "", onGerarCodigo, onClose, onSave }: {
   tipoComercio: string; index: number; lista: Embalagem[]; unidade: string; codigoProduto: string; usados: Set<string>; compra: number;
+  /** Texto da trava da quantidade (embalagem já usada); vazio = pode editar. */
+  travaQtd?: string;
   onGerarCodigo?: (() => Promise<string>) | undefined; onClose: () => void;
   /** `novaCompra`: preço de compra da unidade calculado pela embalagem, quando o comerciante escolheu usar. */
   onSave: (e: Omit<Embalagem, "uid">, novaCompra: number | null) => void;
@@ -1468,12 +1485,12 @@ function EmbalagemSheet({ tipoComercio, index, lista, unidade, codigoProduto, us
   const nomeUn = unSingular(unidade);
   return (
     <Sheet title={index >= 0 ? "Editar embalagem" : "Nova embalagem"} onClose={onClose}>
-      <form noValidate onSubmit={(ev) => { ev.preventDefault(); if (!ok) { setTentou(true); return; } onSave({ tipo, qtd: q.v!, codigo: cod.trim(), preco }, mudaCompra && usar ? unit : null); }} className="flex min-h-0 flex-col">
+      <form noValidate onSubmit={(ev) => { ev.preventDefault(); if (!ok) { setTentou(true); return; } onSave({ tipo, qtd: travaQtd && init ? init.qtd : q.v!, codigo: cod.trim(), preco }, mudaCompra && usar ? unit : null); }} className="flex min-h-0 flex-col">
         <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3">
           <Chips label="Tipo de embalagem" hint="Como vem do fornecedor." opts={opcoesTipo} value={tipo} onChange={setTipo} />
           <Field label={perguntaQtd(unidade)} name="eqtd" id="eqtd" inputMode={aceitaFracao(unidade) ? "decimal" : "numeric"} enterKeyHint="next" onKeyDown={nextOnEnter("ecod")}
-            placeholder={aceitaFracao(unidade) ? "Ex.: 25" : "Ex.: 12"} value={qtdTxt} onChange={(e) => setQtdTxt(e.target.value.replace(/[^\d,.-]/g, "").slice(0, 10))}
-            error={qErr} hint={q.v && !q.err ? conversaoEmbalagem({ tipo, qtd: q.v }, unidade) : unidade === "Unidade" || !unidade ? ajudaQtdEmbalagem(tipo, unidade) : `Ex.: ${tipo.toLowerCase()} com ${qtdUn(12, unidade)}.`} />
+            placeholder={aceitaFracao(unidade) ? "Ex.: 25" : "Ex.: 12"} value={qtdTxt} readOnly={!!travaQtd} aria-readonly={!!travaQtd || undefined} onChange={(e) => { if (!travaQtd) setQtdTxt(e.target.value.replace(/[^\d,.-]/g, "").slice(0, 10)); }}
+            error={qErr} hint={travaQtd ? `${q.v ? conversaoEmbalagem({ tipo, qtd: q.v }, unidade) + ". " : ""}${travaQtd}` : q.v && !q.err ? conversaoEmbalagem({ tipo, qtd: q.v }, unidade) : unidade === "Unidade" || !unidade ? ajudaQtdEmbalagem(tipo, unidade) : `Ex.: ${tipo.toLowerCase()} com ${qtdUn(12, unidade)}.`} />
           <Field label="Código de barras da embalagem (opcional)" name="ecod" id="ecod" inputMode="numeric" autoComplete="off" enterKeyHint="next" onKeyDown={nextOnEnter("epreco")}
             placeholder="Ex.: 17891234567890" value={cod} onChange={(e) => setCod(e.target.value.replace(/\s/g, "").slice(0, 60))} error={errs.codigo ?? ""}
             hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : gerador.criado && cod === gerador.criado ? CODIGO_CRIADO : ajudaCodigo(cod, ajudaCodigoEmbalagem(tipo, unidade))}
