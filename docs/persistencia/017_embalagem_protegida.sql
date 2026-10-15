@@ -70,9 +70,8 @@ begin
   begin
     if new.embalagem_id is null then return new; end if;
     select quantidade into v_q from produto_embalagens where id = new.embalagem_id for share;
-    if tg_table_name = 'pedido_itens' and v_q is not null and new.qtd_unidades <> new.qtd_embalagens * v_q
-       and (tg_op = 'INSERT' or new.embalagem_id is distinct from old.embalagem_id or new.qtd_embalagens is distinct from old.qtd_embalagens
-            or new.qtd_unidades is distinct from old.qtd_unidades) then
+    if tg_table_name <> 'pedido_itens' or v_q is null then return new; end if;
+    if new.qtd_unidades <> new.qtd_embalagens * v_q then
       raise exception 'embalagem_mudou' using errcode = '40001';
     end if;
     return new;
