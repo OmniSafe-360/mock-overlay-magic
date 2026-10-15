@@ -591,10 +591,10 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
   const pronto = Object.keys(visao.resumos).length > 0;
   const dispResolver = disponibilidade(stores, visao, true);
   const kpis = [
-    { label: "Para resolver agora", assunto: "resolver" as const, disp: dispResolver, n: paraResolver(dispResolver.soma), Icon: AlertTriangle, cor: "urgente" as const, desc: "Pendências urgentes de vários tipos, não só produtos" },
-    { label: "Para repor", assunto: "repor" as const, disp: dispBase, n: dispBase.soma.repor, Icon: ShoppingBasket, cor: "atencao" as const, desc: "Produtos para repor na área de venda" },
-    { label: "Para comprar", assunto: "comprar" as const, disp: dispBase, n: dispBase.soma.comprar, Icon: ShoppingCart, cor: "atencao" as const, desc: "Produtos para comprar, fora os já pedidos" },
-    { label: dispBase.soma.vencendo === 1 ? "Vence em breve" : "Vencem em breve", assunto: "vencendo" as const, disp: dispBase, n: dispBase.soma.vencendo, Icon: CalendarClock, cor: "atencao" as const, desc: "Produtos com validade perto do fim" },
+    { label: "Para resolver agora", assunto: "resolver" as const, disp: dispResolver, n: paraResolver(dispResolver.soma), Icon: AlertTriangle, cor: "urgente" as const, desc: "Pendências urgentes de vários tipos, não só produtos", un: ["pendência", "pendências"] as const },
+    { label: "Para repor", assunto: "repor" as const, disp: dispBase, n: dispBase.soma.repor, Icon: ShoppingBasket, cor: "atencao" as const, desc: "Produtos para repor na área de venda", un: ["produto", "produtos"] as const },
+    { label: "Para comprar", assunto: "comprar" as const, disp: dispBase, n: dispBase.soma.comprar, Icon: ShoppingCart, cor: "atencao" as const, desc: "Produtos para comprar, fora os já pedidos", un: ["produto", "produtos"] as const },
+    { label: dispBase.soma.vencendo === 1 ? "Vence em breve" : "Vencem em breve", assunto: "vencendo" as const, disp: dispBase, n: dispBase.soma.vencendo, Icon: CalendarClock, cor: "atencao" as const, desc: "Produtos com validade perto do fim", un: ["produto", "produtos"] as const },
   ];
   // B10: "Tudo certo!" só quando também não há nada "de olho" (conta vencendo hoje, alerta de antifurto…)
   const tudoCerto = pronto && !visao.carregando && !visao.erro && kpis.every((k) => k.n === 0 && k.disp.estado === "total") && deOlho(t) === 0;
@@ -622,6 +622,10 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
   const primeiraLeitura = idsTela.length > 0 && nenhumConfirmado && falharam === 0
     && (visao.carregando || idsTela.every((id) => !visao.geral[id]));
   const carregandoTela = visao.carregando || primeiraLeitura;
+  // M04-B: "Soma de todos os comércios" só quando todos os comércios estão confirmados nos quatro indicadores e nada está em consulta.
+  const somaDeTodos = stores.length > 1 && !carregandoTela && dispBase.estado === "total" && dispResolver.estado === "total";
+  // M04-B: comércios cujos dados entram em af.faltou (mesma origem de totalAntifurto).
+  const afContribuem = visao.antifurto.filter((l) => !!l.alertas).length;
   const falhaDuranteConsulta = visao.carregando && falharam > 0;
   const [ocultos, setOcultos] = useState(passosOcultos);
   const passos = passosDaTela(stores, visao, fornecedores, locais, ocultos);
@@ -701,7 +705,7 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
           </div>
 
           </div>
-          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:mb-2">Pendências que precisam de atenção</h3>
+          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:mb-2 flex flex-wrap items-baseline justify-between gap-x-2">Pendências que precisam de atenção{somaDeTodos && <span data-testid="soma-todos" className="font-normal normal-case tracking-normal">Soma de todos os comércios</span>}</h3>
           {tudoCerto ? (
             <p className="flex items-center gap-2 rounded-3xl border border-accent/50 bg-accent/10 p-4 text-sm font-semibold text-accent">
               <CircleCheck size={20} className="shrink-0" /> Tudo certo! Nenhum comércio precisa de atenção agora.
@@ -722,13 +726,13 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
             </p>
           ) : (
             <div className="@container"><div data-testid="grade-pendencias" className="grid grid-cols-1 gap-2 md:gap-3 @[18rem]:grid-cols-2 @[52rem]:grid-cols-4">
-              {kpis.map(({ label, assunto, n, Icon, cor, desc, disp }) => {
+              {kpis.map(({ label, assunto, n, Icon, cor, desc, disp, un }) => {
                 const ativo = disp.estado !== "indisponivel" && n > 0;
                 const borda = !ativo ? "border-border bg-secondary/70" : cor === "urgente" ? "border-destructive/60 bg-destructive/10" : "border-warning/60 bg-warning/10";
                 return (
                   <button key={label} type="button" onClick={() => onAlertas(assunto)} className={`min-w-0 rounded-3xl border p-2.5 text-left [overflow-wrap:anywhere] transition hover:border-primary md:p-4 ${borda}`}>
                     <Icon size={20} className={!ativo ? "text-muted-foreground" : cor === "urgente" ? "text-destructive" : "text-warning"} />
-                    <p className="mt-1 text-2xl font-bold tracking-tight md:mt-3 sm:text-3xl">{disp.estado !== "indisponivel" ? n : carregandoTela || Object.keys(visao.geral).length === 0 ? "…" : "—"}</p>
+                    <p className="mt-1 text-2xl font-bold tracking-tight md:mt-3 sm:text-3xl">{disp.estado !== "indisponivel" ? <>{n}<span data-testid="unidade-kpi" className="ml-1 text-xs font-normal tracking-normal text-muted-foreground sm:text-sm">{n === 1 ? un[0] : un[1]}</span></> : carregandoTela || Object.keys(visao.geral).length === 0 ? "…" : "—"}</p>
                     <p className="mt-0.5 text-xs leading-tight text-muted-foreground sm:text-sm md:mt-1">{label}</p>
                     <p className="max-md:sr-only md:mt-1 text-[11px] leading-snug text-muted-foreground/80 sm:text-xs">{desc}</p>
                     {disp.estado === "subtotal" && <p className="mt-1 text-[11px] font-semibold leading-snug text-warning sm:text-xs">Subtotal: {disp.validos} de {disp.total} comércios</p>}
@@ -751,7 +755,7 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
             </span>
             <span data-testid="status-cartao" className="flex w-full shrink-0 flex-wrap items-center justify-between gap-x-2 border-t border-border/60 pt-1.5 text-left text-xs text-muted-foreground md:pt-2 @[26rem]:block @[26rem]:w-auto @[26rem]:border-0 @[26rem]:pt-0 @[26rem]:text-right">
               {!afCompleto ? carregandoTela ? "Consultando…" : "Consulta incompleta" : af.alertas === 0 ? "Nenhum alerta" : af.alertas === 1 ? "1 alerta" : `${af.alertas} alertas`}
-              {afPronto && !afCompleto && <span className="block">Subtotal disponível</span>}
+              {afPronto && !afCompleto && <span className="block">Subtotal: {afContribuem} de {stores.length} comércios</span>}
               <span className="block font-semibold text-primary">Ver antifurto</span>
             </span>
           </button>
