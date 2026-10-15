@@ -171,4 +171,21 @@ describe("H2 — estabilidade na abertura do Início", () => {
     expect(screen.queryByText(NEUTRO)).toBeNull();
     expect(screen.getByRole("button", { name: "Atualizar painel" })).not.toBeDisabled();
   });
+
+  it("carregamento misto: primeiro comércio falha e o segundo ainda espera — aviso visível na espera, sem neutro nem Tudo certo; depois o aviso final", async () => {
+    const { p, r } = pendente<typeof emDia>();
+    banco.carregarProdutos.mockImplementation(async (id: string) => { if (id === "c1") throw new TypeError("Failed to fetch"); return p; });
+    render(<OwnerApp userId="u1" owner="M" initial={lojas(2)} />);
+    const aviso = await screen.findByRole("alert");
+    expect(aviso).toHaveTextContent("Não foi possível atualizar 1 comércio");
+    expect(aviso).toHaveTextContent("Ainda consultando 1 comércio");
+    expect(screen.queryByText(NEUTRO)).toBeNull();
+    expect(screen.queryByText(VERDE)).toBeNull();
+    r(emDia);
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/números podem estar incompletos/));
+    expect(screen.queryByText(/Ainda consultando/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeTruthy();
+    expect(screen.queryByText(VERDE)).toBeNull();
+    expect(screen.queryByText(NEUTRO)).toBeNull();
+  });
 });

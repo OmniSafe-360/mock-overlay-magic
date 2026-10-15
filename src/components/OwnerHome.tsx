@@ -611,9 +611,13 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
   // Sem IDs válidos não há consulta a esperar, então o estado neutro não se aplica.
   const idsTela = stores.map(idDe).filter((x): x is string => !!x);
   const nenhumConfirmado = idsTela.every((id) => !visao.geral[id]?.base);
-  const primeiraLeitura = idsTela.length > 0 && nenhumConfirmado
+  // Falha já conhecida (um comércio terminou com erro) não pode ficar escondida atrás do quadro neutro.
+  const falharam = idsTela.filter((id) => visao.geral[id]?.estado === "erro").length;
+  const consultando = idsTela.filter((id) => visao.geral[id]?.estado === "carregando").length;
+  const primeiraLeitura = idsTela.length > 0 && nenhumConfirmado && falharam === 0
     && (visao.carregando || idsTela.every((id) => !visao.geral[id]));
   const carregandoTela = visao.carregando || primeiraLeitura;
+  const falhaDuranteConsulta = visao.carregando && falharam > 0;
   const [ocultos, setOcultos] = useState(passosOcultos);
   const passos = passosDaTela(stores, visao, fornecedores, locais, ocultos);
   const unico = stores.length === 1 ? stores[0]! : null;
@@ -667,6 +671,12 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
               <button type="button" onClick={onTentar} className="min-h-11 rounded-xl border border-border px-3 font-semibold">Tentar de novo</button>
             </div>
           )}
+          {falhaDuranteConsulta && (
+            <div role="alert" className="mb-3 rounded-2xl border border-warning/60 p-3 text-sm">
+              Não foi possível atualizar {falharam === 1 ? "1 comércio" : `${falharam} comércios`}. Os números podem estar incompletos.
+              {consultando > 0 && <span className="block text-xs text-muted-foreground">Ainda consultando {consultando === 1 ? "1 comércio" : `${consultando} comércios`}…</span>}
+            </div>
+          )}
           <div className="mb-2 md:mb-4">
           <div className="@container min-w-0">
             <h3 className="mb-1 flex flex-wrap items-baseline justify-between gap-x-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:mb-2">Vendas de hoje<span className="font-normal normal-case tracking-normal">{etiquetaHoje(hoje)}</span></h3>
@@ -698,7 +708,7 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
           ) : primeiraLeitura ? (
             // Mesma caixa do quadro verde: o texto definitivo, invisível e fora do texto da página (só CSS), dá a altura em qualquer largura e letra.
             <p role="status" data-testid="conferindo-pendencias" data-medida="Tudo certo! Nenhum comércio precisa de atenção agora."
-              className="grid rounded-3xl border border-border bg-secondary/70 p-4 text-sm font-semibold text-muted-foreground before:invisible before:col-start-1 before:row-start-1 before:pl-[28px] before:content-[attr(data-medida)]">
+              className="grid rounded-3xl border border-border bg-secondary/70 p-4 text-sm font-semibold text-muted-foreground before:invisible before:col-start-1 before:row-start-1 before:pl-[calc(20px+0.5rem)] before:content-[attr(data-medida)]">
               <span className="col-start-1 row-start-1 flex items-center gap-2"><Loader2 size={20} aria-hidden="true" className="shrink-0 animate-spin motion-reduce:animate-none" /> Conferindo pendências…</span>
             </p>
           ) : (
