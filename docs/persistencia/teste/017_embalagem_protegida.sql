@@ -23,7 +23,7 @@ reset role;
 select pg_temp.ok((select qtd_unidades from pedido_itens where pedido_id=pg_temp.u('ped'))=54,'pedido 9x6=54');
 -- por função existente: mudar fator recusa, nada muda
 set local role authenticated;
-select pg_temp.recusa($q$select pg_temp.salva('ovo', jsonb_build_array(pg_temp.emb('cx6',12), pg_temp.emb('livre',12)))$q$,'embalagem_em_uso');
+select pg_temp.recusa($q$select pg_temp.salva('ovo', jsonb_build_array(pg_temp.emb('cx6',7), pg_temp.emb('livre',12)))$q$,'embalagem_em_uso');
 -- edição legítima: preço e código ok
 select pg_temp.salva('ovo', jsonb_build_array(pg_temp.emb('cx6',6,30,'17891234567895'), pg_temp.emb('livre',12)));
 reset role;
