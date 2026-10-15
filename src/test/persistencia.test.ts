@@ -87,3 +87,8 @@ describe("recusas que tentar de novo não resolve (checklist item 25)", () => {
     expect(mensagemErro({ message: "preco_invalido" })).toBe("Confira o preço: ele não pode ser negativo.");
   });
 });
+
+it("Etapa 3: recusas da embalagem protegida têm mensagem própria", () => {
+  expect(mensagemErro({ message: "embalagem_em_uso" })).toMatch(/já foi usada em pedido ou no caixa/);
+  expect(mensagemErro({ message: "embalagem_mudou" })).toMatch(/mudou enquanto o pedido era montado/);
+});
