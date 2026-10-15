@@ -708,7 +708,7 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
           ) : primeiraLeitura ? (
             // Mesma caixa do quadro verde: o texto definitivo, invisível e fora do texto da página (só CSS), dá a altura em qualquer largura e letra.
             <p role="status" data-testid="conferindo-pendencias" data-medida="Tudo certo! Nenhum comércio precisa de atenção agora."
-              className="grid rounded-3xl border border-border bg-secondary/70 p-4 text-sm font-semibold text-muted-foreground before:invisible before:col-start-1 before:row-start-1 before:pl-[28px] before:content-[attr(data-medida)]">
+              className="grid rounded-3xl border border-border bg-secondary/70 p-4 text-sm font-semibold text-muted-foreground before:invisible before:col-start-1 before:row-start-1 before:pl-[calc(20px+0.5rem)] before:content-[attr(data-medida)]">
               <span className="col-start-1 row-start-1 flex items-center gap-2"><Loader2 size={20} aria-hidden="true" className="shrink-0 animate-spin motion-reduce:animate-none" /> Conferindo pendências…</span>
             </p>
           ) : (
