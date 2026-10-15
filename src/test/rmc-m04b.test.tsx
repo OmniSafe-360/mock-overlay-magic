@@ -36,6 +36,8 @@ describe("M04-B — unidades e alcance dos indicadores", () => {
     await waitFor(async () => expect((await kpi(/Para repor/)).textContent).toMatch(/^1 produtoPara repor/));
     expect((await kpi(/Para comprar/)).textContent).toMatch(/^0 produtosPara comprar/);
     expect((await kpi(/Para resolver agora/)).textContent).toMatch(/^0 pendênciasPara resolver/);
+    expect(await kpi(/^1 produto Para repor/)).toBeTruthy();
+    expect(await kpi(/^0 pendências Para resolver agora/)).toBeTruthy();
     expect(screen.queryByTestId("soma-todos")).toBeNull();
   });
   it("dois comércios completos: plural e 'Soma de todos os comércios'", async () => {
