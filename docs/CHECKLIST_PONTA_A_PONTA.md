@@ -407,3 +407,14 @@ Base desta documentação: tipos e **1.101 testes/108 arquivos duas vezes**. Sem
 - **Limite:** M01-B não iniciada; M01 inteira continua aberta. E1–E8, G0–G8, RMC e os checklists históricos mantêm todos os estados/pendências anteriores. Não avançar, mesclar ou publicar sem autorização própria.
 
 Rastreabilidade M01-A: [PR #149](https://github.com/OmniSafe-360/mock-overlay-magic/pull/149), implementação `1d18c92`. PR aberto, sem merge/publicação; CI remoto em andamento na abertura. Validação do dono e M01-B permanecem pendentes.
+
+
+## Modernização UX/UI — atualização M01-A/M01-B, 15/10/2026 UTC
+
+Os registros anteriores refletem a situação na entrega original; este acompanhamento atualiza somente M01-A/M01-B.
+
+- [x] **M01-A: aceite Android limitado aos quatro pontos relatados pelo dono.** O proprietário informou que a M01-A foi publicada e testada por ele no Android: a nova explicação apareceu corretamente, a aparência original foi preservada, a janela Adicionar funcionário abriu e o botão X a fechou. O merge do PR #149 foi confirmado no GitHub em 15/10/2026 às 08h06m05s UTC, commit `a1564ba6cb15b3da412232abb03739e835351fcd`. Publicação e teste no aparelho são relato do proprietário; não foram repetidos nesta execução. Modelo, versão instalada e horário exato do teste não informados. Esse aceite não valida cadastro/salvamento de funcionário, PIN, permissões, vendas nem outras funcionalidades.
+- [ ] **M01-B: implementada/testada na branch, falta validação do dono; sem merge/publicação.** Base `main a1564ba6`, branch `codex/ux-m01-b-mensagem-abertura-20261015`. Dois textos de erro e três expectativas, nenhuma outra mudança funcional/visual; três documentos de acompanhamento. Tipos 2×, 1.129 testes/112 arquivos 2×, build e 30 cenários Chromium responsivo em 320/390/1280 aprovados. Não equivale a aparelho real/sessão publicada. [Plano Mestre: escopo, roteiro e limites](PLANO_MESTRE_UX_UI.md#13-m01-a-aceite-restrito-m01-b-execução-autorizada--15102026-utc).
+- **Continuidade:** aguardar revisão e aceite da M01-B; M02 não iniciada. Não encerra E/G/RMC, segurança, banco real ou outras pendências. Fonte da Verdade intacta.
+
+Rastreabilidade M01-B: [PR #150](https://github.com/OmniSafe-360/mock-overlay-magic/pull/150), implementação `808394d`. Aberto para revisão, sem merge/publicação; CI remoto pendente na abertura, separado das verificações locais aprovadas.
