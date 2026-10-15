@@ -58,7 +58,7 @@ beforeEach(() => {
 
 
 describe("C4-C1 — proposta, alerta global com leitura confirmada", () => {
-  const ready = async () => await waitFor(() => expect(screen.getByText("2 comércios cadastrados · 2 com dados completos")).toBeTruthy());
+  const ready = async () => await waitFor(() => expect(screen.getByText("2 comércios cadastrados · 2 com resumo completo")).toBeTruthy());
   const setup = () => render(<OwnerApp userId="u1" owner="M" initial={[a, b]} />);
   it("o sino não conta urgência antiga depois de falha na unidade", async () => {
     banco.carregarProdutos.mockImplementation(async id => ({ produtos: id === "c2" ? [acabou] : [emDia], locais: { deposito: [], venda: [] } }));

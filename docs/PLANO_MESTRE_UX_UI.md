@@ -601,3 +601,7 @@ Artefatos locais: `/workspace/entregas/omnisafe-m03-implementacao-2026-10-15/` (
 Roteiro para versão de teste autorizada: abrir primeiro cadastro ou Adicionar comércio; quando houver altura disponível, conferir “Informe os dados do seu comércio para começar.”; passar e voltar pelas quatro etapas, sem envio real desnecessário, e confirmar aparência/controles. Registrar resultado/aparelho/versão; não presumir publicação. Reversão restrita à frase, conservando o acompanhamento documental.
 
 Rastreabilidade M03: [PR #152](https://github.com/OmniSafe-360/mock-overlay-magic/pull/152), implementação `b9924e4`. Aberto para revisão; sem merge/publicação, CI remoto pendente na abertura. Não avançar à M04.
+
+## M04-A — textos dos indicadores globais (15/10/2026)
+
+Só textos em OwnerHome.tsx; ver registro em CLAUDE.md. Aguarda revisão do dono; sem merge/publicação; M04-B não iniciada.

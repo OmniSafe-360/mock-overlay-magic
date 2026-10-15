@@ -627,7 +627,7 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
           <header aria-label="Visão geral">
             <p className="text-sm font-semibold">Visão geral dos seus comércios</p>
             <p className="text-xs text-muted-foreground">
-              {stores.length === 1 ? "1 comércio cadastrado" : `${stores.length} comércios cadastrados`} · {completos === 1 ? "1 com dados completos" : `${completos} com dados completos`}
+              {stores.length === 1 ? "1 comércio cadastrado" : `${stores.length} comércios cadastrados`} · {completos === 1 ? "1 com resumo completo" : `${completos} com resumo completo`}
             </p>
           </header>
         );
@@ -649,14 +649,14 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
           )}
           <div className="mb-2 md:mb-4">
           <div className="@container min-w-0">
-            <h3 className="mb-1 flex flex-wrap items-baseline justify-between gap-x-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:mb-2">Resultado de hoje<span className="font-normal normal-case tracking-normal">{etiquetaHoje(hoje)}</span></h3>
+            <h3 className="mb-1 flex flex-wrap items-baseline justify-between gap-x-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:mb-2">Vendas de hoje<span className="font-normal normal-case tracking-normal">{etiquetaHoje(hoje)}</span></h3>
           <button type="button" onClick={onVendas} aria-label={`Vendas hoje: ${vendasCompletas ? brlVenda(t.vendasHojeTotal) : "consulta incompleta"}`}
             data-testid="cartao-vendas" className="flex w-full flex-wrap items-start gap-x-3 gap-y-1 rounded-3xl border border-primary/50 bg-primary/10 p-2.5 text-left transition hover:border-primary md:gap-x-4 md:gap-y-3 md:p-4 @[26rem]:flex-nowrap @[26rem]:items-center">
             <ShoppingBag size={24} className="shrink-0 text-primary" />
             <span className="min-w-0 flex-1">
               <span className="block text-xs text-muted-foreground sm:text-sm">Vendas hoje</span>
               <span className="block text-2xl font-bold tracking-tight [overflow-wrap:anywhere] sm:text-3xl">{vendasCompletas ? brlVenda(t.vendasHojeTotal) : visao.carregando ? "…" : "—"}</span>
-              <span className="block max-md:sr-only text-xs leading-snug text-muted-foreground">Valor das vendas finalizadas hoje</span>
+              <span className="block max-md:sr-only text-xs leading-snug text-muted-foreground">Vendas finalizadas hoje. Não é lucro nem saldo do caixa.</span>
             </span>
             <span data-testid="status-cartao" className="flex w-full shrink-0 flex-wrap items-center justify-between gap-x-2 border-t border-border/60 pt-1.5 text-left text-xs text-muted-foreground md:pt-2 @[26rem]:block @[26rem]:w-auto @[26rem]:border-0 @[26rem]:pt-0 @[26rem]:text-right">
               {!vendasCompletas ? visao.carregando ? "Consultando…" : "Consulta incompleta" : t.vendasHojeN === 0 ? "Nenhuma venda ainda" : t.vendasHojeN === 1 ? "1 venda" : `${t.vendasHojeN} vendas`}
@@ -691,14 +691,14 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
           )}
           <div className="mt-2 md:mt-4">
           <div className="@container min-w-0">
-            <h3 className="mb-1 flex flex-wrap items-baseline justify-between gap-x-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:mb-2">Resultado deste mês<span className="font-normal normal-case tracking-normal">{etiquetaMes(hoje)}</span></h3>
+            <h3 className="mb-1 flex flex-wrap items-baseline justify-between gap-x-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:mb-2">Faltas no estoque neste mês<span className="font-normal normal-case tracking-normal">{etiquetaMes(hoje)}</span></h3>
           <button type="button" onClick={onAntifurto} aria-label={`Faltou este mês: ${afCompleto ? brlVenda(af.faltou) : "consulta incompleta"}`}
             data-testid="cartao-faltou" className={`flex w-full flex-wrap items-start gap-x-3 gap-y-1 rounded-3xl border p-2.5 text-left md:gap-x-4 md:gap-y-3 md:p-4 @[26rem]:flex-nowrap @[26rem]:items-center transition hover:border-primary ${af.faltou > 0 || af.alertas > 0 ? "border-destructive/50 bg-destructive/10" : "border-border bg-secondary/70"}`}>
             <ShieldAlert size={24} className={`shrink-0 ${af.faltou > 0 || af.alertas > 0 ? "text-destructive" : "text-muted-foreground"}`} />
             <span className="min-w-0 flex-1">
               <span className="block text-xs text-muted-foreground sm:text-sm">Faltou este mês</span>
               <span className="block text-2xl font-bold tracking-tight [overflow-wrap:anywhere] sm:text-3xl">{afPronto ? brlVenda(af.faltou) : visao.carregando ? "…" : "—"}</span>
-              <span className="block max-md:sr-only text-xs leading-snug text-muted-foreground">Valor das faltas identificadas nas diferenças do estoque neste mês</span>
+              <span className="block max-md:sr-only text-xs leading-snug text-muted-foreground">Faltas nas diferenças do estoque, ao preço de compra. O valor não identifica a causa.</span>
             </span>
             <span data-testid="status-cartao" className="flex w-full shrink-0 flex-wrap items-center justify-between gap-x-2 border-t border-border/60 pt-1.5 text-left text-xs text-muted-foreground md:pt-2 @[26rem]:block @[26rem]:w-auto @[26rem]:border-0 @[26rem]:pt-0 @[26rem]:text-right">
               {!afCompleto ? visao.carregando ? "Consultando…" : "Consulta incompleta" : af.alertas === 0 ? "Nenhum alerta" : af.alertas === 1 ? "1 alerta" : `${af.alertas} alertas`}

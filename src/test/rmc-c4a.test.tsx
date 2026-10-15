@@ -46,11 +46,11 @@ describe("RMC-04 / C4-A — hierarquia e clareza da situação global", () => {
     const regiao = within(await screen.findByRole("region", { name: "Resumo geral" }));
     expect(regiao.getByRole("heading", { level: 2 }).textContent).toBe("Situação dos comércios");
     const grupos = regiao.getAllByRole("heading", { level: 3 }).map((h) => h.textContent ?? "");
-    expect(grupos[0]).toMatch(/^Resultado de hoje/);
+    expect(grupos[0]).toMatch(/^Vendas de hoje/);
     expect(grupos[1]).toBe("Pendências que precisam de atenção");
-    expect(grupos[2]).toMatch(/^Resultado deste mês/);
+    expect(grupos[2]).toMatch(/^Faltas no estoque neste mês/);
     const conteudo = regiao.getByRole("button", { name: /^Faltou este mês:/ }).textContent ?? "";
-    expect(conteudo).toContain("Valor das faltas identificadas nas diferenças do estoque neste mês");
+    expect(conteudo).toContain("Faltas nas diferenças do estoque, ao preço de compra. O valor não identifica a causa.");
     expect(conteudo).not.toContain("Faltas e perdas de mercadoria registradas no mês");
     await waitFor(() => expect(regiao.getByRole("button", { name: /Para repor/ }).textContent).toMatch(/^1/));
     expect(regiao.getByRole("button", { name: /^Vendas hoje:/ }).textContent).toContain("R$");

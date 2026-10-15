@@ -27,19 +27,19 @@ describe("RMC-02C / C1 — clareza da visão global", () => {
     render(<OwnerApp userId="u1" owner="M" initial={[a]} />);
     const h = within(screen.getByRole("banner", { name: "Visão geral" }));
     expect(h.getByText("Visão geral dos seus comércios")).toBeTruthy();
-    await waitFor(() => expect(h.getByText("1 comércio cadastrado · 1 com dados completos")).toBeTruthy());
+    await waitFor(() => expect(h.getByText("1 comércio cadastrado · 1 com resumo completo")).toBeTruthy());
   });
   it("vários comércios com vendas falhando em um: não conta como completo e mantém o aviso", async () => {
     banco.carregarVendas.mockImplementation(async (id: string) => { if (id === "c2") throw new TypeError("Failed to fetch"); return []; });
     render(<OwnerApp userId="u1" owner="M" initial={[a, b]} />);
     expect(await screen.findByRole("alert")).toHaveTextContent(/números podem estar incompletos/);
-    expect(screen.getByText("2 comércios cadastrados · 1 com dados completos")).toBeTruthy();
+    expect(screen.getByText("2 comércios cadastrados · 1 com resumo completo")).toBeTruthy();
   });
   it("seis indicadores mantêm títulos, valores e ações, com explicações", async () => {
     render(<OwnerApp userId="u1" owner="M" initial={[a]} />);
     const r = within(await screen.findByRole("region", { name: "Resumo geral" }));
     await waitFor(() => expect(r.getByRole("button", { name: /Para repor/ }).textContent).toMatch(/^1/));
-    for (const t of ["Valor das vendas finalizadas hoje", "Valor das faltas identificadas nas diferenças do estoque neste mês", "Pendências urgentes de vários tipos, não só produtos",
+    for (const t of ["Vendas finalizadas hoje. Não é lucro nem saldo do caixa.", "Faltas nas diferenças do estoque, ao preço de compra. O valor não identifica a causa.", "Pendências urgentes de vários tipos, não só produtos",
       "Produtos para repor na área de venda", "Produtos para comprar, fora os já pedidos", "Produtos com validade perto do fim"]) expect(r.getByText(t)).toBeTruthy();
     expect(screen.queryByText(/furto/i, { selector: "p" })).toBeNull();
     fireEvent.click(r.getByRole("button", { name: /Para repor/ }));
@@ -137,9 +137,9 @@ describe("RMC-02C / C3 — organização visual", () => {
     const reg = await screen.findByRole("region", { name: "Resumo geral" });
     const r = within(reg);
     const hs = r.getAllByRole("heading", { level: 3 }).map((h) => h.textContent ?? "");
-    expect(hs[0]).toMatch(/^Resultado de hoje.*Hoje · \d{2}\/\d{2}/);
+    expect(hs[0]).toMatch(/^Vendas de hoje.*Hoje · \d{2}\/\d{2}/);
     expect(hs[1]).toBe("Pendências que precisam de atenção");
-    expect(hs[2]).toMatch(/^Resultado deste mês.*Mês de /);
+    expect(hs[2]).toMatch(/^Faltas no estoque neste mês.*Mês de /);
     const txt = reg.textContent ?? "";
     expect(txt.indexOf("Vendas hoje")).toBeLessThan(txt.indexOf("Pendências que precisam"));
     expect(txt.indexOf("Pendências que precisam")).toBeLessThan(txt.indexOf("Faltou este mês"));
