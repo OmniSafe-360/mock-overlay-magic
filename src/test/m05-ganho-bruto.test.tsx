@@ -21,12 +21,12 @@ describe("M05 — explicação do ganho bruto", () => {
     expect(screen.getByTestId("ganho-bruto").textContent).toBe(frase("unidade"));
     expect(screen.getByText("Lucro por unidade")).toBeTruthy();
     expect(screen.getByText("Lucro sobre o custo (%)")).toBeTruthy();
-    expect(screen.getByText(brl2(300))).toBeTruthy();
+    expect(screen.getByText("Lucro por unidade").nextElementSibling?.textContent).toBe(brl2(300));
     expect(campo("ganho").value).toBe("30");
     expect(screen.getByTestId("ganho-bruto").textContent).not.toMatch(/líquido/i);
   });
 
-  it.each([["Kg", "kg"], ["Litro", "litro"]])("acompanha a unidade %s", (unidade, esperado) => {
+  it.each([["Kg", "Kg"], ["Litro", "litro"]])("acompanha a unidade %s", (unidade, esperado) => {
     abrir({ ...base, unidade });
     expect(screen.getByTestId("ganho-bruto").textContent).toBe(frase(esperado));
   });
@@ -38,8 +38,8 @@ describe("M05 — explicação do ganho bruto", () => {
 
   it("aparece no cadastro novo", () => {
     render(<ProductWizard store={store} products={[]} suppliers={[]} onAddSupplier={() => 1} onCancel={() => {}} onSave={vi.fn()} />);
-    fireEvent.change(document.getElementById("codigo")!, { target: { value: "7891000100103" } });
-    fireEvent.change(document.getElementById("nome")!, { target: { value: "Leite" } });
+    fireEvent.change(document.querySelector('input[name="codigo"]')!, { target: { value: "7891000100103" } });
+    fireEvent.change(document.querySelector('input[name="nome"]')!, { target: { value: "Leite" } });
     fireEvent.submit(document.querySelector("form")!);
     expect(screen.getByTestId("ganho-bruto").textContent).toBe(frase("unidade"));
   });
