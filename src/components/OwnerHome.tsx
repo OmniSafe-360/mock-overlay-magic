@@ -7,7 +7,7 @@ import type { Recebimento } from "@/lib/recebimento";
 import { ehIncerto, mensagemErro, type Sessao } from "@/lib/persistencia";
 import { ERRO_REGISTRO, registroEnvio, type TipoEnvio } from "@/lib/envios";
 import { newUid } from "@/lib/deposito";
-import { AlertTriangle, Bell, CalendarClock, ChevronRight, CircleCheck, Home, Plus, ShieldAlert, ShoppingBag, ShoppingBasket, ShoppingCart, Store, UserCircle, Users, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, Bell, CalendarClock, ChevronRight, CircleCheck, Home, Loader2, Plus, ShieldAlert, ShoppingBag, ShoppingBasket, ShoppingCart, Store, UserCircle, Users, CheckCircle2 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import { ContaPerfil } from "@/components/ContaPerfil";
 import type { Perfil } from "@/lib/perfil";
@@ -606,6 +606,14 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
   // e se nenhum comércio já confirmado nesta leitura trouxe pendência.
   const manterVerde = visao.carregando && ultimoTudoCerto !== null && ultimoTudoCerto === chaveLojas
     && kpis.every((k) => k.n === 0) && deOlho(dispResolver.soma) === 0;
+  // H2: primeira leitura (abertura ou recarga da página) — nenhum comércio com resultado confirmado e a consulta
+  // pendente, inclusive no instante antes de o efeito iniciá-la (resumo ainda vazio). Só apresentação: não muda `visao`.
+  // Sem IDs válidos não há consulta a esperar, então o estado neutro não se aplica.
+  const idsTela = stores.map(idDe).filter((x): x is string => !!x);
+  const nenhumConfirmado = idsTela.every((id) => !visao.geral[id]?.base);
+  const primeiraLeitura = idsTela.length > 0 && nenhumConfirmado
+    && (visao.carregando || idsTela.every((id) => !visao.geral[id]));
+  const carregandoTela = visao.carregando || primeiraLeitura;
   const [ocultos, setOcultos] = useState(passosOcultos);
   const passos = passosDaTela(stores, visao, fornecedores, locais, ocultos);
   const unico = stores.length === 1 ? stores[0]! : null;
@@ -639,7 +647,7 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
           <header aria-label="Visão geral">
             <p className="text-sm font-semibold">Visão geral dos seus comércios</p>
             <p className="text-xs text-muted-foreground">
-              {stores.length === 1 ? "1 comércio cadastrado" : `${stores.length} comércios cadastrados`} · {completos === 1 ? "1 com resumo completo" : `${completos} com resumo completo`}
+              {stores.length === 1 ? "1 comércio cadastrado" : `${stores.length} comércios cadastrados`} · {primeiraLeitura ? "conferindo resumo…" : completos === 1 ? "1 com resumo completo" : `${completos} com resumo completo`}
             </p>
           </header>
         );
@@ -648,12 +656,12 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
         <section aria-label="Resumo geral">
           <div className="mb-1 flex flex-wrap items-center justify-between gap-2 md:mb-3">
             <h2 className="text-base font-semibold">Situação dos comércios</h2>
-            <button type="button" aria-label="Atualizar painel" disabled={visao.carregando} onClick={onTentar}
+            <button type="button" aria-label="Atualizar painel" disabled={carregandoTela} onClick={onTentar}
               className="min-h-11 rounded-xl border border-border px-3 text-sm font-semibold disabled:opacity-50">
-              {visao.carregando ? "Atualizando…" : "Atualizar"}
+              {carregandoTela ? "Atualizando…" : "Atualizar"}
             </button>
           </div>
-          {visao.erro && !visao.carregando && (
+          {visao.erro && !carregandoTela && (
             <div role="alert" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-warning/60 p-3 text-sm">
               <span>Não foi possível atualizar algum comércio. Os números podem estar incompletos.</span>
               <button type="button" onClick={onTentar} className="min-h-11 rounded-xl border border-border px-3 font-semibold">Tentar de novo</button>
@@ -662,16 +670,16 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
           <div className="mb-2 md:mb-4">
           <div className="@container min-w-0">
             <h3 className="mb-1 flex flex-wrap items-baseline justify-between gap-x-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:mb-2">Vendas de hoje<span className="font-normal normal-case tracking-normal">{etiquetaHoje(hoje)}</span></h3>
-          <button type="button" onClick={onVendas} aria-label={`Vendas hoje: ${vendasCompletas ? brlVenda(t.vendasHojeTotal) : "consulta incompleta"}`}
+          <button type="button" onClick={onVendas} aria-label={`Vendas hoje: ${vendasCompletas ? brlVenda(t.vendasHojeTotal) : carregandoTela ? "consultando" : "consulta incompleta"}`}
             data-testid="cartao-vendas" className="flex w-full flex-wrap items-start gap-x-3 gap-y-1 rounded-3xl border border-primary/50 bg-primary/10 p-2.5 text-left transition hover:border-primary md:gap-x-4 md:gap-y-3 md:p-4 @[26rem]:flex-nowrap @[26rem]:items-center">
             <ShoppingBag size={24} className="shrink-0 text-primary" />
             <span className="min-w-0 flex-1">
               <span className="block text-xs text-muted-foreground sm:text-sm">Vendas hoje</span>
-              <span className="block text-2xl font-bold tracking-tight [overflow-wrap:anywhere] sm:text-3xl">{vendasCompletas ? brlVenda(t.vendasHojeTotal) : visao.carregando ? "…" : "—"}</span>
+              <span className="block text-2xl font-bold tracking-tight [overflow-wrap:anywhere] sm:text-3xl">{vendasCompletas ? brlVenda(t.vendasHojeTotal) : carregandoTela ? "…" : "—"}</span>
               <span className="block max-md:sr-only text-xs leading-snug text-muted-foreground">Vendas finalizadas hoje. Não é lucro nem saldo do caixa.</span>
             </span>
             <span data-testid="status-cartao" className="flex w-full shrink-0 flex-wrap items-center justify-between gap-x-2 border-t border-border/60 pt-1.5 text-left text-xs text-muted-foreground md:pt-2 @[26rem]:block @[26rem]:w-auto @[26rem]:border-0 @[26rem]:pt-0 @[26rem]:text-right">
-              {!vendasCompletas ? visao.carregando ? "Consultando…" : "Consulta incompleta" : t.vendasHojeN === 0 ? "Nenhuma venda ainda" : t.vendasHojeN === 1 ? "1 venda" : `${t.vendasHojeN} vendas`}
+              {!vendasCompletas ? carregandoTela ? "Consultando…" : "Consulta incompleta" : t.vendasHojeN === 0 ? "Nenhuma venda ainda" : t.vendasHojeN === 1 ? "1 venda" : `${t.vendasHojeN} vendas`}
               <span className="block font-semibold text-primary">Ver vendas</span>
             </span>
           </button>
@@ -687,6 +695,10 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
             <p data-testid="tudo-certo-anterior" className="flex items-center gap-2 rounded-3xl border border-accent/30 bg-accent/5 p-4 text-sm font-semibold text-accent/70">
               <CircleCheck size={20} className="shrink-0" /> Tudo certo na última consulta · atualizando…
             </p>
+          ) : primeiraLeitura ? (
+            <p role="status" data-testid="conferindo-pendencias" className="flex items-center gap-2 rounded-3xl border border-border bg-secondary/70 p-4 text-sm font-semibold text-muted-foreground">
+              <Loader2 size={20} aria-hidden="true" className="shrink-0 animate-spin motion-reduce:animate-none" /> Conferindo pendências…
+            </p>
           ) : (
             <div className="@container"><div data-testid="grade-pendencias" className="grid grid-cols-1 gap-2 md:gap-3 @[18rem]:grid-cols-2 @[52rem]:grid-cols-4">
               {kpis.map(({ label, assunto, n, Icon, cor, desc, disp }) => {
@@ -695,11 +707,11 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
                 return (
                   <button key={label} type="button" onClick={() => onAlertas(assunto)} className={`min-w-0 rounded-3xl border p-2.5 text-left [overflow-wrap:anywhere] transition hover:border-primary md:p-4 ${borda}`}>
                     <Icon size={20} className={!ativo ? "text-muted-foreground" : cor === "urgente" ? "text-destructive" : "text-warning"} />
-                    <p className="mt-1 text-2xl font-bold tracking-tight md:mt-3 sm:text-3xl">{disp.estado !== "indisponivel" ? n : visao.carregando || Object.keys(visao.geral).length === 0 ? "…" : "—"}</p>
+                    <p className="mt-1 text-2xl font-bold tracking-tight md:mt-3 sm:text-3xl">{disp.estado !== "indisponivel" ? n : carregandoTela || Object.keys(visao.geral).length === 0 ? "…" : "—"}</p>
                     <p className="mt-0.5 text-xs leading-tight text-muted-foreground sm:text-sm md:mt-1">{label}</p>
                     <p className="max-md:sr-only md:mt-1 text-[11px] leading-snug text-muted-foreground/80 sm:text-xs">{desc}</p>
                     {disp.estado === "subtotal" && <p className="mt-1 text-[11px] font-semibold leading-snug text-warning sm:text-xs">Subtotal: {disp.validos} de {disp.total} comércios</p>}
-                    {disp.estado === "indisponivel" && !visao.carregando && Object.keys(visao.geral).length > 0 && <p className="mt-1 text-[11px] font-semibold leading-snug text-warning sm:text-xs">Consulta incompleta</p>}
+                    {disp.estado === "indisponivel" && !carregandoTela && Object.keys(visao.geral).length > 0 && <p className="mt-1 text-[11px] font-semibold leading-snug text-warning sm:text-xs">Consulta incompleta</p>}
                   </button>
                 );
               })}
@@ -708,16 +720,16 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
           <div className="mt-2 md:mt-4">
           <div className="@container min-w-0">
             <h3 className="mb-1 flex flex-wrap items-baseline justify-between gap-x-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:mb-2">Faltas no estoque neste mês<span className="font-normal normal-case tracking-normal">{etiquetaMes(hoje)}</span></h3>
-          <button type="button" onClick={onAntifurto} aria-label={`Faltou este mês: ${afCompleto ? brlVenda(af.faltou) : "consulta incompleta"}`}
+          <button type="button" onClick={onAntifurto} aria-label={`Faltou este mês: ${afCompleto ? brlVenda(af.faltou) : carregandoTela ? "consultando" : "consulta incompleta"}`}
             data-testid="cartao-faltou" className={`flex w-full flex-wrap items-start gap-x-3 gap-y-1 rounded-3xl border p-2.5 text-left md:gap-x-4 md:gap-y-3 md:p-4 @[26rem]:flex-nowrap @[26rem]:items-center transition hover:border-primary ${af.faltou > 0 || af.alertas > 0 ? "border-destructive/50 bg-destructive/10" : "border-border bg-secondary/70"}`}>
             <ShieldAlert size={24} className={`shrink-0 ${af.faltou > 0 || af.alertas > 0 ? "text-destructive" : "text-muted-foreground"}`} />
             <span className="min-w-0 flex-1">
               <span className="block text-xs text-muted-foreground sm:text-sm">Faltou este mês</span>
-              <span className="block text-2xl font-bold tracking-tight [overflow-wrap:anywhere] sm:text-3xl">{afPronto ? brlVenda(af.faltou) : visao.carregando ? "…" : "—"}</span>
+              <span className="block text-2xl font-bold tracking-tight [overflow-wrap:anywhere] sm:text-3xl">{afPronto ? brlVenda(af.faltou) : carregandoTela ? "…" : "—"}</span>
               <span className="block max-md:sr-only text-xs leading-snug text-muted-foreground">Faltas nas diferenças do estoque, ao preço de compra. O valor não identifica a causa.</span>
             </span>
             <span data-testid="status-cartao" className="flex w-full shrink-0 flex-wrap items-center justify-between gap-x-2 border-t border-border/60 pt-1.5 text-left text-xs text-muted-foreground md:pt-2 @[26rem]:block @[26rem]:w-auto @[26rem]:border-0 @[26rem]:pt-0 @[26rem]:text-right">
-              {!afCompleto ? visao.carregando ? "Consultando…" : "Consulta incompleta" : af.alertas === 0 ? "Nenhum alerta" : af.alertas === 1 ? "1 alerta" : `${af.alertas} alertas`}
+              {!afCompleto ? carregandoTela ? "Consultando…" : "Consulta incompleta" : af.alertas === 0 ? "Nenhum alerta" : af.alertas === 1 ? "1 alerta" : `${af.alertas} alertas`}
               {afPronto && !afCompleto && <span className="block">Subtotal disponível</span>}
               <span className="block font-semibold text-primary">Ver antifurto</span>
             </span>
