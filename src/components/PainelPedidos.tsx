@@ -176,7 +176,7 @@ export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora
           return (
             <li key={p.id}>
               <button type="button" onClick={() => setView({ t: "detalhe", id: p.id })}
-                className="flex h-full w-full flex-col gap-3 rounded-3xl border border-border bg-secondary/60 p-4 text-left transition hover:border-primary focus-visible:outline-2 focus-visible:outline-primary">
+                className="flex h-full w-full flex-col gap-2 rounded-3xl border border-border bg-secondary/60 p-4 text-left transition hover:border-primary focus-visible:outline-2 focus-visible:outline-primary">
                 <span className="flex flex-wrap items-start justify-between gap-2">
                   <span className="min-w-0">
                     <span className="block text-xs text-muted-foreground">Pedido nº {p.numero}</span>
@@ -188,36 +188,36 @@ export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora
                   {p.enviadoEm ? `Enviado em ${dataCurta(p.enviadoEm)}${p.canal ? ` ${CANAL_TXT[p.canal]}` : ""}` : `Criado em ${dataCurta(p.criadoEm)}`}
                   {` · ${p.itens.length === 1 ? "1 produto" : `${p.itens.length} produtos`}`}
                 </span>
-                <span className="space-y-2 rounded-2xl bg-background-deep/40 px-3 py-2">
+                <span className="grid gap-1.5 rounded-2xl bg-background-deep/40 px-3 py-2">
                   <span className="flex flex-wrap items-baseline justify-between gap-2">
                     <span className="text-xs text-muted-foreground">{rotuloEstimativa(p)}</span>
                     <span className="text-lg font-bold tabular-nums">{valorEstimativa(p)}</span>
                   </span>
                   {p.resposta?.valorTotal != null && (
-                    <span className="flex flex-wrap items-baseline justify-between gap-2 border-t border-border pt-2">
+                    <span className="flex flex-wrap items-baseline justify-between gap-2 border-t border-border pt-1.5">
                       <span className="text-xs text-muted-foreground">Valor do fornecedor</span>
                       <span className="font-semibold tabular-nums">{brl(p.resposta.valorTotal)}</span>
                     </span>
                   )}
                 </span>
-                <span className="space-y-2 border-t border-border pt-3 text-sm">
+                <span className="grid gap-2 border-t border-border pt-2 text-sm">
                   <span className="flex items-start gap-2">
                     <Truck size={16} className="mt-0.5 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0">
+                    <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-0.5">
                       <span className="block text-xs text-muted-foreground">Entrega</span>
-                      <span className={`block break-words font-semibold ${entrega.cor}`}>{entrega.texto}</span>
+                      <span className={`min-w-0 basis-[min(100%,12em)] flex-1 break-words font-semibold ${entrega.cor}`}>{entrega.texto}</span>
                     </span>
                   </span>
                   <span className="flex items-start gap-2">
                     <Banknote size={16} className="mt-0.5 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0">
+                    <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-0.5">
                       <span className="block text-xs text-muted-foreground">Pagamento</span>
-                      <span className={`block font-semibold ${pg ? COR_PAGAMENTO[pg.estado] : "text-muted-foreground"}`}>{pagamento}</span>
-                      {forma && <span className="mt-0.5 block text-xs text-muted-foreground">{forma}</span>}
+                      <span className={`min-w-0 basis-[min(100%,12em)] flex-1 break-words font-semibold ${pg ? COR_PAGAMENTO[pg.estado] : "text-muted-foreground"}`}>{pagamento}</span>
+                      {forma && <span className="block basis-full text-xs text-muted-foreground">{forma}</span>}
                     </span>
                   </span>
                 </span>
-                <span className="mt-auto flex items-start justify-between gap-3 border-t border-border pt-3 text-sm"><span className="text-muted-foreground">{orientacaoPedido(p)}</span><ArrowRight size={18} className="mt-0.5 shrink-0 text-primary" /></span>
+                <span className="mt-auto flex items-start justify-between gap-3 border-t border-border pt-2 text-sm"><span className="text-muted-foreground">{orientacaoPedido(p)}</span><ArrowRight size={18} className="mt-0.5 shrink-0 text-primary" /></span>
               </button>
             </li>
           );
