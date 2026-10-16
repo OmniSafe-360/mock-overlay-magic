@@ -16,15 +16,15 @@ function abrir() {
 }
 
 describe("M15 — campos legíveis (bloco A)", () => {
-  it("Escanear tem 44 px sem crescer a linha do rótulo", () => {
+  it("Escanear tem 48 px sem crescer a linha do rótulo", () => {
     abrir();
     click("Digitar código");
     const b = screen.getByRole("button", { name: /Escanear/ });
-    expect(b.className).toContain("min-h-11");
+    expect(b.className).toContain("min-h-12");
     expect(b.className).toContain("-my-1");
   });
 
-  it("Remover validade tem 44 px", () => {
+  it("Remover validade tem 48 px", () => {
     const submit = abrir();
     click("Digitar código"); typeIn("Código do produto", "7890001"); typeIn("Nome do produto", "Produto"); submit();
     typeIn("Preço de compra", "1000"); typeIn("Preço de venda", "1500"); click("Pacote"); typeIn("Categoria", "Mercearia"); submit();
@@ -38,8 +38,8 @@ describe("M15 — campos legíveis (bloco A)", () => {
     const add = screen.queryByRole("button", { name: /outra validade/i });
     if (add) fireEvent.click(add);
     const rem = screen.getAllByRole("button", { name: "Remover validade" })[0]!;
-    expect(rem.className).toContain("h-11");
-    expect(rem.className).toContain("w-11");
+    expect(rem.className).toContain("h-12");
+    expect(rem.className).toContain("w-12");
     expect(rem.className).toContain("shrink-0");
   });
 
@@ -93,9 +93,9 @@ describe("M15 — campos legíveis (bloco D, validade)", () => {
     click("Sim"); submit(); submit();
     expect(screen.getByText(/Distribuído: \d+ pacotes? · Falta distribuir: \d+ pacotes?/)).toBeTruthy();
   });
-  it("Desfazer com 44 px e explicação da pendência em letra de 14 px", () => {
+  it("Desfazer com 48 px e explicação da pendência em letra de 14 px", () => {
     const src = readFileSync("src/components/ProductArea.tsx", "utf8");
-    expect(src).toMatch(/className="-my-2 inline-flex min-h-11 items-center px-1 font-semibold text-primary underline">Desfazer</);
+    expect(src).toMatch(/className="-my-2 inline-flex min-h-12 items-center px-1 font-semibold text-primary underline">Desfazer</);
     expect(src).toMatch(/p-2\.5 text-sm">\s*<p>\{PEND_CONF\}<\/p>/);
   });
 });

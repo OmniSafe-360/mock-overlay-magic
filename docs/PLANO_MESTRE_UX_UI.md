@@ -1020,3 +1020,17 @@ Não houve rolagem lateral em nenhum caso. Com isso, as tarefas aparecem mais ce
 1. Abrir o Omni Operação pelo navegador do celular, sem o app instalado.
 2. O cartão deve aparecer menor, com "Instalar o app" e "Agora não".
 3. "Agora não" faz o cartão sumir.
+
+### 28.1 Correção da M15: botões de 48 px — 16/10/2026 UTC
+
+Na revisão da M16 (PR #172), o Codex apontou que a regra do projeto pede **botões de pelo menos 48 px** (§5 deste plano), e não 44 px. Os botões que a M15 aumentou tinham ficado com 44 px. Agora têm 48 px (`src/components/ProductArea.tsx`):
+- **Escanear** (código do produto, da variação e da embalagem): 48 px. A linha do rótulo cresce 4 px e o botão não cobre o campo.
+- **Remover validade:** 48 × 48 px.
+- **Desfazer** (pendente de conferência): 48 px.
+
+O campo "Lucro sobre o custo (%)" continua com 44 px. Ele é um campo, não um botão, e o texto tem 16 px, como a regra pede para campos. Os outros botões de 44 px do cadastro já eram assim antes da M15 (por exemplo, "Não tem código" e "Usar este nome"); ficam para a M20, que trata os alvos de toque do cadastro.
+
+**Provas:**
+- O teste `m15-campos-legiveis` foi atualizado para 48 px.
+- Tipos e 1.220 testes passaram duas vezes; build aprovado.
+- Medido no Chromium (farmácia), em 320, 390 e 1280 px de largura, com letra a 100% e a 200%: Escanear, Remover validade e Desfazer têm 48 px (96 px com letra a 200%); Escanear não cobre o campo; sem rolagem lateral e sem erro.
