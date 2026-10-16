@@ -410,7 +410,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M19 — conferência existente | Implementada (16/10/2026), aguarda revisão | conferência/contagem cega/diferenças/vocabulário + suíte 1.189 2× | 60 capturas 320/390/1280 × 100/200% | Pendente |
 | M20 — alvos cadastro | Implementada (16/10/2026), pedido do dono "Pode fazer a M20" | `m20-alvos-cadastro` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§32) | Falta o teste do dono |
 | M21 — ajuda e erro | Implementada (16/10/2026), pedido do dono "Pode fazer a M21" | `m21-ajuda-erro` (4 novos, falham sem a mudança); suíte 2× | Chromium 390 px: referências válidas, sem id repetido (§33) | Falta o teste do dono |
-| M22 — largura e quebra | Subetapa 1 (lista de produtos) implementada (16/10/2026), pedido do dono "Pode fazer a M22" | `m22-lista-produtos` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/768/1280 × 100/200% (§34) | Falta o teste do dono; próximas subetapas não iniciadas |
+| M22 — largura e quebra | Subetapas 1 (lista de produtos) e 2 (faixa do comércio) implementadas (16/10/2026), pedido do dono "Pode fazer a M22" | `m22-lista-produtos` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/768/1280 × 100/200% (§34, §35) | Falta o teste do dono; próximas subetapas não iniciadas |
 | M23 — geometria cadastro | Pendente | Não iniciados | Não realizados | Pendente |
 | M24 — validação integrada | Pendente | Não iniciados | Não realizados | Pendente |
 | X01–X10 — fila separada | Não autorizada; análise própria | Não iniciados | Não realizados | Pendente |
@@ -1199,4 +1199,4 @@ Com letra normal, a faixa fica igual à de antes. Não mudam: as 8 partes, a ord
 - cartões de variação;
 - faixa de fases da reposição.
 
-**Pendente:** Publicar → Atualizar. Roteiro: no celular, aumentar o tamanho da letra nas configurações e abrir um comércio. Os nomes da faixa devem aparecer inteiros.
+**Pendente:** Publicar → Atualizar e o teste do dono (só a conferência no Chromium foi feita). Roteiro: no celular, aumentar o tamanho da letra nas configurações e abrir um comércio. Os nomes da faixa devem aparecer inteiros.
