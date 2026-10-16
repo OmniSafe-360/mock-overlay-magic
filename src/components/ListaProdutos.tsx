@@ -1,7 +1,7 @@
 import { formatarCentavos as brl } from "@/lib/formatacao";
 import { useHoje } from "@/hooks/useHoje";
 /* Lista de produtos do comércio: cada produto com quanto tem e a situação em cor; filtro "Precisam de atenção". */
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Package, Plus, Search } from "lucide-react";
 import type { Product, Supplier } from "@/lib/produto";
 import { btnPrimary } from "@/components/StoreSetup";
@@ -23,8 +23,10 @@ export function fraseSituacao(s: Situacao): string {
   return s.nivel === "info" ? "Falta completar o cadastro" : a.titulo;
 }
 
-export function ListaProdutos({ products, tipo, suppliers, onNew, onOpen }: {
+export function ListaProdutos({ products, tipo, suppliers, onNew, onOpen, resumo }: {
   products: Product[]; tipo: string; suppliers: Supplier[]; onNew: () => void; onOpen: (p: Product) => void;
+  /** M08: resumo de atenção. Com produtos, aparece depois da busca/Novo produto e antes dos filtros; sem produtos, antes do cartão inicial. */
+  resumo?: ReactNode;
 }) {
   const [q, setQ] = useState("");
   const [filtro, setFiltro] = useState<Filtro>("todos");
@@ -45,6 +47,8 @@ export function ListaProdutos({ products, tipo, suppliers, onNew, onOpen }: {
   const novo = <button type="button" onClick={onNew} className={`flex items-center justify-center gap-2 ${btnPrimary(true)}`}><Plus size={20} /> Novo produto</button>;
   if (!products.length)
     return (
+      <div className="space-y-4">
+      {resumo}
       <div className="mx-auto mt-2 flex max-w-[420px] flex-col items-center gap-3 rounded-3xl border border-dashed border-border bg-secondary/30 px-5 py-8 text-center animate-in fade-in duration-300">
         <div className="relative flex h-28 w-28 items-center justify-center rounded-full bg-secondary/60">
           <Package size={52} className="text-primary" />
@@ -53,6 +57,7 @@ export function ListaProdutos({ products, tipo, suppliers, onNew, onOpen }: {
         <p className="text-lg font-bold">Cadastre seu primeiro produto</p>
         <p className="text-base text-muted-foreground">Leia o código de barras com a câmera ou digite. Leva poucos segundos.</p>
         <div className="mt-2 w-full">{novo}</div>
+      </div>
       </div>
     );
 
@@ -67,6 +72,8 @@ export function ListaProdutos({ products, tipo, suppliers, onNew, onOpen }: {
         </label>
         <div className="sm:w-56">{novo}</div>
       </div>
+
+      {resumo}
 
       <div role="group" aria-label="Mostrar">
         <div className="flex flex-wrap gap-2">
