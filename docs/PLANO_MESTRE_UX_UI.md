@@ -406,7 +406,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M15 — campos existentes | Blocos A–D implementados (16/10/2026): código, preço, depósito/área de venda e validade | `m15-campos-legiveis` (7 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§25–§28) | Falta o teste do dono |
 | M16 — convite instalação | Implementada (16/10/2026), pedido do dono "Pode fazer a M16" | `m16-convite-instalacao` (1 novo, falha sem a mudança) + `instalar`; suíte 2× | Chromium 320/390/1280 × 100/200% (§29) | Falta o teste do dono |
 | M17 — fases reposição | Pendente | Não iniciados | Não realizados | Pendente |
-| M18 — estados recebimento | Pendente | Não iniciados | Não realizados | Pendente |
+| M18 — estados recebimento | Implementada (16/10/2026), pedido do dono "Pode fazer a M18" | `m18-estados-recebimento` (1 novo, falha sem a mudança) + recebimento; suíte 2× | Chromium 320/390/1280 × 100/200% (§31) | Falta o teste do dono |
 | M19 — conferência existente | Implementada (16/10/2026), aguarda revisão | conferência/contagem cega/diferenças/vocabulário + suíte 1.189 2× | 60 capturas 320/390/1280 × 100/200% | Pendente |
 | M20 — alvos cadastro | Pendente | Não iniciados | Não realizados | Pendente |
 | M21 — associação erro/ajuda | Pendente | Não iniciados | Não realizados | Pendente |
@@ -1034,3 +1034,32 @@ O campo "Lucro sobre o custo (%)" continua com 44 px. Ele é um campo, não um b
 - O teste `m15-campos-legiveis` foi atualizado para 48 px.
 - Tipos e 1.220 testes passaram duas vezes; build aprovado.
 - Medido no Chromium (farmácia), em 320, 390 e 1280 px de largura, com letra a 100% e a 200%: Escanear, Remover validade e Desfazer têm 48 px (96 px com letra a 200%); Escanear não cobre o campo; sem rolagem lateral e sem erro.
+
+## 31. M18 — estados do recebimento — 16/10/2026 UTC
+
+**Pedido do dono (16/10/2026):** "Pode fazer a M18".
+
+**O que mudou** (só apresentação, `src/components/ReceberMercadoria.tsx`, app da equipe → Receber mercadoria). A lista de produtos da entrega era uma lista só; agora fica separada pelos estados que já existiam, cada grupo com o número de produtos:
+- **Para contar:** "Conte de novo" e "Falta contar".
+- **Pronto para enviar:** contado, mas ainda não enviado. Aviso: "Ainda não foi enviado: use o botão no fim da tela."
+- **Já enviado:** conferido, contagem enviada, aguardando decisão do dono ou recusado. Aviso: "O que for aceito só entra no depósito quando a entrega for concluída." Esse aviso substitui a frase solta que aparecia antes, quando havia produto conferido.
+
+Os grupos sem produto não aparecem. A ordem dentro de cada grupo, os textos de cada produto, as cores e o toque em cada produto continuam iguais.
+
+**Não mudam:**
+- a contagem cega (o funcionário não vê o que foi pedido);
+- o aceite e a recontagem, o mesmo id e o mesmo envio;
+- os estados parciais e a decisão do dono;
+- o rascunho guardado no celular.
+
+Nenhuma conta nova.
+
+**Provas:**
+- Teste novo `src/test/m18-estados-recebimento.test.tsx`. Os produtos passam por Para contar, depois Pronto para enviar e depois Já enviado, com os números e os avisos, e a quantidade esperada não aparece. O teste falha sem a mudança.
+- Os testes do recebimento continuam passando: `recebimento`, `-rascunho`, `-dois-celulares`, `-motivo` e `-sem-pedido`.
+- Tipos e 1.222 testes, duas vezes; build aprovado.
+- Chromium em 320, 390 e 1280 px, com letra 100% e 200%: grupos certos antes e depois de enviar, sem rolagem lateral e sem erro.
+
+**Pendente:** Publicar → Atualizar e o teste do dono. Roteiro:
+1. No celular da equipe, abrir uma entrega e contar um produto. Ele deve passar para "Pronto para enviar".
+2. Tocar em "Enviar contagens". O produto deve ir para "Já enviado", e o que falta continua em "Para contar".

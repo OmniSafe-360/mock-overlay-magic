@@ -66,6 +66,13 @@ const validarEnvio = (p: unknown): p is PedidoEnvio => {
 };
 const temEnvioPendente = (kr: string, id: string) => !!operacaoLocal(kr, `receber:${id}`, validarEnvio).pendente();
 
+/** M18: grupos da lista de contagem, na ordem em que a pessoa trabalha. */
+const GRUPOS_LISTA: { id: string; titulo: string; nota?: string; estados: EstadoItem[] }[] = [
+  { id: "contar", titulo: "Para contar", estados: ["recontar", "falta"] },
+  { id: "pronto", titulo: "Pronto para enviar", nota: "Ainda não foi enviado: use o botão no fim da tela.", estados: ["contado"] },
+  { id: "enviado", titulo: "Já enviado", nota: "O que for aceito só entra no depósito quando a entrega for concluída.", estados: ["aguardando_dono", "enviado", "recusado", "conferido"] },
+];
+
 export function ReceberMercadoria({ chave, onVoltar, api: apiDada, mercado = false }: { chave: string; onVoltar: () => void; api?: ApiReceber | undefined; mercado?: boolean }) {
   return <ReceberPorAcesso key={chave} mercado={mercado} chave={chave} onVoltar={onVoltar} apiDada={apiDada} />;
 }
@@ -431,10 +438,17 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
       </div>
       {aviso && <p role="status" className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">{aviso}</p>}
       {orientacao && <p role="status" className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">{orientacao}</p>}
-      {chaves.some((k) => estados[k] === "conferido") && <p className="text-sm text-muted-foreground">Produto conferido ainda aguarda a conclusão da entrega. Sua quantidade só entra no depósito ao concluir o recebimento.</p>}
 
+      {/* M18: a mesma lista, separada pelos estados que já existem (sem conta nova). */}
+      {GRUPOS_LISTA.map((g) => {
+        const doGrupo = lista.filter((k) => g.estados.includes(estados[k] ?? "falta"));
+        if (!doGrupo.length) return null;
+        return (
+      <section key={g.id} aria-label={g.titulo} className="space-y-2">
+        <h2 className="flex items-baseline justify-between gap-2 text-sm font-semibold text-muted-foreground"><span>{g.titulo}</span><span className="tabular-nums">{doGrupo.length}</span></h2>
+        {g.nota && <p className="-mt-1 text-xs text-muted-foreground">{g.nota}</p>}
       <ul className="space-y-2">
-        {lista.map((k) => {
+        {doGrupo.map((k) => {
           const p = produtos[k]!;
           const e = estados[k] ?? "falta";
           const c = contagens[k];
@@ -458,6 +472,9 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
           );
         })}
       </ul>
+      </section>
+        );
+      })}
       {!lista.length && <p className="rounded-2xl border border-dashed border-border p-4 text-center text-sm text-muted-foreground">Bipe o primeiro produto para começar.</p>}
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background-deep/95 px-4 pt-3 backdrop-blur" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
