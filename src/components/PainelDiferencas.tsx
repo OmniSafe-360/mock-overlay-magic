@@ -26,12 +26,12 @@ export type ApiDiferencas = {
   carregar: typeof banco.carregarDiferencas;
   decidirPerda: typeof banco.decidirPerda;
   explicar: typeof banco.explicarDiferenca;
-  resolver: typeof banco.resolverConferencia;
+  resolverComMotivo: typeof banco.resolverConferenciaComMotivo;
   registrarPerda: typeof banco.registrarPerdaDono;
 };
 const API_PADRAO: ApiDiferencas = {
   carregar: banco.carregarDiferencas, decidirPerda: banco.decidirPerda, explicar: banco.explicarDiferenca,
-  resolver: banco.resolverConferencia, registrarPerda: banco.registrarPerdaDono,
+  resolverComMotivo: banco.resolverConferenciaComMotivo, registrarPerda: banco.registrarPerdaDono,
 };
 const MSG: [string, string][] = [
   ["perda_ja_decidida", "Esta perda já foi decidida. A lista foi atualizada."],
@@ -219,11 +219,14 @@ export function PainelDiferencas({ comercioId, tipo, products, api = API_PADRAO,
           precoCompra={prod(difAberta.produtoId)?.compra ?? 0} onClose={() => setAberta(null)}
           onSalvar={async (contado, motivo, obs) => {
             try {
-              let dif = difAberta.diferenca;
-              if (contado != null) dif = (await api.resolver(difAberta.id, contado)).diferenca;
-              if (dif !== 0 && motivo) await api.explicar(difAberta.id, motivo, obs);
-              // Diferença de zero (ex.: perda recusada quando o sistema tinha 0): fecha sem pedir motivo.
-              else if (dif === 0 && contado == null) await api.explicar(difAberta.id, "erro_contagem", obs);
+              if (contado != null) {
+                // F03: ajuste e motivo são um único RPC transacional.
+                await api.resolverComMotivo(difAberta.id, contado, motivo, obs);
+              } else if (difAberta.diferenca !== 0 && motivo) {
+                await api.explicar(difAberta.id, motivo, obs);
+              } else if (difAberta.diferenca === 0) {
+                await api.explicar(difAberta.id, "erro_contagem", obs);
+              }
             } catch (e) { await recarregar(); throw e; }
             setAberta(null);
             await depois(contado != null ? "Estoque acertado com a contagem escolhida." : "Explicação salva.");
