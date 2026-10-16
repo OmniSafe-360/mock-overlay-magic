@@ -119,8 +119,12 @@ Autorização do dono: "Pode fazer o item 1".
 
    Nenhum tipo novo apareceu.
 
-O backup não foi confirmado no painel (este ambiente não tem acesso a ele). O caminho de volta é `016_comercio_desativado_reverter.sql`, que precisa ser ajustado para aceitar os md5 novos acima se um dia for usado.
+O backup não foi confirmado no painel (este ambiente não tem acesso a ele). O caminho de volta é `016_comercio_desativado_reverter.sql`, **pronto para usar sem ajuste**: ele tira o trecho inserido e confere que cada função voltou ao md5 original (não depende dos md5 novos).
 
 **Ainda pendente:**
 - fechar o PR #124 sem mesclar (ele sobrescreveria esta correção), com a autorização do dono;
 - o teste do dono: desativar um comércio de teste, ver a mensagem no celular, reativar e ver as vendas guardadas subirem.
+
+### Revisão do Codex no PR #160 (16/10/2026)
+- **P2, corrigido:** a nota anterior dizia que a reversão precisava de ajuste. Estava errada; a reversão já confere pelo md5 original depois de tirar o trecho.
+- **P1, sem mudança, levado ao dono:** a checagem `exists (… ativo)` não trava a linha do comércio. Uma operação da equipe que começou no mesmo instante em que o dono desativa pode terminar logo depois, numa janela de milissegundos; as próximas já são recusadas. Travar a linha com `FOR SHARE` em toda chamada da equipe criaria impasse (deadlock) entre dois caixas vendendo ao mesmo tempo, porque a venda já atualiza essa linha (`proximo_numero_venda`). `FOR UPDATE` deixaria todas as operações da equipe do comércio em fila única. O custo e o risco são maiores que a janela que fecharia.
