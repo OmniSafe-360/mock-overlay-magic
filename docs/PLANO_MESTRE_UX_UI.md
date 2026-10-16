@@ -403,7 +403,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M12 — descoberta faixa | Implementada (16/10/2026), pedido do dono "finaliza ela" | `m12-faixa-deslizar` (3 novos) + menu-comercio/tamanhos-tela; suíte 2× | Chromium 320/390/1280 × 100/200% (§23) | Falta o teste do dono |
 | M13 — contexto unidade | Implementada, testada e integrada ao main (16/10/2026; revisão técnica aprovada em `ef75121`) | `m13-contexto-unidade` (6 novos); tipos e suíte 2× | Chromium 320/390/768/1280 × 100/200% (32 capturas) | Aguarda publicação e homologação final do dono |
 | M14 — progresso cadastro | Implementada (16/10/2026), pedido do dono "faça a etapa M14" | `m14-progresso-cadastro` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§24) | Falta o teste do dono |
-| M15 — campos existentes | Blocos A, B e C implementados (16/10/2026), pedidos do dono "Pode fazer a M15" e "Pode fazer o próximo bloco da M15" (2×) | `m15-campos-legiveis` (5 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§25–§27) | Falta o teste do dono; bloco D (Validade) não iniciado |
+| M15 — campos existentes | Blocos A–D implementados (16/10/2026): código, preço, depósito/área de venda e validade | `m15-campos-legiveis` (7 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§25–§28) | Falta o teste do dono |
 | M16 — convite instalação | Implementada (16/10/2026), pedido do dono "Pode fazer a M16" | `m16-convite-instalacao` (1 novo, falha sem a mudança) + `instalar`; suíte 2× | Chromium 320/390/1280 × 100/200% (§29) | Falta o teste do dono |
 | M17 — fases reposição | Pendente | Não iniciados | Não realizados | Pendente |
 | M18 — estados recebimento | Pendente | Não iniciados | Não realizados | Pendente |
@@ -955,6 +955,34 @@ Não mudam: textos (só a unidade foi acrescentada), contas, conversões, valida
 **Fica para o próximo bloco da M15:** passo Validade.
 
 **Pendente:** Publicar → Atualizar e o teste do dono. Roteiro: editar uma roupa com tamanhos, ir até "Quanto há no estoque?" e conferir "Quantidade informada no cadastro: 2 peças".
+
+## 28. M15 — legibilidade dos campos do cadastro, bloco D (validade) — 16/10/2026 UTC
+
+**Pedido do dono (16/10/2026):** "Pode fazer o próximo bloco da M15" (terceira vez). Base: `main` com os blocos A, B e C (#168–#170).
+
+**O que mudou (só apresentação, `src/components/ProductArea.tsx`, passo Validade):**
+- **"Contado / Distribuído / Falta distribuir":** "Contado" já tinha a unidade e os outros dois mostravam só o número. Agora os três a mostram, com a mesma função `qtdUn`. Exemplo: "Distribuído: 5 caixas · Falta distribuir: 0 caixas".
+- **Botão "Desfazer" (pendente de conferência, farmácia):** era um texto pequeno de toque difícil. Agora tem 44 px de altura de toque, com margem negativa para a linha não crescer.
+- **Explicação "Registrar esta quantidade como pendente de conferência?…":** a letra passou de 12 px para 14 px, porque é um texto importante para decidir.
+
+Não mudam: textos (só a unidade foi acrescentada), contas, validações, travas, pendências, sequência e banco.
+
+**Provas:**
+- Dois testes novos no `src/test/m15-campos-legiveis.test.tsx`; os dois falham sem a mudança.
+- Tipos e 1.220 testes passaram duas vezes; build aprovado.
+- Chromium (farmácia, validade desconhecida e pendente de conferência) em 320/390/1280 px, com letra 100% e 200%:
+  - Desfazer com 44 px de altura (88 px com letra 200%);
+  - "Distribuído: 5 caixas · Falta distribuir: 0 caixas";
+  - sem rolagem lateral e sem erro.
+
+**Com isso, os quatro blocos da M15 estão feitos:** código, preço e unidade, depósito/área de venda e validade.
+
+**Pendente:** Publicar → Atualizar e o teste do dono. Roteiro:
+1. Na farmácia, cadastrar um remédio.
+2. Na Validade, marcar "Validade desconhecida".
+3. Tocar em "Registrar como pendente de conferência".
+4. Tocar em "Desfazer".
+5. Conferir "Distribuído: X caixas".
 
 ## 29. M16 — convite de instalação compacto — 16/10/2026 UTC
 
