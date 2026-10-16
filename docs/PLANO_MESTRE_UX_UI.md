@@ -396,7 +396,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M05 — ganho bruto | Implementada (opção A, 15/10/2026), aguarda revisão | `m05-ganho-bruto` + preço/margem/farmácia aprovados; suíte 2× | Capturas responsivas não realizadas | Pendente |
 | M06 — mensagem limite caixa | Implementada, aguarda revisão | 1.189 testes 2× | 30 capturas | Pendente |
 | M07 — saldo por área | Pendente | Não iniciados | Não realizados | Pendente |
-| M08 — busca/resumo | Pendente | Não iniciados | Não realizados | Pendente |
+| M08 — busca/resumo | Implementada (16/10/2026), aguarda revisão | atencao-hoje/lista-produtos/menu-comercio + m08 novo; suíte 1.194 2× | 12 capturas 320/390/1280 × 100/200%, com e sem produtos | Pendente |
 | M09 — cartões pedidos | Pendente | Não iniciados | Não realizados | Pendente |
 | M10 — alcance fornecedor | Pendente | Não iniciados | Não realizados | Pendente |
 | M11 — página fornecedor | Pendente | Não iniciados | Não realizados | Pendente |
