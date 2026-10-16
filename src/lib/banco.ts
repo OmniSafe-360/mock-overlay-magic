@@ -753,10 +753,13 @@ export async function caixaRegistrarVenda(chave: string, venda: ReturnType<typeo
 /** O banco devolve {erro} (sem desfazer) quando o PIN do dono está errado, para a contagem de tentativas ficar gravada. */
 const comErro = (data: any) => { if (data?.erro) throw new Error(String(data.erro)); return data; };
 /** Cancelar uma venda do celular com o PIN do dono: os produtos voltam para a gôndola. */
-export async function caixaCancelarVenda(chave: string, vendaId: string, pinDono: string, motivo: string): Promise<"cancelada" | "repetida"> {
+/** Resultado do cancelamento. `devolver` (centavos) é o que o cliente já tinha pago desta venda no fiado. */
+export type CancelamentoVenda = { situacao: "cancelada" | "repetida"; devolver: number };
+export async function caixaCancelarVenda(chave: string, vendaId: string, pinDono: string, motivo: string): Promise<CancelamentoVenda> {
   const { data, error } = await rpc("caixa_cancelar_venda", { _chave: chave, _venda: vendaId, _pin_dono: pinDono, _motivo: motivo });
   if (error) throw error;
-  return comErro(data).situacao;
+  const r = comErro(data);
+  return { situacao: r.situacao, devolver: centavos(r.devolver) };
 }
 /** Tirar dinheiro da gaveta (sangria) com o PIN do dono. Repetir o mesmo id não tira duas vezes. */
 export async function caixaSangria(chave: string, id: string, turnoId: string, valorCentavos: number, motivo: string, pinDono: string): Promise<TurnoCaixa> {
@@ -781,9 +784,10 @@ export async function definirPinDono(pin: string) {
   const { error } = await rpc("definir_pin_dono", { _pin: pin });
   if (error) throw error;
 }
-export async function cancelarVendaCelular(vendaId: string, motivo: string) {
-  const { error } = await rpc("cancelar_venda_celular", { _venda: vendaId, _motivo: motivo });
+export async function cancelarVendaCelular(vendaId: string, motivo: string): Promise<CancelamentoVenda> {
+  const { data, error } = await rpc("cancelar_venda_celular", { _venda: vendaId, _motivo: motivo });
   if (error) throw error;
+  return { situacao: data?.situacao === "repetida" ? "repetida" : "cancelada", devolver: centavos(data?.devolver) };
 }
 export async function conferirFechamentoCaixa(turnoId: string) {
   const { error } = await rpc("conferir_fechamento_caixa", { _turno: turnoId });

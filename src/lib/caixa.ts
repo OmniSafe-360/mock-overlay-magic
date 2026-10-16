@@ -329,3 +329,11 @@ export const linkWhatsApp = (telefone: string, texto: string) => {
   const t = telefone.replace(/\D/g, "");
   return `https://wa.me/${t ? `55${t}` : ""}?text=${encodeURIComponent(texto)}`;
 };
+
+/** Quanto devolver ao cliente depois de cancelar uma venda fiado já paga (centavos; 0 quando não há). */
+export function devolverDe(r: unknown): number {
+  const v = r && typeof r === "object" ? Number((r as { devolver?: unknown }).devolver) : 0;
+  return Number.isFinite(v) && v > 0 ? Math.round(v) : 0;
+}
+export const textoDevolver = (centavos: number) =>
+  `Devolva ${brl(centavos)} ao cliente: é o que ele já tinha pago desta venda no fiado.`;

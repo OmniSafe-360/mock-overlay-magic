@@ -9,6 +9,7 @@ import * as banco from "@/lib/banco";
 import { mensagemErro } from "@/lib/persistencia";
 import { PainelFiado, type ApiFiado } from "@/components/PainelFiado";
 import { nomeVenda } from "@/lib/situacao";
+import { devolverDe, textoDevolver } from "@/lib/caixa";
 import {
   agruparPendentes, brl, codigoCaixaTexto, codigoVisivel, diaDaVenda, formaPagamento, haQuanto, horaVenda, normalizar, proximoNomeCaixa, resumoVendas, situacaoCaixa,
   textoCaixa, textoItemVenda, validadeCodigoCaixa, type Caixa, type GrupoPendente, type ItemPendente, type Venda,
@@ -264,8 +265,10 @@ export function PainelVendas({ comercioId, comercioNome = "", tipo, products, ap
       )}
       {vendaSel && <DetalheVenda v={vendaSel} caixa={nomeCaixa(vendaSel.caixaId)} products={products} area={area} onClose={() => setVendaAberta(null)}
         onCancelar={vendaSel.celular && vendaSel.situacao === "finalizada" ? async (motivo) => {
-          await (api.cancelarCelular ?? banco.cancelarVendaCelular)(vendaSel.id, motivo);
-          setPronto(`Venda ${vendaSel.numero ? `nº ${vendaSel.numero} ` : ""}cancelada. Os produtos voltaram para a ${area}.`);
+          const r = await (api.cancelarCelular ?? banco.cancelarVendaCelular)(vendaSel.id, motivo);
+          const devolver = devolverDe(r);
+          setPronto(`Venda ${vendaSel.numero ? `nº ${vendaSel.numero} ` : ""}cancelada. Os produtos voltaram para a ${area}.`
+            + (devolver > 0 ? ` ${textoDevolver(devolver)}` : ""));
           await recarregar(); onMudou?.();
         } : undefined} />}
     </div>
