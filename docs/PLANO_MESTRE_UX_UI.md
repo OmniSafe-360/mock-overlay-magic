@@ -403,7 +403,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M12 — descoberta faixa | Implementada (16/10/2026), pedido do dono "finaliza ela" | `m12-faixa-deslizar` (3 novos) + menu-comercio/tamanhos-tela; suíte 2× | Chromium 320/390/1280 × 100/200% (§23) | Falta o teste do dono |
 | M13 — contexto unidade | Implementada, testada e integrada ao main (16/10/2026; revisão técnica aprovada em `ef75121`) | `m13-contexto-unidade` (6 novos); tipos e suíte 2× | Chromium 320/390/768/1280 × 100/200% (32 capturas) | Aguarda publicação e homologação final do dono |
 | M14 — progresso cadastro | Implementada (16/10/2026), pedido do dono "faça a etapa M14" | `m14-progresso-cadastro` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§24) | Falta o teste do dono |
-| M15 — campos existentes | Bloco A implementado (16/10/2026), pedido do dono "Pode fazer a M15" | `m15-campos-legiveis` (3 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§25) | Falta o teste do dono; outros blocos não iniciados |
+| M15 — campos existentes | Blocos A e B implementados (16/10/2026), pedidos do dono "Pode fazer a M15" e "Pode fazer o próximo bloco da M15" | `m15-campos-legiveis` (4 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§25, §26) | Falta o teste do dono; outros blocos não iniciados |
 | M16 — convite instalação | Pendente | Não iniciados | Não realizados | Pendente |
 | M17 — fases reposição | Pendente | Não iniciados | Não realizados | Pendente |
 | M18 — estados recebimento | Pendente | Não iniciados | Não realizados | Pendente |
@@ -903,3 +903,33 @@ Não mudam: textos, campos, cálculos, conversões, validações, travas de emba
 **Pendente:** Publicar → Atualizar e o teste do dono. Roteiro:
 1. Em Novo produto → Digitar código, tocar em Escanear e ver se abre a câmera.
 2. Na Validade, com duas datas, tocar no X de uma e ver se ela some.
+
+## 26. M15 — legibilidade dos campos do cadastro, bloco B (preço e unidade) — 16/10/2026 UTC
+
+**Pedido do dono (16/10/2026):** "Pode fazer o próximo bloco da M15". Feito sobre o bloco A (PR #168), porque mexe no mesmo arquivo.
+
+**O que mudou (só apresentação, `src/components/ProductArea.tsx`, passo "Preço e unidade"):**
+- **Campo "Lucro sobre o custo (%)":** altura de 32 px para 44 px, do tamanho do dedo.
+- **Unidade de medida e Categoria:** o nome do campo diminui em tela baixa, como nos outros campos (`short:text-xs`).
+- **Explicações "Como você vende este produto." e "Ajuda a organizar a lista.":** escondem com o teclado aberto, como as dos outros campos (`field-hint`).
+- **Lista de opções (`Chips`):** também é usada nos detalhes do produto, então os detalhes ganharam o mesmo comportamento.
+
+Não mudam: textos, cálculo do lucro e do preço, unidade travada, validações, sequência e banco.
+
+**Rolagem do passo (medida antes/depois no Chromium):**
+
+| Tela | Letra | Antes | Depois |
+|---|---|---|---|
+| 320 × 568 | 100% | já rolava 244 px | rola 252 px (+8) |
+| 390 × 844 | 100% | não rola | não rola |
+| 1280 × 900 | 100% | não rola | não rola |
+
+Com letra 200%, a tela já rolava muito antes (anotado para a M22). Em nenhum caso há rolagem lateral, e não houve erro.
+
+**Provas:**
+- Teste novo no `src/test/m15-campos-legiveis.test.tsx`; ele falha sem a mudança.
+- Tipos e 1.217 testes, duas vezes; build aprovado.
+
+**Fica para os próximos blocos da M15:** passos Depósito/Área de venda e Validade.
+
+**Pendente:** Publicar → Atualizar e o teste do dono. Roteiro: em Novo produto → Preço, digitar a porcentagem de lucro (o campo agora é maior) e conferir se o preço de venda muda junto.

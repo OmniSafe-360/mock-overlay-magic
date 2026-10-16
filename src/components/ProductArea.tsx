@@ -750,7 +750,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                         <input id="ganho" name="ganho" inputMode="decimal" autoComplete="off" enterKeyHint="done" disabled={compra <= 0}
                           placeholder={compra > 0 ? "Ex.: 30" : "—"} aria-describedby="ganho-dica"
                           value={pctDigitado ?? ganhoTexto} onChange={(e) => mudarPct(e.target.value)}
-                          className={`mt-0.5 h-8 w-full rounded-xl border border-border bg-background-deep/60 pl-3 pr-8 text-base font-bold outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60 ${lucro < 0 ? "text-destructive" : "text-accent"}`} />
+                          className={`mt-0.5 h-11 w-full rounded-xl border border-border bg-background-deep/60 pl-3 pr-8 text-base font-bold outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60 ${lucro < 0 ? "text-destructive" : "text-accent"}`} />
                         <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-base font-bold text-muted-foreground">%</span>
                       </span>
                     </label>
@@ -764,13 +764,13 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                     onChange={(u) => { if ((configSalva || vendaSalva) && u !== initial!.unidade) { setUnitMsg(T(unidadeTravadaMsg(initial!.unidade))); return; } setUnitMsg(""); setUnidade(u); }} />
                   {(unitMsg || unidadeTravada) && <p role="alert" className="-mt-1 text-sm text-destructive">{unitMsg || T(unidadeTravadaMsg(initial!.unidade))}</p>}
                   <div className="space-y-1">
-                    <label htmlFor="cat" className="text-sm font-medium text-muted-foreground">Categoria</label>
+                    <label htmlFor="cat" className="text-sm font-medium text-muted-foreground short:text-xs">Categoria</label>
                     <select id="cat" value={categoria} onChange={(e) => setCategoria(e.target.value)}
                       className="h-13 w-full rounded-2xl border border-border bg-background-deep/60 px-4 text-base text-foreground outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring/40">
                       <option value="">Selecione</option>
                       {(CATEGORIAS[tipo] ?? []).map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
-                    <p className="text-xs text-muted-foreground">{ini.categoria && categoria === ini.categoria ? "Igual ao último produto. Pode trocar." : "Ajuda a organizar a lista."}</p>
+                    <p className="field-hint text-xs text-muted-foreground">{ini.categoria && categoria === ini.categoria ? "Igual ao último produto. Pode trocar." : "Ajuda a organizar a lista."}</p>
                   </div>
                 </>
               )}
@@ -1392,14 +1392,14 @@ function TamanhoPicker({ value, onChange, categoria, ultimo }: { value: string; 
 function Chips({ label, hint, opts, value, onChange }: { label: string; hint: string; opts: string[]; value: string; onChange: (v: string) => void }) {
   return (
     <div className="space-y-1">
-      <p className="text-sm font-medium text-muted-foreground">{label}</p>
+      <p className="text-sm font-medium text-muted-foreground short:text-xs">{label}</p>
       <div className="flex flex-wrap gap-1.5">
         {opts.map((o) => (
           <button key={o} type="button" aria-pressed={value === o} onClick={() => onChange(o)}
             className={`min-h-12 rounded-2xl border px-3.5 text-base font-semibold transition ${value === o ? "border-accent bg-accent/10 text-foreground" : "border-border bg-background-deep/60 text-muted-foreground hover:border-primary"}`}>{o}</button>
         ))}
       </div>
-      <p className="text-xs text-muted-foreground">{hint}</p>
+      <p className="field-hint text-xs text-muted-foreground">{hint}</p>
     </div>
   );
 }
