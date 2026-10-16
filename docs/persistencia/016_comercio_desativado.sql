@@ -1,4 +1,4 @@
--- PROPOSTA (Correção de segurança 1) — NÃO APLICADA EM PRODUÇÃO.
+-- Correção de segurança 1 — APLICADA no Supabase oficial em 16/10/2026 (migração 20261016131458_comercio_desativado.sql).
 -- Comércio desativado (comercios.ativo = false): a equipe não confere código, não entra,
 -- não destrava o PIN e não executa nenhuma operação, mesmo com o celular já ligado.
 --

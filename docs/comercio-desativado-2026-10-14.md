@@ -1,6 +1,6 @@
 # Correção de segurança 1 — comércio desativado (14/10/2026)
 
-Situação: **preparada e testada em banco descartável; NÃO aplicada em produção.** Aguarda autorização do dono.
+Situação: **aplicada no Supabase oficial em 16/10/2026** (migração `20261016131458`), com autorização do dono. Ver "Aplicação" no fim.
 
 ## O que estava errado
 Com `comercios.ativo = false`, a equipe e o caixa do celular continuavam entrando e operando. Só o Omni Conector (computador) conferia.
@@ -94,3 +94,33 @@ O roteiro completo rodou 2 vezes sem erro (falhas, casos, regressões e reversã
 3. Conferir que existe uma cópia com data de hoje ou de ontem e o botão **Restore** disponível.
 4. Restaurar substitui o banco inteiro e apaga o que entrou depois. Por isso, para esta correção, o caminho de volta preferido é o script de reversão, que só troca as 5 funções.
 5. Se não houver backup restaurável, considere antes um dump manual pelo **SQL Editor/CLI** ou ativar o plano com backup.
+
+## Aplicação (16/10/2026)
+Autorização do dono: "Pode fazer o item 1".
+1. **Conferência no banco real, só leitura:** os 5 md5 eram iguais aos da tabela acima, nenhuma função tinha a correção e as permissões eram as de antes.
+2. **Simulação no banco real, com tudo desfeito no fim** (`begin` … exceção … `rollback`):
+   - com o comércio ativo, a chave e o início funcionaram;
+   - com o comércio desativado, a chave, o início, `caixa_estado`, o código, a entrada e o destravar responderam `comercio_desativado`;
+   - o PIN errado não contou tentativa;
+   - a chave do celular continuou valendo;
+   - outro comércio continuou funcionando;
+   - depois de reativar, voltou a funcionar (PIN errado voltou a contar: `pin_errado:4`).
+   - O funcionário da União ainda não tinha PIN, por isso destravar respondeu `acesso_encerrado` antes da checagem, como já fazia. O caso foi repetido com o funcionário da Farmavida, que tem PIN.
+   - Conferido depois: nenhum aparelho de teste ficou gravado, os comércios continuaram ativos, as tentativas ficaram em 0 e os md5 eram os originais.
+3. **Antes de aplicar:** nenhum comércio estava desativado, então a mudança não bloqueou ninguém no momento.
+4. **Aplicada** como migração `comercio_desativado`, versão `20261016131458`, igual a `supabase/migrations/20261016131458_comercio_desativado.sql`. Depois de aplicar:
+   - a correção aparece 1 vez em cada uma das 5 funções;
+   - SECURITY DEFINER e permissões estão iguais;
+   - md5 novos: `569bb20f…`, `6a2714df…`, `57df5aec…`, `d5e601c5…`, `5cd55893…`.
+5. **Avisos de segurança do Supabase (lidos por inteiro):** só os tipos de sempre, que são intencionais:
+   - funções públicas da equipe executáveis sem login;
+   - 3 tabelas com RLS e sem leitura direta;
+   - proteção contra senhas vazadas, que fica a cargo do dono.
+
+   Nenhum tipo novo apareceu.
+
+O backup não foi confirmado no painel (este ambiente não tem acesso a ele). O caminho de volta é `016_comercio_desativado_reverter.sql`, que precisa ser ajustado para aceitar os md5 novos acima se um dia for usado.
+
+**Ainda pendente:**
+- fechar o PR #124 sem mesclar (ele sobrescreveria esta correção), com a autorização do dono;
+- o teste do dono: desativar um comércio de teste, ver a mensagem no celular, reativar e ver as vendas guardadas subirem.
