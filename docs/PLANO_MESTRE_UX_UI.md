@@ -406,7 +406,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M15 — campos existentes | Blocos A–D implementados (16/10/2026): código, preço, depósito/área de venda e validade | `m15-campos-legiveis` (7 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§25–§28) | Falta o teste do dono |
 | M16 — convite instalação | Implementada (16/10/2026), pedido do dono "Pode fazer a M16" | `m16-convite-instalacao` (1 novo, falha sem a mudança) + `instalar`; suíte 2× | Chromium 320/390/1280 × 100/200% (§29) | Falta o teste do dono |
 | M17 — fases reposição | Implementada (16/10/2026), pedido do dono "Pode fazer a M17" | `m17-fases-reposicao` (2 novos, um falha sem a mudança) + reposição; suíte 2× | Chromium 320/390/1280 × 100/200% (§30) | Falta o teste do dono |
-| M18 — estados recebimento | Pendente | Não iniciados | Não realizados | Pendente |
+| M18 — estados recebimento | Implementada (16/10/2026), pedido do dono "Pode fazer a M18" | `m18-estados-recebimento` (1 novo, falha sem a mudança) + recebimento; suíte 2× | Chromium 320/390/1280 × 100/200% (§31) | Falta o teste do dono |
 | M19 — conferência existente | Implementada (16/10/2026), aguarda revisão | conferência/contagem cega/diferenças/vocabulário + suíte 1.189 2× | 60 capturas 320/390/1280 × 100/200% | Pendente |
 | M20 — alvos cadastro | Implementada (16/10/2026), pedido do dono "Pode fazer a M20" | `m20-alvos-cadastro` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§32) | Falta o teste do dono |
 | M21 — associação erro/ajuda | Pendente | Não iniciados | Não realizados | Pendente |
@@ -1089,6 +1089,37 @@ Não mudam: as ações, os textos, a ordem, as travas, os cálculos e o banco. O
 **Achado anterior, fora desta etapa:** com letra 200% em 320 e 390 px, os cartões de variação passam da borda da tela. Isso já acontecia antes; fica para a M22 (largura e quebra).
 
 **Pendente:** Publicar → Atualizar e o teste do dono. Roteiro: editar uma roupa, ir até "Detalhes do produto" e tocar no lápis e no X de uma variação. Os botões devem estar maiores e fazer o mesmo de antes.
+
+## 31. M18 — estados do recebimento — 16/10/2026 UTC
+
+**Pedido do dono (16/10/2026):** "Pode fazer a M18".
+
+**O que mudou** (só apresentação, `src/components/ReceberMercadoria.tsx`, app da equipe → Receber mercadoria). A lista de produtos da entrega era uma lista só; agora fica separada pelos estados que já existiam, cada grupo com o número de produtos:
+- **Para contar:** "Conte de novo" e "Falta contar".
+- **Pronto para enviar:** contado, mas ainda não enviado. Aviso: "Ainda não foi enviado: use o botão no fim da tela."
+- **Já enviado:** conferido, contagem enviada, aguardando decisão do dono ou recusado. Aviso: "O que for aceito só entra no depósito quando a entrega for concluída." Esse aviso substitui a frase solta que aparecia antes, quando havia produto conferido.
+
+Os grupos sem produto não aparecem. A ordem dentro de cada grupo, os textos de cada produto, as cores e o toque em cada produto continuam iguais.
+
+Ao salvar uma contagem, o produto muda de grupo. O foco do teclado volta para ele no grupo novo, em vez de se perder (achado do Codex no PR #175).
+
+**Não mudam:**
+- a contagem cega (o funcionário não vê o que foi pedido);
+- o aceite e a recontagem, o mesmo id e o mesmo envio;
+- os estados parciais e a decisão do dono;
+- o rascunho guardado no celular.
+
+Nenhuma conta nova.
+
+**Provas:**
+- Teste novo `src/test/m18-estados-recebimento.test.tsx`. Os produtos passam por Para contar, depois Pronto para enviar e depois Já enviado, com os números e os avisos, e a quantidade esperada não aparece. O teste falha sem a mudança.
+- Os testes do recebimento continuam passando: `recebimento`, `-rascunho`, `-dois-celulares`, `-motivo` e `-sem-pedido`.
+- Tipos e 1.222 testes, duas vezes; build aprovado.
+- Chromium em 320, 390 e 1280 px, com letra 100% e 200%: grupos certos antes e depois de enviar, sem rolagem lateral e sem erro.
+
+**Pendente:** Publicar → Atualizar e o teste do dono. Roteiro:
+1. No celular da equipe, abrir uma entrega e contar um produto. Ele deve passar para "Pronto para enviar".
+2. Tocar em "Enviar contagens". O produto deve ir para "Já enviado", e o que falta continua em "Para contar".
 
 ## 34. M22 — largura e quebra, subetapa 1: lista de produtos — 16/10/2026 UTC
 
