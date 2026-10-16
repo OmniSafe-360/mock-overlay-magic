@@ -1,5 +1,5 @@
 /* M16: o convite "Instale o app no celular" ocupa menos espaço (cerca de 35% menos no celular),
-   com o mesmo texto, os mesmos dois botões e a mesma regra de quando aparece. */
+   com o mesmo texto, os mesmos dois botões (48 px, regra do projeto) e a mesma regra de quando aparece. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { AppFuncionario } from "@/components/AppFuncionario";
@@ -25,8 +25,8 @@ describe("M16 — convite de instalação compacto", () => {
     expect(card.getByText(/Ele fica na tela inicial, abre direto aqui e funciona como um aplicativo\./)).toBeTruthy();
     const instalar = card.getByRole("button", { name: /Instalar o app/ });
     const agoraNao = card.getByRole("button", { name: "Agora não" });
-    expect(instalar.className).toContain("min-h-11");
-    expect(agoraNao.className).toContain("min-h-11");
+    expect(instalar.className).toContain("min-h-12");
+    expect(agoraNao.className).toContain("min-h-12");
     expect(instalar.parentElement!.className).toContain("flex-wrap");
     expect(screen.getByRole("button", { name: /Instalar o app no celular/ })).toBeTruthy();
   });

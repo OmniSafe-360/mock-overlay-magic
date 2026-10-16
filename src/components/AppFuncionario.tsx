@@ -542,8 +542,8 @@ function CartaoInstalar() {
       <p className="flex items-start gap-2 text-sm"><Download size={18} className="mt-0.5 shrink-0 text-primary" />
         <span><b className="text-base">Instale o app no celular</b> <span className="text-muted-foreground">Ele fica na tela inicial, abre direto aqui e funciona como um aplicativo.</span></span></p>
       <div className="mt-2 flex flex-wrap gap-2">
-        <button type="button" className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" onClick={acionar}><Download size={18} /> Instalar o app</button>
-        <button type="button" onClick={() => { adiar(); setFechado(true); }} className="min-h-11 px-3 text-sm font-semibold text-muted-foreground">Agora não</button>
+        <button type="button" className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" onClick={acionar}><Download size={18} /> Instalar o app</button>
+        <button type="button" onClick={() => { adiar(); setFechado(true); }} className="min-h-12 px-3 text-sm font-semibold text-muted-foreground">Agora não</button>
       </div>
       {sheet}
     </section>

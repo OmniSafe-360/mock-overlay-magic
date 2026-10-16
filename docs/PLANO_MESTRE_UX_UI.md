@@ -994,7 +994,7 @@ Não mudam: textos (só a unidade foi acrescentada), contas, validações, trava
 - borda interna menor.
 
 Continuam iguais:
-- **O conteúdo:** os mesmos textos, os mesmos dois botões ("Instalar o app" e "Agora não", ambos com 44 px de toque) e o mesmo lugar na tela.
+- **O conteúdo:** os mesmos textos, os mesmos dois botões ("Instalar o app" e "Agora não", ambos com 48 px de toque, a regra do projeto) e o mesmo lugar na tela.
 - **Quando aparece:** não aparece se o app já foi instalado ou adiado, e "Agora não" esconde por 7 dias.
 - **O que os botões fazem:** instalar com um toque ou mostrar o passo a passo.
 - **O botão do rodapé:** "Instalar o app no celular" continua lá.
@@ -1003,9 +1003,11 @@ Continuam iguais:
 
 | Tela | Letra 100% | Letra 200% |
 |---|---|---|
-| 320 px | 238 → 162 px | 778 → 762 px |
-| 390 px | 218 → 142 px | 650 → 642 px |
-| 1280 px | 198 → 102 px | 394 → 242 px |
+| 320 px | 238 → 166 px | 778 → 778 px |
+| 390 px | 218 → 146 px | 650 → 658 px |
+| 1280 px | 198 → 106 px | 394 → 250 px |
+
+Primeira versão usou botões de 44 px; o Codex apontou a regra do projeto (botões ≥ 48 px, §5 deste plano) e os botões passaram a 48 px. Com letra 200% o cartão fica do mesmo tamanho ou 8 px maior, porque os dois botões agora têm 48 px (antes "Agora não" tinha 44).
 
 Não houve rolagem lateral em nenhum caso. Com isso, as tarefas aparecem mais cedo na tela.
 
