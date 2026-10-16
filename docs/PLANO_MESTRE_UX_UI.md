@@ -410,7 +410,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M19 — conferência existente | Autorizada (16/10/2026) | No main; conferência/contagem cega/diferenças + suíte 1.189 2×; 60 capturas | No main; publicação não confirmada | Falta o teste do dono |
 | M20 — alvos cadastro | Implementada (16/10/2026), pedido do dono "Pode fazer a M20" | `m20-alvos-cadastro` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§32) | Falta o teste do dono |
 | M21 — ajuda e erro | Implementada (16/10/2026), pedido do dono "Pode fazer a M21" | `m21-ajuda-erro` (4 novos, falham sem a mudança); suíte 2× | Chromium 390 px: referências válidas, sem id repetido (§33) | Falta o teste do dono |
-| M22 — largura e quebra | Subetapas 1 (lista de produtos), 2 (faixa do comércio) e 3 (Continuar do cadastro) implementadas (16/10/2026), pedido do dono "Pode fazer a M22" | `m22-lista-produtos` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/768/1280 × 100/200% (§34–§36) | Falta o teste do dono; próximas subetapas não iniciadas |
+| M22 — largura e quebra | Subetapas 1 (lista de produtos), 2 (faixa do comércio), 3 (Continuar do cadastro) e 4 (cartões de variação da roupa) implementadas (16/10/2026), pedidos do dono "Pode fazer a M22" / "Pode fazer a próxima" | `m22-lista-produtos`, `m22-faixa-comercio`, `m22-continuar-cadastro`, `m22-cartoes-variacao` (falham sem a mudança); suíte 2× | Chromium 320/390/768/1280 × 100/200% (§34–§36, §39) | Falta o teste do dono; subetapa 5 (faixa de fases do Repor) não iniciada |
 | M23 — geometria cadastro | Pendente | Não iniciados | Não realizados | Pendente |
 | M24 — validação integrada | Pendente | Não iniciados | Não realizados | Pendente |
 | X01–X10 — fila separada | Não autorizada; análise própria | Não iniciados | Não realizados | Pendente |
@@ -1261,3 +1261,16 @@ Próximo: revisarPR e autorizar merge separadamente. Após integração autoriza
 ## 38. Tabela de situação das etapas atualizada — 16/10/2026 UTC
 
 Pedido do dono ("Pode fazer a primeira etapa", depois da análise das etapas). A tabela da seção de situação mostrava como "Pendente" ou "aguarda revisão" etapas que já estão no main: M03 (PR #152), M04-A/M04-B, M05, M06, M07 (PR #155), M08, M09 (PR #163), M10-A (PR #164), M11 (PR #165) e M19. As linhas foram corrigidas conforme os merges conferidos no GitHub e os commits do main. Nenhuma etapa foi reaberta ou refeita; nenhum código, banco ou dado mudou. M03–M06 mantêm o relato do dono de publicação e validação (transferência do AC01, §18), sem reinspeção independente; M07–M11 e M19 continuam com **falta o teste do dono** depois de Publicar → Atualizar (o aceite do roteiro do AC01 não se estende a elas). Pendentes: M10-B (opcional), M22 subetapas 4 e 5, M23 e M24. Só documentação; não precisa Publicar.
+
+## 39. M22 — largura e quebra, subetapa 4: cartões de variação da roupa — 16/10/2026 UTC
+
+Pedido do dono: "Pode fazer a próxima" (etapa 2 da lista apresentada após a análise). Só apresentação em `src/components/ProductArea.tsx`, na "Grade de variações" do cadastro de roupa.
+
+- **Problema (achado anotado na M20):** com letra 200% os cartões "tamanho · cor · código · quantidade" passavam da borda da tela, porque o cartão não tinha limite de largura e o texto não quebrava.
+- **Mudança:** a grade passa a medir o próprio espaço (`@container`). O cartão fica limitado à largura disponível (`max-w-full`, `min-w-0`) e o texto quebra dentro dele (`break-words`); o lápis não é espremido. Os cantos ficam menos arredondados (`rounded-3xl`) para o texto em duas linhas caber. Quando há menos de 16 rem (só com letra grande ou tela muito estreita), o cartão ocupa a linha inteira, com o texto em cima e o botão de remover embaixo, à direita.
+- **Sem mudança:** textos, ordem, cores de erro, botões de 48 px, editar/remover, validação, salvamento e banco.
+- **Medido (Chromium, roupa fictícia com 3 variações, uma com cor longa e sem código):** antes, os cartões fora da borda eram 3 em 320 e 390 px a 200% e 2 em 1280 px a 200%; depois, 0 em todos. Com letra normal (320/390/1280) os cartões ficam como antes: botões de 48 px, sem rolagem lateral. Em 320 px a 200% o editar passou de 1.176 px de altura (texto quase uma letra por linha, na primeira tentativa sem o empilhamento) para 216–296 px, com o texto em ~7 letras por linha. Essa é a largura que sobra nessa tela.
+- **Testes:** `src/test/m22-cartoes-variacao.test.tsx` (falha sem a mudança) + `m20-alvos-cadastro`. Tipos 2×, 1.260 testes/136 arquivos 2×, build.
+- **Limites:** em 320 × 568 com letra 200% a área de conteúdo do cadastro é pequena (§36) e a lista precisa rolar; não testado em aparelho real.
+- **Precisa Publicar → Atualizar; falta o teste do dono.** Roteiro: cadastro de roupa → passo com a "Grade de variações" → conferir que cada tamanho/cor aparece inteiro dentro da tela, que o lápis abre a edição e que o X remove (cancelar sem salvar).
+- Próxima subetapa (5, faixa de fases do Repor) não iniciada.

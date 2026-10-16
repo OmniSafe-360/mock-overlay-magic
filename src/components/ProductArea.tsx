@@ -796,13 +796,13 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                   {isRoupas && (
                     <div className="space-y-2">
                       <p className="text-sm font-medium text-muted-foreground">Grade de variações</p>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="@container flex flex-wrap gap-2">
                         {vars.map((v, i) => { const bad = !variationOk(v, i, vars, codigo, used); return (
-                          <span key={v.uid ?? i} className={`flex items-center gap-1 rounded-full border pl-1 pr-1 text-sm ${bad ? "border-destructive/70 bg-destructive/10" : "border-accent/50 bg-accent/10"}`}>
-                            <button type="button" aria-label="Editar variação" onClick={() => setVarSheet(i)} className="flex min-h-12 items-center gap-1 rounded-full px-3 hover:bg-accent/20">
-                              {v.tam} · {v.cor} · {v.codigo || "sem código"} · {v.qtd} <Pencil size={14} />
+                          <span key={v.uid ?? i} className={`flex min-w-0 max-w-full items-center gap-1 rounded-3xl border pl-1 pr-1 text-sm @max-[16rem]:w-full @max-[16rem]:flex-col @max-[16rem]:items-stretch @max-[16rem]:py-1 ${bad ? "border-destructive/70 bg-destructive/10" : "border-accent/50 bg-accent/10"}`}>
+                            <button type="button" aria-label="Editar variação" onClick={() => setVarSheet(i)} className="flex min-h-12 min-w-0 items-center gap-1 rounded-3xl px-3 py-1 text-left hover:bg-accent/20">
+                              <span className="min-w-0 break-words [overflow-wrap:anywhere]">{v.tam} · {v.cor} · {v.codigo || "sem código"} · {v.qtd}</span> <Pencil size={14} className="shrink-0" />
                             </button>
-                            <button type="button" aria-label="Remover variação" onClick={() => removeVar(i)} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full hover:bg-accent/20"><X size={16} /></button>
+                            <button type="button" aria-label="Remover variação" onClick={() => removeVar(i)} className="flex h-12 w-12 shrink-0 @max-[16rem]:self-end items-center justify-center rounded-full hover:bg-accent/20"><X size={16} /></button>
                           </span>
                         ); })}
                       </div>
