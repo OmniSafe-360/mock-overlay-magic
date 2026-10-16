@@ -439,9 +439,10 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
     : baseBad ?? (embBad ? { step: 3, msg: EMB_VAZIA } : depBad ? { step: STEP_DEP, sub: depBad.sub, msg: depBad.msg } : venBad ? { step: STEP_VEN, sub: venBad.sub, msg: venBad.msg }
       : valBad ? { step: STEP_VAL, sub: valBad.sub, msg: valBad.msg } : null);
   const hasSub = step === STEP_DEP || step === STEP_VEN || step === STEP_VAL;
-  const nSub = step === STEP_VAL ? 4 : 3;
   const total = pulaVal ? TOTAL - 1 : TOTAL;
   const numPasso = pulaVal && step > STEP_VAL ? step : step + 1;
+  /* M14: quantas partes deste passo aparecem na tela (as mesmas do contador); 1 quando o passo não se divide. */
+  const partes = (step === STEP_DEP && !manterSem) || (step === STEP_VEN && !vManter) ? 3 : step === STEP_VAL && valAtivo ? 4 : 1;
   const here = (b: { step: number; sub?: number }) => b.step === step && (!hasSub || (b.sub ?? 0) === sub);
   const saveErr = triedSave && bad && here(bad) ? bad.msg : ruleErr && ruleErr.step === step ? ruleErr.msg : "";
 
@@ -664,12 +665,13 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
           </div>
           <form noValidate onSubmit={(e) => { e.preventDefault(); next(); }} className="flex min-h-0 flex-1 flex-col">
             <div className="mt-2 shrink-0">
-              <div className="mb-2 flex items-baseline justify-between gap-2">
+              {hasSub && <p data-testid="passo-bloco" className="text-xs font-semibold uppercase tracking-wide text-primary">{T(TITLES[step]!)}</p>}
+              <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
                 <h1 className="min-w-0 text-lg font-bold short:text-base">{T(step === STEP_DEP ? DEP_TITLES[sub]! : step === STEP_VEN ? VEN_TITLES[sub]! : step === STEP_VAL ? VAL_TITLES[sub]! : TITLES[step]!)}</h1>
-                <span className="shrink-0 text-xs text-muted-foreground">Passo {numPasso} de {total}{(step === STEP_DEP && !manterSem) || (step === STEP_VEN && !vManter) ? ` · ${sub + 1}/3` : step === STEP_VAL && valAtivo ? ` · ${sub + 1}/4` : ""}</span>
+                <span data-testid="passo-contador" className="min-w-0 text-xs text-muted-foreground">Passo {numPasso} de {total}{partes > 1 ? ` · parte ${sub + 1} de ${partes}` : ""}</span>
               </div>
               <div className="h-1 overflow-hidden rounded-full bg-secondary">
-                <div className="h-full rounded-full bg-progress transition-all duration-500" style={{ width: `${((numPasso - 1 + (hasSub ? (sub + 1) / nSub : 1)) / total) * 100}%` }} />
+                <div className="h-full rounded-full bg-progress transition-all duration-500" style={{ width: `${((numPasso - 1 + Math.min(sub + 1, partes) / partes) / total) * 100}%` }} />
               </div>
             </div>
 

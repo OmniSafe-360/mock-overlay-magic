@@ -402,7 +402,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M11 — página fornecedor | Pendente | Não iniciados | Não realizados | Pendente |
 | M12 — descoberta faixa | Implementada (16/10/2026), pedido do dono "finaliza ela" | `m12-faixa-deslizar` (3 novos) + menu-comercio/tamanhos-tela; suíte 2× | Chromium 320/390/1280 × 100/200% (§23) | Falta o teste do dono |
 | M13 — contexto unidade | Implementada, testada e integrada ao main (16/10/2026; revisão técnica aprovada em `ef75121`) | `m13-contexto-unidade` (6 novos); tipos e suíte 2× | Chromium 320/390/768/1280 × 100/200% (32 capturas) | Aguarda publicação e homologação final do dono |
-| M14 — progresso cadastro | Pendente | Não iniciados | Não realizados | Pendente |
+| M14 — progresso cadastro | Implementada (16/10/2026), pedido do dono "faça a etapa M14" | `m14-progresso-cadastro` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§24) | Falta o teste do dono |
 | M15 — campos existentes | Pendente | Não iniciados | Não realizados | Pendente |
 | M16 — convite instalação | Pendente | Não iniciados | Não realizados | Pendente |
 | M17 — fases reposição | Pendente | Não iniciados | Não realizados | Pendente |
@@ -863,3 +863,21 @@ Dois desses casos falham sem a mudança. `menu-comercio` e `tamanhos-tela` passa
 **Pendente:** Publicar → Atualizar e o teste do dono no celular. Roteiro: abrir um comércio no celular; a faixa mostra › e "Deslize para o lado para ver as 8 partes"; deslizar até o fim; aparece ‹; no computador não aparece nada disso.
 
 - 16/10/2026 — **M13 (contexto visual da unidade)**: implementada em `StoreSpace.tsx` com a disposição "alt" aprovada (botões em cima; nome inteiro e cidade/UF em toda a largura; "Área atual" abaixo da faixa M12, sem aria-live). Teste `m13-contexto-unidade.test.tsx`; tipos 2×, 1.211 testes 2× (erro solto conhecido numa rodada), build e verificações ok; 32 capturas do componente real. Limitação: "Supermercado" quebra no meio em 320 px a 200%. Implementada no código; falta revisão do dono; sem publicação; M14 não iniciada.
+
+## 24. M14 — progresso do cadastro de produto, execução — 16/10/2026 UTC
+
+**Pedido do dono (16/10/2026):** conferir as etapas anteriores e, se não houver correção, fazer a M14. Conferido: M11 (#165), M12 (#166) e M13 (direto no main pelo Lovable, `ef75121`) estão no `main` `7406648`; CI verde; tipos e 1.211 testes passaram. Nenhuma correção necessária.
+
+**O que mudou (só apresentação, `src/components/ProductArea.tsx`):**
+- Nos passos que se dividem em partes (Depósito/Estoque, Área de venda, Validade), aparece acima da pergunta o nome do passo ("DEPÓSITO", "ÁREA DE VENDA", "VALIDADE"), usando os mesmos nomes de `TITLES` e o mesmo texto por tipo (`T`: farmácia diz "Estoque").
+- O contador troca o "· 1/3" por "· parte 1 de 3"; aparece nas mesmas condições de antes.
+- A barra passa a usar o mesmo número de partes do contador. Antes, quando o passo era de uma parte só (depósito/área "manter sem configurar" ou validade ainda sem "Sim"), a barra parava em 1/3 ou 1/4 do passo, sem contador. Exemplo: Validade sem resposta, antes 78%, agora 87,5% (7 de 8). Mesmo total, mesma sequência.
+- O contador desce para a linha de baixo quando não cabe ao lado do título (antes ficava por cima do título em 320 px com letra 200%).
+
+Sequência dos passos, validações, revisão, salvamento, navegação e banco iguais.
+
+**Provas:** teste novo `src/test/m14-progresso-cadastro.test.tsx` (2 casos: caminho completo do mercado com nome do passo, contador e barra em cada tela, e salvar uma vez; farmácia com "Estoque"); os dois falham sem a mudança. Tipos 2×, 1.213 testes/126 arquivos 2×, build. Chromium (bancada fora do projeto, componente real) em 320/390/1280 × 100/200%, telas Código, Depósito parte 1 e 2, Validade (sem resposta e com Sim) e Conferir: sem rolagem lateral, contador dentro da tela e sem cobrir o título, sem erro.
+
+**Achado anterior, fora desta etapa:** em 320 px com letra 200% o resto da tela do cadastro já não cabe (botão Continuar cortado). Fica para a M22.
+
+**Pendente:** Publicar → Atualizar e o teste do dono. Roteiro: cadastrar um produto novo; no Depósito ver "DEPÓSITO", a pergunta e "Passo 5 de 8 · parte 1 de 3"; avançar e ver "parte 2 de 3"; na Validade, ver a barra cheia até o passo 7 antes de responder.
