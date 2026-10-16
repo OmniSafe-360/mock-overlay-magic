@@ -404,7 +404,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M13 — contexto unidade | Implementada, testada e integrada ao main (16/10/2026; revisão técnica aprovada em `ef75121`) | `m13-contexto-unidade` (6 novos); tipos e suíte 2× | Chromium 320/390/768/1280 × 100/200% (32 capturas) | Aguarda publicação e homologação final do dono |
 | M14 — progresso cadastro | Implementada (16/10/2026), pedido do dono "faça a etapa M14" | `m14-progresso-cadastro` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§24) | Falta o teste do dono |
 | M15 — campos existentes | Blocos A–D implementados (16/10/2026): código, preço, depósito/área de venda e validade | `m15-campos-legiveis` (7 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§25–§28) | Falta o teste do dono |
-| M16 — convite instalação | Pendente | Não iniciados | Não realizados | Pendente |
+| M16 — convite instalação | Implementada (16/10/2026), pedido do dono "Pode fazer a M16" | `m16-convite-instalacao` (1 novo, falha sem a mudança) + `instalar`; suíte 2× | Chromium 320/390/1280 × 100/200% (§29) | Falta o teste do dono |
 | M17 — fases reposição | Pendente | Não iniciados | Não realizados | Pendente |
 | M18 — estados recebimento | Pendente | Não iniciados | Não realizados | Pendente |
 | M19 — conferência existente | Implementada (16/10/2026), aguarda revisão | conferência/contagem cega/diferenças/vocabulário + suíte 1.189 2× | 60 capturas 320/390/1280 × 100/200% | Pendente |
@@ -983,3 +983,40 @@ Não mudam: textos (só a unidade foi acrescentada), contas, validações, trava
 3. Tocar em "Registrar como pendente de conferência".
 4. Tocar em "Desfazer".
 5. Conferir "Distribuído: X caixas".
+
+## 29. M16 — convite de instalação compacto — 16/10/2026 UTC
+
+**Pedido do dono (16/10/2026):** "Pode fazer a M16".
+
+**O que mudou** (só apresentação, `src/components/AppFuncionario.tsx`, função `CartaoInstalar`). O cartão "Instale o app no celular" aparece na tela inicial do Omni Operação, antes das tarefas. Agora ocupa menos espaço:
+- título e frase juntos;
+- os dois botões lado a lado quando cabem;
+- borda interna menor.
+
+Continuam iguais:
+- **O conteúdo:** os mesmos textos, os mesmos dois botões ("Instalar o app" e "Agora não", ambos com 48 px de toque, a regra do projeto) e o mesmo lugar na tela.
+- **Quando aparece:** não aparece se o app já foi instalado ou adiado, e "Agora não" esconde por 7 dias.
+- **O que os botões fazem:** instalar com um toque ou mostrar o passo a passo.
+- **O botão do rodapé:** "Instalar o app no celular" continua lá.
+
+**Altura do cartão, medida no Chromium (antes → depois):**
+
+| Tela | Letra 100% | Letra 200% |
+|---|---|---|
+| 320 px | 238 → 166 px | 778 → 778 px |
+| 390 px | 218 → 146 px | 650 → 658 px |
+| 1280 px | 198 → 106 px | 394 → 250 px |
+
+Primeira versão usou botões de 44 px; o Codex apontou a regra do projeto (botões ≥ 48 px, §5 deste plano) e os botões passaram a 48 px. Com letra 200% o cartão fica do mesmo tamanho ou 8 px maior, porque os dois botões agora têm 48 px (antes "Agora não" tinha 44).
+
+Não houve rolagem lateral em nenhum caso. Com isso, as tarefas aparecem mais cedo na tela.
+
+**Provas:**
+- Teste novo: `src/test/m16-convite-instalacao.test.tsx`. Ele falha sem a mudança.
+- Os testes antigos de `instalar.test.tsx` continuam passando: passo a passo, instalar com um toque, "Agora não" e cartão escondido com o app instalado.
+- Tipos e 1.219 testes passaram duas vezes; build aprovado.
+
+**Pendente:** Publicar → Atualizar e o teste do dono. Roteiro:
+1. Abrir o Omni Operação pelo navegador do celular, sem o app instalado.
+2. O cartão deve aparecer menor, com "Instalar o app" e "Agora não".
+3. "Agora não" faz o cartão sumir.
