@@ -29,7 +29,7 @@ Banco PostgreSQL descartável com todas as migrações e dados fictícios:
 - Banco real só lido: 7 embalagens, **0 pedidos divergentes**, proteção não aplicada. Ovos/pedido nº 2 não tocados.
 
 ## Riscos que ficam
-- Caixa: a venda calcula unidades antes de gravar o item; se a embalagem mudar no mesmo instante (antes de qualquer uso), a venda pode usar o fator anterior. A janela é de milissegundos e só existe para embalagem ainda nunca usada.
+- ~~Caixa: a venda calcula unidades antes de gravar o item; se a embalagem mudar no mesmo instante (antes de qualquer uso), a venda pode usar o fator anterior.~~ **Fechado em 16/10/2026** (migração `20261016134806`, ver abaixo).
 - Trocar o **tipo** (Caixa→Fardo) continua permitido (não muda conversão).
 - `ON DELETE CASCADE` produto→embalagem continua barrado pela chave estrangeira dos pedidos (já era).
 
@@ -77,3 +77,15 @@ Autorização do dono: "Faça a próxima correção" (item 2 da lista: proteçã
 As mensagens do app (`embalagem_em_uso`, `embalagem_mudou`) já estavam no `main`. O backup não foi confirmado no painel. A reversão não mexe em dados.
 
 **Falta o teste do dono:** no cadastro dos ovos, mudar a "Caixa com 6" deve ser recusado com a mensagem; preço e código continuam editáveis.
+
+### Revisão do Codex no PR #161 — venda com o fator antigo (16/10/2026)
+- **Achado (P1):** caixa do celular, Omni Conector e "Ligar" de vendido sem cadastro calculam as unidades em `_unidades_item` antes de gravar o item. Se a quantidade da embalagem mudasse nesse instante, a primeira venda dela podia gravar e baixar o estoque com o fator antigo. O gatilho de `venda_itens` só travava, sem conferir.
+- **Reproduzido:** no PostgreSQL 16 descartável, com 2 conexões reais, a venda calculou 12 (2 × 6, fator antigo) enquanto a embalagem mudava para 12.
+- **Correção:** migração `20261016134806_embalagem_venda_trava.sql`. `_unidades_item` passa a travar a embalagem (`FOR SHARE`) antes de ler a quantidade e virou `VOLATILE`, porque o travamento exige isso. Os 3 chamadores já eram `VOLATILE` e não há outro chamador. Fica uma ordem só:
+  - se a venda vem primeiro, quem muda a embalagem espera e é recusado (`embalagem_em_uso`);
+  - se a mudança vem primeiro, a venda espera e calcula com o fator novo.
+- **Testes:**
+  - bateria local com o caso 3 novo, que falha sem a correção (12) e passa com ela (24, depois de esperar);
+  - simulação no banco real com tudo desfeito: Caixa com 6 × 2 = 12, sem embalagem 3, embalagem inexistente → `embalagem_nao_encontrada`, função `VOLATILE`, sem acesso para anon.
+- **Aplicação:** confere o md5 da versão do banco antes de trocar, num comando atômico; permissões mantidas.
+- **Roteiro da bateria:** pula a migração `20261016133627`, porque ela mesma aplica a proteção depois de provar o "sem proteção".

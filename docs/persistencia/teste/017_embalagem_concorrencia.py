@@ -35,4 +35,15 @@ assert res['b'].returncode == 0, res['b'].stderr
 assert ra.returncode != 0 and 'embalagem_em_uso' in ra.stderr, ra.stderr
 q = run(f"select quantidade from produto_embalagens where id={U("'ccy'")}").stdout.strip()
 assert q in ('6', '6.000', '6.0'), q
-print("OK: 017 concorrência (2 cenários, conexões reais)")
+# Caso 3 (venda): a embalagem nunca usada muda no mesmo instante em que a primeira venda calcula as unidades.
+# _unidades_item trava a embalagem antes de ler: a venda espera e calcula com o fator novo (2 × 12 = 24).
+run(f"insert into produto_embalagens(id,comercio_id,produto_id,tipo,quantidade) values({U("'ccz'")},{COM},{CC},'Pacote',6)")
+def a3():
+    res['a3'] = run(f"begin; update produto_embalagens set quantidade=12 where id={U("'ccz'")}; select pg_sleep(1.5); commit;", ok=False)
+t = threading.Thread(target=a3); t.start(); time.sleep(0.5)
+t0 = time.time(); rv = run(f"select unidades from public._unidades_item({CC},{U("'ccz'")},2)", ok=False); esperou = time.time() - t0; t.join()
+assert res['a3'].returncode == 0, res['a3'].stderr
+assert rv.returncode == 0, rv.stderr
+assert rv.stdout.strip() in ('24', '24.000'), f"venda calculou {rv.stdout.strip()} (fator antigo)"
+assert esperou > 0.7, f"venda não esperou a mudança ({esperou:.2f}s)"
+print("OK: 017 concorrência (3 cenários, conexões reais)")
