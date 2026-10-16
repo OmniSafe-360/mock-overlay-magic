@@ -61,7 +61,7 @@ export function ConferirDeposito({ chave, onVoltar, api: apiDada }: { chave: str
         if (r.situacao === "recontar") { setTela({ ...tela, rodada: r.rodada ?? tela.rodada + 1 }); return; }
         setAviso(r.situacao === "concluida"
           ? { ok: true, texto: `${nomeProdutoFunc(tela.item)}: conferido. Obrigado!` }
-          : { ok: false, texto: r.situacao === "aguardando_dono" ? `${nomeProdutoFunc(tela.item)}: contagem com diferença. Bloqueada, aguardando o dono.` : `${nomeProdutoFunc(tela.item)}: as contagens não bateram. O dono vai conferir. Contagem bloqueada, aguardando o dono.` });
+          : { ok: false, texto: r.situacao === "aguardando_dono" ? `${nomeProdutoFunc(tela.item)}: Contagem com diferença. Contagem bloqueada. Aguarde a decisão do dono.` : `${nomeProdutoFunc(tela.item)}: As contagens não bateram. Contagem bloqueada. Aguarde a decisão do dono.` });
         setTela({ t: "lista" }); carregar();
       }} />;
 
@@ -72,7 +72,7 @@ export function ConferirDeposito({ chave, onVoltar, api: apiDada }: { chave: str
       <button type="button" onClick={onVoltar} className="flex min-h-12 items-center gap-2 pr-3 text-base font-semibold text-primary"><ArrowLeft size={18} /> Início</button>
       <div>
         <h1 className="text-2xl font-bold">{titulo}</h1>
-        <p className="text-sm text-muted-foreground">{t("Todo dia o app escolhe alguns produtos do depósito. Vá em cada um e conte tudo o que tem.")}</p>
+        <p className="text-sm text-muted-foreground">{t("Todo dia o app escolhe alguns produtos. Vá ao local indicado e conte tudo o que tem. O app não mostra quanto deveria ter.")}</p>
       </div>
       {dados && (
         <div className="rounded-3xl border border-border bg-secondary/40 p-4">
@@ -153,7 +153,7 @@ function Contar({ item, id, rodada, chave, api, t, onVoltar, onFim, mercado }: {
       </div>
       {rodada > 1 && (
         <p role="status" className="flex items-start gap-2 rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">
-          <RotateCcw size={18} className="mt-0.5 shrink-0 text-warning" /> Conte de novo, com calma, tudo deste produto. (Contagem {rodada} de 3)
+          <RotateCcw size={18} className="mt-0.5 shrink-0 text-warning" /> Conte de novo do zero, com calma, tudo deste produto. (Contagem {rodada} de 3)
         </p>
       )}
       <button type="button" onClick={() => setScan(true)} className={`flex w-full items-center justify-center gap-2 ${btnGhost}`}><Camera size={18} /> Bipar para conferir se é este produto</button>
