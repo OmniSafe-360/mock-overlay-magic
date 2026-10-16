@@ -87,7 +87,8 @@ describe("C4-C1 — proposta, alerta global com leitura confirmada", () => {
     banco.carregarProdutos.mockImplementation(async()=>promessa);
     const button=screen.getByRole('button',{name:'Atualizar painel'});
     fireEvent.click(button);await waitFor(()=>expect(button).toBeDisabled());
-    expect(screen.getByRole('button',{name:'Alertas; atualizando'})).toBeTruthy();
+    // A pendência já confirmada continua no sino durante a atualização (antes sumia; correção de 16/10/2026).
+    expect(screen.getByRole('button',{name:/^Alertas: \d+ para resolver agora; atualizando$/})).toBeTruthy();
     resolve({produtos:[emDia],locais:{deposito:[],venda:[]}});
     await waitFor(()=>expect(button).not.toBeDisabled());
   });

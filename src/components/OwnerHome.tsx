@@ -252,7 +252,19 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
   // Falha já identificada (visao.erro) sempre acende, mesmo com outra loja carregando.
   const consultandoSino = visao.carregando || stores.some((s) => { const id = idDe(s); return !!id && !visao.geral[id]; });
   const incompletoSino = stores.length > 0 && (visao.erro || (!consultandoSino && dispSino.estado !== "total"));
-  const nomeSino = (urgentesSino ? `Alertas: ${urgentesSino} para resolver agora` : "Alertas")
+  // Enquanto atualiza, os comércios ficam "carregando" e a soma confirmada zera: a bolinha sumia e voltava.
+  // Guarda (só para a apresentação) o que a última leitura terminada confirmou, para a mesma lista de comércios.
+  const lojasSino = stores.map((s) => idDe(s) ?? "").join(",");
+  const [ultimoSino, setUltimoSino] = useState<{ lojas: string; urgentes: number; deOlho: number } | null>(null);
+  const deOlhoAgora = deOlho(dispSino.soma);
+  useEffect(() => {
+    if (consultandoSino) return;
+    setUltimoSino({ lojas: lojasSino, urgentes: urgentesSino, deOlho: deOlhoAgora });
+  }, [consultandoSino, lojasSino, urgentesSino, deOlhoAgora]);
+  const lembrarSino = consultandoSino && ultimoSino?.lojas === lojasSino ? ultimoSino : null;
+  const urgentesBolinha = Math.max(urgentesSino, lembrarSino?.urgentes ?? 0);
+  const deOlhoBolinha = Math.max(deOlhoAgora, lembrarSino?.deOlho ?? 0);
+  const nomeSino = (urgentesBolinha ? `Alertas: ${urgentesBolinha} para resolver agora` : "Alertas")
     + (incompletoSino ? "; consulta incompleta" : "") + (consultandoSino ? "; atualizando" : "");
   const [verAntifurto, setVerAntifurto] = useState(false);
   useEffect(() => { if (tab !== "inicio") setVerAntifurto(false); }, [tab]);
@@ -453,7 +465,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
             <button type="button" aria-label={nomeSino} onClick={() => irPara("alertas")}
               className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-secondary/60 text-foreground hover:border-primary">
               <Bell size={20} />
-              {(urgentesSino > 0 || deOlho(dispSino.soma) > 0 || incompletoSino) && <span className={`absolute right-3 top-3 h-2.5 w-2.5 rounded-full ${urgentesSino ? "bg-destructive" : "bg-warning"}`} />}
+              {(urgentesBolinha > 0 || deOlhoBolinha > 0 || incompletoSino) && <span className={`absolute right-3 top-3 h-2.5 w-2.5 rounded-full ${urgentesBolinha ? "bg-destructive" : "bg-warning"}`} />}
             </button>
           </div>
         </header>
@@ -654,13 +666,14 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
         <ListaComercios stores={stores} visao={visao} onOpen={onOpen} onAdd={onAdd} escolherVendas={escolherVendas} onCancelarEscolha={onCancelarEscolha} />
       )}
       {modo === "inicio" && stores.length > 0 && (() => {
-        // RMC-02C/C1: completo = produtos ok + vendas + diferenças/antifurto disponíveis
+        // RMC-02C/C1: completo = produtos ok + vendas + diferenças/antifurto disponíveis.
+        // Enquanto algum comércio atualiza, o número cairia para 0 sem ser verdade: mostra "atualizando resumo…".
         const completos = stores.filter((s) => { const g = visao.geral[idDe(s) ?? ""]; return g?.estado === "ok" && !!g.vendas && !!g.dif; }).length;
         return (
           <header aria-label="Visão geral">
             <p className="text-sm font-semibold">Visão geral dos seus comércios</p>
             <p className="text-xs text-muted-foreground">
-              {stores.length === 1 ? "1 comércio cadastrado" : `${stores.length} comércios cadastrados`} · {primeiraLeitura ? "conferindo resumo…" : completos === 1 ? "1 com resumo completo" : `${completos} com resumo completo`}
+              {stores.length === 1 ? "1 comércio cadastrado" : `${stores.length} comércios cadastrados`} · {primeiraLeitura ? "conferindo resumo…" : consultando > 0 ? "atualizando resumo…" : completos === 1 ? "1 com resumo completo" : `${completos} com resumo completo`}
             </p>
           </header>
         );
