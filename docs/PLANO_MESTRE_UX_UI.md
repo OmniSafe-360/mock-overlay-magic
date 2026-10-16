@@ -694,3 +694,45 @@ Artefatos locais: `/workspace/entregas/omnisafe-m07-implementacao-2026-10-15/` �
 ### Estado e validação seguinte
 
 **M07 implementada/testada na branch; aguarda revisão e validação do dono. Sem merge/publicação automáticos, sem M08.** Os registros antigos de M07 pendente são anteriores a esta execução. Roteiro do dono após acesso a versão autorizada: abrir Produtos, conferir Total e áreas com letra normal/ampliada; buscar/filtrar; abrir e voltar da mesma ficha. Comparar números existentes sem alterar estoque para teste visual. Registrar versão e resultado. Reversão restrita ao patch de Linha, conservando os registros históricos.
+
+
+## 20. M09 — cartões da lista de pedidos, execução autorizada — 16/10/2026 UTC
+
+### Autorização e continuidade
+
+Depois da proposta completa (diff, quatro arquivos, riscos, prévias e testes), o proprietário respondeu “Pode fazer a próxima”. Autorização aplicada somente à M09 apresentada, sem ampliar para M10. Base `main d40ab1f528235527ca79cdabc05134d1e7e11cab`, reconferida antes de editar, sem mudanças desde a proposta. Branch exclusiva `codex/ux-m09-cartoes-pedidos-20261016`.
+
+Continuidade confirmada no GitHub: PR #155/M07 integrado em `1267d82994744b5a369e13b66a6422caca65fcad`; PR #162/documentação integrado em `d40ab1f`. M08/M19 e F-16A–G já presentes no main por outro acesso, sem reaplicação. Publicação no Lovable e validações manuais não foram confirmadas novamente pelo dono: não encerrar essas pendências. F-16H permanece com as quatro contagens vazias pendentes, sem acesso administrativo ativo nesta execução; consulta somente leitura foi preparada separadamente. Nenhum dado removido nem perda da Dipirona repetida.
+
+### Patch aplicado e preservação
+
+Somente classes de `lista.map` em `src/components/PainelPedidos.tsx`, literalmente iguais ao protótipo aprovado:
+- Gap dos grupos de12px para8px, mantendo padding principal16px, tamanhos de fonte, cores, bordas, foco e alvos dos cartões.
+- Bloco de valores usa grade com6px entre linhas; estimativa/estimativa parcial, valor do fornecedor e suas condições permanecem separados, com os mesmos números. Segunda divisória com6px de espaço superior.
+- Entrega e Pagamento mantêm seus ícones/rótulos/descrições. Rótulo e texto podem ficar na mesma linha quando couber; conteúdo com base flexível de até12em volta à linha seguinte quando faltar espaço. Forma de pagamento continua em linha própria; divisórias superiores8px.
+- Orientação completa no rodapé e seta preservadas. Nenhum texto, atributo funcional, callback, estado, condição, dado, cálculo, filtro, busca ou ordem alterado. Não foram acrescentados botões, atalhos financeiros, acordeões ou novas rotas.
+- Detalhe, montagem, envio, recebimento, cancelamento e pagamento intactos; sem banco/Supabase/SQL, estoque, permissão, autenticação, integrações, dependências, CSS global ou testes oficiais modificados. Fonte da Verdade intacta. Apenas um componente e acréscimos no Plano Mestre, CLAUDE e checklist.
+
+### Verificações e limites
+
+| Verificação | Resultado |
+|---|---|
+| Tipos | `npx --no-install tsc --noEmit`, duas rodadas aprovadas, saída0. |
+| Suíte completa | `npx --no-install vitest run`, **1.202 testes / 123 arquivos aprovados em cada uma de duas rodadas**, sem erro não tratado no resumo. Nenhum teste/assertion/timeout editado. |
+| Específicos | `pedidos-polimento`, `pedidos-conferencia`, `pagamento`:47 testes aprovados; também cobertos nas duas suítes. Incluem recebido a pagar, pago a entregar, busca/filtro/retorno, condições de cancelamento durante contagem e decisão somente após conclusão. |
+| Build | `npm run build` aprovado com variáveis fictícias somente no processo; sem publicação ou configuração real. |
+| Segurança | Sete testes do verificador aprovados; 1925 blobs sem ocorrências nos padrões de segredos e 554 dependências sem avisos conhecidos. Não certifica segurança integral. |
+| Auditoria | Arquivo igual ao diff/protótipo aprovado; AST antes/depois confirma lógica fora do JSX, expressões e atributos não CSS iguais. Paleta, cores dinâmicas e demais trechos preservados. |
+| Visual |48 cenários/24 pares/96 capturas:320×568,390×844,768×900,1280×900; fonte100/200; fornecedor normal, longo/valores grandes e não carregado. Componente/CSS reais, Inter local, dados fictícios e rede externa bloqueada. |
+| Estados | Oito cartões por cenário: recebido a pagar, pago a entregar, recusado, conferência em andamento, parcial, rascunho sem preço, recebimento aguardando decisão e cancelado. Textos idênticos nos24pares; 23 dos24 cenários novos sem estouro horizontal dos cartões; exceção extrema preexistente e inalterada descrita abaixo; altura dos cartões acima48px. |
+| Navegação | Nas versões antes/depois e fonte normal: abrir detalhe/voltar, buscar número, retornar com busca preservada e filtrar contas a pagar. Nenhum callback operacional de salvar/enviar/cancelar/link/pagar foi chamado. |
+
+**Limitação visual confirmada, fora do patch:** em320px/texto200%, estimativa fictícia deR$12.345.678,90 provoca estouro de68px no cartão, antes e depois (clientWidth278/scrollWidth346, iguais nos oito cartões). O cenário ampliado detectou a limitação na revisão das métricas; não houve regressão de largura por este patch. Não foi corrigida silenciosamente: exigirá proposta visual própria se priorizada. Os outros23 cenários novos medidos não têm esse estouro. Logs/métricas do diagnóstico preservados; não declarar ausência geral de corte ou acessibilidade integral.
+
+Artefatos locais: `/workspace/entregas/omnisafe-m09-implementacao-2026-10-16/` (comparação, capturas, métricas, diff e logs). Não houve gravação em banco real. Fonte200% é simulação de fonte/entrelinha, não zoom nativo nem aparelho físico. Não foi possível verificar Android/iPhone/PWA instalados, leitor de tela, hardware, sessão ou dados reais. Não é redesenho geral de Pedidos: demais seções permanecem como antes. Conteúdo obrigatório continua completo; cartão longo ou fonte grande pode exigir maior rolagem.
+
+### Estado e próxima ação
+
+**M09 implementada/testada na branch; pronta para revisão, falta validação do dono.** CI do commit exato será acompanhado no PR, separado das verificações locais. Sem merge/publicação automáticos; M10 não iniciada. Registros históricos anteriores de pendência são preservados, sem tratá-los como estado atualizado desta execução.
+
+Próximo passo: dono revisar o PR/diff e comparar a prévia; merge somente com autorização própria. Após integração autorizada, Publicar → Atualizar e conferir Pedidos: ler recebido a pagar versus pago a entregar, valores, textos grandes, filtros, abrir detalhe e voltar. Não registrar pagamento, cancelar pedido real ou alterar estoque somente para testar aparência. Registrar versão/aparelho/resultado; até lá, teste físico permanece pendente. Reversão restrita às classes aprovadas, preservando os históricos.

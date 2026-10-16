@@ -478,3 +478,11 @@ Análise pedida pelo dono em 16/10/2026 sobre `main 529b360` (verificação remo
   - **Dipirona:** em 16/10/2026, com autorização do dono, registrada a perda das 38 Dipironas vencidas (lote 63766466476644) na área de venda da Farmavida. Simulado antes com rollback; ficou 1 operação; o estoque bom não mudou.
   - **Contagens vazias:** as 4 contagens de recebimento abertas e vazias (Estilo e cia, União e Kilão sem pedido; Farmavida, que trava o pedido nº 2) precisam ser retiradas. A remoção foi preparada com travas (só se continuarem vazias e em contagem), mas o ambiente pede confirmação para apagar.
   - **Ainda pendente (E7.1/E7.2):** quais comércios são de teste e o código do Arroz.
+
+
+## M09 — cartões de pedidos — 16/10/2026 UTC
+
+- [ ] **Implementada/testada na branch; falta revisão/validação do dono.** Autorizada após proposta, base `main d40ab1f`, branch `codex/ux-m09-cartoes-pedidos-20261016`. Somente classes dos cartões da lista de PainelPedidos + três documentos por acréscimo. Estimativa/valor do fornecedor e Entrega/Pagamento separados; mesmos textos, valores, ações, cálculos, identidade e fluxos. Fonte, testes oficiais, detalhe, libs, banco e configurações intactos.
+- **Provas:** tipos2×; 1202 testes/123 arquivos2×;47específicos; build/verificador aprovados.48cenários/24pares/96capturas em320/390/768/1280, texto100/200, fornecedor normal/longo/ausente e oito estados. Textos idênticos; um cenário extremo conserva estouro preexistente de68px (278/346) sem regressão, registrado no Plano; navegação/busca/filtro sem mutações. [Plano §20: escopo e limites](PLANO_MESTRE_UX_UI.md#20-m09--cartões-da-lista-de-pedidos-execução-autorizada--16102026-utc).
+- **Próximo passo:** revisarPR, autorização própria de merge; depois Publicar → Atualizar e testar cartões/filtros/detalhe/retorno no aparelho. CI remoto acompanhado no PR. Sem merge/publicação automáticos, sem M10.
+- **Continuidade:** PR155/M07 e PR162/documentação integrados; M08/M19 já no main. Publicação/aceites físicos ainda sem confirmação; F-16H/contagens vazias e demais E/G continuam pendentes. Nenhum dado removido ou perda repetida.
