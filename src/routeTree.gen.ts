@@ -13,7 +13,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as CaixaRouteImport } from './routes/caixa'
 import { Route as ConectorRouteImport } from './routes/conector'
 import { Route as FuncionarioRouteImport } from './routes/funcionario'
-import { Route as ZzHarnessM19RouteImport } from './routes/zz-harness-m19'
 import { Route as FiadoTokenRouteImport } from './routes/fiado/$token'
 import { Route as PedidoTokenRouteImport } from './routes/pedido/$token'
 import { Route as ApiPublicFiadoManifestTokenRouteImport } from './routes/api/public/fiado-manifest.$token'
@@ -38,11 +37,6 @@ const FuncionarioRoute = FuncionarioRouteImport.update({
   path: '/funcionario',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ZzHarnessM19Route = ZzHarnessM19RouteImport.update({
-  id: '/zz-harness-m19',
-  path: '/zz-harness-m19',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const FiadoTokenRoute = FiadoTokenRouteImport.update({
   id: '/fiado/$token',
   path: '/fiado/$token',
@@ -65,7 +59,6 @@ export interface FileRoutesByFullPath {
   '/caixa': typeof CaixaRoute
   '/conector': typeof ConectorRoute
   '/funcionario': typeof FuncionarioRoute
-  '/zz-harness-m19': typeof ZzHarnessM19Route
   '/fiado/$token': typeof FiadoTokenRoute
   '/pedido/$token': typeof PedidoTokenRoute
   '/api/public/fiado-manifest/$token': typeof ApiPublicFiadoManifestTokenRoute
@@ -75,7 +68,6 @@ export interface FileRoutesByTo {
   '/caixa': typeof CaixaRoute
   '/conector': typeof ConectorRoute
   '/funcionario': typeof FuncionarioRoute
-  '/zz-harness-m19': typeof ZzHarnessM19Route
   '/fiado/$token': typeof FiadoTokenRoute
   '/pedido/$token': typeof PedidoTokenRoute
   '/api/public/fiado-manifest/$token': typeof ApiPublicFiadoManifestTokenRoute
@@ -86,7 +78,6 @@ export interface FileRoutesById {
   '/caixa': typeof CaixaRoute
   '/conector': typeof ConectorRoute
   '/funcionario': typeof FuncionarioRoute
-  '/zz-harness-m19': typeof ZzHarnessM19Route
   '/fiado/$token': typeof FiadoTokenRoute
   '/pedido/$token': typeof PedidoTokenRoute
   '/api/public/fiado-manifest/$token': typeof ApiPublicFiadoManifestTokenRoute
@@ -98,7 +89,6 @@ export interface FileRouteTypes {
     | '/caixa'
     | '/conector'
     | '/funcionario'
-    | '/zz-harness-m19'
     | '/fiado/$token'
     | '/pedido/$token'
     | '/api/public/fiado-manifest/$token'
@@ -108,7 +98,6 @@ export interface FileRouteTypes {
     | '/caixa'
     | '/conector'
     | '/funcionario'
-    | '/zz-harness-m19'
     | '/fiado/$token'
     | '/pedido/$token'
     | '/api/public/fiado-manifest/$token'
@@ -118,7 +107,6 @@ export interface FileRouteTypes {
     | '/caixa'
     | '/conector'
     | '/funcionario'
-    | '/zz-harness-m19'
     | '/fiado/$token'
     | '/pedido/$token'
     | '/api/public/fiado-manifest/$token'
@@ -129,7 +117,6 @@ export interface RootRouteChildren {
   CaixaRoute: typeof CaixaRoute
   ConectorRoute: typeof ConectorRoute
   FuncionarioRoute: typeof FuncionarioRoute
-  ZzHarnessM19Route: typeof ZzHarnessM19Route
   FiadoTokenRoute: typeof FiadoTokenRoute
   PedidoTokenRoute: typeof PedidoTokenRoute
   ApiPublicFiadoManifestTokenRoute: typeof ApiPublicFiadoManifestTokenRoute
@@ -165,13 +152,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FuncionarioRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/zz-harness-m19': {
-      id: '/zz-harness-m19'
-      path: '/zz-harness-m19'
-      fullPath: '/zz-harness-m19'
-      preLoaderRoute: typeof ZzHarnessM19RouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/fiado/$token': {
       id: '/fiado/$token'
       path: '/fiado/$token'
@@ -201,7 +181,6 @@ const rootRouteChildren: RootRouteChildren = {
   CaixaRoute: CaixaRoute,
   ConectorRoute: ConectorRoute,
   FuncionarioRoute: FuncionarioRoute,
-  ZzHarnessM19Route: ZzHarnessM19Route,
   FiadoTokenRoute: FiadoTokenRoute,
   PedidoTokenRoute: PedidoTokenRoute,
   ApiPublicFiadoManifestTokenRoute: ApiPublicFiadoManifestTokenRoute,
