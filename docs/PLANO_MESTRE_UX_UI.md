@@ -404,7 +404,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M13 — contexto unidade | Implementada, testada e integrada ao main (16/10/2026; revisão técnica aprovada em `ef75121`) | `m13-contexto-unidade` (6 novos); tipos e suíte 2× | Chromium 320/390/768/1280 × 100/200% (32 capturas) | Aguarda publicação e homologação final do dono |
 | M14 — progresso cadastro | Implementada (16/10/2026), pedido do dono "faça a etapa M14" | `m14-progresso-cadastro` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§24) | Falta o teste do dono |
 | M15 — campos existentes | Blocos A, B e C implementados (16/10/2026), pedidos do dono "Pode fazer a M15" e "Pode fazer o próximo bloco da M15" (2×) | `m15-campos-legiveis` (5 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§25–§27) | Falta o teste do dono; bloco D (Validade) não iniciado |
-| M16 — convite instalação | Pendente | Não iniciados | Não realizados | Pendente |
+| M16 — convite instalação | Implementada (16/10/2026), pedido do dono "Pode fazer a M16" | `m16-convite-instalacao` (1 novo, falha sem a mudança) + `instalar`; suíte 2× | Chromium 320/390/1280 × 100/200% (§29) | Falta o teste do dono |
 | M17 — fases reposição | Pendente | Não iniciados | Não realizados | Pendente |
 | M18 — estados recebimento | Pendente | Não iniciados | Não realizados | Pendente |
 | M19 — conferência existente | Implementada (16/10/2026), aguarda revisão | conferência/contagem cega/diferenças/vocabulário + suíte 1.189 2× | 60 capturas 320/390/1280 × 100/200% | Pendente |
@@ -955,3 +955,38 @@ Não mudam: textos (só a unidade foi acrescentada), contas, conversões, valida
 **Fica para o próximo bloco da M15:** passo Validade.
 
 **Pendente:** Publicar → Atualizar e o teste do dono. Roteiro: editar uma roupa com tamanhos, ir até "Quanto há no estoque?" e conferir "Quantidade informada no cadastro: 2 peças".
+
+## 29. M16 — convite de instalação compacto — 16/10/2026 UTC
+
+**Pedido do dono (16/10/2026):** "Pode fazer a M16".
+
+**O que mudou** (só apresentação, `src/components/AppFuncionario.tsx`, função `CartaoInstalar`). O cartão "Instale o app no celular" aparece na tela inicial do Omni Operação, antes das tarefas. Agora ocupa menos espaço:
+- título e frase juntos;
+- os dois botões lado a lado quando cabem;
+- borda interna menor.
+
+Continuam iguais:
+- **O conteúdo:** os mesmos textos, os mesmos dois botões ("Instalar o app" e "Agora não", ambos com 44 px de toque) e o mesmo lugar na tela.
+- **Quando aparece:** não aparece se o app já foi instalado ou adiado, e "Agora não" esconde por 7 dias.
+- **O que os botões fazem:** instalar com um toque ou mostrar o passo a passo.
+- **O botão do rodapé:** "Instalar o app no celular" continua lá.
+
+**Altura do cartão, medida no Chromium (antes → depois):**
+
+| Tela | Letra 100% | Letra 200% |
+|---|---|---|
+| 320 px | 238 → 162 px | 778 → 762 px |
+| 390 px | 218 → 142 px | 650 → 642 px |
+| 1280 px | 198 → 102 px | 394 → 242 px |
+
+Não houve rolagem lateral em nenhum caso. Com isso, as tarefas aparecem mais cedo na tela.
+
+**Provas:**
+- Teste novo: `src/test/m16-convite-instalacao.test.tsx`. Ele falha sem a mudança.
+- Os testes antigos de `instalar.test.tsx` continuam passando: passo a passo, instalar com um toque, "Agora não" e cartão escondido com o app instalado.
+- Tipos e 1.219 testes passaram duas vezes; build aprovado.
+
+**Pendente:** Publicar → Atualizar e o teste do dono. Roteiro:
+1. Abrir o Omni Operação pelo navegador do celular, sem o app instalado.
+2. O cartão deve aparecer menor, com "Instalar o app" e "Agora não".
+3. "Agora não" faz o cartão sumir.
