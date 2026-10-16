@@ -20,7 +20,7 @@ function montar(extra: Record<string, unknown> = {}) {
     store: loja, products: [arroz, feijao], suppliers: sup, saved: false, onSalvarPedido: f(), onPedidoEnviado: f(), onCancelarPedido: f(), onNovoLinkPedido: f(), onPagamentoPedido: f(),
     onAddSupplier: f(), onUpdateSupplier: f(), onBack: vi.fn(), onNew: vi.fn(), onEdit: vi.fn(), onDismissSaved: vi.fn(), ...extra,
   };
-  render(<StoreSpace {...(props as never)} />);
+  render(<StoreSpace {...(props as unknown as Parameters<typeof StoreSpace>[0])} />);
   return props;
 }
 const depois = (a: Element, b: Element) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
