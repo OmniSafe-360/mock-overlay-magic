@@ -228,6 +228,28 @@ function Reposicao({ chave, onVoltar, apiDada }: { chave: string; onVoltar: () =
   );
 }
 
+/** M17: as três fases que já existem na reposição, na ordem; a atual fica em destaque. Só mostra, não navega. */
+const FASES = ["Conte", "Busque", "Confirme o que levou"] as const;
+function Fases({ atual }: { atual: 1 | 2 }) {
+  return (
+    <ol aria-label="Fases da reposição" className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm">
+      {FASES.map((f, i) => {
+        const n = i + 1;
+        const agora = atual === 1 ? n === 1 : n >= 2;
+        const feita = n < atual;
+        return (
+          <li key={f} aria-current={agora ? "step" : undefined} className="flex items-center gap-1.5">
+            {i > 0 && <span aria-hidden className="text-muted-foreground">→</span>}
+            <span className={`rounded-full px-2.5 py-1 font-semibold ${agora ? "bg-primary text-primary-foreground" : feita ? "bg-accent/15 text-accent" : "bg-secondary text-muted-foreground"}`}>
+              {feita && <Check size={13} className="mr-0.5 inline align-[-2px]" />}{n}. {f}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 function Cabecalho({ item, onVoltar, voltar }: { item: Item; onVoltar: () => void; voltar: string }) {
   return (
     <>
@@ -256,6 +278,7 @@ function Ir({ item, prateleira, chave, api, onVoltar, onCheguei, mercado }: {
   return (
     <div className="flex flex-1 flex-col gap-4">
       <Cabecalho item={item} onVoltar={onVoltar} voltar="Lista" />
+      <Fases atual={1} />
       <div className="flex flex-col items-center gap-2 rounded-3xl border-2 border-primary/50 bg-primary/10 p-6 text-center">
         <MapPin size={36} className="text-primary" />
         <p className="text-sm text-muted-foreground">Vá até</p>
@@ -281,6 +304,7 @@ function ContarPrateleira({ item, prateleira, valor, onMudar, onVoltar, onEnviar
   return (
     <div className="flex flex-1 flex-col gap-4">
       <Cabecalho item={item} onVoltar={onVoltar} voltar={pendente ? "Início" : "Voltar"} />
+      <Fases atual={1} />
       {rodada > 1 && <p className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm font-semibold text-warning">Conte de novo, com calma, tudo deste produto. (Contagem {rodada} de 3)</p>}
       <div className="space-y-3 rounded-3xl border border-border p-4">
         <p className="text-xl font-bold">{pendente ? `Contagem enviada da ${prateleira}` : `Quanto tem na ${prateleira} agora?`}</p>
@@ -320,11 +344,12 @@ function Buscar({ item, r, prateleira, t, valor, onMudar, onEnviar, travado, env
   return (
     <div className="flex flex-1 flex-col gap-4">
       <div className="rounded-3xl border border-border bg-secondary/60 p-4"><p className="break-words text-xl font-bold">{nomeProdutoFunc(item)}</p></div>
+      <Fases atual={2} />
       <div className="flex flex-col items-center gap-1 rounded-3xl border-2 border-primary/50 bg-primary/10 p-5 text-center">
         <Warehouse size={34} className="text-primary" />
         <p className="text-sm text-muted-foreground">{pendente ? "Quantidade indicada antes do envio" : t("Busque no depósito")}</p>
         <p className="text-3xl font-bold">{qtdUn(r.sugerido, item.unidade)}</p>
-        {(r.localDeposito ?? item.localDeposito) && <p className="flex items-center gap-1 text-sm"><MapPin size={14} /> {r.localDeposito ?? item.localDeposito}</p>}
+        {(r.localDeposito ?? item.localDeposito) && <p className="flex items-center gap-1 break-words text-base font-semibold"><MapPin size={16} className="shrink-0" /> {r.localDeposito ?? item.localDeposito}</p>}
       </div>
       <div className="space-y-2 rounded-3xl border border-border p-4">
         <p className="text-base font-bold">Quanto você colocou na {prateleira}?</p>
