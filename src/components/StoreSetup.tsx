@@ -1,6 +1,6 @@
 import { digits, maskPhone } from "@/lib/formatacao";
 import { useKeyboard } from "@/hooks/useKeyboard";
-import { useEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
 import { ArrowLeft, Check, CheckCircle2, Hammer, PawPrint, Wrench, MapPin, Pencil, Pill, Shirt, ShoppingCart, X, Loader2, LogOut } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import { exemplos } from "@/lib/exemplos";
@@ -66,15 +66,20 @@ export const inputCls = (err?: boolean) =>
   }`;
 
 export function Field({ label, hint, error, extra, ...props }: InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: ReactNode; error?: string; extra?: ReactNode }) {
-  const id = props.id ?? props.name;
+  /* M21: o erro (ou, sem erro, a ajuda) fica ligado ao campo por aria-describedby, com id único. */
+  const auto = useId();
+  const id = props.id ?? props.name ?? `campo-${auto}`;
+  const msgId = `${id}-${auto}-${error ? "erro" : "ajuda"}`;
+  const temMsg = !!error || !!hint;
+  const descritoPor = [props["aria-describedby"], temMsg ? msgId : undefined].filter(Boolean).join(" ") || undefined;
   return (
     <div className="space-y-1 min-w-0">
       <div className="flex items-center justify-between gap-2">
         <label htmlFor={id} className="text-sm font-medium text-muted-foreground short:text-xs">{label}</label>
         {extra}
       </div>
-      <input id={id} {...props} aria-invalid={!!error} className={inputCls(!!error)} />
-      {error ? <p className="text-xs text-destructive">{error}</p> : hint ? <p className="field-hint text-xs text-muted-foreground">{hint}</p> : null}
+      <input id={id} {...props} aria-invalid={!!error} aria-describedby={descritoPor} className={inputCls(!!error)} />
+      {error ? <p id={msgId} className="text-xs text-destructive">{error}</p> : hint ? <p id={msgId} className="field-hint text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }
