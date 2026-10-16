@@ -15,8 +15,11 @@ const api = (over: Partial<ApiRepor> = {}) => ({
   contar: vi.fn(async () => resp()), concluir: vi.fn(async () => {}), buscar: vi.fn(async () => []), ...over,
 }) satisfies ApiRepor;
 const CH = "c".repeat(64);
-const atual = () => within(screen.getByRole("list", { name: "Fases da reposição" })).getAllByRole("listitem")
-  .filter((li) => li.getAttribute("aria-current") === "step").map((li) => li.textContent);
+const itens = () => within(screen.getByRole("list", { name: "Fases da reposição" })).getAllByRole("listitem");
+/** Para o leitor de tela: só uma fase é a atual. */
+const atual = () => itens().filter((li) => li.getAttribute("aria-current") === "step").map((li) => li.textContent);
+/** Na tela: fases em destaque (azul). */
+const destaque = () => itens().filter((li) => li.querySelector(".bg-primary")).map((li) => li.textContent);
 
 describe("M17 — fases da reposição", () => {
   beforeEach(() => localStorage.clear());
@@ -30,11 +33,25 @@ describe("M17 — fases da reposição", () => {
     expect(atual()).toEqual(["1. Conte"]);
     fireEvent.click(screen.getByRole("button", { name: /Está vazia/ }));
     await screen.findByLabelText("Coloquei (unidades)");
-    expect(atual()).toEqual(["→2. Busque", "→3. Confirme o que levou"]);
+    expect(atual()).toEqual(["→2. Busque"]);
+    expect(destaque()).toEqual(["→2. Busque", "→3. Confirme o que levou"]);
     expect(screen.getByText("Prateleira 2").className).toContain("text-base");
     fireEvent.change(screen.getByLabelText("Coloquei (unidades)"), { target: { value: "40" } });
     fireEvent.click(screen.getByRole("button", { name: /Coloquei na gôndola/ }));
     await vi.waitFor(() => expect(a.concluir).toHaveBeenCalledWith(CH, expect.any(String), 40));
+  });
+  it("envio do Coloquei sem resposta: Busque fica como feita e só falta confirmar (não buscar de novo)", async () => {
+    const concluir = vi.fn<ApiRepor["concluir"]>().mockRejectedValueOnce(new Error("Failed to fetch")).mockResolvedValue(undefined);
+    render(<ReporGondola chave={CH} api={api({ concluir })} onVoltar={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Arroz 5 kg/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Estou na prateleira/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Está vazia/ }));
+    fireEvent.change(await screen.findByLabelText("Coloquei (unidades)"), { target: { value: "40" } });
+    fireEvent.click(screen.getByRole("button", { name: /Coloquei na gôndola/ }));
+    await screen.findByRole("button", { name: "Confirmar envio anterior" });
+    expect(atual()).toEqual(["→3. Confirme o que levou"]);
+    expect(destaque()).toEqual(["→3. Confirme o que levou"]);
+    expect(itens()[1]!.querySelector(".bg-accent\\/15")).toBeTruthy();
   });
   it("prateleira cheia: sem faixa de fases (não há o que buscar)", async () => {
     render(<ReporGondola chave={CH} api={api({ contar: vi.fn(async () => resp({ sugerido: 0, cheio: true })) })} onVoltar={() => {}} />);

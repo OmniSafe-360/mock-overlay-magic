@@ -228,17 +228,19 @@ function Reposicao({ chave, onVoltar, apiDada }: { chave: string; onVoltar: () =
   );
 }
 
-/** M17: as três fases que já existem na reposição, na ordem; a atual fica em destaque. Só mostra, não navega. */
+/** M17: as três fases que já existem na reposição, na ordem; a atual fica em destaque. Só mostra, não navega.
+    atual 2 = tela do depósito (Busque e Confirme aparecem juntas em destaque; para o leitor de tela, só "Busque" é a atual);
+    atual 3 = envio anterior sem resposta: o produto já foi levado, falta só confirmar (Busque aparece como feita). */
 const FASES = ["Conte", "Busque", "Confirme o que levou"] as const;
-function Fases({ atual }: { atual: 1 | 2 }) {
+function Fases({ atual }: { atual: 1 | 2 | 3 }) {
   return (
     <ol aria-label="Fases da reposição" className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm">
       {FASES.map((f, i) => {
         const n = i + 1;
-        const agora = atual === 1 ? n === 1 : n >= 2;
+        const agora = atual === 2 ? n >= 2 : n === atual;
         const feita = n < atual;
         return (
-          <li key={f} aria-current={agora ? "step" : undefined} className="flex items-center gap-1.5">
+          <li key={f} aria-current={n === atual ? "step" : undefined} className="flex items-center gap-1.5">
             {i > 0 && <span aria-hidden className="text-muted-foreground">→</span>}
             <span className={`rounded-full px-2.5 py-1 font-semibold ${agora ? "bg-primary text-primary-foreground" : feita ? "bg-accent/15 text-accent" : "bg-secondary text-muted-foreground"}`}>
               {feita && <Check size={13} className="mr-0.5 inline align-[-2px]" />}{n}. {f}
@@ -344,7 +346,7 @@ function Buscar({ item, r, prateleira, t, valor, onMudar, onEnviar, travado, env
   return (
     <div className="flex flex-1 flex-col gap-4">
       <div className="rounded-3xl border border-border bg-secondary/60 p-4"><p className="break-words text-xl font-bold">{nomeProdutoFunc(item)}</p></div>
-      <Fases atual={2} />
+      <Fases atual={pendente ? 3 : 2} />
       <div className="flex flex-col items-center gap-1 rounded-3xl border-2 border-primary/50 bg-primary/10 p-5 text-center">
         <Warehouse size={34} className="text-primary" />
         <p className="text-sm text-muted-foreground">{pendente ? "Quantidade indicada antes do envio" : t("Busque no depósito")}</p>
