@@ -13,7 +13,7 @@ p=("${con[@]}" -v ON_ERROR_STOP=1 -X -q)
 falha() { tail -15 "$1"; exit 1; }
 for f in "$base/000_base_simulada.sql" "$base/000_base_operacional.sql"; do "${p[@]}" -1 -f "$f" >>"$tmp/setup.log" 2>&1 || falha "$tmp/setup.log"; done
 for m in "$repo"/supabase/migrations/*.sql; do
-  case "$(basename "$m")" in 20261010111223_*|20261010111310_*|20261010125732_*) continue ;; esac
+  case "$(basename "$m")" in 20261010111223_*|20261010111310_*|20261010125732_*|20261016133627_*) continue ;; esac  # 20261016133627 = esta proteção (aplicada abaixo)
   "${p[@]}" -1 -f "$m" >>"$tmp/setup.log" 2>&1 || falha "$tmp/setup.log"
 done
 casos() { { echo 'begin;'; cat "$base/015_base_caixa_estoque.sql" "$base/017_embalagem_protegida.sql"; echo 'rollback;'; } >"$tmp/c.sql"; "${p[@]}" -f "$tmp/c.sql" >"$tmp/c.log" 2>&1; }

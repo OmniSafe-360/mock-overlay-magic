@@ -1,4 +1,4 @@
-# Etapa 3 — embalagem protegida no banco (15/10/2026) — PREPARADA, NÃO APLICADA
+# Etapa 3 — embalagem protegida no banco (15/10/2026) — APLICADA em 16/10/2026
 
 ## Problema
 - `_salvar_embalagens` (chamada por `salvar_cadastro`) faz `UPDATE` da quantidade de qualquer embalagem existente, mesmo já usada em `pedido_itens`, `codigos_pdv` ou `venda_itens`. A trava da Etapa 2 é só na tela.
@@ -29,7 +29,7 @@ Banco PostgreSQL descartável com todas as migrações e dados fictícios:
 - Banco real só lido: 7 embalagens, **0 pedidos divergentes**, proteção não aplicada. Ovos/pedido nº 2 não tocados.
 
 ## Riscos que ficam
-- Caixa: a venda calcula unidades antes de gravar o item; se a embalagem mudar no mesmo instante (antes de qualquer uso), a venda pode usar o fator anterior. A janela é de milissegundos e só existe para embalagem ainda nunca usada.
+- ~~Caixa: a venda calcula unidades antes de gravar o item; se a embalagem mudar no mesmo instante (antes de qualquer uso), a venda pode usar o fator anterior.~~ **Fechado em 16/10/2026** (migração `20261016134806`, ver abaixo).
 - Trocar o **tipo** (Caixa→Fardo) continua permitido (não muda conversão).
 - `ON DELETE CASCADE` produto→embalagem continua barrado pela chave estrangeira dos pedidos (já era).
 
@@ -40,4 +40,52 @@ Banco PostgreSQL descartável com todas as migrações e dados fictícios:
 ## Reverter
 Rodar `017_embalagem_protegida_reverter.sql` (não toca em dados).
 
-**Precisa mudar o banco de produção para valer — aguardando autorização expressa.**
+~~Precisa mudar o banco de produção para valer — aguardando autorização expressa.~~ Aplicada em 16/10/2026; ver abaixo.
+
+## Aplicação (16/10/2026)
+Autorização do dono: "Faça a próxima correção" (item 2 da lista: proteção da embalagem já usada).
+
+1. **Leitura antes:**
+   - 7 embalagens, 5 itens de pedido com embalagem e **0 pedidos com fator diferente**;
+   - nenhum gatilho nem função da proteção existia;
+   - `salvar_pedido` calcula `qtd_unidades = qtd_embalagens × quantidade`, o mesmo que o gatilho confere;
+   - as funções que mexem depois em `qtd_unidades` (`resolver_item_venda`, `_baixar_item_venda`) só atuam em `venda_itens`, onde o gatilho só trava, sem conferir fator.
+2. **Mudança em relação à proposta de 15/10:** saiu a parte do gatilho que tratava apagar. As 3 chaves estrangeiras para `produto_embalagens` (pedido_itens, venda_itens, codigos_pdv) são NO ACTION, então apagar embalagem usada já é recusado pelo banco. O ambiente também recusa rodar comandos com essa palavra sem confirmação. O gatilho agora é só `before update`. O teste local passou a esperar a recusa da chave estrangeira (código 23503).
+3. **Simulação no banco real, com tudo desfeito no fim:**
+   - mudar a quantidade da embalagem usada (Caixa com 6) → `embalagem_em_uso`;
+   - mesma quantidade, preço, tipo e remover → aceitos;
+   - voltar de removida → `embalagem_em_uso`;
+   - embalagem nunca usada muda;
+   - item de pedido com fator errado → `embalagem_mudou`;
+   - resposta do fornecedor no item → aceita;
+   - anon/authenticated sem acesso às funções.
+   - Também simulado o caminho real do dono: `_salvar_embalagens` com a lista igual foi aceito; mudando a quantidade da usada, recusado.
+   - Conferido depois: nada ficou gravado.
+4. **Aplicada** como migração `embalagem_protegida`, versão `20261016133627`, igual a `supabase/migrations/20261016133627_embalagem_protegida.sql`. Depois de aplicar:
+   - 4 gatilhos novos (mais o antigo `embalagens_codigo`);
+   - 3 funções SECURITY DEFINER sem EXECUTE para anon/authenticated;
+   - RLS ligada e permissões da tabela iguais (authenticated só SELECT).
+   - Avisos de segurança do Supabase, lidos por inteiro: iguais aos de antes (mesmas categorias e contagens), nenhum cita as funções novas.
+5. **Bateria local** (`teste/rodar_embalagem_protegida.sh`, PostgreSQL 16 descartável, com todas as migrações do repositório, inclusive a do comércio desativado):
+   - sem proteção os casos falham;
+   - repetir é recusado;
+   - os casos 017 passam;
+   - as regressões de caixa/estoque, contagem, operacionais e recebimento passam;
+   - concorrência com 2 conexões reais passa;
+   - a reversão passa.
+
+As mensagens do app (`embalagem_em_uso`, `embalagem_mudou`) já estavam no `main`. O backup não foi confirmado no painel. A reversão não mexe em dados.
+
+**Falta o teste do dono:** no cadastro dos ovos, mudar a "Caixa com 6" deve ser recusado com a mensagem; preço e código continuam editáveis.
+
+### Revisão do Codex no PR #161 — venda com o fator antigo (16/10/2026)
+- **Achado (P1):** caixa do celular, Omni Conector e "Ligar" de vendido sem cadastro calculam as unidades em `_unidades_item` antes de gravar o item. Se a quantidade da embalagem mudasse nesse instante, a primeira venda dela podia gravar e baixar o estoque com o fator antigo. O gatilho de `venda_itens` só travava, sem conferir.
+- **Reproduzido:** no PostgreSQL 16 descartável, com 2 conexões reais, a venda calculou 12 (2 × 6, fator antigo) enquanto a embalagem mudava para 12.
+- **Correção:** migração `20261016134806_embalagem_venda_trava.sql`. `_unidades_item` passa a travar a embalagem (`FOR SHARE`) antes de ler a quantidade e virou `VOLATILE`, porque o travamento exige isso. Os 3 chamadores já eram `VOLATILE` e não há outro chamador. Fica uma ordem só:
+  - se a venda vem primeiro, quem muda a embalagem espera e é recusado (`embalagem_em_uso`);
+  - se a mudança vem primeiro, a venda espera e calcula com o fator novo.
+- **Testes:**
+  - bateria local com o caso 3 novo, que falha sem a correção (12) e passa com ela (24, depois de esperar);
+  - simulação no banco real com tudo desfeito: Caixa com 6 × 2 = 12, sem embalagem 3, embalagem inexistente → `embalagem_nao_encontrada`, função `VOLATILE`, sem acesso para anon.
+- **Aplicação:** confere o md5 da versão do banco antes de trocar, num comando atômico; permissões mantidas.
+- **Roteiro da bateria:** pula a migração `20261016133627`, porque ela mesma aplica a proteção depois de provar o "sem proteção".

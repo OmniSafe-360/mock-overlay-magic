@@ -30,7 +30,12 @@ reset role;
 select pg_temp.ok((select preco_compra=30 and codigo_barras='17891234567895' and quantidade=6 from produto_embalagens where id=pg_temp.u('cx6')),'preço/código editáveis');
 -- direto no banco (como superusuário, contornando RLS): fator, produto, apagar
 select pg_temp.recusa($q$update produto_embalagens set quantidade=12 where id=pg_temp.u('cx6')$q$,'embalagem_em_uso');
-select pg_temp.recusa($q$delete from produto_embalagens where id=pg_temp.u('cx6')$q$,'embalagem_em_uso');
+-- Apagar embalagem usada continua recusado, agora pela chave estrangeira (NO ACTION), não pelo gatilho.
+do $x$ declare st text; begin
+  begin execute $q$delete from produto_embalagens where id=pg_temp.u('cx6')$q$; st := 'sucesso';
+  exception when others then get stacked diagnostics st = returned_sqlstate; end;
+  perform pg_temp.ok(st = '23503', 'apagar embalagem usada recusado pela chave estrangeira (veio ' || st || ')');
+end $x$;
 -- 4) pedido concluído continua protegido
 update pedidos_compra set situacao='recebido' where id=pg_temp.u('ped');
 select pg_temp.recusa($q$update produto_embalagens set quantidade=7 where id=pg_temp.u('cx6')$q$,'embalagem_em_uso');

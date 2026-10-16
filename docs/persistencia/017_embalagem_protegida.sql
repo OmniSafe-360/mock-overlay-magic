@@ -1,10 +1,12 @@
--- PROPOSTA (Etapa 3 — embalagem protegida no banco) — NÃO APLICADA EM PRODUÇÃO.
+-- Etapa 3 — embalagem protegida no banco — APLICADA no Supabase oficial em 16/10/2026 (migração 20261016133627_embalagem_protegida.sql).
 -- Não recria tabela, não altera nenhuma linha existente, não muda RLS nem permissões das tabelas,
 -- não substitui nenhuma função existente (salvar_cadastro/_salvar_embalagens/salvar_pedido ficam iguais).
 -- Acrescenta só 2 funções de gatilho (sem EXECUTE para anon/authenticated) e 4 gatilhos.
 --
 -- Regra: embalagem já usada (pedido_itens, codigos_pdv ou venda_itens) não muda
---   quantidade, produto nem comércio, não volta de removida e não é apagada.
+--   quantidade, produto nem comércio e não volta de removida. Apagar já é recusado pelo banco:
+--   as 3 chaves estrangeiras para produto_embalagens são NO ACTION (conferido em 16/10/2026),
+--   por isso o gatilho cuida só de UPDATE.
 --   Tipo, código de barras e preço continuam editáveis. Remover continua sendo
 --   marcar removida_em (histórico e pedidos antigos ficam intactos).
 -- Corrida: quem grava um item que usa a embalagem trava a linha dela (FOR SHARE).
@@ -50,10 +52,6 @@ begin
   create function public._proteger_embalagem() returns trigger
   language plpgsql security definer set search_path = public, pg_temp as $b$
   begin
-    if tg_op = 'DELETE' then
-      if public._embalagem_em_uso(old.id) then raise exception 'embalagem_em_uso' using errcode = '23514'; end if;
-      return old;
-    end if;
     if (new.quantidade is distinct from old.quantidade or new.produto_id is distinct from old.produto_id
         or new.comercio_id is distinct from old.comercio_id
         or (old.removida_em is not null and new.removida_em is null))
@@ -81,7 +79,7 @@ begin
   revoke all on function public._proteger_embalagem() from public, anon, authenticated;
   revoke all on function public._travar_embalagem_usada() from public, anon, authenticated;
 
-  create trigger embalagem_protegida before update or delete on public.produto_embalagens
+  create trigger embalagem_protegida before update on public.produto_embalagens
     for each row execute function public._proteger_embalagem();
   create trigger pedido_itens_trava_embalagem before insert or update of embalagem_id, qtd_embalagens, qtd_unidades on public.pedido_itens
     for each row execute function public._travar_embalagem_usada();
