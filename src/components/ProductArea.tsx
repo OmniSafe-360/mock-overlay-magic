@@ -1239,16 +1239,17 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
             {step === STEP_REV && triedSave && prejuizo && !prejuizoConfirmado && <p role="alert" className="shrink-0 pt-2 text-sm font-semibold text-destructive">Confirme o prejuízo para salvar, ou volte e ajuste o preço de venda.</p>}
             {erro && step === STEP_REV && <p role="alert" className="shrink-0 pt-3 text-sm font-semibold text-destructive">{erro}</p>}
             {step === 1 && !valid && <p role="status" className="shrink-0 pt-2 text-xs text-muted-foreground">{compra <= 0 || venda <= 0 ? "Preencha o preço de compra e o preço de venda para continuar." : !unidade ? "Escolha a unidade de medida para continuar." : !categoria ? "Escolha a categoria para continuar." : "Confira as opções destacadas antes de continuar."}</p>}
-            <div className={`flex shrink-0 gap-2 ${kb ? "pt-2" : "pt-4 short:pt-3"}`}>
+            {/* M22: com letra grande e pouco espaço, Voltar mostra só a seta (o nome continua para o leitor de tela) e os botões ficam mais justos; se ainda não couber, Continuar fica em cima e Voltar embaixo. Com letra normal, nada muda (medidas em rem). */}
+            <div className={`@container shrink-0 ${kb ? "pt-2" : "pt-4 short:pt-3"}`}><div className="flex gap-2 @max-[7.5rem]:flex-col-reverse">
               {step > 0 && (
-                <button type="button" onClick={back} className={btnGhost}><span className="flex items-center gap-1.5"><ArrowLeft size={18} />Voltar</span></button>
+                <button type="button" onClick={back} className={`${btnGhost} @max-[15rem]:px-3`}><span className="flex items-center gap-1.5"><ArrowLeft size={18} /><span className="@max-[15rem]:sr-only">Voltar</span></span></button>
               )}
               {step === 2 && !isRoupas && !Object.values(det).some(Boolean) ? (
-                <button type="submit" className={`flex-1 ${btnPrimary(true)}`}>Pular</button>
+                <button type="submit" className={`min-w-0 flex-1 ${btnPrimary(true)} @max-[15rem]:px-3`}>Pular</button>
               ) : (
-                <button type="submit" disabled={!valid || (step === STEP_REV && saving)} className={`flex-1 ${btnPrimary(valid && !(step === STEP_REV && saving))}`}>{step === STEP_REV ? (saving ? "Salvando…" : "Salvar produto") : "Continuar"}</button>
+                <button type="submit" disabled={!valid || (step === STEP_REV && saving)} className={`min-w-0 flex-1 ${btnPrimary(valid && !(step === STEP_REV && saving))} @max-[15rem]:px-3`}>{step === STEP_REV ? (saving ? "Salvando…" : "Salvar produto") : "Continuar"}</button>
               )}
-            </div>
+            </div></div>
           </form>
         </div>
       </main>
