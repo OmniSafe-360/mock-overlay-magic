@@ -106,18 +106,21 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
     <>
     {current && <ProductDetail p={current} tipo={store.tipo} suppliers={suppliers} onBack={() => setView(null)} onEdit={() => onEdit(current)} />}
     <div hidden={!!current} className="space-y-5 animate-in fade-in slide-in-from-right-8 duration-300">
-      <header className="flex items-center gap-3">
-        <button type="button" onClick={onBack} aria-label="Voltar" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-secondary/60 text-foreground hover:border-primary"><ArrowLeft size={20} /></button>
-        <div className="min-w-0 flex-1">
-          <h1 className="line-clamp-2 text-lg font-bold leading-tight" title={store.nome}>{store.nome}</h1>
-          <p className="flex items-center gap-1 truncate text-xs text-muted-foreground"><Icon size={13} className="shrink-0 text-primary" /> {store.cidade} - {store.uf}</p>
+      {/* M13: botões numa linha; o nome inteiro e a cidade/UF ocupam toda a largura logo abaixo. */}
+      <header className="space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <button type="button" onClick={onBack} aria-label="Voltar" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-secondary/60 text-foreground hover:border-primary"><ArrowLeft size={20} /></button>
+          {onAtualizar && (
+            <button type="button" disabled={atualizando} onClick={onAtualizar} aria-label={atualizando ? "Atualizando" : "Atualizar"}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground hover:border-primary hover:text-foreground disabled:opacity-60">
+              <RefreshCw size={19} className={atualizando ? "animate-spin" : ""} />
+            </button>
+          )}
         </div>
-        {onAtualizar && (
-          <button type="button" disabled={atualizando} onClick={onAtualizar} aria-label={atualizando ? "Atualizando" : "Atualizar"}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground hover:border-primary hover:text-foreground disabled:opacity-60">
-            <RefreshCw size={19} className={atualizando ? "animate-spin" : ""} />
-          </button>
-        )}
+        <div className="min-w-0">
+          <h1 className="break-words text-lg font-bold leading-tight md:text-xl" title={store.nome}>{store.nome}</h1>
+          <p className="mt-0.5 flex items-start gap-1 break-words text-xs text-muted-foreground"><Icon size={13} className="mt-px shrink-0 text-primary" /> <span className="min-w-0">{store.cidade} - {store.uf}</span></p>
+        </div>
       </header>
 
       <nav aria-label="Partes do comércio" className="relative -mx-5">
@@ -131,6 +134,7 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
         {bordas.dir && <span aria-hidden data-testid="faixa-seta-dir" className="pointer-events-none absolute right-0 top-0 flex h-16 w-8 items-center justify-end bg-gradient-to-l from-background to-transparent pr-0.5 text-muted-foreground"><ChevronRight size={18} /></span>}
         {(bordas.esq || bordas.dir) && <p className="mt-1 px-5 text-center text-xs text-muted-foreground">Deslize para o lado para ver as {TABS.length} partes</p>}
       </nav>
+      <p data-testid="area-atual" className="-mt-3 text-sm text-muted-foreground">Área atual: <span className="font-semibold text-foreground">{nomeAba(tab)}</span></p>
 
       {tab === "Produtos" ? (
         <>
