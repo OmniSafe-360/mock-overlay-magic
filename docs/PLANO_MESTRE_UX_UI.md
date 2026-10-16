@@ -736,3 +736,51 @@ Artefatos locais: `/workspace/entregas/omnisafe-m09-implementacao-2026-10-16/` (
 **M09 implementada/testada na branch; pronta para revisão, falta validação do dono.** CI do commit exato será acompanhado no PR, separado das verificações locais. Sem merge/publicação automáticos; M10 não iniciada. Registros históricos anteriores de pendência são preservados, sem tratá-los como estado atualizado desta execução.
 
 Próximo passo: dono revisar o PR/diff e comparar a prévia; merge somente com autorização própria. Após integração autorizada, Publicar → Atualizar e conferir Pedidos: ler recebido a pagar versus pago a entregar, valores, textos grandes, filtros, abrir detalhe e voltar. Não registrar pagamento, cancelar pedido real ou alterar estoque somente para testar aparência. Registrar versão/aparelho/resultado; até lá, teste físico permanece pendente. Reversão restrita às classes aprovadas, preservando os históricos.
+
+
+## 21. M10-A — clareza dos fornecedores compartilhados — 16/10/2026 UTC
+
+### Autorização, base e continuidade
+
+Após a proposta completa e o pedido específico de aprovação da M10-A, o dono respondeu “Pode fazer”. Escopo: somente a frase do cabeçalho de `PainelFornecedores.tsx` e acréscimos neste plano, em `CLAUDE.md` e no checklist ponta a ponta. Base remota reconferida: `main 25c888636286d0364c4c9b265ba9530abbde37da`. Branch exclusiva `codex/ux-m10-a-fornecedores-20261016`.
+
+M09 integrada pelo [PR #163](https://github.com/OmniSafe-360/mock-overlay-magic/pull/163), merge `25c888636286d0364c4c9b265ba9530abbde37da`, em 16/10/2026 às 14h33m40s UTC, confirmado no GitHub. Publicação e validação física da M09 continuam sem confirmação. Registros anteriores de branch/merge pendentes são históricos; não reaplicar M09. M08/M19 já presentes no main; contagens vazias de F-16H continuam pendentes de verificação própria, nenhum dado removido e perda da Dipirona não repetida.
+
+### Alteração exata e preservação
+
+Antes: “Valem para todos os seus comércios.”
+
+Depois: “O cadastro e as alterações dos fornecedores valem para todos os seus comércios. Os produtos abaixo são apenas deste comércio.”
+
+O painel já diferenciava produtos locais nos cartões; a frase passa a explicitar também o alcance das alterações do cadastro compartilhado. Mesma tag `p`, mesmas classes, tipografia, paleta, ordem e controles. Comparação literal confirma arquivo inteiro idêntico ao main fora dessa substituição e idêntico ao protótipo aprovado.
+
+Sem mudanças de componentes, formulário SupplierSheet/ProductArea, estados, eventos, filtros, ordenação, links, cálculos, IDs, vínculos, persistência, permissões, autenticação, banco/Supabase/SQL, estoque, pedidos, vendas, configurações, dependências, testes oficiais ou Fonte da Verdade. Documentos anteriores preservados por acréscimo. Eventual explicação dentro do formulário exigirá subetapa própria; M10-B não está automaticamente aprovada.
+
+### Verificações técnicas
+
+- `npx tsc --noEmit` e `npx --no-install tsc --noEmit`: duas rodadas aprovadas, saída 0.
+- `npx --no-install vitest run`: **1.202 testes / 123 arquivos aprovados em cada uma das duas rodadas**, sem erro não tratado no resumo. Nenhuma expectativa ou timeout alterado. Inclui os 15 testes existentes de `painel-fornecedores.test.tsx`, `fornecedor.test.ts` e `product-save.test.tsx`.
+- `npm run build`: aprovado com variáveis fictícias restritas ao processo, sem publicação. Avisos do build preservados, sem alteração de dependências/configuração para suprimi-los.
+- Sete testes de `scripts/verificar-seguranca.test.mjs` aprovados. Não equivale a auditoria integral de segurança.
+- Chromium local, componente implementado importado diretamente da branch e componente anterior extraído da base; CSS real/Inter local; dados fictícios e rede externa bloqueada. **36 cenários / 18 pares / 54 capturas**, em 320×568, 390×844 e 1280×900; texto 100%/200%; lista vazia e duas unidades fictícias com fornecedor compartilhado e produtos locais diferentes.
+- Explicação sem corte horizontal; Novo fornecedor com pelo menos 52 px de altura nas medições. Textos dos cartões, links e callbacks observados iguais nos 18 pares. Em texto normal: expansão/seleção de produto local sem exibir o produto da outra unidade; edição/criação com falha fictícia mantendo campos e sucesso fictício fechando a janela, mesmos IDs/dados enviados.
+- Seis cenários adicionais antes/depois nas três larguras: nome vazio, e-mail inválido e telefone curto bloqueiam salvar; fechar pelo X/Escape funciona e não chama gravação. São serviços simulados, não transações ou testes de isolamento reais no servidor.
+
+### Riscos e limites preservados
+
+A explicação maior aumenta a altura e a rolagem: em 320 px, parágrafo de20→80px com texto normal e de80→320px com texto ampliado a200%. Isso é esperado; não reduzir texto, esconder ações ou alterar layout fora do aprovado.
+
+**Problema preexistente fora do escopo:** atalhos WhatsApp/Ligar/E-mail apresentam sobreposição em320px com fonte200%, tanto antes quanto depois. Os alvos preexistentes de editar/expandir têm44px; não foram aumentados nesta troca de frase. Não declarar acessibilidade geral aprovada. Correção visual desses controles requer proposta/escopo próprios; nenhum controle funcional foi removido.
+
+Fonte200% é simulação de fonte/entrelinha, não validação do zoom nativo. Não foi possível verificar Android/iPhone/PWA instalados, leitor de tela, banco publicado, políticas implantadas ou gravação real. Links externos não acionados. Artefatos locais em `/workspace/entregas/omnisafe-m10-implementacao-2026-10-16/`: comparação, capturas, métricas, diff e logs. Não são automaticamente publicados no GitHub.
+
+### Estado atualizado e próxima ação
+
+| Etapa | Implementação/testes | Merge/publicação | Validação do dono |
+|---|---|---|---|
+| M09 | Integrada pelo PR163; registros técnicos na seção20 | Merge confirmado; publicação não confirmada | Teste físico não confirmado |
+| M10-A | Autorizada, implementada e testada na branch exclusiva | Não realizados; PR para revisão e CI do commit exato separado | **Pronto no código; falta o teste do dono** |
+
+Os registros antigos de pendência mantêm valor histórico; esta seção registra a situação atual. M10 não representa revisão completa do formulário ou dos contatos; M10-B/M11 e demais etapas não iniciadas nesta entrega.
+
+Próximo passo: revisar o PR/diff e as evidências; aguardar autorização própria para merge. Depois de eventual integração autorizada, **Publicar → Atualizar** no Lovable e testar: abrir comércio → Fornecedores, ler o aviso, expandir produtos, abrir e fechar Editar sem salvar; repetir em outro comércio, se houver, verificando os produtos locais e o cadastro compartilhado. Não alterar fornecedor real só para testar o texto. Registrar aparelho/versão/resultado. Reversão restrita à frase, conservando os históricos. Não fazer merge/publicação nem avançar automaticamente.
