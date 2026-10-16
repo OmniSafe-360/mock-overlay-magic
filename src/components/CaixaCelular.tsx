@@ -624,7 +624,7 @@ function Peso({ a, onIncluir, onClose }: { a: Achado; onIncluir: (qtd: number) =
         <p className="flex items-center gap-2 text-sm text-muted-foreground"><Scale size={16} /> {brl(a.produto.preco)} por {unSingular(un).toLowerCase()}</p>
         <label className="block space-y-1">
           <span className="text-sm font-medium">{pergunta}</span>
-          <input autoFocus inputMode="decimal" value={txt} onChange={(e) => setTxt(e.target.value.replace(/[^\d,]/g, ""))} placeholder={un === "Kg" ? "Ex.: 0,350" : "Ex.: 1,5"} aria-label={pergunta}
+          <input autoFocus inputMode="decimal" value={txt} onChange={(e) => setTxt(e.target.value.replace(/\./g, ","))} placeholder={un === "Kg" ? "Ex.: 0,350" : "Ex.: 1,5"} aria-label={pergunta}
             className="h-16 w-full rounded-2xl border border-border bg-background-deep/60 px-4 text-center text-3xl font-bold tabular-nums text-foreground outline-none focus-visible:border-primary" />
         </label>
         {q != null && <p className="text-center text-base">Fica <b>{brl(subtotal({ qtd: q, preco: a.produto.preco }))}</b></p>}

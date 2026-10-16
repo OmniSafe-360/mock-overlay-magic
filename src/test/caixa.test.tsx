@@ -498,3 +498,52 @@ describe("dono: PIN do caixa, fechamentos e cancelar venda do celular", () => {
     expect(within(card).getByRole("button", { name: /Já vi, tirar o alerta/ })).toBeTruthy();
   });
 });
+
+/* F01: ponto decimal não pode multiplicar o peso por dez ou mil. */
+describe("F01 — peso decimal do caixa", () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => localStorage.clear());
+
+  it.each([
+    ["1,5", 1.5], ["1.5", 1.5], ["0,350", 0.35], ["0.350", 0.35],
+    ["1.000", 1], ["1000", 1000], ["100000", 100000],
+  ])("interpreta %s como quantidade decimal %s", (texto, esperado) => {
+    expect(lerQuantidade(texto)).toBe(esperado);
+  });
+
+  it.each(["", "0", "-1", "1e3", "NaN", "Infinity", "1.2345", "1,2345", "1.234,5", "1,234.5", "1..5", "100001"])
+    ("recusa quantidade inválida %s", (texto) => expect(lerQuantidade(texto)).toBeNull());
+
+  it.each(["1.5", "1,5"])("vende %s kg pelo mesmo preço e envia somente 1,5 kg", async (texto) => {
+    const api = apiCaixa();
+    render(<CaixaCelular chave={CH} api={api} onSair={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: "ler queijo" }));
+    const peso = await screen.findByLabelText("Quanto pesou? (kg)");
+    fireEvent.change(peso, { target: { value: texto } });
+    expect((peso as HTMLInputElement).value).toBe("1,5");
+    expect(screen.getByText("R$ 59,85")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Incluir" }));
+    expect(screen.getByLabelText("Total da venda").textContent?.replace(/\s/g, " ")).toBe("R$ 59,85");
+    expect(api.registrar).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /Receber/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Pix/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Finalizar venda/ }));
+    await screen.findByText("Venda finalizada");
+    expect(api.registrar).toHaveBeenCalledTimes(1);
+    const venda = envios(api.registrar)[0]![1];
+    expect(venda.itens).toEqual([expect.objectContaining({ produto_id: "p-queijo", qtd: 1.5, preco: 39.9 })]);
+    expect(venda.pagamentos).toEqual([{ forma: "pix", valor: 59.85 }]);
+  });
+
+  it.each(["-1", "1.234,5", "1e3"])("não inclui peso inválido %s no carrinho", async (texto) => {
+    const api = apiCaixa();
+    render(<CaixaCelular chave={CH} api={api} onSair={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: "ler queijo" }));
+    fireEvent.change(await screen.findByLabelText("Quanto pesou? (kg)"), { target: { value: texto } });
+    const incluir = screen.getByRole("button", { name: "Incluir" });
+    expect(incluir).toBeDisabled();
+    fireEvent.click(incluir);
+    expect(api.registrar).not.toHaveBeenCalled();
+    expect(screen.queryByRole("list", { name: "Produtos da venda" })).toBeNull();
+  });
+});
