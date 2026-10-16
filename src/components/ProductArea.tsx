@@ -604,9 +604,9 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
         {f === "vencido" && key.startsWith("ven:") && <p role="alert" className="text-sm font-semibold text-destructive">{vencidoAVendaMsg(isFarm)}</p>}
         {r.pend && (l.conf ? (
           <p className="flex items-center gap-2 text-xs font-semibold text-warning">Pendente de conferência
-            <button type="button" onClick={() => setL(key, l.id, { conf: false })} className="font-semibold text-primary underline">Desfazer</button></p>
+            <button type="button" onClick={() => setL(key, l.id, { conf: false })} className="-my-2 inline-flex min-h-11 items-center px-1 font-semibold text-primary underline">Desfazer</button></p>
         ) : (
-          <div className="space-y-2 rounded-xl border border-border p-2.5 text-xs">
+          <div className="space-y-2 rounded-xl border border-border p-2.5 text-sm">
             <p>{PEND_CONF}</p>
             <button type="button" onClick={() => setL(key, l.id, { conf: true })} className={btnGhost}>Registrar como pendente de conferência</button>
             {subTried && <p className="text-destructive">{PEND_FALTA}</p>}
@@ -631,7 +631,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
             <div key={key} className="space-y-2 rounded-2xl border border-border bg-background-deep/60 p-3">
               {isRoupas && <p className="text-sm font-semibold">{varNome(g.k)}</p>}
               {g.cont == null ? <p className="text-sm text-warning">{AGUARDANDO}</p> : (
-                <p className="text-sm">Contado: <b>{qtdUn(g.cont, unidade)}</b> · Distribuído: {fmtQ(g.soma!.distribuido)} · Falta distribuir: {fmtQ(g.soma!.falta)}</p>
+                <p className="text-sm">Contado: <b>{qtdUn(g.cont, unidade)}</b> · Distribuído: {qtdUn(g.soma!.distribuido, unidade)} · Falta distribuir: {qtdUn(g.soma!.falta, unidade)}</p>
               )}
               {g.cont != null && mil(g.cont) === 0 && !g.ls.length && <p className="text-xs text-muted-foreground">{SEM_ESTOQUE}</p>}
               {g.vs.map(({ l, r }, i) => renderLinha(key, l, r, i))}

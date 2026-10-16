@@ -79,3 +79,23 @@ describe("M15 — campos legíveis (bloco C, depósito e área de venda nas roup
     expect(screen.getByText(/Você tem mais que o desejado/).className).toContain("text-sm");
   });
 });
+
+describe("M15 — campos legíveis (bloco D, validade)", () => {
+  it("distribuído e falta distribuir com a unidade", () => {
+    const submit = abrir();
+    click("Digitar código"); typeIn("Código do produto", "7890001"); typeIn("Nome do produto", "Produto"); submit();
+    typeIn("Preço de compra", "1000"); typeIn("Preço de venda", "1500"); click("Pacote"); typeIn("Categoria", "Mercearia"); submit();
+    submit(); click("Definir depois"); submit();
+    click(/^Novo local$/); typeIn("Nome do local", "Estante A"); click("Usar este local"); submit();
+    typeIn(/Quanto você contou/, "5"); submit(); submit();
+    click(/Novo local de venda/); typeIn("Nome do local de venda", "Balcão"); click("Usar este local de venda"); submit();
+    typeIn(/Quanto deste produto já está neste local/, "0"); submit(); submit();
+    click("Sim"); submit(); submit();
+    expect(screen.getByText(/Distribuído: \d+ pacotes? · Falta distribuir: \d+ pacotes?/)).toBeTruthy();
+  });
+  it("Desfazer com 44 px e explicação da pendência em letra de 14 px", () => {
+    const src = readFileSync("src/components/ProductArea.tsx", "utf8");
+    expect(src).toMatch(/className="-my-2 inline-flex min-h-11 items-center px-1 font-semibold text-primary underline">Desfazer</);
+    expect(src).toMatch(/p-2\.5 text-sm">\s*<p>\{PEND_CONF\}<\/p>/);
+  });
+});
