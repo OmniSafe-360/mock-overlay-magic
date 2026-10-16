@@ -410,7 +410,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M19 — conferência existente | Implementada (16/10/2026), aguarda revisão | conferência/contagem cega/diferenças/vocabulário + suíte 1.189 2× | 60 capturas 320/390/1280 × 100/200% | Pendente |
 | M20 — alvos cadastro | Implementada (16/10/2026), pedido do dono "Pode fazer a M20" | `m20-alvos-cadastro` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§32) | Falta o teste do dono |
 | M21 — ajuda e erro | Implementada (16/10/2026), pedido do dono "Pode fazer a M21" | `m21-ajuda-erro` (4 novos, falham sem a mudança); suíte 2× | Chromium 390 px: referências válidas, sem id repetido (§33) | Falta o teste do dono |
-| M22 — largura e quebra | Subetapa 1 (lista de produtos) implementada (16/10/2026), pedido do dono "Pode fazer a M22" | `m22-lista-produtos` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/768/1280 × 100/200% (§34) | Falta o teste do dono; próximas subetapas não iniciadas |
+| M22 — largura e quebra | Subetapas 1 (lista de produtos) e 2 (faixa do comércio) implementadas (16/10/2026), pedido do dono "Pode fazer a M22" | `m22-lista-produtos` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/768/1280 × 100/200% (§34, §35) | Falta o teste do dono; próximas subetapas não iniciadas |
 | M23 — geometria cadastro | Pendente | Não iniciados | Não realizados | Pendente |
 | M24 — validação integrada | Pendente | Não iniciados | Não realizados | Pendente |
 | X01–X10 — fila separada | Não autorizada; análise própria | Não iniciados | Não realizados | Pendente |
@@ -1175,3 +1175,28 @@ Não mudam: os dados mostrados, a ordem, os filtros, a busca, o toque para abrir
 - faixa de fases da reposição alta demais em 320 px com letra 200% (M17).
 
 **Pendente:** Publicar → Atualizar e o teste do dono. Roteiro: na lista de produtos, um produto com categoria de nome longo deve mostrar o preço inteiro.
+
+## 35. M22 — largura e quebra, subetapa 2: faixa do comércio — 16/10/2026 UTC
+
+**Pedido do dono (16/10/2026):** "Pode fazer a próxima subetapa da M22". Problema anotado na M12.
+
+**Medido antes, no Chromium:** com letra 200% em 320, 390 e 1280 px, os nomes dos 8 botões da faixa do comércio apareciam cortados ("Pro…", "Esto…", "À v…"). O botão tinha 92 px fixos de largura, então não crescia junto com a letra.
+
+**O que mudou** (só apresentação, `src/components/StoreSpace.tsx`, `BotaoBarra`):
+- A largura passou a ser **5,75 rem**: dá os mesmos 92 px com letra normal e cresce junto com a letra (184 px com letra 200%).
+- O nome quebra a linha em vez de ser cortado com "…".
+
+Com letra normal, a faixa fica igual à de antes. Não mudam: as 8 partes, a ordem, os avisos, o destaque, as setas e a linha "Deslize" da M12, a rolagem e os caminhos.
+
+**Depois:** nenhum nome cortado em 320, 390 e 1280 px, com letra 100% e 200%; sem rolagem lateral da página e sem erro.
+
+**Provas:**
+- Teste novo `src/test/m22-faixa-comercio.test.tsx`: largura em rem, nome sem corte, 8 partes e troca de parte funcionando igual. O teste falha sem a mudança.
+- Tipos e 1.232 testes rodados duas vezes; build aprovado.
+
+**Próximas subetapas da M22, não iniciadas:**
+- Continuar do cadastro em 320 px com letra 200%;
+- cartões de variação;
+- faixa de fases da reposição.
+
+**Pendente:** Publicar → Atualizar e o teste do dono (só a conferência no Chromium foi feita). Roteiro: no celular, aumentar o tamanho da letra nas configurações e abrir um comércio. Os nomes da faixa devem aparecer inteiros.

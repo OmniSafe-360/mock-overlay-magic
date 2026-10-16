@@ -180,15 +180,16 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
 }
 
 /** Um botão da faixa de navegação do comércio: ícone, nome curto e número de aviso. */
+/** M22: largura em rem (92 px com letra normal), para crescer junto com a letra; o nome quebra em vez de cortar. */
 function BotaoBarra({ on, Icon, rotulo, aviso, onClick }: {
   on: boolean; Icon: LucideIcon; rotulo: string; aviso?: { n: number; urgente: boolean } | undefined; onClick: () => void;
 }) {
   return (
     <button type="button" onClick={onClick} aria-current={on ? "page" : undefined}
       aria-label={`${rotulo}${aviso && aviso.n > 0 ? ` (${aviso.n} ${aviso.n === 1 ? "aviso" : "avisos"})` : ""}`}
-      className={`relative flex min-h-16 w-[92px] shrink-0 snap-start flex-col items-center justify-center gap-1.5 rounded-2xl border px-1 py-2 transition ${on ? "border-primary bg-primary text-primary-foreground shadow-md shadow-primary/30" : "border-border bg-secondary/40 text-muted-foreground hover:border-primary/60 hover:text-foreground"}`}>
+      className={`relative flex min-h-16 w-[5.75rem] shrink-0 snap-start flex-col items-center justify-center gap-1.5 rounded-2xl border px-1 py-2 transition ${on ? "border-primary bg-primary text-primary-foreground shadow-md shadow-primary/30" : "border-border bg-secondary/40 text-muted-foreground hover:border-primary/60 hover:text-foreground"}`}>
       <Icon size={22} />
-      <span className="max-w-full truncate text-xs font-semibold leading-none">{rotulo}</span>
+      <span className="max-w-full break-words text-center text-xs font-semibold leading-tight">{rotulo}</span>
       {aviso && aviso.n > 0 && (
         <span aria-hidden className={`absolute right-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold leading-none ${aviso.urgente ? "bg-destructive text-white" : "bg-warning text-background"}`}>{aviso.n > 99 ? "99+" : aviso.n}</span>
       )}
