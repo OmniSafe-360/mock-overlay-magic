@@ -401,7 +401,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M10 — alcance fornecedor | Pendente | Não iniciados | Não realizados | Pendente |
 | M11 — página fornecedor | Pendente | Não iniciados | Não realizados | Pendente |
 | M12 — descoberta faixa | Implementada (16/10/2026), pedido do dono "finaliza ela" | `m12-faixa-deslizar` (3 novos) + menu-comercio/tamanhos-tela; suíte 2× | Chromium 320/390/1280 × 100/200% (§23) | Falta o teste do dono |
-| M13 — contexto unidade | Pendente | Não iniciados | Não realizados | Pendente |
+| M13 — contexto unidade | Implementada, testada e integrada ao main (16/10/2026; revisão técnica aprovada em `ef75121`) | `m13-contexto-unidade` (6 novos); tipos e suíte 2× | Chromium 320/390/768/1280 × 100/200% (32 capturas) | Aguarda publicação e homologação final do dono |
 | M14 — progresso cadastro | Pendente | Não iniciados | Não realizados | Pendente |
 | M15 — campos existentes | Pendente | Não iniciados | Não realizados | Pendente |
 | M16 — convite instalação | Pendente | Não iniciados | Não realizados | Pendente |
