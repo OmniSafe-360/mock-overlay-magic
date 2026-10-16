@@ -590,7 +590,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
           )}
         </div>
         {!l.lockData && (
-          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
+          <label className="flex min-h-12 cursor-pointer items-center gap-2 text-sm">
             <input type="checkbox" checked={l.semData} onChange={(e) => setL(key, l.id, { semData: e.target.checked, conf: false })} className="h-5 w-5 accent-primary" />
             Validade desconhecida
           </label>
@@ -700,7 +700,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                       extra={<button type="button" onClick={() => { enableBarcodeScanAudio(); setDenied(false); setScan(true); }} className="-my-1 flex min-h-12 items-center gap-1 text-sm font-semibold text-primary"><ScanLine size={16} /> Escanear</button>} />
                   )}
                   {onGerarCodigo && codeMode === "type" && !codigo.trim() && (
-                    <button type="button" onClick={criarCodigo} disabled={gerador.gerando} className="-mt-1 flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary disabled:opacity-60">
+                    <button type="button" onClick={criarCodigo} disabled={gerador.gerando} className="-mt-1 flex min-h-12 items-center gap-1.5 text-sm font-semibold text-primary disabled:opacity-60">
                       <Tag size={16} /> {gerador.gerando ? "Criando código..." : "Não tem código? Criar um"}
                     </button>
                   )}
@@ -719,9 +719,9 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                         </div>
                         <div className="flex flex-wrap gap-2">
                           <button type="button" onClick={() => { setNome(nomeSugerido(sugestao)); setDet((d) => detalhesDoCatalogo(sugestao, d)); setTimeout(() => document.getElementById("pnome")?.focus(), 50); }}
-                            className="flex min-h-11 items-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground"><Check size={16} /> Usar este nome</button>
+                            className="flex min-h-12 items-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground"><Check size={16} /> Usar este nome</button>
                           <button type="button" onClick={() => { descartados.current.add(codigo.trim()); setSugestao(null); }}
-                            className="min-h-11 rounded-xl border border-border px-3 text-sm font-semibold text-muted-foreground">Não é este</button>
+                            className="min-h-12 rounded-xl border border-border px-3 text-sm font-semibold text-muted-foreground">Não é este</button>
                         </div>
                         <p className="text-xs leading-tight text-muted-foreground">Fonte: Open Food Facts. Confira antes de salvar.</p>
                       </div>
@@ -798,11 +798,11 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                       <p className="text-sm font-medium text-muted-foreground">Grade de variações</p>
                       <div className="flex flex-wrap gap-2">
                         {vars.map((v, i) => { const bad = !variationOk(v, i, vars, codigo, used); return (
-                          <span key={v.uid ?? i} className={`flex items-center gap-1 rounded-full border py-1 pl-1 pr-1 text-sm ${bad ? "border-destructive/70 bg-destructive/10" : "border-accent/50 bg-accent/10"}`}>
-                            <button type="button" aria-label="Editar variação" onClick={() => setVarSheet(i)} className="flex min-h-8 items-center gap-1 rounded-full px-2 hover:bg-accent/20">
-                              {v.tam} · {v.cor} · {v.codigo || "sem código"} · {v.qtd} <Pencil size={12} />
+                          <span key={v.uid ?? i} className={`flex items-center gap-1 rounded-full border pl-1 pr-1 text-sm ${bad ? "border-destructive/70 bg-destructive/10" : "border-accent/50 bg-accent/10"}`}>
+                            <button type="button" aria-label="Editar variação" onClick={() => setVarSheet(i)} className="flex min-h-12 items-center gap-1 rounded-full px-3 hover:bg-accent/20">
+                              {v.tam} · {v.cor} · {v.codigo || "sem código"} · {v.qtd} <Pencil size={14} />
                             </button>
-                            <button type="button" aria-label="Remover variação" onClick={() => removeVar(i)} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-accent/20"><X size={14} /></button>
+                            <button type="button" aria-label="Remover variação" onClick={() => removeVar(i)} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full hover:bg-accent/20"><X size={16} /></button>
                           </span>
                         ); })}
                       </div>
@@ -1304,7 +1304,7 @@ function LocaisSugeridos({ opts, campo, onPick }: { opts: string[]; campo: strin
       <div className="flex flex-wrap gap-1.5">
         {opts.map((o) => (
           <button key={o} type="button" onClick={() => { onPick(`${o} `); setTimeout(() => document.getElementById(campo)?.focus(), 60); }}
-            className="min-h-11 rounded-2xl border border-border bg-background-deep/60 px-3 text-sm font-semibold text-muted-foreground hover:border-primary">{o}</button>
+            className="min-h-12 rounded-2xl border border-border bg-background-deep/60 px-3 text-sm font-semibold text-muted-foreground hover:border-primary">{o}</button>
         ))}
       </div>
     </div>
@@ -1440,7 +1440,7 @@ function VariationSheet({ index, vars, categoria, mainCode, used, onGerarCodigo,
             hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : gerador.criado && cod === gerador.criado ? CODIGO_CRIADO : ajudaCodigo(cod, "Código próprio deste tamanho e cor.")}
             extra={<button type="button" onClick={() => { enableBarcodeScanAudio(); setDenied(false); setScan(true); }} className="-my-1 flex min-h-12 items-center gap-1 text-sm font-semibold text-primary"><ScanLine size={16} /> Escanear</button>} />
           {onGerarCodigo && !cod.trim() && (
-            <button type="button" disabled={gerador.gerando} className="-mt-1 flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary disabled:opacity-60"
+            <button type="button" disabled={gerador.gerando} className="-mt-1 flex min-h-12 items-center gap-1.5 text-sm font-semibold text-primary disabled:opacity-60"
               onClick={() => gerador.gerar((c) => { setCod(c); setTimeout(() => document.getElementById("vqtd")?.focus(), 80); })}>
               <Tag size={16} /> {gerador.gerando ? "Criando código..." : "Não tem código? Criar um"}
             </button>
@@ -1499,10 +1499,10 @@ function EmbalagemSheet({ tipoComercio, index, lista, unidade, codigoProduto, us
             hint={denied ? "Sem acesso à câmera. Você pode digitar o código." : gerador.criado && cod === gerador.criado ? CODIGO_CRIADO : ajudaCodigo(cod, ajudaCodigoEmbalagem(tipo, unidade))}
             extra={<button type="button" onClick={() => { enableBarcodeScanAudio(); setDenied(false); setScan(true); }} className="-my-1 flex min-h-12 items-center gap-1 text-sm font-semibold text-primary"><ScanLine size={16} /> Escanear</button>} />
           {cod.trim() && cod.trim() === codigoProduto.trim() && (
-            <button type="button" onClick={() => setCod("")} className="-mt-1 flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary"><X size={16} /> Apagar e deixar sem código</button>
+            <button type="button" onClick={() => setCod("")} className="-mt-1 flex min-h-12 items-center gap-1.5 text-sm font-semibold text-primary"><X size={16} /> Apagar e deixar sem código</button>
           )}
           {onGerarCodigo && !cod.trim() && (
-            <button type="button" disabled={gerador.gerando} className="-mt-1 flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary disabled:opacity-60"
+            <button type="button" disabled={gerador.gerando} className="-mt-1 flex min-h-12 items-center gap-1.5 text-sm font-semibold text-primary disabled:opacity-60"
               onClick={() => gerador.gerar((c) => { setCod(c); setTimeout(() => document.getElementById("epreco")?.focus(), 80); })}>
               <Tag size={16} /> {gerador.gerando ? "Criando código..." : "Não tem código? Criar um"}
             </button>
