@@ -1,20 +1,31 @@
 /* P5: no app do dono, controles da página do cliente do fiado: último acesso, novo link e zerar PIN. */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { KeyRound, Link2 } from "lucide-react";
 import { acessoInfo, novoLinkCliente, zerarPinCliente, type InfoAcesso } from "@/lib/fiadoCliente";
 
 const dataHora = (iso: string) => new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }).replace(",", " às");
 
-export function AcessoClienteFiado({ clienteId, api = { acessoInfo, novoLinkCliente, zerarPinCliente } }: {
-  clienteId: string; api?: { acessoInfo: typeof acessoInfo; novoLinkCliente: typeof novoLinkCliente; zerarPinCliente: typeof zerarPinCliente };
-}) {
+type Api = { acessoInfo: typeof acessoInfo; novoLinkCliente: typeof novoLinkCliente; zerarPinCliente: typeof zerarPinCliente };
+// Criado uma vez só: um objeto novo a cada desenho fazia a consulta repetir sem parar.
+const API_PADRAO: Api = { acessoInfo, novoLinkCliente, zerarPinCliente };
+
+export function AcessoClienteFiado({ clienteId, api = API_PADRAO }: { clienteId: string; api?: Api }) {
   const [info, setInfo] = useState<InfoAcesso | null>(null);
   const [erro, setErro] = useState("");
   const [ok, setOk] = useState("");
   const [confirmar, setConfirmar] = useState<"link" | "pin" | null>(null);
   const [ocupado, setOcupado] = useState(false);
-  const ler = useCallback(() => { setErro(""); api.acessoInfo(clienteId).then(setInfo, () => setErro("Não foi possível ler o acesso do cliente. Confira a internet.")); }, [api, clienteId]);
-  useEffect(ler, [ler]);
+  // Só a consulta mais recente, com a tela ainda aberta, muda o que aparece.
+  const vez = useRef(0);
+  const ler = useCallback(() => {
+    const minha = ++vez.current;
+    setErro("");
+    api.acessoInfo(clienteId).then(
+      (i) => { if (vez.current === minha) setInfo(i); },
+      () => { if (vez.current === minha) setErro("Não foi possível ler o acesso do cliente. Confira a internet."); },
+    );
+  }, [api, clienteId]);
+  useEffect(() => { ler(); return () => { vez.current++; }; }, [ler]);
   const fazer = async (q: "link" | "pin") => {
     setOcupado(true); setErro(""); setOk("");
     try {
