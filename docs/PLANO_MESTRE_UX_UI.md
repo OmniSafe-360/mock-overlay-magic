@@ -409,7 +409,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M18 — estados recebimento | Implementada (16/10/2026), pedido do dono "Pode fazer a M18" | `m18-estados-recebimento` (1 novo, falha sem a mudança) + recebimento; suíte 2× | Chromium 320/390/1280 × 100/200% (§31) | Falta o teste do dono |
 | M19 — conferência existente | Implementada (16/10/2026), aguarda revisão | conferência/contagem cega/diferenças/vocabulário + suíte 1.189 2× | 60 capturas 320/390/1280 × 100/200% | Pendente |
 | M20 — alvos cadastro | Implementada (16/10/2026), pedido do dono "Pode fazer a M20" | `m20-alvos-cadastro` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§32) | Falta o teste do dono |
-| M21 — associação erro/ajuda | Pendente | Não iniciados | Não realizados | Pendente |
+| M21 — ajuda e erro | Implementada (16/10/2026), pedido do dono "Pode fazer a M21" | `m21-ajuda-erro` (4 novos, falham sem a mudança); suíte 2× | Chromium 390 px: referências válidas, sem id repetido (§33) | Falta o teste do dono |
 | M22 — largura/quebra | Pendente | Não iniciados | Não realizados | Pendente |
 | M23 — geometria cadastro | Pendente | Não iniciados | Não realizados | Pendente |
 | M24 — validação integrada | Pendente | Não iniciados | Não realizados | Pendente |
@@ -1120,3 +1120,27 @@ Nenhuma conta nova.
 **Pendente:** Publicar → Atualizar e o teste do dono. Roteiro:
 1. No celular da equipe, abrir uma entrega e contar um produto. Ele deve passar para "Pronto para enviar".
 2. Tocar em "Enviar contagens". O produto deve ir para "Já enviado", e o que falta continua em "Para contar".
+
+## 33. M21 — ajuda e erro ligados ao campo — 16/10/2026 UTC
+
+**Pedido do dono (16/10/2026):** "Pode fazer a M21".
+
+**O que mudou** (só acessibilidade, `src/components/StoreSetup.tsx`, componente `Field`, usado nos campos de texto do app):
+- O campo passa a apontar, por `aria-describedby`, para a mensagem que está embaixo dele: o erro, quando há erro, ou senão a explicação (ajuda). Assim, quem usa leitor de tela ouve o nome do campo junto com a mensagem.
+- A mensagem tem um id único, gerado com `useId`, para dois campos não dividirem o mesmo id.
+- Se o campo já recebia outra descrição de fora, ela é mantida junto.
+- Campo sem `id` nem `name` passa a ganhar um id, para o rótulo funcionar.
+
+Não mudam: a aparência, os textos, quando cada campo é validado, o foco e a ordem dos campos. Como antes, a ajuda some quando aparece o erro.
+
+**Provas:**
+- Teste novo `src/test/m21-ajuda-erro.test.tsx`, com 4 casos:
+  - ajuda ligada; com erro, o erro ligado;
+  - campo sem mensagem fica sem ligação, e a descrição que vem de fora é mantida;
+  - dois campos com o mesmo nome não repetem o id;
+  - campo sem id nem nome ganha um id.
+  - Os 4 casos falham sem a mudança.
+- Tipos e 1.228 testes passaram duas vezes; build aprovado.
+- Chromium, cadastro de produto da farmácia em 390 px, telas Código e Preço: todos os campos com descrição; nenhuma referência apontando para mensagem que não existe; nenhum id repetido. Quando o código digitado parece errado, a descrição passa a ser o aviso.
+
+**Pendente:** Publicar → Atualizar. O dono não vê diferença na tela. Com leitor de tela (TalkBack, VoiceOver), ao tocar num campo, o leitor fala também a explicação ou o erro.
