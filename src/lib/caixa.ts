@@ -140,9 +140,9 @@ export function atalhosDinheiro(falta: number): number[] {
 export const centavosDigitados = (txt: string) => Math.min(Number(txt.replace(/\D/g, "").slice(0, 9) || "0"), 99_999_999);
 export const mascaraDinheiro = (centavos: number) => (centavos / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-/** "0,350" → 0.35 (no máximo 3 casas). null se não for um número maior que zero. */
+/** Quantidade sem separador de milhar: vírgula ou ponto decimal, até 3 casas. Inválida retorna null. */
 export function lerQuantidade(txt: string): number | null {
-  const t = txt.trim().replace(/\./g, "").replace(",", ".");
+  const t = txt.trim().replace(",", ".");
   if (!/^\d+(\.\d{1,3})?$/.test(t)) return null;
   const n = Number(t);
   return n > 0 && n <= 100000 ? n : null;

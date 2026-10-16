@@ -1230,3 +1230,30 @@ Não mudam: a ordem dos passos, as validações, o salvamento e os textos dos bo
 - Tipos e 1.234 testes rodados duas vezes; build aprovado.
 
 **Pendente:** Publicar → Atualizar e o teste do dono. Roteiro: no celular, com letra grande, cadastrar um produto. O botão Continuar deve aparecer inteiro.
+
+
+## 37. F01 — entrada decimal do peso no caixa, correção funcional separada — 16/10/2026 UTC
+
+O proprietário autorizou corrigir as pendências da revisão, uma por vez e preservando os fluxos existentes. Começou-se pela F01/P0 da seção4.1/X10, separada das etapas visuais M. Antes de editar, foram apresentados o patch da entrada/leitura, os seis arquivos envolvidos, a ausência de separador de milhar e os limites preservados. Base remota reconferida: `main 5c9f5ce664eaa642edb60acc7f7d73fb918edea2`; branch `codex/f01-peso-decimal-caixa-20261016`. M11–M21 já presentes no main; M22 subetapas1–3 integradas, última peloPR180. Não reaplicar nem presumir publicação/aceite físico. Fonte da Verdade e históricos anteriores preservados.
+
+### Correção delimitada
+
+- `CaixaCelular.Peso`: o campo normaliza ponto para vírgula em vez de apagar o ponto. Caracteres inválidos não são apagados para criar outro número: permanecem inválidos e não habilitam Incluir.
+- `lerQuantidade`, utilizado somente pelo campo Peso na aplicação: aceita vírgula ou ponto decimal, sem apagar pontos; preserva regex de até3 casas, número maior que0 e teto100000.
+- Campo de quantidade **sem separador de milhar**: `1.5`/`1,5`→1,5; `0.350`/`0,350`→0,35; `1.000`→1; para mil, informar`1000`. Entradas mistas como`1.234,5` são recusadas, assim como negativos/expoente/casas excedentes. Não inferir grupos de milhar no peso.
+- Mesmos textos, classes, paleta, posição, botões, fechamento, preço por unidade e fórmula de subtotal/arredondamento. Carrinho, limite de estoque, contagem, finalização, pagamentos, PIN/autenticação, offline e payloads estruturais preservados. Sem banco/Supabase/SQL, permissões, migração, dependência ou configuração alterados. Apenas a quantidade interpretada passa a corresponder à entrada decimal.
+
+### Testes e evidências
+
+- Acrescentados24 casos em `caixa.test.tsx`, sem modificar expectativas antigas: vírgula/ponto,0,350,inteiro/limites, separadores misturados/negativo/inválidos e fluxo completo de venda fictícia com1,5kg, preço39,90/kg, total59,85 e envio único com quantidade1,5.
+- `caixa.test.tsx` + `caixa-estoque-contagem.test.tsx`:68 testes aprovados, incluindo travas de estoque. Contraprova dos24 novos casos com os dois módulos anteriores:10 falham,14 passam;28 testes antigos não selecionados. Falhas são esperadas e demonstram captura do defeito, não falha da implementação.
+- Tipos duas vezes, suíte completa duas vezes (**1259 testes/135 arquivos em cada rodada**) e build aprovados; nenhum teste/timeout enfraquecido. Logs preservados. CI do commit exato acompanhado separadamente no PR.
+- Chromium local320/390/1280×fonte100/200, antes/depois:48 combinações de entrada e12 capturas;1.5,0.350,1,5 e1.234,5. Decimal corrigido e entrada ambígua bloqueada, sem registrar venda. Componente/CSS reais, Inter local, câmera negada de forma fictícia, API simulada e rede externa bloqueada.
+
+### Limites, risco e continuidade
+
+Aceitar ponto como decimal torna explícita a ausência de agrupamento de milhar nesse campo. Testes não usam vendas ou saldos reais. Não foi possível verificar teclado decimal/colar nativos de Android/iPhone ou app/PWA publicados. Fonte200 é simulação de texto/entrelinha, não validação física. Artefatos locais em `/workspace/entregas/omnisafe-f01-2026-10-16/`; não são publicados automaticamente no GitHub.
+
+**F01 corrigida/testada na branch; falta revisão, integração autorizada, publicação e teste do dono.** Não declarar sistema100% pronto. F03/ajuste+motivo, F02/validade/banco real, integridade numérica, residuais de M22, M23/M24 e demais E/G continuam separados; nenhum ajuste de estoque ou correção adicional nesta entrega. Documentação atualizada somente por acréscimo neste plano, CLAUDE e checklist.
+
+Próximo: revisarPR e autorizar merge separadamente. Após integração autorizada, Publicar→Atualizar e testar em produto fracionado de teste:1,5 e1.5 devem mostrar mesmo peso/total;0.350 deve virar0,35; fechar sem incluir conserva o carrinho. Antes de qualquer venda real, confirmar quantidade e preço. Registrar aparelho/versão/resultado. Em seguida preparar análise/diff próprio da F03, sem alteração de banco automática.
