@@ -654,13 +654,14 @@ function HomeContent({ hoje, modo, stores, visao, fornecedores, locais, onPasso,
         <ListaComercios stores={stores} visao={visao} onOpen={onOpen} onAdd={onAdd} escolherVendas={escolherVendas} onCancelarEscolha={onCancelarEscolha} />
       )}
       {modo === "inicio" && stores.length > 0 && (() => {
-        // RMC-02C/C1: completo = produtos ok + vendas + diferenças/antifurto disponíveis
+        // RMC-02C/C1: completo = produtos ok + vendas + diferenças/antifurto disponíveis.
+        // Enquanto algum comércio atualiza, o número cairia para 0 sem ser verdade: mostra "atualizando resumo…".
         const completos = stores.filter((s) => { const g = visao.geral[idDe(s) ?? ""]; return g?.estado === "ok" && !!g.vendas && !!g.dif; }).length;
         return (
           <header aria-label="Visão geral">
             <p className="text-sm font-semibold">Visão geral dos seus comércios</p>
             <p className="text-xs text-muted-foreground">
-              {stores.length === 1 ? "1 comércio cadastrado" : `${stores.length} comércios cadastrados`} · {primeiraLeitura ? "conferindo resumo…" : completos === 1 ? "1 com resumo completo" : `${completos} com resumo completo`}
+              {stores.length === 1 ? "1 comércio cadastrado" : `${stores.length} comércios cadastrados`} · {primeiraLeitura ? "conferindo resumo…" : consultando > 0 ? "atualizando resumo…" : completos === 1 ? "1 com resumo completo" : `${completos} com resumo completo`}
             </p>
           </header>
         );
