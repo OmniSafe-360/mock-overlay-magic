@@ -71,7 +71,7 @@ describe("Conferir depósito (funcionário)", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Tiss/ }));
     fireEvent.click(screen.getByRole("button", { name: /Não tem nenhum no depósito/ }));
     await waitFor(() => expect(a.contar).toHaveBeenCalledWith(CH, expect.any(String), "p-tiss", null, 0, 1));
-    expect(await screen.findByText(/não bateram. O dono vai conferir/)).toBeTruthy();
+    expect(await screen.findByText(/As contagens não bateram. Contagem bloqueada. Aguarde a decisão do dono./)).toBeTruthy();
   });
   it("reenviar depois de falhar manda a mesma rodada; contagem começada continua na rodada certa", async () => {
     const contar = vi.fn().mockRejectedValueOnce(new Error("Failed to fetch")).mockResolvedValueOnce({ situacao: "recontar", rodada: 3 });
