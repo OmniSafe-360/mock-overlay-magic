@@ -861,3 +861,5 @@ Dois desses casos falham sem a mudança. `menu-comercio` e `tamanhos-tela` passa
 **Achado anterior, fora desta etapa:** com letra 200% os nomes curtos dos botões da faixa e o nome do comércio no cabeçalho ficam cortados ("Pro…", "Dep…"). Já era assim antes, porque os botões têm largura fixa de 92 px. Fica para a M22 (largura e quebra).
 
 **Pendente:** Publicar → Atualizar e o teste do dono no celular. Roteiro: abrir um comércio no celular; a faixa mostra › e "Deslize para o lado para ver as 8 partes"; deslizar até o fim; aparece ‹; no computador não aparece nada disso.
+
+- 16/10/2026 — **M13 (contexto visual da unidade)**: implementada em `StoreSpace.tsx` com a disposição "alt" aprovada (botões em cima; nome inteiro e cidade/UF em toda a largura; "Área atual" abaixo da faixa M12, sem aria-live). Teste `m13-contexto-unidade.test.tsx`; tipos 2×, 1.211 testes 2× (erro solto conhecido numa rodada), build e verificações ok; 32 capturas do componente real. Limitação: "Supermercado" quebra no meio em 320 px a 200%. Implementada no código; falta revisão do dono; sem publicação; M14 não iniciada.
