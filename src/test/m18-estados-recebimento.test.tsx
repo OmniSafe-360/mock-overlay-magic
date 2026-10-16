@@ -42,6 +42,8 @@ it("separa Para contar, Pronto para enviar e Já enviado, com o número de cada 
   expect(nomes("Pronto para enviar")).toEqual(["Arroz"]);
   expect(within(grupo("Pronto para enviar")!).getByText("Ainda não foi enviado: use o botão no fim da tela.")).toBeTruthy();
   expect(within(grupo("Para contar")!).getByRole("heading").textContent).toBe("Para contar1");
+  await vi.waitFor(() => expect(document.activeElement?.getAttribute("aria-label")).toMatch(/^Arroz:/));
+  expect(within(grupo("Pronto para enviar")!).getByRole("button", { name: /Arroz:/ })).toBe(document.activeElement);
 
   fireEvent.click(screen.getByRole("button", { name: /Enviar contagens/ }));
   await screen.findByRole("region", { name: "Já enviado" });

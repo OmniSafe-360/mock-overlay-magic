@@ -308,6 +308,14 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
   const [motivos, setMotivos] = useState<Record<string, MotivoInfo>>(inicial.motivos);
   const [recontagens, setRecontagens] = useState(() => new Set(aberto.itens.filter((i) => i.situacao === "recontar").map(chaveProduto)));
   const [aberta, setAberta] = useState<string | null>(null);
+  /* M18: ao salvar, o produto muda de grupo e o botão é recriado; o foco volta para ele no grupo novo. */
+  const focarProduto = useRef<string | null>(null);
+  useEffect(() => {
+    const k = focarProduto.current;
+    if (!k || aberta) return;
+    focarProduto.current = null;
+    Array.from(document.querySelectorAll<HTMLButtonElement>("button[data-chave]")).find((b) => b.dataset.chave === k)?.focus();
+  });
   const [scan, setScan] = useState(false);
   const [busca, setBusca] = useState(false);
   const [aviso, setAviso] = useState("");
@@ -455,7 +463,7 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
           const fora = !!aberto.pedidoId && !noPedido.has(k);
           return (
             <li key={k}>
-              <button type="button" onClick={() => (encerrado(e) ? explicar(p, e) : (setContagens((m) => ({ ...m, [k]: m[k] ?? novaContagem(p) })), setAberta(k)))}
+              <button type="button" data-chave={k} onClick={() => (encerrado(e) ? explicar(p, e) : (setContagens((m) => ({ ...m, [k]: m[k] ?? novaContagem(p) })), setAberta(k)))}
                 aria-label={`${nomeProdutoFunc(p)}: ${e === "contado" ? "contado" : textoEstado[e].toLowerCase()}`}
                 className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left ${e === "recontar" || e === "aguardando_dono" ? "border-warning bg-warning/10" : e === "conferido" ? "border-accent/50 bg-accent/5" : e === "contado" ? "border-primary/50 bg-primary/5" : "border-border bg-secondary/50"}`}>
                 <span className="min-w-0 flex-1">
@@ -496,7 +504,7 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
         <ContarProduto c={contagens[aberta]!} recontagem={estados[aberta] === "recontar"} motivo={estados[aberta] === "recontar" ? textoMotivo(motivos[aberta]) : ""} noPedido={!aberto.pedidoId || noPedido.has(aberta)} temPedido={!!aberto.pedidoId}
           erroRascunho={erroRascunho}
           onClose={() => setAberta(null)}
-          onSalvar={(c) => { setContagens((m) => ({ ...m, [aberta]: c })); setEstados((m) => ({ ...m, [aberta]: "contado" })); setAviso(""); setAberta(null); }}
+          onSalvar={(c) => { focarProduto.current = aberta; setContagens((m) => ({ ...m, [aberta]: c })); setEstados((m) => ({ ...m, [aberta]: "contado" })); setAviso(""); setAberta(null); }}
           onTirar={estados[aberta] === "recontar" || noPedido.has(aberta) ? undefined : () => {
             setContagens((m) => { const n = { ...m }; delete n[aberta]; return n; });
             setProdutos((m) => { const n = { ...m }; delete n[aberta]; return n; });

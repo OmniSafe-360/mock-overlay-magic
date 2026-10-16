@@ -1046,6 +1046,8 @@ O campo "Lucro sobre o custo (%)" continua com 44 px. Ele é um campo, não um b
 
 Os grupos sem produto não aparecem. A ordem dentro de cada grupo, os textos de cada produto, as cores e o toque em cada produto continuam iguais.
 
+Ao salvar uma contagem, o produto muda de grupo. O foco do teclado volta para ele no grupo novo, em vez de se perder (achado do Codex no PR #175).
+
 **Não mudam:**
 - a contagem cega (o funcionário não vê o que foi pedido);
 - o aceite e a recontagem, o mesmo id e o mesmo envio;
