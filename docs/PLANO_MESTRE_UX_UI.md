@@ -411,7 +411,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M20 — alvos cadastro | Implementada (16/10/2026), pedido do dono "Pode fazer a M20" | `m20-alvos-cadastro` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§32) | Falta o teste do dono |
 | M21 — ajuda e erro | Implementada (16/10/2026), pedido do dono "Pode fazer a M21" | `m21-ajuda-erro` (4 novos, falham sem a mudança); suíte 2× | Chromium 390 px: referências válidas, sem id repetido (§33) | Falta o teste do dono |
 | M22 — largura e quebra | Subetapas 1 a 5 implementadas (16/10/2026): lista de produtos, faixa do comércio, Continuar do cadastro, cartões de variação da roupa e faixa de fases do Repor; pedidos do dono "Pode fazer a M22" / "Pode fazer a próxima" | `m22-lista-produtos`, `m22-faixa-comercio`, `m22-continuar-cadastro`, `m22-cartoes-variacao`, `m22-fases-repor` (falham sem a mudança); suíte 2× | Chromium 320/390/768/1280 × 100/200% (§34–§36, §39, §40) | Falta o teste do dono (o dono decidiu fazer todos os testes no final) |
-| M23 — geometria cadastro | Pendente | Não iniciados | Não realizados | Pendente |
+| M23 — geometria cadastro | Implementada (16/10/2026), pedido do dono "Pode fazer o próximo" | `m23-geometria-cadastro` (2 novos, falham sem a mudança) + cadastro-sair/comercio-salvamento/tamanhos-tela/cep; suíte 2× | Chromium 320/390/1280 × 100/200%, 4 passos (§42) | Falta o teste do dono (no final), inclusive com teclado em aparelho real |
 | M24 — validação integrada | Pendente | Não iniciados | Não realizados | Pendente |
 | X01–X10 — fila separada | Não autorizada; análise própria | Não iniciados | Não realizados | Pendente |
 
@@ -1333,3 +1333,52 @@ A mudança é só de apresentação, em `src/components/PainelFornecedores.tsx`.
   - WhatsApp/Ligar/E-mail um embaixo do outro, abrindo certo;
   - o lápis abrindo a edição, cancelando sem salvar.
 - **Próximas da lista:** M23 (geometria do primeiro cadastro) e M24 (validação integrada).
+
+## 42. M23 — geometria do primeiro cadastro no celular — 16/10/2026 UTC
+
+Pedido do dono: "Pode fazer o próximo" (etapa 5 da lista apresentada após a análise). Mudança só de apresentação em `src/components/StoreSetup.tsx` (primeiro cadastro do comércio e também "Adicionar comércio", que usa a mesma tela). Fluxo dos 4 passos, validações, salvamento, saída, CEP e mecanismo do teclado (`kb`) iguais.
+
+**Medido antes (Chromium, dados fictícios, CEP simulado), por passo:**
+- **Letra normal, em 320, 390 e 1280 px:** "Sair da conta" com 44 px; CNPJ/CPF com 32 px; "Editar" com 24 px.
+- **320 × 568 com letra 200%:**
+  - os campos sumiam;
+  - "Sair da conta" ficava por cima de Continuar/Voltar;
+  - Continuar e "Cadastrar meu comércio" saíam pela direita;
+  - o nome do passo virava "Q…";
+  - a logo era cortada.
+- **390 e 1280 px com letra 200%:** havia sobreposições parecidas, e CPF ou Continuar saíam pela lateral.
+
+**Mudança:**
+- **Altura:**
+  - Quando falta altura, a tela de fundo rola (`main` com `overflow-y-auto`) e a área dos campos tem altura mínima de 5 rem, como no cadastro de produto (§36).
+  - "Sair da conta" passou para dentro do mesmo bloco dos botões, para nunca ficar por cima deles.
+  - Com letra normal a tela não passou a rolar; continua rolando só a lista de campos, como antes.
+- **Botões de baixo (medidas em rem):**
+  - Com letra grande, Voltar mostra só a seta; o nome continua para o leitor de tela.
+  - Se ainda faltar espaço, Continuar fica em cima, igual ao §36.
+- **Texto:** o nome do passo e a logo quebram em vez de cortar.
+- **Botões de 48 px:**
+  - CNPJ/CPF e "Ainda não tenho CNPJ";
+  - os três "Editar" e "Alterar";
+  - "Preencher endereço" e "Sair da conta";
+  - as caixas "Este número tem WhatsApp"/"Sem número";
+  - o X da janela "Editar endereço".
+- **Letra grande:**
+  - A linha do nome do campo quebra para o CNPJ/CPF não sair da tela.
+  - No resumo e no endereço, "Editar" desce para baixo do texto quando falta espaço.
+
+**Depois (320/390/1280 × 100/200%, os 4 passos):** nenhum botão abaixo de 48 px, nenhum controle por cima de outro (descontando o que está escondido pela rolagem), nenhum fora da lateral, sem rolagem lateral e sem erros.
+
+Diferença visível com letra normal: em 390 px o CEP do resumo quebra em duas linhas, porque "Editar" ficou um pouco mais largo. Em 320 × 568 a lista de campos rola um pouco mais por dentro (passo 2: 60 → 104 px), porque CNPJ/CPF e as caixas de marcar ficaram mais altos.
+
+**Testes:** `src/test/m23-geometria-cadastro.test.tsx` (2, falham sem a mudança). Também passam `cadastro-sair`, `comercio-salvamento`, `tamanhos-tela`, `cep-comercio` e `m21-ajuda-erro`. Tipos 2×, 1.265 testes/139 arquivos 2×, build.
+
+**Limites:** não testado com teclado aberto em aparelho real, nem com o Google real.
+
+**Roteiro do dono (no final):**
+1. Saia da conta e entre com uma conta nova (ou use "Adicionar comércio").
+2. Com letra grande no celular, faça os 4 passos e confira que dá para ver os campos e tocar em Continuar/Voltar sem nada por cima.
+3. Confira que "Sair da conta" aparece embaixo dos botões.
+4. No passo "Confira os dados", toque em Editar e volte, sem cadastrar se for só teste.
+
+Próxima da lista: M24 (validação integrada), que depende do teste do dono no celular.

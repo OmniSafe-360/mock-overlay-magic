@@ -74,7 +74,7 @@ export function Field({ label, hint, error, extra, ...props }: InputHTMLAttribut
   const descritoPor = [props["aria-describedby"], temMsg ? msgId : undefined].filter(Boolean).join(" ") || undefined;
   return (
     <div className="space-y-1 min-w-0">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
         <label htmlFor={id} className="text-sm font-medium text-muted-foreground short:text-xs">{label}</label>
         {extra}
       </div>
@@ -86,7 +86,7 @@ export function Field({ label, hint, error, extra, ...props }: InputHTMLAttribut
 
 function CheckBox({ checked, onChange, children }: { checked: boolean; onChange: (v: boolean) => void; children: ReactNode }) {
   return (
-    <label className="flex cursor-pointer items-center gap-3 py-1 text-sm text-muted-foreground">
+    <label className="flex min-h-12 cursor-pointer items-center gap-3 py-1 text-sm text-muted-foreground">
       <input type="checkbox" className="peer sr-only" checked={checked} onChange={(x) => onChange(x.target.checked)} />
       <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border transition peer-focus-visible:ring-2 peer-focus-visible:ring-ring ${checked ? "border-accent bg-accent text-accent-foreground" : "border-border"}`}>
         {checked && <Check size={16} strokeWidth={3} />}
@@ -294,7 +294,7 @@ export function StoreSetup({ mode = "first", userId, onFinish, onCancel, onExit 
     <div className="relative h-app overflow-hidden bg-app">
       <div className="pointer-events-none absolute inset-0 bg-dots" />
       <div className="pointer-events-none absolute left-1/2 top-0 h-[520px] w-[520px] -translate-x-1/2 -translate-y-24 bg-glow" />
-      <main className={`app-top relative flex h-full flex-col items-center overflow-hidden ${kb ? "app-top-kb" : ""}`}>
+      <main className={`app-top relative flex h-full flex-col items-center overflow-y-auto ${kb ? "app-top-kb" : ""}`}>
         <div className="flex h-full max-h-full w-full max-w-[480px] flex-col sm:relative sm:h-auto sm:rounded-3xl sm:border sm:border-border sm:bg-card sm:p-8 sm:backdrop-blur-xl short:sm:p-6">
           {/* logo mini fixa */}
           {mode === "add" && (
@@ -302,9 +302,9 @@ export function StoreSetup({ mode = "first", userId, onFinish, onCancel, onExit 
               <X size={22} />
             </button>
           )}
-          <div className={`flex shrink-0 items-center justify-center gap-2.5 overflow-hidden transition-all duration-300 ${kb ? "max-h-0 opacity-0" : "max-h-16 opacity-100"}`}>
+          <div className={`flex shrink-0 flex-wrap items-center justify-center gap-x-2.5 overflow-hidden transition-all duration-300 ${kb ? "max-h-0 opacity-0" : "max-h-16 opacity-100"}`}>
             <LogoMark size={40} />
-            <span className="whitespace-nowrap text-base font-bold tracking-[0.16em] text-foreground">
+            <span className="text-center text-base font-bold tracking-[0.16em] text-foreground">
               OMNI SAFE <span className="text-accent">360</span>
             </span>
           </div>
@@ -318,9 +318,9 @@ export function StoreSetup({ mode = "first", userId, onFinish, onCancel, onExit 
                   <p className="mt-1 text-sm text-muted-foreground tiny:hidden">Informe os dados do seu comércio para começar.</p>
               </div>
               <div className={`shrink-0 transition-all duration-300 ${kb ? "mt-0" : "mt-5 short:mt-3 tiny:mt-2"}`}>
-                <div className={`flex items-center justify-between gap-2 ${kb ? "mb-1.5" : "mb-2"}`}>
+                <div className={`flex flex-wrap items-center justify-between gap-x-2 ${kb ? "mb-1.5" : "mb-2"}`}>
                   {kb && <span className="shrink-0"><LogoMark size={20} /></span>}
-                  <span className="min-w-0 truncate text-base font-semibold text-foreground short:text-sm">{stepTitles[step]}</span>
+                  <span className="min-w-0 break-words text-base font-semibold text-foreground short:text-sm">{stepTitles[step]}</span>
                   <span className="shrink-0 text-xs text-muted-foreground">Passo {step + 1} de 4</span>
                 </div>
                 <div className="h-1 overflow-hidden rounded-full bg-secondary">
@@ -328,7 +328,7 @@ export function StoreSetup({ mode = "first", userId, onFinish, onCancel, onExit 
                 </div>
               </div>
 
-              <div key={step} data-kb-scroll className={`min-h-0 flex-1 overflow-y-auto overscroll-contain animate-in fade-in duration-300 ${kb ? "mt-2 space-y-2 pb-1 [&_.field-hint]:hidden" : "mt-4 space-y-3 short:mt-3 short:space-y-2.5 tiny:mt-2.5 tiny:space-y-2"} ${dir === 1 ? "slide-in-from-right-8" : "slide-in-from-left-8"}`}>
+              <div key={step} data-kb-scroll className={`@container min-h-[5rem] flex-1 overflow-y-auto overscroll-contain animate-in fade-in duration-300 ${kb ? "mt-2 space-y-2 pb-1 [&_.field-hint]:hidden" : "mt-4 space-y-3 short:mt-3 short:space-y-2.5 tiny:mt-2.5 tiny:space-y-2"} ${dir === 1 ? "slide-in-from-right-8" : "slide-in-from-left-8"}`}>
                 {step === 0 && (
                   <>
                     <div className="grid grid-cols-2 gap-3 tiny:gap-2">
@@ -368,18 +368,18 @@ export function StoreSetup({ mode = "first", userId, onFinish, onCancel, onExit 
                       onChange={(x) => setDoc(docType === "CNPJ" ? maskCNPJ(x.target.value) : maskCPF(x.target.value))}
                       onBlur={blur("doc")} error={touched["doc"] ? errs.doc : ""}
                       extra={
-                        <div role="radiogroup" className="flex rounded-xl border border-border bg-background-deep/60 p-0.5">
+                        <div role="radiogroup" className="flex rounded-xl @min-[16rem]:-my-2 border border-border bg-background-deep/60 p-0.5">
                           {(["CNPJ", "CPF"] as const).map((t) => (
                             <button key={t} type="button" role="radio" aria-checked={docType === t}
                               onClick={() => { setDocType(t); setDoc(""); setTouched((s) => ({ ...s, doc: false })); }}
-                              className={`h-8 rounded-lg px-3 text-xs font-semibold transition ${docType === t ? "bg-secondary text-foreground" : "text-muted-foreground"}`}>
+                              className={`min-h-12 rounded-lg px-3 text-xs font-semibold transition ${docType === t ? "bg-secondary text-foreground" : "text-muted-foreground"}`}>
                               {t}
                             </button>
                           ))}
                         </div>
                       }
                       hint={docType === "CNPJ" ? (
-                        <button type="button" className="font-medium text-primary hover:underline" onClick={() => { setDocType("CPF"); setDoc(""); }}>Ainda não tenho CNPJ</button>
+                        <button type="button" className="-my-3 inline-flex min-h-12 items-center font-medium text-primary hover:underline" onClick={() => { setDocType("CPF"); setDoc(""); }}>Ainda não tenho CNPJ</button>
                       ) : "Use seu CPF enquanto não tem CNPJ."} />
                     <Field label="Telefone do comércio" name="tel" type="tel" inputMode="tel" autoComplete="tel" enterKeyHint="done" placeholder="(11) 99999-9999"
                       value={tel} onChange={(x) => setTel(maskPhone(x.target.value))} onBlur={blur("tel")}
@@ -397,13 +397,13 @@ export function StoreSetup({ mode = "first", userId, onFinish, onCancel, onExit 
                       hint={cepState === "loading" ? <span className="inline-flex items-center gap-1.5"><Loader2 size={12} className="animate-spin" /> Buscando endereço...</span> : "Buscamos o endereço para você."} />
                     {addr && addrMode === "city" && cepState !== "loading" && (
                       <>
-                        <div className="flex items-center gap-3 rounded-2xl border border-border bg-background-deep/60 p-3 animate-in fade-in duration-300">
+                        <div className="flex items-center gap-3 rounded-2xl border border-border bg-background-deep/60 p-3 animate-in fade-in duration-300 @max-[14rem]:flex-wrap">
                           <MapPin size={20} className="shrink-0 text-accent" />
-                          <div className="min-w-0 flex-1">
+                          <div className="min-w-0 flex-1 @max-[14rem]:min-w-[6rem]">
                             <p className="text-sm font-semibold text-foreground">{addr.cidade} - {addr.uf}</p>
                             <p className="text-xs leading-snug text-muted-foreground">Esse CEP é geral da cidade. Informe a rua e o bairro do seu comércio.</p>
                           </div>
-                          <button type="button" onClick={() => setSheet(true)} className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-primary hover:underline">
+                          <button type="button" onClick={() => setSheet(true)} className="-my-2 flex min-h-12 shrink-0 items-center gap-1 rounded-lg px-3 text-xs font-semibold text-primary hover:underline">
                             <Pencil size={13} /> Alterar
                           </button>
                         </div>
@@ -431,18 +431,18 @@ export function StoreSetup({ mode = "first", userId, onFinish, onCancel, onExit 
                       </>
                     )}
                     {addr && addrOk && addrMode !== "city" && addrMode !== "manual" && (
-                      <div className="flex items-center gap-3 rounded-2xl border border-border bg-background-deep/60 p-3 animate-in fade-in duration-300">
+                      <div className="flex items-center gap-3 rounded-2xl border border-border bg-background-deep/60 p-3 animate-in fade-in duration-300 @max-[14rem]:flex-wrap">
                         <MapPin size={20} className="shrink-0 text-accent" />
-                        <p className="min-w-0 flex-1 text-sm leading-snug text-foreground">
+                        <p className="min-w-0 flex-1 break-words @max-[14rem]:min-w-[6rem] text-sm leading-snug text-foreground">
                           {addr.rua}, {addr.bairro}, {addr.cidade} - {addr.uf}
                         </p>
-                        <button type="button" onClick={() => setSheet(true)} className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-primary hover:underline">
+                        <button type="button" onClick={() => setSheet(true)} className="-my-2 flex min-h-12 shrink-0 items-center gap-1 rounded-lg px-3 text-xs font-semibold text-primary hover:underline">
                           <Pencil size={13} /> Editar
                         </button>
                       </div>
                     )}
                     {addr && !addrOk && addrMode !== "city" && addrMode !== "manual" && cepState !== "loading" && (
-                      <button type="button" onClick={() => setSheet(true)} className="text-sm font-semibold text-primary hover:underline">Preencher endereço</button>
+                      <button type="button" onClick={() => setSheet(true)} className="min-h-12 text-sm font-semibold text-primary hover:underline">Preencher endereço</button>
                     )}
                     <div className="grid grid-cols-2 gap-2.5">
                       <Field label="Número" name="numero" inputMode="numeric" autoComplete="address-line2" enterKeyHint="next" placeholder="123"
@@ -471,26 +471,28 @@ export function StoreSetup({ mode = "first", userId, onFinish, onCancel, onExit 
               </div>
 
               {step === 3 && saveErr && <p role="alert" className="mt-3 shrink-0 break-words text-center text-sm text-destructive">{saveErr}</p>}
-              <div className={`relative flex shrink-0 gap-2 ${kb ? "pt-2" : "pt-4 short:pt-3"}`}>
+              {/* M23: com letra grande e pouco espaço (medidas em rem), Voltar mostra só a seta e, se ainda faltar, Continuar fica em cima. Com letra normal nada muda. */}
+              <div className={`@container relative shrink-0 ${kb ? "pt-2" : "pt-4 short:pt-3"}`}><div className="flex gap-2 @max-[7.5rem]:flex-col-reverse">
                 {step > 0 && (
-                  <button type="button" disabled={ocupado} onClick={() => { if (envio.current) return; setFromReview(false); go(step - 1); }} className={`${btnGhost} disabled:opacity-60`} aria-label="Voltar">
-                    <span className="flex items-center gap-1.5"><ArrowLeft size={18} />Voltar</span>
+                  <button type="button" disabled={ocupado} onClick={() => { if (envio.current) return; setFromReview(false); go(step - 1); }} className={`${btnGhost} disabled:opacity-60 @max-[15rem]:px-3`} aria-label="Voltar">
+                    <span className="flex items-center gap-1.5"><ArrowLeft size={18} /><span className="@max-[15rem]:sr-only">Voltar</span></span>
                   </button>
                 )}
-                <button type="submit" disabled={!valid || ocupado} aria-disabled={!valid || ocupado} className={`flex-1 ${btnPrimary(valid && !ocupado)}`}>
+                <button type="submit" disabled={!valid || ocupado} aria-disabled={!valid || ocupado} className={`min-w-0 flex-1 break-words ${btnPrimary(valid && !ocupado)} @max-[15rem]:px-3`}>
                   {step === 3 ? (saving ? "Salvando..." : "Cadastrar meu comércio") : "Continuar"}
                 </button>
-              </div>
+              </div></div>
+              {/* M23: "Sair da conta" fica no mesmo bloco dos botões, para nunca ficar por cima deles quando falta altura. */}
+              {mode === "first" && onExit && (
+                <>
+                  {erroSaida && <p role="alert" className="mt-2 shrink-0 break-words text-center text-sm text-destructive">{erroSaida}</p>}
+                  <button type="button" disabled={ocupado} onClick={() => void sair()}
+                    className="mt-1 flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold text-muted-foreground underline hover:text-foreground disabled:opacity-60">
+                    {saindo ? <><Loader2 size={16} className="animate-spin" />Saindo...</> : <><LogOut size={16} />Sair da conta</>}
+                  </button>
+                </>
+              )}
             </form>
-          )}
-          {!done && mode === "first" && onExit && (
-            <>
-              {erroSaida && <p role="alert" className="mt-2 shrink-0 break-words text-center text-sm text-destructive">{erroSaida}</p>}
-              <button type="button" disabled={ocupado} onClick={() => void sair()}
-                className="mt-1 flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold text-muted-foreground underline hover:text-foreground disabled:opacity-60">
-                {saindo ? <><Loader2 size={16} className="animate-spin" />Saindo...</> : <><LogOut size={16} />Sair da conta</>}
-              </button>
-            </>
           )}
         </div>
       </main>
@@ -512,12 +514,12 @@ export function Collapse({ show, children }: { show: boolean; children: ReactNod
 
 function Summary({ title, onEdit, children, disabled = false }: { title: string; onEdit: () => void; children: ReactNode; disabled?: boolean }) {
   return (
-    <div className="flex items-start gap-3 p-3.5 tiny:p-3">
-      <div className="min-w-0 flex-1">
+    <div className="flex items-start gap-3 p-3.5 tiny:p-3 @max-[14rem]:flex-wrap">
+      <div className="min-w-0 flex-1 @max-[14rem]:min-w-[6rem]">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
         <p className="mt-0.5 break-words text-sm text-foreground">{children}</p>
       </div>
-      <button type="button" disabled={disabled} onClick={onEdit} className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-primary hover:underline disabled:opacity-60">
+      <button type="button" disabled={disabled} onClick={onEdit} className="-my-2 flex min-h-12 shrink-0 items-center gap-1 rounded-lg px-3 text-xs font-semibold text-primary hover:underline disabled:opacity-60">
         <Pencil size={13} /> Editar
       </button>
     </div>
@@ -535,7 +537,7 @@ function AddressSheet({ initial, onClose, onSave }: { initial: Addr; onClose: ()
         style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
         <div className="flex shrink-0 items-center justify-between px-5 pt-4">
           <h2 className="text-base font-semibold text-foreground">Endereço do comércio</h2>
-          <button type="button" onClick={onClose} aria-label="Fechar" className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-foreground"><X size={18} /></button>
+          <button type="button" onClick={onClose} aria-label="Fechar" className="-my-1.5 -mr-1.5 flex h-12 w-12 items-center justify-center rounded-xl text-muted-foreground hover:text-foreground"><X size={18} /></button>
         </div>
         <form noValidate onSubmit={(e) => { e.preventDefault(); if (ok) onSave(a); }} className="flex min-h-0 flex-col">
           <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3">
