@@ -84,7 +84,8 @@ export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFa
       {importantes > 0 && <p className="mt-1 text-sm text-muted-foreground">Toque num quadro para ver os produtos.</p>}
 
       {(gruposVisiveis.length > 0 || contasVisiveis.length > 0 || entregasVisiveis.length > 0 || antifurtoVisiveis.length > 0) && (
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        // Colunas pelo espaço real do quadro, em rem: com letra grande no celular cabe 1 por linha, sem texto vazando.
+        <div className="@container mt-3"><div className="grid grid-cols-1 gap-2 @[14rem]:grid-cols-2 @[30rem]:grid-cols-3">
           {entregasVisiveis.map((q) => (
             <button key={q.k} type="button" onClick={q.onClick}
               className={`flex min-h-[84px] flex-col justify-between rounded-2xl border p-3 text-left transition hover:border-primary ${COR.urgente.quadro}`}>
@@ -117,7 +118,7 @@ export function AtencaoHoje({ products, tipo, suppliers, onOpen, jaPedidos, onFa
               </button>
             );
           })}
-        </div>
+        </div></div>
       )}
 
       {sel && (
