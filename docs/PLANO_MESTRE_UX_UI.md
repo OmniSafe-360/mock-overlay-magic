@@ -410,7 +410,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M19 — conferência existente | Autorizada (16/10/2026) | No main; conferência/contagem cega/diferenças + suíte 1.189 2×; 60 capturas | No main; publicação não confirmada | Falta o teste do dono |
 | M20 — alvos cadastro | Implementada (16/10/2026), pedido do dono "Pode fazer a M20" | `m20-alvos-cadastro` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§32) | Falta o teste do dono |
 | M21 — ajuda e erro | Implementada (16/10/2026), pedido do dono "Pode fazer a M21" | `m21-ajuda-erro` (4 novos, falham sem a mudança); suíte 2× | Chromium 390 px: referências válidas, sem id repetido (§33) | Falta o teste do dono |
-| M22 — largura e quebra | Subetapas 1 (lista de produtos), 2 (faixa do comércio), 3 (Continuar do cadastro) e 4 (cartões de variação da roupa) implementadas (16/10/2026), pedidos do dono "Pode fazer a M22" / "Pode fazer a próxima" | `m22-lista-produtos`, `m22-faixa-comercio`, `m22-continuar-cadastro`, `m22-cartoes-variacao` (falham sem a mudança); suíte 2× | Chromium 320/390/768/1280 × 100/200% (§34–§36, §39) | Falta o teste do dono; subetapa 5 (faixa de fases do Repor) não iniciada |
+| M22 — largura e quebra | Subetapas 1 a 5 implementadas (16/10/2026): lista de produtos, faixa do comércio, Continuar do cadastro, cartões de variação da roupa e faixa de fases do Repor; pedidos do dono "Pode fazer a M22" / "Pode fazer a próxima" | `m22-lista-produtos`, `m22-faixa-comercio`, `m22-continuar-cadastro`, `m22-cartoes-variacao`, `m22-fases-repor` (falham sem a mudança); suíte 2× | Chromium 320/390/768/1280 × 100/200% (§34–§36, §39, §40) | Falta o teste do dono (o dono decidiu fazer todos os testes no final) |
 | M23 — geometria cadastro | Pendente | Não iniciados | Não realizados | Pendente |
 | M24 — validação integrada | Pendente | Não iniciados | Não realizados | Pendente |
 | X01–X10 — fila separada | Não autorizada; análise própria | Não iniciados | Não realizados | Pendente |
@@ -1274,3 +1274,32 @@ Pedido do dono: "Pode fazer a próxima" (etapa 2 da lista apresentada após a an
 - **Limites:** em 320 × 568 com letra 200% a área de conteúdo do cadastro é pequena (§36) e a lista precisa rolar; não testado em aparelho real.
 - **Precisa Publicar → Atualizar; falta o teste do dono.** Roteiro: cadastro de roupa → passo com a "Grade de variações" → conferir que cada tamanho/cor aparece inteiro dentro da tela, que o lápis abre a edição e que o X remove (cancelar sem salvar).
 - Próxima subetapa (5, faixa de fases do Repor) não iniciada.
+
+## 40. M22 — largura e quebra, subetapa 5: faixa de fases do Repor — 16/10/2026 UTC
+
+Pedido do dono: "Os testes eu vou fazer tudo no final. Pode fazer a próxima." (etapa 3 da lista apresentada após a análise). **Decisão registrada:** o dono vai testar tudo no final; as etapas seguem uma por vez sem esperar o teste dele, e cada uma continua com "falta o teste do dono".
+
+A mudança é só de apresentação, em `src/components/ReporGondola.tsx` (`Fases`, a faixa "1. Conte → 2. Busque → 3. Confirme o que levou" da M17).
+
+- **Problema, anotado na análise:** em 320 e 390 px com letra 200%, a faixa ocupava 224 px de altura em 3 linhas, empurrando a contagem para baixo.
+- **Mudança:**
+  - A faixa passa a medir o próprio espaço (`@container`).
+  - Quando há menos de 14 rem, o que só acontece com letra grande, só a fase atual mostra o nome. As outras mostram o número, por exemplo "✓1 → 2. Busque → 3", e o nome continua lá para o leitor de tela (`sr-only`).
+  - Nesse caso o espaço entre as fases também diminui um pouco.
+  - A fase atual é a mesma do `aria-current`. Na tela de buscar, a 3 continua em destaque, só sem o nome.
+- **Sem mudança:**
+  - Fases, cores, ✓ das feitas e destaque da M17.
+  - Contagem cega, envio, rascunho e banco.
+  - Letra normal em 320/390/1280: altura igual, 60/60/28 px.
+- **Medido no Chromium, com reposição fictícia (Arroz 5 kg):**
+
+  | Tela | Antes | Depois |
+  |---|---|---|
+  | 320 px a 200% | 224 px (3 linhas) | 120 px (2 linhas) |
+  | 390 px a 200% | 224 px | 56 px (ida) e 120 px (buscar) |
+  | 1280 px a 200% | 56 px | 56 px |
+
+  Sem rolagem lateral e sem erros.
+- **Testes:** `src/test/m22-fases-repor.test.tsx` (falha sem a mudança) e `m17-fases-reposicao`. Tipos 2×, 1.261 testes/137 arquivos 2×, build.
+- **Roteiro do dono (no final):** com letra grande no celular, abrir Repor → um produto → conferir que a faixa mostra a fase atual com o nome e as outras com o número, e que a contagem aparece sem rolar muito.
+- **M22 concluída no código** (subetapas 1 a 5). Próximas da lista: Fornecedores (botões de 44 px e contatos sobrepostos com letra grande), depois M23 e M24.
