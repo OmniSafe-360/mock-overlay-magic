@@ -954,7 +954,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                       {varsDep.filter((x) => x.travada || x.d.qtd !== undefined).map((x) => (
                         <div key={x.v.uid} className="space-y-1.5 rounded-2xl border border-border bg-background-deep/60 p-3">
                           <p className="text-sm font-semibold">{x.v.tam} · {x.v.cor}</p>
-                          <p className="text-xs text-muted-foreground">Quantidade informada no cadastro: {x.v.qtd}</p>
+                          <p className="text-xs text-muted-foreground">Quantidade informada no cadastro: {qtdUn(x.v.qtd, unidade)}</p>
                           {x.travada ? (
                             <>
                               <p className="text-sm">Quantidade confirmada no {dep}: <b>{qtdUn(x.q.v ?? 0, unidade)}</b></p>
@@ -998,8 +998,8 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                             <Field label="Mínimo" name={`dmin-${x.v.uid}`} {...numProps} placeholder="Opcional" value={x.d.min} onChange={(e) => setVD(x.v.uid!, { min: numIn(e.target.value) })} error={x.mn.err} />
                             <Field label="Máximo desejado" name={`dmax-${x.v.uid}`} {...numProps} placeholder="Opcional" value={x.d.max} onChange={(e) => setVD(x.v.uid!, { max: numIn(e.target.value) })} error={x.mx.err || x.lim} />
                           </div>
-                          <p className="text-xs text-muted-foreground">{limitesStatus(x.mn.v, x.mx.v)}</p>
-                          {x.q.v != null && x.mx.v != null && x.q.v > x.mx.v && <p className="text-xs text-warning">{ACIMA_MAX}</p>}
+                          <p className="text-sm text-muted-foreground">{limitesStatus(x.mn.v, x.mx.v)}</p>
+                          {x.q.v != null && x.mx.v != null && x.q.v > x.mx.v && <p className="text-sm text-warning">{ACIMA_MAX}</p>}
                         </div>
                       ))}
                       <LimitesAjuda dep={dep} />
@@ -1078,7 +1078,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                             <Field label={`Quanto desta variação já está neste local? (${unPlural(unidade)})`} name={`vq-${x.v.uid}`} {...numProps} placeholder="Ex.: 3"
                               value={x.d.qtd ?? ""} onChange={(e) => setVV(x.v.uid!, { qtd: numIn(e.target.value) })} error={showErr(x.d.qtd ?? "", x.q.err)} />
                           )}
-                          <p className="text-xs text-muted-foreground">{totalLinhas[i]}</p>
+                          <p className="text-sm text-muted-foreground">{totalLinhas[i]}</p>
                         </div>
                       ))}
                       <p className="text-xs text-muted-foreground">Conte cada tamanho e cor. A quantidade do cadastro não é copiada. Zero é aceito.</p>
@@ -1113,8 +1113,8 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
                             <Field label="Mínimo" name={`vmin-${x.v.uid}`} {...numProps} placeholder="Opcional" value={x.d.min} onChange={(e) => setVV(x.v.uid!, { min: numIn(e.target.value) })} error={x.mn.err} />
                             <Field label="Máximo que cabe" name={`vmax-${x.v.uid}`} {...numProps} placeholder="Opcional" value={x.d.max} onChange={(e) => setVV(x.v.uid!, { max: numIn(e.target.value) })} error={x.mx.err || x.lim} />
                           </div>
-                          <p className="text-xs text-muted-foreground">{limitesVendaStatus(x.mn.v, x.mx.v)}</p>
-                          {x.q.v != null && x.mx.v != null && x.q.v > x.mx.v && <p className="text-xs text-warning">{VEN_ACIMA_MAX}</p>}
+                          <p className="text-sm text-muted-foreground">{limitesVendaStatus(x.mn.v, x.mx.v)}</p>
+                          {x.q.v != null && x.mx.v != null && x.q.v > x.mx.v && <p className="text-sm text-warning">{VEN_ACIMA_MAX}</p>}
                         </div>
                       ))}
                       <LimitesVendaAjuda />

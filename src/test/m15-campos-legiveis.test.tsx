@@ -62,3 +62,20 @@ describe("M15 — campos legíveis (bloco B, preço e unidade)", () => {
     expect(screen.getByText("Ajuda a organizar a lista.").className).toContain("field-hint");
   });
 });
+
+describe("M15 — campos legíveis (bloco C, depósito e área de venda nas roupas)", () => {
+  it("quantidade do cadastro com a unidade; limites e aviso no mesmo tamanho dos outros tipos", () => {
+    const p = { id: 1, codigo: "789", nome: "Camiseta", compra: 1000, venda: 1500, unidade: "Peça", categoria: "Camisetas", detalhes: {}, fornecedor: null,
+      variacoes: [{ tam: "M", cor: "Azul", codigo: "222", qtd: 2, uid: "a" }] } as never;
+    render(<ProductWizard store={{ id: "s", nome: "Loja", tipo: "roupas" } as never} products={[p]} initial={p} suppliers={[]} onAddSupplier={() => 1} onCancel={() => {}} onSave={() => {}} />);
+    const submit = () => fireEvent.submit(document.querySelector("form")!);
+    for (let i = 0; i < 4; i++) submit();
+    click("Definir depois"); submit();
+    click(/^Não, vou contar o (depósito|estoque)$/);
+    expect(screen.getByText("Quantidade informada no cadastro: 2 peças")).toBeTruthy();
+    typeIn(/Quantidade confirmada no (depósito|estoque)/, "9"); submit();
+    fireEvent.change(document.querySelector('input[name="dmax-a"]')!, { target: { value: "5" } });
+    expect(screen.getByText(/^Máximo 5 · Sem mínimo/).className).toContain("text-sm");
+    expect(screen.getByText(/Você tem mais que o desejado/).className).toContain("text-sm");
+  });
+});

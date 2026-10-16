@@ -403,7 +403,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M12 — descoberta faixa | Implementada (16/10/2026), pedido do dono "finaliza ela" | `m12-faixa-deslizar` (3 novos) + menu-comercio/tamanhos-tela; suíte 2× | Chromium 320/390/1280 × 100/200% (§23) | Falta o teste do dono |
 | M13 — contexto unidade | Implementada, testada e integrada ao main (16/10/2026; revisão técnica aprovada em `ef75121`) | `m13-contexto-unidade` (6 novos); tipos e suíte 2× | Chromium 320/390/768/1280 × 100/200% (32 capturas) | Aguarda publicação e homologação final do dono |
 | M14 — progresso cadastro | Implementada (16/10/2026), pedido do dono "faça a etapa M14" | `m14-progresso-cadastro` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§24) | Falta o teste do dono |
-| M15 — campos existentes | Blocos A e B implementados (16/10/2026), pedidos do dono "Pode fazer a M15" e "Pode fazer o próximo bloco da M15" | `m15-campos-legiveis` (4 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§25, §26) | Falta o teste do dono; outros blocos não iniciados |
+| M15 — campos existentes | Blocos A, B e C implementados (16/10/2026), pedidos do dono "Pode fazer a M15" e "Pode fazer o próximo bloco da M15" (2×) | `m15-campos-legiveis` (5 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§25–§27) | Falta o teste do dono; bloco D (Validade) não iniciado |
 | M16 — convite instalação | Pendente | Não iniciados | Não realizados | Pendente |
 | M17 — fases reposição | Pendente | Não iniciados | Não realizados | Pendente |
 | M18 — estados recebimento | Pendente | Não iniciados | Não realizados | Pendente |
@@ -933,3 +933,25 @@ Com letra 200%, a tela já rolava muito antes (anotado para a M22). Em nenhum ca
 **Fica para os próximos blocos da M15:** passos Depósito/Área de venda e Validade.
 
 **Pendente:** Publicar → Atualizar e o teste do dono. Roteiro: em Novo produto → Preço, digitar a porcentagem de lucro (o campo agora é maior) e conferir se o preço de venda muda junto.
+
+## 27. M15 — legibilidade dos campos do cadastro, bloco C (depósito e área de venda) — 16/10/2026 UTC
+
+**Pedido do dono (16/10/2026):** "Pode fazer o próximo bloco da M15" (segunda vez). Base: `main` com os blocos A e B (#168, #169).
+
+**O que mudou** (só apresentação, `src/components/ProductArea.tsx`). Nos passos Depósito/Estoque e Área de venda, a loja de roupas ficava diferente dos outros tipos:
+- **"Quantidade informada no cadastro":** em cada tamanho/cor aparecia só o número ("2"). Agora traz a unidade ("2 peças"), como já acontecia no quadro de confirmação, com a mesma função `qtdUn`.
+- **Resumo dos limites e aviso "Você tem mais que o desejado":** em cada tamanho/cor, tanto no depósito quanto na área de venda, a letra passou de 12 px para 14 px, o mesmo tamanho usado nos outros tipos.
+- **Total de cada tamanho/cor na área de venda:** a letra passou de 12 px para 14 px, o mesmo tamanho do total nos outros tipos.
+
+Não mudam: textos (só a unidade foi acrescentada), contas, conversões, validações, travas, sequência e banco. Os outros tipos não mudam.
+
+**Provas:**
+- Teste novo no `src/test/m15-campos-legiveis.test.tsx`; ele falha sem a mudança.
+- Tipos e 1.218 testes passaram duas vezes; build aprovado.
+- Chromium (loja de roupas com dois tamanhos, um com nome de cor longo) em 320/390/1280 px, com letra 100% e 200%: sem rolagem lateral e sem erro.
+
+**Achado anterior, fora desta etapa:** em 320 × 568 com letra 200%, o passo de limites praticamente não mostra os campos, porque o espaço fica com o título e os botões. Já era assim antes; fica para a M22.
+
+**Fica para o próximo bloco da M15:** passo Validade.
+
+**Pendente:** Publicar → Atualizar e o teste do dono. Roteiro: editar uma roupa com tamanhos, ir até "Quanto há no estoque?" e conferir "Quantidade informada no cadastro: 2 peças".
