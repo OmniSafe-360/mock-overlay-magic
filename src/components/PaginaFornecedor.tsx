@@ -95,17 +95,17 @@ function Aviso({ icone, titulo, texto }: { icone: ReactNode; titulo: string; tex
 function Cabecalho({ p }: { p: PedidoPublico }) {
   const end = enderecoTexto(p.comercio);
   return (
-    <header className="space-y-3">
+    <header className="space-y-2">
       <div className="overflow-hidden rounded-3xl border border-border bg-secondary/60">
-        <div className="flex items-start justify-between gap-3 border-b border-border bg-primary/10 px-4 py-3">
-          <div className="min-w-0">
+        <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border bg-primary/10 px-4 py-3">
+          <div className="min-w-0 flex-1 basis-40 break-words">
             <p className="text-xs font-semibold uppercase tracking-wider text-primary">Pedido de compra</p>
             <p className="mt-0.5 text-xl font-bold">Pedido nº {p.numero}</p>
             {p.enviadoEm && <p className="text-xs text-muted-foreground">Enviado em {dataHora(p.enviadoEm)}</p>}
           </div>
-          <span className="shrink-0 rounded-full border border-border bg-background-deep/60 px-3 py-1 text-xs font-semibold">{SITUACAO_TXT[p.situacao]}</span>
+          <span className="shrink-0 max-w-full break-words rounded-full border border-border bg-background-deep/60 px-3 py-1 text-xs font-semibold">{SITUACAO_TXT[p.situacao]}</span>
         </div>
-        <div className="space-y-3 p-4">
+        <div className="space-y-2 p-4">
           <div>
             <p className="text-xs text-muted-foreground">Comércio</p>
             <h1 className="break-words text-2xl font-bold leading-tight">{p.comercio.nome}</h1>
@@ -119,12 +119,12 @@ function Cabecalho({ p }: { p: PedidoPublico }) {
         </div>
       </div>
       {end && (
-        <div className="flex items-start gap-3 rounded-3xl border border-border bg-secondary/60 p-4 text-sm">
+        <div className="flex items-start gap-3 rounded-3xl border border-border bg-secondary/60 px-4 py-3 text-sm">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary"><MapPin size={18} /></span>
-          <span><span className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Local de entrega</span>{end}</span>
+          <span className="min-w-0 break-words"><span className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Local de entrega</span>{end}</span>
         </div>
       )}
-      {p.observacao && <p className="rounded-3xl border border-border bg-secondary/60 p-4 text-sm"><span className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Recado do comércio</span>{p.observacao}</p>}
+      {p.observacao && <p className="break-words rounded-3xl border border-border bg-secondary/60 px-4 py-3 text-sm"><span className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Recado do comércio</span>{p.observacao}</p>}
     </header>
   );
 }
