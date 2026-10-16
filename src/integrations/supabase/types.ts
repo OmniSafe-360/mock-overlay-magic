@@ -2392,6 +2392,7 @@ export type Database = {
         Returns: string
       }
       _devolver_item_venda: { Args: { _item: string }; Returns: undefined }
+      _embalagem_em_uso: { Args: { _id: string }; Returns: boolean }
       _entrar_no_deposito: {
         Args: { _func: string; _item: string; _tentativa: Json; _user: string }
         Returns: number
