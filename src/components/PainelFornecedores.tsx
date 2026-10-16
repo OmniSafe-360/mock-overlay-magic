@@ -46,7 +46,7 @@ export function PainelFornecedores({ products, tipo, suppliers, onOpen, onAdd, o
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-base font-bold">{suppliers.length === 1 ? "1 fornecedor" : `${suppliers.length} fornecedores`}</p>
-          <p className="text-sm text-muted-foreground">Valem para todos os seus comércios.</p>
+          <p className="text-sm text-muted-foreground">O cadastro e as alterações dos fornecedores valem para todos os seus comércios. Os produtos abaixo são apenas deste comércio.</p>
         </div>
         <button type="button" onClick={() => setSheet("novo")} className={`flex items-center justify-center gap-2 sm:w-64 ${btnPrimary(true)}`}><Plus size={20} /> Novo fornecedor</button>
       </div>
