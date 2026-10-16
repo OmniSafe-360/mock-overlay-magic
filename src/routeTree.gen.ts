@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as CaixaRouteImport } from './routes/caixa'
 import { Route as ConectorRouteImport } from './routes/conector'
 import { Route as FuncionarioRouteImport } from './routes/funcionario'
+import { Route as M08BancadaRouteImport } from './routes/m08-bancada'
 import { Route as FiadoTokenRouteImport } from './routes/fiado/$token'
 import { Route as PedidoTokenRouteImport } from './routes/pedido/$token'
 import { Route as ApiPublicFiadoManifestTokenRouteImport } from './routes/api/public/fiado-manifest.$token'
@@ -37,6 +38,11 @@ const FuncionarioRoute = FuncionarioRouteImport.update({
   path: '/funcionario',
   getParentRoute: () => rootRouteImport,
 } as any)
+const M08BancadaRoute = M08BancadaRouteImport.update({
+  id: '/m08-bancada',
+  path: '/m08-bancada',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FiadoTokenRoute = FiadoTokenRouteImport.update({
   id: '/fiado/$token',
   path: '/fiado/$token',
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/caixa': typeof CaixaRoute
   '/conector': typeof ConectorRoute
   '/funcionario': typeof FuncionarioRoute
+  '/m08-bancada': typeof M08BancadaRoute
   '/fiado/$token': typeof FiadoTokenRoute
   '/pedido/$token': typeof PedidoTokenRoute
   '/api/public/fiado-manifest/$token': typeof ApiPublicFiadoManifestTokenRoute
@@ -68,6 +75,7 @@ export interface FileRoutesByTo {
   '/caixa': typeof CaixaRoute
   '/conector': typeof ConectorRoute
   '/funcionario': typeof FuncionarioRoute
+  '/m08-bancada': typeof M08BancadaRoute
   '/fiado/$token': typeof FiadoTokenRoute
   '/pedido/$token': typeof PedidoTokenRoute
   '/api/public/fiado-manifest/$token': typeof ApiPublicFiadoManifestTokenRoute
@@ -78,6 +86,7 @@ export interface FileRoutesById {
   '/caixa': typeof CaixaRoute
   '/conector': typeof ConectorRoute
   '/funcionario': typeof FuncionarioRoute
+  '/m08-bancada': typeof M08BancadaRoute
   '/fiado/$token': typeof FiadoTokenRoute
   '/pedido/$token': typeof PedidoTokenRoute
   '/api/public/fiado-manifest/$token': typeof ApiPublicFiadoManifestTokenRoute
@@ -89,6 +98,7 @@ export interface FileRouteTypes {
     | '/caixa'
     | '/conector'
     | '/funcionario'
+    | '/m08-bancada'
     | '/fiado/$token'
     | '/pedido/$token'
     | '/api/public/fiado-manifest/$token'
@@ -98,6 +108,7 @@ export interface FileRouteTypes {
     | '/caixa'
     | '/conector'
     | '/funcionario'
+    | '/m08-bancada'
     | '/fiado/$token'
     | '/pedido/$token'
     | '/api/public/fiado-manifest/$token'
@@ -107,6 +118,7 @@ export interface FileRouteTypes {
     | '/caixa'
     | '/conector'
     | '/funcionario'
+    | '/m08-bancada'
     | '/fiado/$token'
     | '/pedido/$token'
     | '/api/public/fiado-manifest/$token'
@@ -117,6 +129,7 @@ export interface RootRouteChildren {
   CaixaRoute: typeof CaixaRoute
   ConectorRoute: typeof ConectorRoute
   FuncionarioRoute: typeof FuncionarioRoute
+  M08BancadaRoute: typeof M08BancadaRoute
   FiadoTokenRoute: typeof FiadoTokenRoute
   PedidoTokenRoute: typeof PedidoTokenRoute
   ApiPublicFiadoManifestTokenRoute: typeof ApiPublicFiadoManifestTokenRoute
@@ -152,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FuncionarioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/m08-bancada': {
+      id: '/m08-bancada'
+      path: '/m08-bancada'
+      fullPath: '/m08-bancada'
+      preLoaderRoute: typeof M08BancadaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/fiado/$token': {
       id: '/fiado/$token'
       path: '/fiado/$token'
@@ -181,6 +201,7 @@ const rootRouteChildren: RootRouteChildren = {
   CaixaRoute: CaixaRoute,
   ConectorRoute: ConectorRoute,
   FuncionarioRoute: FuncionarioRoute,
+  M08BancadaRoute: M08BancadaRoute,
   FiadoTokenRoute: FiadoTokenRoute,
   PedidoTokenRoute: PedidoTokenRoute,
   ApiPublicFiadoManifestTokenRoute: ApiPublicFiadoManifestTokenRoute,
