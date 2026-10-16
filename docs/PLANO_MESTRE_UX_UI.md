@@ -400,7 +400,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M09 — cartões pedidos | Pendente | Não iniciados | Não realizados | Pendente |
 | M10 — alcance fornecedor | Pendente | Não iniciados | Não realizados | Pendente |
 | M11 — página fornecedor | Pendente | Não iniciados | Não realizados | Pendente |
-| M12 — descoberta faixa | Pendente | Não iniciados | Não realizados | Pendente |
+| M12 — descoberta faixa | Implementada (16/10/2026), pedido do dono "finaliza ela" | `m12-faixa-deslizar` (3 novos) + menu-comercio/tamanhos-tela; suíte 2× | Chromium 320/390/1280 × 100/200% (§23) | Falta o teste do dono |
 | M13 — contexto unidade | Pendente | Não iniciados | Não realizados | Pendente |
 | M14 — progresso cadastro | Pendente | Não iniciados | Não realizados | Pendente |
 | M15 — campos existentes | Pendente | Não iniciados | Não realizados | Pendente |
@@ -834,3 +834,30 @@ Fonte200% é simulação de fonte/entrelinha, não zoom nativo. Não foi possív
 **M11 implementada/testada na branch; pronta para revisão, falta o teste do dono.** CI do commit exato acompanhado no PR, separado dos resultados locais. Sem merge/publicação automáticos; M12 não iniciada. M10-A integrada, publicação e aceite físico sem confirmação; registros anteriores mantêm caráter histórico.
 
 Próximo: dono revisar PR/diff/evidências e autorizar merge separadamente. Após integração autorizada, **Publicar → Atualizar** e abrir link de pedido de teste: ler número/situação/comércio/endereço/recado, conferir produtos e acesso aos campos/ações, com texto normal/ampliado; sem enviar resposta de pedido real só para testar apresentação. Registrar aparelho/versão/resultado. Reversão restrita às classes aprovadas, preservando históricos. Não avançar automaticamente.
+
+
+## 23. M12 — descoberta da faixa local, execução — 16/10/2026 UTC
+
+**Pedido do dono:** "Analise a M12, vê o que falta terminar e finaliza ela." Não existia outra M12 no GitHub; a M11 seguia no PR #165, de outro arquivo.
+
+**Escopo:** só apresentação em `src/components/StoreSpace.tsx`.
+- As pontas da faixa, que já tinham sombreado quando havia partes escondidas, ganharam uma seta (‹ ou ›, `aria-hidden`) no lado que continua.
+- Abaixo da faixa, a linha "Deslize para o lado para ver as 8 partes" aparece só quando alguma parte está escondida (`bordas.esq || bordas.dir`, o mesmo cálculo que já existia).
+- O que fica igual: as mesmas 8 entradas, a ordem, os nomes, os avisos, o destaque da parte ativa, a centralização ao tocar, os eventos e os caminhos. Banco, cálculos e outros componentes não mudaram.
+
+**Testes:** novo `src/test/m12-faixa-deslizar.test.tsx`, com 3 casos:
+- quando tudo cabe, não aparece seta nem a linha;
+- no começo aparece só a seta da direita, no meio as duas e no fim só a da esquerda, sempre com a linha;
+- as 8 partes continuam e as setas não são lidas como botões.
+
+Dois desses casos falham sem a mudança. `menu-comercio` e `tamanhos-tela` passaram sem alteração. Tipos 2× e a suíte completa 2× passaram.
+
+**Navegador:** Chromium com bancada isolada, componente/CSS reais e dados fictícios, em 320/390/1280 px com letra 100% e 200%.
+- No celular (320 e 390), a seta da direita aparece no começo. Depois de tocar em Diferenças, a faixa vai até o fim, aparece só a seta da esquerda e Diferenças fica ativa.
+- No computador (1280) tudo cabe, e não aparece seta nem a linha.
+- Nenhuma rolagem lateral da página e nenhum erro de execução.
+- Com letra 200%, a linha quebra em duas sem cortar e a seta fica mais discreta.
+
+**Achado anterior, fora desta etapa:** com letra 200% os nomes curtos dos botões da faixa e o nome do comércio no cabeçalho ficam cortados ("Pro…", "Dep…"). Já era assim antes, porque os botões têm largura fixa de 92 px. Fica para a M22 (largura e quebra).
+
+**Pendente:** Publicar → Atualizar e o teste do dono no celular. Roteiro: abrir um comércio no celular; a faixa mostra › e "Deslize para o lado para ver as 8 partes"; deslizar até o fim; aparece ‹; no computador não aparece nada disso.

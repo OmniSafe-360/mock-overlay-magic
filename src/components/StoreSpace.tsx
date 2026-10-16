@@ -1,6 +1,6 @@
 import { useHoje } from "@/hooks/useHoje";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ClipboardList, LayoutGrid, Package, Receipt, RefreshCw, Scale, Store, Truck, Users, Warehouse, type LucideIcon } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, ClipboardList, LayoutGrid, Package, Receipt, RefreshCw, Scale, Store, Truck, Users, Warehouse, type LucideIcon } from "lucide-react";
 import { nomeAreaVenda, textoDoTipo } from "@/lib/exemplos";
 import { TIPOS, type StoreData } from "@/components/StoreSetup";
 import { atencaoHoje } from "@/lib/situacao";
@@ -126,8 +126,10 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
             <BotaoBarra key={t} on={tab === t} Icon={SECOES[t].Icon} rotulo={curtoAba(t)} aviso={avisos[t]} onClick={() => irPara(t)} />
           ))}
         </div>
-        {bordas.esq && <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-background to-transparent" />}
-        {bordas.dir && <span aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent" />}
+        {/* M12: setas nas pontas e uma linha curta mostram que a faixa corre para o lado (só quando há partes escondidas). */}
+        {bordas.esq && <span aria-hidden data-testid="faixa-seta-esq" className="pointer-events-none absolute left-0 top-0 flex h-16 w-8 items-center justify-start bg-gradient-to-r from-background to-transparent pl-0.5 text-muted-foreground"><ChevronLeft size={18} /></span>}
+        {bordas.dir && <span aria-hidden data-testid="faixa-seta-dir" className="pointer-events-none absolute right-0 top-0 flex h-16 w-8 items-center justify-end bg-gradient-to-l from-background to-transparent pr-0.5 text-muted-foreground"><ChevronRight size={18} /></span>}
+        {(bordas.esq || bordas.dir) && <p className="mt-1 px-5 text-center text-xs text-muted-foreground">Deslize para o lado para ver as {TABS.length} partes</p>}
       </nav>
 
       {tab === "Produtos" ? (
