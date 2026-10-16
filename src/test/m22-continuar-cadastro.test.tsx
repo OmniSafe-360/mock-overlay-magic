@@ -21,6 +21,9 @@ describe("M22 — Continuar do cadastro com letra grande", () => {
     const linha = continuar.parentElement!;
     expect(linha.className).toContain("@max-[7.5rem]:flex-col-reverse");
     expect(linha.parentElement!.className).toContain("@container");
+    // Achado do Codex: com a tela muito baixa, a tela inteira rola (campos com altura mínima) e Voltar continua alcançável.
+    expect(document.querySelector("main")!.className).toContain("overflow-y-auto");
+    expect(document.querySelector("[data-kb-scroll]")!.className).toContain("min-h-[5rem]");
     fireEvent.click(voltar);
     expect(screen.getByText("Qual é o código do produto?")).toBeTruthy();
   });

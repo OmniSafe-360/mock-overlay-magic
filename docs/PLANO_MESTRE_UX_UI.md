@@ -1220,10 +1220,10 @@ Não mudam: a ordem dos passos, as validações, o salvamento e os textos dos bo
 - Com letra 100% em 320, 390 e 1280 px: igual ao antes.
 - Com letra 200%: em 390 e 1280 px, Voltar com a seta (68 px) e Continuar inteiro; em 320 px, os botões ficam um sobre o outro e Continuar não é mais cortado.
 
-**Limitação que já existia, não resolvida aqui (é de altura, não de largura):**
-- Em 320 × 568 com letra 200%, o título e os botões ocupam a tela inteira e a área dos campos fica com 0 px de altura.
-- Com os botões empilhados, o Voltar fica abaixo da tela.
-- Resolver isso exige deixar a tela do cadastro rolar como um todo, o que muda a regra "cadastro sem rolagem". Fica para o dono decidir.
+**Altura (achado do Codex no PR #180):**
+- Em 320 × 568 com letra 200%, o título e os botões ocupavam a tela inteira; a área dos campos ficava com 0 px e o Voltar empilhado ia para baixo da tela, sem como alcançar.
+- Agora a área dos campos tem **altura mínima de 5 rem**. Só quando a tela não tem altura para tudo, a tela inteira do cadastro rola (`overflow-y-auto` no `main`). Medido: só 320 × 568 com letra 200% rola; os campos ficam com 160 px e o Voltar é alcançável.
+- Com letra normal, nenhuma tela do cadastro passou a rolar. Medido em 320 × 568 e 390 × 844, telas código, preço, detalhes, fornecedor e depósito. A regra "cadastro sem rolagem" continua valendo nesses casos.
 
 **Provas:**
 - Teste novo `src/test/m22-continuar-cadastro.test.tsx`: Voltar mantém o nome para o leitor de tela, as regras só valem com pouco espaço e o Voltar navega igual. O teste falha sem a mudança.
