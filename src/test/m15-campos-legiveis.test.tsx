@@ -49,3 +49,16 @@ describe("M15 — campos legíveis (bloco A)", () => {
     expect(src).not.toMatch(/\bmin-h-9\b|\bh-9 w-9\b/);
   });
 });
+
+describe("M15 — campos legíveis (bloco B, preço e unidade)", () => {
+  it("% de lucro com 44 px; unidade e categoria com rótulo e ajuda iguais aos outros campos", () => {
+    const submit = abrir();
+    click("Digitar código"); typeIn("Código do produto", "7890001"); typeIn("Nome do produto", "Produto"); submit();
+    expect(screen.getByLabelText(/Lucro sobre o custo/).className).toContain("h-11");
+    const rotuloUn = screen.getByText("Unidade de medida");
+    expect(rotuloUn.className).toContain("short:text-xs");
+    expect(screen.getByText("Como você vende este produto.").className).toContain("field-hint");
+    expect(screen.getByText("Categoria").className).toContain("short:text-xs");
+    expect(screen.getByText("Ajuda a organizar a lista.").className).toContain("field-hint");
+  });
+});
