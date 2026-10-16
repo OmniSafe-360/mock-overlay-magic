@@ -77,18 +77,18 @@ function Cartao({ s, itens, onOpen, onEditar }: { s: Supplier; itens: ItemProd[]
   const comprar = itens.filter((i) => i.compra).length;
   const wa = linkWhatsApp(s.tel);
   return (
-    <section aria-label={s.nome} className={`rounded-3xl border bg-secondary/60 p-4 ${comprar ? "border-warning/50" : "border-border"}`}>
-      <div className="flex items-start gap-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary"><Truck size={20} /></span>
-        <div className="min-w-0 flex-1">
+    <section aria-label={s.nome} className={`@container rounded-3xl border bg-secondary/60 p-4 ${comprar ? "border-warning/50" : "border-border"}`}>
+      <div className="flex items-start gap-3 @max-[12rem]:flex-wrap">
+        <span aria-hidden className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary @max-[12rem]:hidden"><Truck size={20} /></span>
+        <div className="min-w-0 flex-1 @max-[12rem]:order-last @max-[12rem]:basis-full">
           <h2 className="break-words text-base font-bold leading-snug">{s.nome}</h2>
           <p className="text-sm text-muted-foreground">{s.tel ? maskPhone(s.tel) : "Sem telefone"}</p>
           {s.email && <p className="break-all text-sm text-muted-foreground">{s.email}</p>}
         </div>
-        <button type="button" onClick={onEditar} aria-label={`Editar ${s.nome}`} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-primary hover:bg-secondary"><Pencil size={18} /></button>
+        <button type="button" onClick={onEditar} aria-label={`Editar ${s.nome}`} className="-mr-1 -mt-0.5 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-primary hover:bg-secondary @max-[12rem]:ml-auto"><Pencil size={18} /></button>
       </div>
 
-      <div className="mt-3 grid grid-cols-3 gap-2">
+      <div className="mt-3 grid grid-cols-3 gap-2 @max-[12rem]:grid-cols-1">
         <Contato href={wa} rotulo="WhatsApp" Icone={MessageCircle} externo />
         <Contato href={so(s.tel).length >= 10 ? `tel:${so(s.tel)}` : ""} rotulo="Ligar" Icone={Phone} />
         <Contato href={s.email ? `mailto:${s.email}` : ""} rotulo="E-mail" Icone={Mail} />
@@ -96,7 +96,7 @@ function Cartao({ s, itens, onOpen, onEditar }: { s: Supplier; itens: ItemProd[]
       {!s.tel && !s.email && <p className="mt-2 text-xs text-warning">Toque no lápis e informe o WhatsApp ou o e-mail para poder enviar pedidos.</p>}
 
       <button type="button" aria-expanded={aberto} onClick={() => setAberto(!aberto)} disabled={!itens.length}
-        className="mt-3 flex min-h-11 w-full items-center justify-between gap-2 rounded-2xl bg-background-deep/50 px-3 text-left text-sm disabled:opacity-70">
+        className="mt-3 flex min-h-12 w-full items-center justify-between gap-2 rounded-2xl bg-background-deep/50 px-3 text-left text-sm disabled:opacity-70">
         <span>
           {itens.length ? (itens.length === 1 ? "1 produto neste comércio" : `${itens.length} produtos neste comércio`) : "Nenhum produto neste comércio"}
           {comprar > 0 && <span className="block font-semibold text-warning">{comprar} para comprar</span>}
@@ -112,7 +112,7 @@ function SemFornecedor({ itens, onOpen }: { itens: ItemProd[]; onOpen: (p: Produ
   const [aberto, setAberto] = useState(false);
   return (
     <section aria-label="Sem fornecedor" className="rounded-3xl border border-dashed border-border p-4">
-      <button type="button" aria-expanded={aberto} onClick={() => setAberto(!aberto)} className="flex min-h-11 w-full items-center justify-between gap-2 text-left">
+      <button type="button" aria-expanded={aberto} onClick={() => setAberto(!aberto)} className="flex min-h-12 w-full items-center justify-between gap-2 text-left">
         <span>
           <span className="block text-base font-bold">Sem fornecedor</span>
           <span className="block text-sm text-muted-foreground">{itens.length === 1 ? "1 produto" : `${itens.length} produtos`} sem fornecedor definido</span>
@@ -134,7 +134,7 @@ function ListaItens({ itens, onOpen }: { itens: ItemProd[]; onOpen: (p: Product)
     <ul className="mt-2 divide-y divide-border">
       {itens.map((i) => (
         <li key={i.p.id}>
-          <button type="button" onClick={() => onOpen(i.p)} className="flex min-h-11 w-full items-center justify-between gap-3 py-2 text-left text-sm">
+          <button type="button" onClick={() => onOpen(i.p)} className="flex min-h-12 w-full items-center justify-between gap-3 py-2 text-left text-sm">
             <span className="min-w-0 break-words font-medium">{i.p.nome}</span>
             {i.compra && <span className={`shrink-0 text-xs font-semibold ${i.acabou ? "text-destructive" : "text-warning"}`}>{i.acabou ? "Acabou" : "Comprar"}</span>}
           </button>
@@ -145,7 +145,7 @@ function ListaItens({ itens, onOpen }: { itens: ItemProd[]; onOpen: (p: Product)
 }
 
 function Contato({ href, rotulo, Icone, externo }: { href: string; rotulo: string; Icone: typeof Phone; externo?: boolean }) {
-  const cls = "flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl border text-xs font-semibold";
+  const cls = "flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-2xl border px-1 text-center text-xs font-semibold @max-[12rem]:flex-row @max-[12rem]:gap-2";
   if (!href) return <span aria-disabled className={`${cls} border-border text-muted-foreground/50`}><Icone size={18} /> {rotulo}</span>;
   return (
     <a href={href} {...(externo ? { target: "_blank", rel: "noopener noreferrer" } : {})} className={`${cls} border-border text-primary hover:border-primary`}>

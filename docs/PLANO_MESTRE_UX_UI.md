@@ -1303,3 +1303,33 @@ A mudança é só de apresentação, em `src/components/ReporGondola.tsx` (`Fase
 - **Testes:** `src/test/m22-fases-repor.test.tsx` (falha sem a mudança) e `m17-fases-reposicao`. Tipos 2×, 1.261 testes/137 arquivos 2×, build.
 - **Roteiro do dono (no final):** com letra grande no celular, abrir Repor → um produto → conferir que a faixa mostra a fase atual com o nome e as outras com o número, e que a contagem aparece sem rolar muito.
 - **M22 concluída no código** (subetapas 1 a 5). Próximas da lista: Fornecedores (botões de 44 px e contatos sobrepostos com letra grande), depois M23 e M24.
+
+## 41. Fornecedores — botões de 48 px e cartão com letra grande — 16/10/2026 UTC
+
+Pedido do dono: "Pode fazer o próximo" (etapa 4 da lista apresentada após a análise). Corrige limitações anotadas na M10-A (§21): contatos sobrepostos em 320 px com letra 200% e botões editar/abrir com 44 px. A M10-B (opcional) não foi feita.
+
+A mudança é só de apresentação, em `src/components/PainelFornecedores.tsx`.
+
+- **Botões com 48 px:**
+  - Lápis de editar (de 44 para 48 px, sem crescer a linha).
+  - "N produtos neste comércio", "Sem fornecedor" e cada produto da lista (de 44 para 48 px).
+- **Cartão do fornecedor:**
+  - Passa a medir o próprio espaço (`@container`).
+  - Com menos de 12 rem, o que só acontece com letra grande, o ícone do caminhão some. Ele é só decoração e fica marcado como escondido para o leitor de tela.
+  - O lápis vai para o canto de cima e o nome, o telefone e o e-mail ocupam a linha inteira.
+  - WhatsApp, Ligar e E-mail ficam um embaixo do outro, com ícone e nome lado a lado.
+  - Com letra normal, o cartão fica como antes, inclusive em 320 px com 3 contatos lado a lado.
+- **Problema medido antes (Chromium, fornecedor fictício com nome e e-mail longos):** em 320 px com letra 200%, nome e e-mail ficavam com uma letra por linha, cartão de ~3.500 px. Os 3 contatos tinham texto saindo da caixa: 3 em 320 px e 1 em 390 px.
+- **Depois:** nenhum contato com texto saindo da caixa nem sobreposto, em 320/390/1280 × 100/200%. Sem rolagem lateral e sem erros. Botões medidos: 48 px com letra normal, 96 px a 200%.
+- **Sem mudança:**
+  - Textos, ordem dos fornecedores e links (WhatsApp, tel:, mailto:).
+  - Abrir e editar, produtos do comércio e banco.
+- **Testes:**
+  - `src/test/fornecedores-alvos-letra.test.tsx`: os 2 testes falham sem a mudança.
+  - `painel-fornecedores` também passa.
+  - Tipos 2×, 1.263 testes/138 arquivos 2×, build.
+- **Roteiro do dono (no final):** em Fornecedores, com letra grande no celular, conferir:
+  - o nome inteiro legível;
+  - WhatsApp/Ligar/E-mail um embaixo do outro, abrindo certo;
+  - o lápis abrindo a edição, cancelando sem salvar.
+- **Próximas da lista:** M23 (geometria do primeiro cadastro) e M24 (validação integrada).

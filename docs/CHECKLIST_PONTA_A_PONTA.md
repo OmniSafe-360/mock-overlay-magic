@@ -531,3 +531,4 @@ Análise pedida pelo dono em 16/10/2026 sobre `main 529b360` (verificação remo
 
 - 16/10/2026: M22 subetapa 4 (cartões de variação da roupa com letra grande) implementada; ver PLANO §39. Precisa Publicar → Atualizar; falta o teste do dono.
 - 16/10/2026: M22 subetapa 5 (faixa de fases do Repor com letra grande) implementada; M22 concluída no código (PLANO §40). O dono decidiu fazer todos os testes no final; falta o teste do dono.
+- 16/10/2026: Fornecedores com botões de 48 px e cartão legível com letra grande (PLANO §41). Falta o teste do dono (no final).
