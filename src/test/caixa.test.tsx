@@ -292,7 +292,7 @@ describe("caixa no celular", () => {
     let pinCerto = false;
     const api = apiCaixa({
       estado: vi.fn(async () => ({ ...estado(), vendas: [vendaFeita] })),
-      cancelar: vi.fn(async () => { if (!pinCerto) throw new Error("pin_errado:4"); return "cancelada" as const; }),
+      cancelar: vi.fn(async () => { if (!pinCerto) throw new Error("pin_errado:4"); return { situacao: "cancelada" as const, devolver: 0 }; }),
       sangria: vi.fn(async () => ({ ...turno, sangrias: 3000 })),
       fechar: vi.fn(async () => ({ ...turno, fechado: true, dinheiroEsperado: 13628, dinheiroContado: 13000, diferenca: -628 })),
     });
@@ -308,6 +308,7 @@ describe("caixa no celular", () => {
     fireEvent.change(screen.getByLabelText("PIN do dono"), { target: { value: "2468" } });
     fireEvent.click(screen.getByRole("button", { name: "Confirmar cancelamento" }));
     expect(await screen.findByText(/Venda nº 9 cancelada/)).toBeTruthy();
+    expect(screen.queryByText(/Devolva/)).toBeNull(); // nada a devolver
     expect(api.cancelar).toHaveBeenLastCalledWith(CH, "v9", "2468", "");
     fireEvent.click(screen.getAllByRole("button", { name: "Fechar" })[0]!);
 
@@ -328,6 +329,24 @@ describe("caixa no celular", () => {
     expect(await screen.findByText("Faltaram R$ 6,28")).toBeTruthy();
     expect(screen.getByText("Deveria ter na gaveta")).toBeTruthy();
     expect(api.fechar).toHaveBeenCalledWith(CH, "t1", 13000, "");
+  });
+
+  it("A5: cancelar venda fiado já paga avisa quanto devolver ao cliente", async () => {
+    const vendaFiado = { id: "v7", numero: 7, feitaEm: "2026-10-10T12:00:00Z", total: 10000, situacao: "finalizada" as const, troco: 0, cliente: "João",
+      pagamentos: [{ forma: "fiado", valor: 10000 }], itens: [{ descricao: "Arroz", qtd: 4, valor: 10000 }] };
+    const api = apiCaixa({
+      estado: vi.fn(async () => ({ ...estado(), vendas: [vendaFiado] })),
+      cancelar: vi.fn(async () => ({ situacao: "cancelada" as const, devolver: 6000 })),
+    });
+    render(<CaixaCelular chave={CH} api={api} onSair={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Menu do caixa" }));
+    fireEvent.click(screen.getByRole("button", { name: /Vendas deste caixa/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Venda nº 7/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Cancelar esta venda/ }));
+    fireEvent.change(screen.getByLabelText("PIN do dono"), { target: { value: "2468" } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar cancelamento" }));
+    expect(await screen.findByText(/Venda nº 7 cancelada/)).toBeTruthy();
+    expect((await screen.findByRole("alert")).textContent?.replace(/\s/g, " ")).toBe("Devolva R$ 60,00 ao cliente: é o que ele já tinha pago desta venda no fiado.");
   });
 
   it("o carrinho continua no celular se o app travar no meio da venda", async () => {
@@ -422,7 +441,7 @@ describe("dono: PIN do caixa, fechamentos e cancelar venda do celular", () => {
     const hoje = new Date().toISOString();
     const vendas = [{ id: "v1", caixaId: "cx", chave: null, numero: 3, emitidaEm: hoje, recebidaEm: hoje, total: 698, situacao: "finalizada" as const, canceladaEm: null,
       pagamentos: [{ forma: "dinheiro", valor: 1000 }], celular: true, troco: 302, turnoId: "t1", itens: [] }];
-    const cancelarCelular = vi.fn(async () => {});
+    const cancelarCelular = vi.fn(async () => ({ situacao: "cancelada" as const, devolver: 0 }));
     const conferirFechamento = vi.fn(async () => {});
     const api = {
       caixas: vi.fn(async () => [{ id: "cx", nome: "Celular · Maria", tipo: "celular" as const, codigo: null, codigoGeradoEm: null, ligadoEm: hoje, desligadoEm: null, ultimoContatoEm: hoje, ultimaVendaEm: hoje, aparelho: null }]),
@@ -443,6 +462,25 @@ describe("dono: PIN do caixa, fechamentos e cancelar venda do celular", () => {
     fireEvent.click(screen.getByRole("button", { name: /Sim, cancelar a venda/ }));
     await waitFor(() => expect(cancelarCelular).toHaveBeenCalledWith("v1", ""));
     expect(await screen.findByText(/Venda nº 3 cancelada/)).toBeTruthy();
+    expect(screen.queryByText(/Devolva/)).toBeNull();
+  });
+  it("A5: o dono cancela venda fiado já paga e vê quanto devolver", async () => {
+    const { PainelVendas } = await import("@/components/PainelVendas");
+    const hoje = new Date().toISOString();
+    const vendas = [{ id: "v2", caixaId: "cx", chave: null, numero: 4, emitidaEm: hoje, recebidaEm: hoje, total: 5000, situacao: "finalizada" as const, canceladaEm: null,
+      pagamentos: [{ forma: "fiado", valor: 5000 }], celular: true, troco: 0, turnoId: "t1", itens: [] }];
+    const cancelarCelular = vi.fn(async () => ({ situacao: "cancelada" as const, devolver: 2050 }));
+    const api = {
+      caixas: vi.fn(async () => [{ id: "cx", nome: "Celular · Maria", tipo: "celular" as const, codigo: null, codigoGeradoEm: null, ligadoEm: hoje, desligadoEm: null, ultimoContatoEm: hoje, ultimaVendaEm: hoje, aparelho: null }]),
+      vendas: vi.fn(async () => vendas), criar: vi.fn(), renomear: vi.fn(), novoCodigo: vi.fn(), desligar: vi.fn(), pendentes: vi.fn(async () => []), resolver: vi.fn(),
+      fechamentos: vi.fn(async () => []), conferirFechamento: vi.fn(async () => {}), cancelarCelular,
+    };
+    render(<PainelVendas comercioId="c1" tipo="mercado" products={[]} api={api as never} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Venda 4/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Cancelar esta venda/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Sim, cancelar a venda/ }));
+    expect((await screen.findByText(/Venda nº 4 cancelada/)).textContent?.replace(/\s/g, " "))
+      .toMatch(/Devolva R\$ 20,50 ao cliente: é o que ele já tinha pago desta venda no fiado\./);
   });
   it("falta de um fechamento antigo que o dono não viu continua aparecendo, sem total de vendas falso", async () => {
     const { PainelVendas } = await import("@/components/PainelVendas");
