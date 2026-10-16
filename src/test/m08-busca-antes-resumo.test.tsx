@@ -44,7 +44,9 @@ describe("M08 — busca antes do resumo", () => {
     fireEvent.change(screen.getByRole("searchbox", { name: "Buscar produto" }), { target: { value: "fei" } });
     fireEvent.click(screen.getByRole("button", { name: /Precisam de atenção/ }));
     fireEvent.click(within(screen.getByRole("list")).getByRole("button", { name: /Feijão/ }));
-    fireEvent.click(screen.getAllByRole("button", { name: /Voltar/ })[0]!);
+    const voltar = screen.getAllByRole("button", { name: /^Produtos$/ }).find((b) => !b.closest("nav"))!;
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    fireEvent.click(voltar);
     expect((screen.getByRole("searchbox", { name: "Buscar produto" }) as HTMLInputElement).value).toBe("fei");
     expect(screen.getByRole("button", { name: /Precisam de atenção/ }).getAttribute("aria-pressed")).toBe("true");
   });
