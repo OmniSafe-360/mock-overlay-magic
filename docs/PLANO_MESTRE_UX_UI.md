@@ -410,7 +410,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M19 — conferência existente | Implementada (16/10/2026), aguarda revisão | conferência/contagem cega/diferenças/vocabulário + suíte 1.189 2× | 60 capturas 320/390/1280 × 100/200% | Pendente |
 | M20 — alvos cadastro | Implementada (16/10/2026), pedido do dono "Pode fazer a M20" | `m20-alvos-cadastro` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§32) | Falta o teste do dono |
 | M21 — ajuda e erro | Implementada (16/10/2026), pedido do dono "Pode fazer a M21" | `m21-ajuda-erro` (4 novos, falham sem a mudança); suíte 2× | Chromium 390 px: referências válidas, sem id repetido (§33) | Falta o teste do dono |
-| M22 — largura/quebra | Pendente | Não iniciados | Não realizados | Pendente |
+| M22 — largura e quebra | Subetapa 1 (lista de produtos) implementada (16/10/2026), pedido do dono "Pode fazer a M22" | `m22-lista-produtos` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/768/1280 × 100/200% (§34) | Falta o teste do dono; próximas subetapas não iniciadas |
 | M23 — geometria cadastro | Pendente | Não iniciados | Não realizados | Pendente |
 | M24 — validação integrada | Pendente | Não iniciados | Não realizados | Pendente |
 | X01–X10 — fila separada | Não autorizada; análise própria | Não iniciados | Não realizados | Pendente |
@@ -1144,6 +1144,37 @@ Não mudam: a aparência, os textos, quando cada campo é validado, o foco e a o
 - Chromium, cadastro de produto da farmácia em 390 px, telas Código e Preço: todos os campos com descrição; nenhuma referência apontando para mensagem que não existe; nenhum id repetido. Quando o código digitado parece errado, a descrição passa a ser o aviso.
 
 **Pendente:** Publicar → Atualizar. O dono não vê diferença na tela. Com leitor de tela (TalkBack, VoiceOver), ao tocar num campo, o leitor fala também a explicação ou o erro.
+
+## 34. M22 — largura e quebra, subetapa 1: lista de produtos — 16/10/2026 UTC
+
+**Pedido do dono (16/10/2026):** "Pode fazer a M22". O plano manda um componente por subetapa, começando por `src/components/ListaProdutos.tsx`.
+
+**Medido antes, no Chromium** (produtos com nome longo, categoria longa e valores grandes; telas de 320, 390, 768 e 1280 px; letra 100% e 200%):
+- **Preço cortado:** com categoria longa, o preço de venda aparecia como "R$ …" já em 320 px com letra normal. A linha da categoria e do preço era cortada (`truncate`).
+- **Frase da situação:** com letra 200% em 320 px, "Falta completar o cadastro" passava da borda do cartão e ficava cortada.
+- **Filtro "Falta completar":** com letra 200% em 320 px, saía 3 px para fora da tela.
+- **Filtros Todos / Precisam de atenção / Falta completar:** 44 px de altura (a regra do projeto é 48 px).
+
+**O que mudou** (só apresentação, `ListaProdutos.tsx`):
+- A linha "categoria · preço" quebra em vez de cortar, e o preço não se divide no meio: fica inteiro na linha de baixo quando não cabe.
+- A frase da situação quebra a linha dentro do cartão.
+- Os filtros passaram a ter 48 px, podem quebrar o texto e não passam da largura da tela.
+
+Não mudam: os dados mostrados, a ordem, os filtros, a busca, o toque para abrir a ficha e os números. Nenhum filtro ou tabela nova.
+
+**Depois, no Chromium:** nenhum botão fora da tela, preço visível em todos os tamanhos, filtros com 48 px (96 px com letra 200%), sem rolagem lateral e sem erro.
+
+**Provas:**
+- Teste novo `src/test/m22-lista-produtos.test.tsx`: preço não cortado; frase quebra; filtros com 48 px e funcionando igual. Os 2 casos falham sem a mudança.
+- Tipos e 1.228 testes passaram duas vezes; build aprovado.
+
+**Próximas subetapas da M22, não iniciadas, anotadas nas etapas anteriores:**
+- botões da faixa do comércio com letra 200% (M12);
+- botão Continuar do cadastro cortado em 320 px com letra 200% (M14);
+- cartões de variação passando da borda com letra 200% (M20);
+- faixa de fases da reposição alta demais em 320 px com letra 200% (M17).
+
+**Pendente:** Publicar → Atualizar e o teste do dono. Roteiro: na lista de produtos, um produto com categoria de nome longo deve mostrar o preço inteiro.
 
 ## 35. M22 — largura e quebra, subetapa 2: faixa do comércio — 16/10/2026 UTC
 

@@ -98,7 +98,7 @@ export function ListaProdutos({ products, tipo, suppliers, onNew, onOpen, resumo
 function Filtro({ on, onClick, rotulo, n, alerta }: { on: boolean; onClick: () => void; rotulo: string; n: number; alerta?: boolean }) {
   return (
     <button type="button" aria-pressed={on} onClick={onClick}
-      className={`flex min-h-11 items-center gap-2 rounded-2xl border px-4 text-sm font-semibold transition ${on ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:text-foreground"}`}>
+      className={`flex min-h-12 max-w-full items-center gap-2 break-words rounded-2xl border px-4 text-left text-sm font-semibold transition ${on ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:text-foreground"}`}>
       {rotulo}
       <span className={`min-w-6 rounded-full px-1.5 py-0.5 text-xs tabular-nums ${alerta ? "bg-destructive text-white" : on ? "bg-white/20" : "bg-secondary"}`}>{n}</span>
     </button>
@@ -114,10 +114,10 @@ function Linha({ p, s, onOpen }: { p: Product; s: Situacao; onOpen: () => void }
       <span aria-hidden className={`absolute inset-y-0 left-0 w-1.5 ${BARRA[s.nivel]}`} />
       <span className="min-w-0 flex-1">
         <span className="line-clamp-2 block break-words text-base font-semibold leading-snug">{p.nome}</span>
-        <span className="block truncate text-sm text-muted-foreground">{p.categoria || "Sem categoria"} · <span className="font-semibold text-accent">{brl(p.venda)}</span></span>
+        <span className="block break-words text-sm text-muted-foreground">{p.categoria || "Sem categoria"} · <span className="whitespace-nowrap font-semibold text-accent">{brl(p.venda)}</span></span>
         <span className={`mt-1.5 flex items-baseline gap-1.5 text-sm font-medium leading-snug ${TEXTO[s.nivel]}`}>
           <span aria-hidden className={`h-2 w-2 shrink-0 translate-y-[-1px] rounded-full ${BARRA[s.nivel]}`} />
-          <span className="min-w-0">{fraseSituacao(s)}</span>
+          <span className="min-w-0 break-words">{fraseSituacao(s)}</span>
           {outros > 0 && <span className="shrink-0 text-xs text-muted-foreground">+{outros}</span>}
         </span>
       </span>
