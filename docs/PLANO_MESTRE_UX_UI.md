@@ -403,7 +403,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M12 — descoberta faixa | Implementada (16/10/2026), pedido do dono "finaliza ela" | `m12-faixa-deslizar` (3 novos) + menu-comercio/tamanhos-tela; suíte 2× | Chromium 320/390/1280 × 100/200% (§23) | Falta o teste do dono |
 | M13 — contexto unidade | Implementada, testada e integrada ao main (16/10/2026; revisão técnica aprovada em `ef75121`) | `m13-contexto-unidade` (6 novos); tipos e suíte 2× | Chromium 320/390/768/1280 × 100/200% (32 capturas) | Aguarda publicação e homologação final do dono |
 | M14 — progresso cadastro | Implementada (16/10/2026), pedido do dono "faça a etapa M14" | `m14-progresso-cadastro` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§24) | Falta o teste do dono |
-| M15 — campos existentes | Pendente | Não iniciados | Não realizados | Pendente |
+| M15 — campos existentes | Bloco A implementado (16/10/2026), pedido do dono "Pode fazer a M15" | `m15-campos-legiveis` (3 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§25) | Falta o teste do dono; outros blocos não iniciados |
 | M16 — convite instalação | Pendente | Não iniciados | Não realizados | Pendente |
 | M17 — fases reposição | Pendente | Não iniciados | Não realizados | Pendente |
 | M18 — estados recebimento | Pendente | Não iniciados | Não realizados | Pendente |
@@ -881,3 +881,25 @@ Sequência dos passos, validações, revisão, salvamento, navegação e banco i
 **Achado anterior, fora desta etapa:** em 320 px com letra 200% o resto da tela do cadastro já não cabe (botão Continuar cortado). Fica para a M22.
 
 **Pendente:** Publicar → Atualizar e o teste do dono. Roteiro: cadastrar um produto novo; no Depósito ver "DEPÓSITO", a pergunta e "Passo 5 de 8 · parte 1 de 3"; avançar e ver "parte 2 de 3"; na Validade, ver a barra cheia até o passo 7 antes de responder.
+
+## 25. M15 — legibilidade dos campos do cadastro, bloco A — 16/10/2026 UTC
+
+**Pedido do dono (16/10/2026):** "Pode fazer a M15". O plano manda fazer um bloco por vez; este é o bloco A (tamanho dos botões pequenos e da letra miúda). Feito sobre a branch da M14 (PR #167), porque mexe no mesmo arquivo.
+
+**O que mudou (só apresentação, `src/components/ProductArea.tsx`):**
+- Botão **Escanear** (código do produto, da variação e da embalagem): altura de toque de 36 px para 44 px. Usa margem negativa, então a linha do rótulo não cresce e o botão não encosta no campo.
+- Botão **Remover validade** (X em cada linha de validade): de 36 × 36 px para 44 × 44 px, sem crescer a linha. Ganhou `shrink-0`: antes, com letra 200% em 320 px, ele era espremido até 16 px de largura (problema anterior).
+- "Fonte: Open Food Facts. Confira antes de salvar." passou de 11 px para o tamanho pequeno padrão (12 px).
+
+Não mudam: textos, campos, cálculos, conversões, validações, travas de embalagem, sequência e banco.
+
+**Provas:**
+- Teste novo `src/test/m15-campos-legiveis.test.tsx` com 3 casos: Escanear com 44 px, Remover validade com 44 px sem espremer, e nenhum texto de 11 px nem botão de 36 px no cadastro. Os 3 falham sem a mudança.
+- Tipos e 1.216 testes em 127 arquivos, duas vezes; build aprovado.
+- Chromium em 320/390/1280 × 100/200%: Escanear com 44 px (88 px com letra 200%) sem cobrir o campo; Remover validade com 44 × 44 (88 × 88 com letra 200%); sem rolagem lateral e sem erro.
+
+**Fica para os próximos blocos da M15:** espaçamento entre rótulo, unidade e ajuda nos passos Preço, Depósito/Área de venda e Validade.
+
+**Pendente:** Publicar → Atualizar e o teste do dono. Roteiro:
+1. Em Novo produto → Digitar código, tocar em Escanear e ver se abre a câmera.
+2. Na Validade, com duas datas, tocar no X de uma e ver se ela some.
