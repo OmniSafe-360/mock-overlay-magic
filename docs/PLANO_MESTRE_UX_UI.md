@@ -410,7 +410,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M19 — conferência existente | Implementada (16/10/2026), aguarda revisão | conferência/contagem cega/diferenças/vocabulário + suíte 1.189 2× | 60 capturas 320/390/1280 × 100/200% | Pendente |
 | M20 — alvos cadastro | Implementada (16/10/2026), pedido do dono "Pode fazer a M20" | `m20-alvos-cadastro` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§32) | Falta o teste do dono |
 | M21 — ajuda e erro | Implementada (16/10/2026), pedido do dono "Pode fazer a M21" | `m21-ajuda-erro` (4 novos, falham sem a mudança); suíte 2× | Chromium 390 px: referências válidas, sem id repetido (§33) | Falta o teste do dono |
-| M22 — largura e quebra | Subetapas 1 (lista de produtos) e 2 (faixa do comércio) implementadas (16/10/2026), pedido do dono "Pode fazer a M22" | `m22-lista-produtos` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/768/1280 × 100/200% (§34, §35) | Falta o teste do dono; próximas subetapas não iniciadas |
+| M22 — largura e quebra | Subetapas 1 (lista de produtos), 2 (faixa do comércio) e 3 (Continuar do cadastro) implementadas (16/10/2026), pedido do dono "Pode fazer a M22" | `m22-lista-produtos` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/768/1280 × 100/200% (§34–§36) | Falta o teste do dono; próximas subetapas não iniciadas |
 | M23 — geometria cadastro | Pendente | Não iniciados | Não realizados | Pendente |
 | M24 — validação integrada | Pendente | Não iniciados | Não realizados | Pendente |
 | X01–X10 — fila separada | Não autorizada; análise própria | Não iniciados | Não realizados | Pendente |
@@ -1200,3 +1200,33 @@ Com letra normal, a faixa fica igual à de antes. Não mudam: as 8 partes, a ord
 - faixa de fases da reposição.
 
 **Pendente:** Publicar → Atualizar e o teste do dono (só a conferência no Chromium foi feita). Roteiro: no celular, aumentar o tamanho da letra nas configurações e abrir um comércio. Os nomes da faixa devem aparecer inteiros.
+
+## 36. M22 — largura e quebra, subetapa 3: botão Continuar do cadastro — 16/10/2026 UTC
+
+**Pedido do dono (16/10/2026):** "Pode fazer" (próxima subetapa da M22). Problema anotado na M14.
+
+**Medido antes, no Chromium** (cadastro de produto, tela "Preço e unidade"):
+- Com letra 200%, o botão **Continuar** saía da tela em 320 px (terminava em 484 px) e em 390 px (terminava em 495 px), com o texto cortado ("Con…").
+- Em 1280 px com letra 200%, passava da borda do cartão.
+- Com letra normal, tudo certo.
+
+**O que mudou** (só apresentação, `src/components/ProductArea.tsx`, botões do rodapé do cadastro). As medidas são em rem, então com letra normal nada muda:
+- Quando o espaço fica curto (menos de 15 rem), o **Voltar** mostra só a seta. O nome "Voltar" continua para o leitor de tela. Os dois botões ficam com menos espaço interno.
+- Se ainda faltar espaço (menos de 7,5 rem, caso de 320 px com letra 200%), **Continuar fica em cima** e Voltar embaixo.
+
+Não mudam: a ordem dos passos, as validações, o salvamento e os textos dos botões.
+
+**Depois, no Chromium:**
+- Com letra 100% em 320, 390 e 1280 px: igual ao antes.
+- Com letra 200%: em 390 e 1280 px, Voltar com a seta (68 px) e Continuar inteiro; em 320 px, os botões ficam um sobre o outro e Continuar não é mais cortado.
+
+**Altura (achado do Codex no PR #180):**
+- Em 320 × 568 com letra 200%, o título e os botões ocupavam a tela inteira; a área dos campos ficava com 0 px e o Voltar empilhado ia para baixo da tela, sem como alcançar.
+- Agora a área dos campos tem **altura mínima de 5 rem**. Só quando a tela não tem altura para tudo, a tela inteira do cadastro rola (`overflow-y-auto` no `main`). Medido: só 320 × 568 com letra 200% rola; os campos ficam com 160 px e o Voltar é alcançável.
+- Com letra normal, nenhuma tela do cadastro passou a rolar. Medido em 320 × 568 e 390 × 844, telas código, preço, detalhes, fornecedor e depósito. A regra "cadastro sem rolagem" continua valendo nesses casos.
+
+**Provas:**
+- Teste novo `src/test/m22-continuar-cadastro.test.tsx`: Voltar mantém o nome para o leitor de tela, as regras só valem com pouco espaço e o Voltar navega igual. O teste falha sem a mudança.
+- Tipos e 1.234 testes rodados duas vezes; build aprovado.
+
+**Pendente:** Publicar → Atualizar e o teste do dono. Roteiro: no celular, com letra grande, cadastrar um produto. O botão Continuar deve aparecer inteiro.

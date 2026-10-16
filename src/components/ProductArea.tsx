@@ -657,7 +657,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
   return (
     <div className="relative h-app overflow-hidden bg-app">
       <div className="pointer-events-none absolute inset-0 bg-dots" />
-      <main className={`app-top relative flex h-full flex-col items-center overflow-hidden ${kb ? "app-top-kb" : ""}`}>
+      <main className={`app-top relative flex h-full flex-col items-center overflow-y-auto ${kb ? "app-top-kb" : ""}`}>
         <div className="relative flex h-full max-h-full w-full max-w-[480px] flex-col sm:h-auto sm:rounded-3xl sm:border sm:border-border sm:bg-card sm:p-8 sm:backdrop-blur-xl short:sm:p-6">
           <div className="flex shrink-0 items-center justify-between gap-2">
             <p className="min-w-0 truncate text-sm font-semibold text-muted-foreground">{initial ? "Editar produto" : "Novo produto"} · {store.nome}</p>
@@ -675,7 +675,7 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
               </div>
             </div>
 
-            <div key={`${step}-${sub}`} data-kb-scroll className={`min-h-0 flex-1 overflow-y-auto overscroll-contain animate-in fade-in duration-300 ${kb ? "mt-2 space-y-2 pb-1 [&_.field-hint]:hidden" : "mt-4 space-y-3 short:mt-3 short:space-y-2.5"} ${dir === 1 ? "slide-in-from-right-8" : "slide-in-from-left-8"}`}>
+            <div key={`${step}-${sub}`} data-kb-scroll className={`min-h-[5rem] flex-1 overflow-y-auto overscroll-contain animate-in fade-in duration-300 ${kb ? "mt-2 space-y-2 pb-1 [&_.field-hint]:hidden" : "mt-4 space-y-3 short:mt-3 short:space-y-2.5"} ${dir === 1 ? "slide-in-from-right-8" : "slide-in-from-left-8"}`}>
               {saveErr && step !== STEP_REV && <p role="alert" className="text-sm font-semibold text-destructive">{saveErr}</p>}
               {step === 0 && (
                 <>
@@ -1239,16 +1239,17 @@ export function ProductWizard({ store, products, initial, suppliers, onAddSuppli
             {step === STEP_REV && triedSave && prejuizo && !prejuizoConfirmado && <p role="alert" className="shrink-0 pt-2 text-sm font-semibold text-destructive">Confirme o prejuízo para salvar, ou volte e ajuste o preço de venda.</p>}
             {erro && step === STEP_REV && <p role="alert" className="shrink-0 pt-3 text-sm font-semibold text-destructive">{erro}</p>}
             {step === 1 && !valid && <p role="status" className="shrink-0 pt-2 text-xs text-muted-foreground">{compra <= 0 || venda <= 0 ? "Preencha o preço de compra e o preço de venda para continuar." : !unidade ? "Escolha a unidade de medida para continuar." : !categoria ? "Escolha a categoria para continuar." : "Confira as opções destacadas antes de continuar."}</p>}
-            <div className={`flex shrink-0 gap-2 ${kb ? "pt-2" : "pt-4 short:pt-3"}`}>
+            {/* M22: com letra grande e pouco espaço, Voltar mostra só a seta (o nome continua para o leitor de tela) e os botões ficam mais justos; se ainda não couber, Continuar fica em cima e Voltar embaixo. Com letra normal, nada muda (medidas em rem). Os campos têm altura mínima de 5 rem: quando a tela não tem altura para tudo, a tela inteira rola e os dois botões continuam alcançáveis. */}
+            <div className={`@container shrink-0 ${kb ? "pt-2" : "pt-4 short:pt-3"}`}><div className="flex gap-2 @max-[7.5rem]:flex-col-reverse">
               {step > 0 && (
-                <button type="button" onClick={back} className={btnGhost}><span className="flex items-center gap-1.5"><ArrowLeft size={18} />Voltar</span></button>
+                <button type="button" onClick={back} className={`${btnGhost} @max-[15rem]:px-3`}><span className="flex items-center gap-1.5"><ArrowLeft size={18} /><span className="@max-[15rem]:sr-only">Voltar</span></span></button>
               )}
               {step === 2 && !isRoupas && !Object.values(det).some(Boolean) ? (
-                <button type="submit" className={`flex-1 ${btnPrimary(true)}`}>Pular</button>
+                <button type="submit" className={`min-w-0 flex-1 ${btnPrimary(true)} @max-[15rem]:px-3`}>Pular</button>
               ) : (
-                <button type="submit" disabled={!valid || (step === STEP_REV && saving)} className={`flex-1 ${btnPrimary(valid && !(step === STEP_REV && saving))}`}>{step === STEP_REV ? (saving ? "Salvando…" : "Salvar produto") : "Continuar"}</button>
+                <button type="submit" disabled={!valid || (step === STEP_REV && saving)} className={`min-w-0 flex-1 ${btnPrimary(valid && !(step === STEP_REV && saving))} @max-[15rem]:px-3`}>{step === STEP_REV ? (saving ? "Salvando…" : "Salvar produto") : "Continuar"}</button>
               )}
-            </div>
+            </div></div>
           </form>
         </div>
       </main>
