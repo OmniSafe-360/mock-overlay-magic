@@ -47,7 +47,7 @@ it("depósito com contagem confirmada diferente fica pendente, sem agradecer com
   render(<ConferirDeposito chave={chave} api={api} onVoltar={() => {}} />);
   fireEvent.click(await screen.findByRole("button", { name: /Produto cego/ }));
   fireEvent.click(screen.getByRole("button", { name: /Não tem nenhum/ }));
-  expect(await screen.findByRole("status")).toHaveTextContent(/aguardando o dono/i);
+  expect(await screen.findByRole("status")).toHaveTextContent(/Contagem bloqueada. Aguarde a decisão do dono./i);
   expect(screen.queryByText(/conferido. Obrigado/)).not.toBeInTheDocument();
 });
 
