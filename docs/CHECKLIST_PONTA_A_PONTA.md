@@ -528,3 +528,5 @@ Análise pedida pelo dono em 16/10/2026 sobre `main 529b360` (verificação remo
 - **Próximo:** revisarPR, autorizar merge separadamente; depois Publicar→Atualizar e conferir entradas decimais em produto de teste, registraraparelho/versão/resultado. F03/ajuste+motivo exige análise/diff próprios; F02/integridade/M22residuais/M23/M24 e demais E/G continuam pendentes. Nenhum dado removido/perda repetida.
 
 - 16/10/2026: tabela de situação das etapas UX/UI no PLANO corrigida (M03–M11 e M19 já no main; ver PLANO §38). Só documentação; M03–M06 com o relato do dono preservado; nenhum item novo marcado como validado.
+
+- 16/10/2026: M22 subetapa 4 (cartões de variação da roupa com letra grande) implementada; ver PLANO §39. Precisa Publicar → Atualizar; falta o teste do dono.
