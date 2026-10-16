@@ -391,15 +391,15 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | DOC-01 — este plano | Somente documentação autorizada | Documento criado; nenhuma implementação | Não realizados | Pendente |
 | M01 — textos equipe/erro | M01-A e M01-B autorizadas em escopos próprios | Ambas integradas; M01-B pelo PR #150 (§14) | M01-A: merge confirmado/publicação relatada. M01-B: merge confirmado/publicação não confirmada | M01-A: aceite Android restrito (§13). M01-B: validação física não confirmada |
 | M02 — produto não encontrado | Autorizada exclusivamente em 15/10/2026, com ajustes do dono (§14) | Integrada pelo PR #151 (§15) | Merge confirmado; publicação não verificada independentemente | Roteiro aceito por relato do dono; aparelho/versão não informados (§15) |
-| M03 — promessa primeiro cadastro | Autorizada exclusivamente em 15/10/2026 (§15) | Implementada/testada na branch exclusiva (§15) | Não realizados | Aguarda revisão/validação do dono |
-| M04 — indicadores globais | Pendente | Não iniciados | Não realizados | Pendente |
-| M05 — ganho bruto | Implementada (opção A, 15/10/2026), aguarda revisão | `m05-ganho-bruto` + preço/margem/farmácia aprovados; suíte 2× | Capturas responsivas não realizadas | Pendente |
-| M06 — mensagem limite caixa | Implementada, aguarda revisão | 1.189 testes 2× | 30 capturas | Pendente |
-| M07 — saldo por área | Pendente | Não iniciados | Não realizados | Pendente |
-| M08 — busca/resumo | Implementada (16/10/2026), aguarda revisão | atencao-hoje/lista-produtos/menu-comercio + m08 novo; suíte 1.194 2× | 12 capturas 320/390/1280 × 100/200%, com e sem produtos | Pendente |
-| M09 — cartões pedidos | Pendente | Não iniciados | Não realizados | Pendente |
-| M10 — alcance fornecedor | Pendente | Não iniciados | Não realizados | Pendente |
-| M11 — página fornecedor | Pendente | Não iniciados | Não realizados | Pendente |
+| M03 — promessa primeiro cadastro | Autorizada exclusivamente em 15/10/2026 (§15) | Integrada pelo PR #152 (§15) | Merge confirmado; publicação não confirmada | Falta o teste do dono |
+| M04 — indicadores globais | M04-A (textos) e M04-B (unidades e alcance) autorizadas em 15/10/2026 | Ambas no main (commits diretos); `rmc-m04b` + suíte 2× | No main; publicação não confirmada | Falta o teste do dono |
+| M05 — ganho bruto | Autorizada (opção A, 15/10/2026) | No main; `m05-ganho-bruto` + preço/margem/farmácia; suíte 2× | No main; publicação não confirmada; capturas responsivas não realizadas | Falta o teste do dono |
+| M06 — mensagem limite caixa | Autorizada (opção completa, 15/10/2026) | No main; `m06-aviso-limite` + suíte 2×; 30 capturas | No main; publicação não confirmada | Falta o teste do dono |
+| M07 — saldo por área | Autorizada em 15/10/2026 (§19) | Integrada pelo PR #155 (§19) | Merge confirmado; publicação não confirmada | Falta o teste do dono |
+| M08 — busca/resumo | Autorizada (16/10/2026) | No main; `m08-busca-antes-resumo` + suíte 1.194 2×; 12 capturas | No main; publicação não confirmada | Falta o teste do dono |
+| M09 — cartões pedidos | Autorizada em 16/10/2026 (§20) | Integrada pelo PR #163 (§20) | Merge confirmado; publicação não confirmada | Falta o teste do dono |
+| M10 — alcance fornecedor | M10-A autorizada em 16/10/2026 (§21); M10-B não iniciada (opcional) | M10-A integrada pelo PR #164 (§21) | Merge confirmado; publicação não confirmada | Falta o teste do dono |
+| M11 — página fornecedor | Autorizada em 16/10/2026 (§22) | Integrada pelo PR #165 (§22) | Merge confirmado; publicação não confirmada | Falta o teste do dono |
 | M12 — descoberta faixa | Implementada (16/10/2026), pedido do dono "finaliza ela" | `m12-faixa-deslizar` (3 novos) + menu-comercio/tamanhos-tela; suíte 2× | Chromium 320/390/1280 × 100/200% (§23) | Falta o teste do dono |
 | M13 — contexto unidade | Implementada, testada e integrada ao main (16/10/2026; revisão técnica aprovada em `ef75121`) | `m13-contexto-unidade` (6 novos); tipos e suíte 2× | Chromium 320/390/768/1280 × 100/200% (32 capturas) | Aguarda publicação e homologação final do dono |
 | M14 — progresso cadastro | Implementada (16/10/2026), pedido do dono "faça a etapa M14" | `m14-progresso-cadastro` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§24) | Falta o teste do dono |
@@ -407,7 +407,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M16 — convite instalação | Implementada (16/10/2026), pedido do dono "Pode fazer a M16" | `m16-convite-instalacao` (1 novo, falha sem a mudança) + `instalar`; suíte 2× | Chromium 320/390/1280 × 100/200% (§29) | Falta o teste do dono |
 | M17 — fases reposição | Implementada (16/10/2026), pedido do dono "Pode fazer a M17" | `m17-fases-reposicao` (2 novos, um falha sem a mudança) + reposição; suíte 2× | Chromium 320/390/1280 × 100/200% (§30) | Falta o teste do dono |
 | M18 — estados recebimento | Implementada (16/10/2026), pedido do dono "Pode fazer a M18" | `m18-estados-recebimento` (1 novo, falha sem a mudança) + recebimento; suíte 2× | Chromium 320/390/1280 × 100/200% (§31) | Falta o teste do dono |
-| M19 — conferência existente | Implementada (16/10/2026), aguarda revisão | conferência/contagem cega/diferenças/vocabulário + suíte 1.189 2× | 60 capturas 320/390/1280 × 100/200% | Pendente |
+| M19 — conferência existente | Autorizada (16/10/2026) | No main; conferência/contagem cega/diferenças + suíte 1.189 2×; 60 capturas | No main; publicação não confirmada | Falta o teste do dono |
 | M20 — alvos cadastro | Implementada (16/10/2026), pedido do dono "Pode fazer a M20" | `m20-alvos-cadastro` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§32) | Falta o teste do dono |
 | M21 — ajuda e erro | Implementada (16/10/2026), pedido do dono "Pode fazer a M21" | `m21-ajuda-erro` (4 novos, falham sem a mudança); suíte 2× | Chromium 390 px: referências válidas, sem id repetido (§33) | Falta o teste do dono |
 | M22 — largura e quebra | Subetapas 1 (lista de produtos), 2 (faixa do comércio) e 3 (Continuar do cadastro) implementadas (16/10/2026), pedido do dono "Pode fazer a M22" | `m22-lista-produtos` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/768/1280 × 100/200% (§34–§36) | Falta o teste do dono; próximas subetapas não iniciadas |
@@ -1257,3 +1257,7 @@ Aceitar ponto como decimal torna explícita a ausência de agrupamento de milhar
 **F01 corrigida/testada na branch; falta revisão, integração autorizada, publicação e teste do dono.** Não declarar sistema100% pronto. F03/ajuste+motivo, F02/validade/banco real, integridade numérica, residuais de M22, M23/M24 e demais E/G continuam separados; nenhum ajuste de estoque ou correção adicional nesta entrega. Documentação atualizada somente por acréscimo neste plano, CLAUDE e checklist.
 
 Próximo: revisarPR e autorizar merge separadamente. Após integração autorizada, Publicar→Atualizar e testar em produto fracionado de teste:1,5 e1.5 devem mostrar mesmo peso/total;0.350 deve virar0,35; fechar sem incluir conserva o carrinho. Antes de qualquer venda real, confirmar quantidade e preço. Registrar aparelho/versão/resultado. Em seguida preparar análise/diff próprio da F03, sem alteração de banco automática.
+
+## 38. Tabela de situação das etapas atualizada — 16/10/2026 UTC
+
+Pedido do dono ("Pode fazer a primeira etapa", depois da análise das etapas). A tabela da seção de situação mostrava como "Pendente" ou "aguarda revisão" etapas que já estão no main: M03 (PR #152), M04-A/M04-B, M05, M06, M07 (PR #155), M08, M09 (PR #163), M10-A (PR #164), M11 (PR #165) e M19. As linhas foram corrigidas conforme os merges conferidos no GitHub e os commits do main. Nenhuma etapa foi reaberta ou refeita; nenhum código, banco ou dado mudou. Todas continuam com **falta o teste do dono** depois de Publicar → Atualizar (aceites restritos já relatados: M01-A, M02 e roteiro do AC01). Pendentes: M10-B (opcional), M22 subetapas 4 e 5, M23 e M24. Só documentação; não precisa Publicar.
