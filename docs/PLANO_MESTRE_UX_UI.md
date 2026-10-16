@@ -786,6 +786,56 @@ Os registros antigos de pendência mantêm valor histórico; esta seção regist
 Próximo passo: revisar o PR/diff e as evidências; aguardar autorização própria para merge. Depois de eventual integração autorizada, **Publicar → Atualizar** no Lovable e testar: abrir comércio → Fornecedores, ler o aviso, expandir produtos, abrir e fechar Editar sem salvar; repetir em outro comércio, se houver, verificando os produtos locais e o cadastro compartilhado. Não alterar fornecedor real só para testar o texto. Registrar aparelho/versão/resultado. Reversão restrita à frase, conservando os históricos. Não fazer merge/publicação nem avançar automaticamente.
 
 
+## 22. M11 — cabeçalho da página do fornecedor, execução autorizada — 16/10/2026 UTC
+
+### Autorização, base e continuidade
+
+Após a proposta específica (diff, quatro arquivos, prévias, riscos e testes), o proprietário respondeu “Pode fazer o proximo”. Autorização aplicada exclusivamente à M11 apresentada, sem ampliar para alterações no formulário ou M12. Base remota reconferida: `main 0d3f91c13955d2706a82d3a646118c06e432d7f9`, sem mudanças desde a proposta. Branch exclusiva `codex/ux-m11-cabecalho-fornecedor-20261016`.
+
+M10-A integrada pelo [PR #164](https://github.com/OmniSafe-360/mock-overlay-magic/pull/164) em16/10/2026 às14h51m40sUTC, merge `0d3f91c13955d2706a82d3a646118c06e432d7f9`, confirmado no GitHub. Publicação e teste físico da M10-A ainda não confirmados; não interpretar pedido da próxima etapa como aceite físico. M09/PR163, M08 e M19 já presentes; não reaplicar. Os registros anteriores de branch/merge pendentes são históricos. F-16H/contagens vazias continua pendente de verificação própria; nenhuma remoção nem perda da Dipirona repetida.
+
+### Patch aplicado e preservação
+
+Somente classes literais dentro de `Cabecalho` em `src/components/PaginaFornecedor.tsx`, exatamente iguais ao protótipo aprovado:
+
+- Espaço entre blocos e entre comércio/fornecedor/telefone:12→8px.
+- Grupo número/data e situação: `flex-wrap`, gap8px, identificação com `flex-1 basis-40 min-w-0 break-words`; situação com `max-w-full break-words`, preservando cores e `shrink-0`. A situação passa para baixo quando faltar espaço.
+- Endereço e recado: padding horizontal16px preservado; vertical16→12px. Texto do endereço recebe `min-w-0 break-words`; recado recebe `break-words`.
+
+Nenhuma tag, texto, ícone, condição, ordem DOM, estado, evento, campo, valor, link, callback, cálculo ou requisito de envio alterado. Paleta, fontes, tamanhos, bordas, telefone e controles intactos. Comparação sem os atributos className literais resulta em código idêntico; trechos fora de Cabecalho idênticos. Formulario, Resumo, token, acesso, estoque, pedidos/pagamentos, permissões, banco/Supabase/SQL e integrações preservados. Sem recolhimento/revisão adicional, funcionalidade nova, mudança de configuração/dependência/testes oficiais ou Fonte da Verdade. O endereço recolhível do relatório original UX14 continua excluído conforme M11/X04 do Plano.
+
+Apenas um componente e acréscimos neste Plano, CLAUDE e checklist, preservando todo o conteúdo e histórico anteriores.
+
+### Verificações e resultados
+
+| Verificação | Resultado |
+|---|---|
+| Tipos | `npx --no-install tsc --noEmit`, duas rodadas aprovadas, saída0. |
+| Suíte completa | `npx --no-install vitest run`: **1.202 testes / 123 arquivos aprovados em cada uma das duas rodadas**, sem erro não tratado no resumo. Testes/assertions/timeouts não alterados. |
+| Relacionados | Os24 testes de `pedido-link.test.tsx` e `resposta-fornecedor-conta.test.ts` integram ambas as suítes: data/prazo, opcionais, resposta por item, recusa, link inválido/cancelado, conferência, erros/reenvio e preservação de conta existente no SQL do repositório. Isso não comprova versão do banco publicado. |
+| Build | `npm run build` aprovado com variáveis fictícias somente no processo; sem publicação/configuração real. |
+| Auditoria do diff | Aplicação igual ao protótipo aprovado; somente oito linhas de classes dentro de Cabecalho; expressões/ações e restante do arquivo idênticos. |
+| Visual | **60 cenários / 30 pares / 60 capturas** no Chromium,320×568/390×844/1280×900 × fonte100/200; contexto normal/longo/mínimo, já respondido e entrega em conferência. Componente implementado importado diretamente da branch, CSS real/Inter local, dados fictícios e rede externa bloqueada. |
+| Equivalência | Texto completo da página, links, campos, botões, estados observados e chamadas iguais nos30pares. Nenhum estouro horizontal medido no cabeçalho proposto nos30cenários novos; não é verificação integral de sobreposição/acessibilidade da página. |
+| Fluxos | **18 cenários / 9 pares** simulados nas três larguras: aceitar com opcionais vazios; recusa com confirmação/Voltar sem envio; boleto sem prazo bloqueado; resposta parcial, erro preservando data/recado, reenvio idêntico, Alterar e Voltar sem mudar sem envio adicional. Payloads iguais antes/depois; sem gravações reais. |
+
+Exemplo normal/fonte100: cabeçalho320px de539→481px (menos58px),390px de479→447px (menos32px),1280px de439→407px (menos32px), com todas as informações. Número volta a caber em uma linha no exemplo320, situação abaixo; conteúdo longo/fonte ampliada continua exigindo rolagem.
+
+### Riscos e limites
+
+A situação pode mudar de posição vertical conforme largura; palavras longas podem quebrar. Grupos se aproximam, sem remover informação ou proteção. Não prometer que todo o pedido caiba na primeira tela.
+
+**Limitações preexistentes, fora do patch aprovado:** alvos44px e sobreposições nos grupos Tenho/Outra qtd./Não tenho e atalhos de data em320px com fonte200% permanecem no formulário inalterado. Não declarar acessibilidade geral ou48px em todos os controles. Exigem proposta própria se priorizados. A mensagem de erro de abertura existente também fica intacta.
+
+Fonte200% é simulação de fonte/entrelinha, não zoom nativo. Não foi possível verificar aparelhos Android/iPhone/PWA instalados, leitor de tela, teclado nativo, banco publicado ou links reais. Rede externa bloqueada, telefone fictício não acionado. Artefatos locais em `/workspace/entregas/omnisafe-m11-implementacao-2026-10-16/` (comparação, métricas, capturas, payloads, diff e logs); não publicados automaticamente no GitHub. Não há certificação operacional geral ou segurança integral.
+
+### Estado e próxima ação
+
+**M11 implementada/testada na branch; pronta para revisão, falta o teste do dono.** CI do commit exato acompanhado no PR, separado dos resultados locais. Sem merge/publicação automáticos; M12 não iniciada. M10-A integrada, publicação e aceite físico sem confirmação; registros anteriores mantêm caráter histórico.
+
+Próximo: dono revisar PR/diff/evidências e autorizar merge separadamente. Após integração autorizada, **Publicar → Atualizar** e abrir link de pedido de teste: ler número/situação/comércio/endereço/recado, conferir produtos e acesso aos campos/ações, com texto normal/ampliado; sem enviar resposta de pedido real só para testar apresentação. Registrar aparelho/versão/resultado. Reversão restrita às classes aprovadas, preservando históricos. Não avançar automaticamente.
+
+
 ## 23. M12 — descoberta da faixa local, execução — 16/10/2026 UTC
 
 **Pedido do dono:** "Analise a M12, vê o que falta terminar e finaliza ela." Não existia outra M12 no GitHub; a M11 seguia no PR #165, de outro arquivo.
