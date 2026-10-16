@@ -407,7 +407,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M16 — convite instalação | Pendente | Não iniciados | Não realizados | Pendente |
 | M17 — fases reposição | Pendente | Não iniciados | Não realizados | Pendente |
 | M18 — estados recebimento | Pendente | Não iniciados | Não realizados | Pendente |
-| M19 — conferência existente | Pendente | Não iniciados | Não realizados | Pendente |
+| M19 — conferência existente | Implementada (16/10/2026), aguarda revisão | conferência/contagem cega/diferenças/vocabulário + suíte 1.189 2× | 60 capturas 320/390/1280 × 100/200% | Pendente |
 | M20 — alvos cadastro | Pendente | Não iniciados | Não realizados | Pendente |
 | M21 — associação erro/ajuda | Pendente | Não iniciados | Não realizados | Pendente |
 | M22 — largura/quebra | Pendente | Não iniciados | Não realizados | Pendente |
