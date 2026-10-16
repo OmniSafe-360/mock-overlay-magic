@@ -405,7 +405,7 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M14 — progresso cadastro | Implementada (16/10/2026), pedido do dono "faça a etapa M14" | `m14-progresso-cadastro` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§24) | Falta o teste do dono |
 | M15 — campos existentes | Blocos A–D implementados (16/10/2026): código, preço, depósito/área de venda e validade | `m15-campos-legiveis` (7 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§25–§28) | Falta o teste do dono |
 | M16 — convite instalação | Implementada (16/10/2026), pedido do dono "Pode fazer a M16" | `m16-convite-instalacao` (1 novo, falha sem a mudança) + `instalar`; suíte 2× | Chromium 320/390/1280 × 100/200% (§29) | Falta o teste do dono |
-| M17 — fases reposição | Pendente | Não iniciados | Não realizados | Pendente |
+| M17 — fases reposição | Implementada (16/10/2026), pedido do dono "Pode fazer a M17" | `m17-fases-reposicao` (2 novos, um falha sem a mudança) + reposição; suíte 2× | Chromium 320/390/1280 × 100/200% (§30) | Falta o teste do dono |
 | M18 — estados recebimento | Implementada (16/10/2026), pedido do dono "Pode fazer a M18" | `m18-estados-recebimento` (1 novo, falha sem a mudança) + recebimento; suíte 2× | Chromium 320/390/1280 × 100/200% (§31) | Falta o teste do dono |
 | M19 — conferência existente | Implementada (16/10/2026), aguarda revisão | conferência/contagem cega/diferenças/vocabulário + suíte 1.189 2× | 60 capturas 320/390/1280 × 100/200% | Pendente |
 | M20 — alvos cadastro | Pendente | Não iniciados | Não realizados | Pendente |
@@ -1034,6 +1034,39 @@ O campo "Lucro sobre o custo (%)" continua com 44 px. Ele é um campo, não um b
 - O teste `m15-campos-legiveis` foi atualizado para 48 px.
 - Tipos e 1.220 testes passaram duas vezes; build aprovado.
 - Medido no Chromium (farmácia), em 320, 390 e 1280 px de largura, com letra a 100% e a 200%: Escanear, Remover validade e Desfazer têm 48 px (96 px com letra a 200%); Escanear não cobre o campo; sem rolagem lateral e sem erro.
+
+## 30. M17 — fases da reposição — 16/10/2026 UTC
+
+**Pedido do dono (16/10/2026):** "Pode fazer a M17".
+
+**O que mudou** (só apresentação, `src/components/ReporGondola.tsx`, app da equipe → Repor):
+- **Faixa de fases.** Mostra as três fases que já existiam na reposição: **"1. Conte → 2. Busque → 3. Confirme o que levou"**. A fase atual fica em destaque (azul) e a que já passou ganha um ✓ verde.
+  - Na ida à prateleira e na contagem, o destaque é "Conte".
+  - Na tela do depósito, onde a pessoa busca e informa quanto colocou, o destaque é "Busque" e "Confirme o que levou", porque as duas acontecem na mesma tela.
+  - Quando a prateleira está cheia ou não há o que buscar, a faixa não aparece.
+  - A faixa só mostra a fase: não muda de tela quando tocada.
+  - **Envio do "Coloquei" sem resposta** (a internet caiu depois de levar): "Busque" aparece como feita (✓) e só "Confirme o que levou" fica em destaque, para ninguém buscar a mercadoria de novo (achado do Codex no PR #174).
+  - Para o leitor de tela, só uma fase é marcada como atual (`aria-current`), mesmo quando duas aparecem em destaque (achado do Codex no PR #174).
+- **Local do depósito** na tela de busca: letra maior (de 14 para 16 px), com quebra de linha para nomes longos.
+
+Não mudam: as fases, a contagem cega (o funcionário não vê o número do sistema), o pedido ao servidor, a confirmação, o rascunho guardado no celular e a retomada depois de fechar o app. Nenhuma fila ou fase nova.
+
+**Provas:**
+- Teste novo `src/test/m17-fases-reposicao.test.tsx`:
+  - fase certa em cada tela e o envio do "Coloquei" com o mesmo número;
+  - envio sem resposta com "Busque" feita e só "Confirme" atual;
+  - prateleira cheia sem a faixa.
+  - Os dois primeiros casos falham sem a mudança.
+- Os testes da reposição continuam passando: `reposicao`, `reposicao-retomada` e `reposicao-vendas-meio`.
+- Tipos e 1.224 testes rodados duas vezes; build aprovado.
+- Chromium em 320/390/1280 px, com letra 100% e 200%: faixa dentro da tela, sem rolagem lateral e sem erro.
+
+**Observação:** em 320 px com letra 200%, a faixa ocupa várias linhas (344 px), porque cada fase vira um bloco. O resto da tela já era grande nesse tamanho; fica para a M22.
+
+**Pendente:** Publicar → Atualizar e o teste do dono. Roteiro:
+1. No celular da equipe, abrir Repor e escolher um produto. Deve aparecer "1. Conte" em destaque.
+2. Contar e confirmar. Na tela do depósito devem aparecer "✓ 1. Conte", "2. Busque" e "3. Confirme o que levou".
+3. Informar quanto colocou e tocar em "Coloquei".
 
 ## 31. M18 — estados do recebimento — 16/10/2026 UTC
 

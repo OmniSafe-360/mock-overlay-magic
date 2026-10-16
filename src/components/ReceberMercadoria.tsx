@@ -314,7 +314,7 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
     const k = focarProduto.current;
     if (!k || aberta) return;
     focarProduto.current = null;
-    Array.from(document.querySelectorAll<HTMLButtonElement>("button[data-chave]")).find((b) => b.dataset.chave === k)?.focus();
+    Array.from(document.querySelectorAll<HTMLButtonElement>("button[data-chave]")).find((b) => b.dataset["chave"] === k)?.focus();
   });
   const [scan, setScan] = useState(false);
   const [busca, setBusca] = useState(false);
