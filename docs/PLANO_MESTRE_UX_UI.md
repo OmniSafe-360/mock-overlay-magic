@@ -1144,3 +1144,28 @@ Não mudam: a aparência, os textos, quando cada campo é validado, o foco e a o
 - Chromium, cadastro de produto da farmácia em 390 px, telas Código e Preço: todos os campos com descrição; nenhuma referência apontando para mensagem que não existe; nenhum id repetido. Quando o código digitado parece errado, a descrição passa a ser o aviso.
 
 **Pendente:** Publicar → Atualizar. O dono não vê diferença na tela. Com leitor de tela (TalkBack, VoiceOver), ao tocar num campo, o leitor fala também a explicação ou o erro.
+
+## 35. M22 — largura e quebra, subetapa 2: faixa do comércio — 16/10/2026 UTC
+
+**Pedido do dono (16/10/2026):** "Pode fazer a próxima subetapa da M22". Problema anotado na M12.
+
+**Medido antes, no Chromium:** com letra 200% em 320, 390 e 1280 px, os nomes dos 8 botões da faixa do comércio apareciam cortados ("Pro…", "Esto…", "À v…"). O botão tinha 92 px fixos de largura, então não crescia junto com a letra.
+
+**O que mudou** (só apresentação, `src/components/StoreSpace.tsx`, `BotaoBarra`):
+- A largura passou a ser **5,75 rem**: dá os mesmos 92 px com letra normal e cresce junto com a letra (184 px com letra 200%).
+- O nome quebra a linha em vez de ser cortado com "…".
+
+Com letra normal, a faixa fica igual à de antes. Não mudam: as 8 partes, a ordem, os avisos, o destaque, as setas e a linha "Deslize" da M12, a rolagem e os caminhos.
+
+**Depois:** nenhum nome cortado em 320, 390 e 1280 px, com letra 100% e 200%; sem rolagem lateral da página e sem erro.
+
+**Provas:**
+- Teste novo `src/test/m22-faixa-comercio.test.tsx`: largura em rem, nome sem corte, 8 partes e troca de parte funcionando igual. O teste falha sem a mudança.
+- Tipos e 1.232 testes rodados duas vezes; build aprovado.
+
+**Próximas subetapas da M22, não iniciadas:**
+- Continuar do cadastro em 320 px com letra 200%;
+- cartões de variação;
+- faixa de fases da reposição.
+
+**Pendente:** Publicar → Atualizar. Roteiro: no celular, aumentar o tamanho da letra nas configurações e abrir um comércio. Os nomes da faixa devem aparecer inteiros.
