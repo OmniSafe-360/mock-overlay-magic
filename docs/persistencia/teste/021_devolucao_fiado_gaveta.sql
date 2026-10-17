@@ -32,7 +32,10 @@ select pg_temp.ok(pg_temp.tirado()=5 and pg_temp.esperado()=45,'esperado 50 − 
 select pg_temp.ok((select motivo from caixa_sangrias where turno_id=pg_temp.u('turno-a5')) like 'Devolvido ao cliente do fiado (venda nº %','motivo explica a saída');
 -- 2. Repetir o cancelamento não registra de novo.
 set local role anon;
-select pg_temp.ok((caixa_cancelar_venda(repeat('f',64),pg_temp.u('a5-v1'),'5826','teste')->>'situacao')='repetida','repetir volta repetida');
+select set_config('a5.r1',caixa_cancelar_venda(repeat('f',64),pg_temp.u('a5-v1'),'5826','teste')::text,true);
+select pg_temp.ok(current_setting('a5.r1')::jsonb->>'situacao'='repetida','repetir volta repetida');
+-- Resposta perdida e reenvio: o caixa recebe de novo quanto devolver e que saiu da gaveta (Codex #192).
+select pg_temp.ok((current_setting('a5.r1')::jsonb->>'devolver')::numeric=5 and (current_setting('a5.r1')::jsonb->>'gaveta')::boolean,'repetida traz devolver 5 e gaveta');
 reset role;
 select pg_temp.ok(pg_temp.tirado()=5,'repetir não tira de novo');
 -- 3. Cancelar a segunda: o cliente não deve mais nada; os 8 já pagos voltam para ele (total devolvido 13 = o que pagou).
