@@ -335,5 +335,6 @@ export function devolverDe(r: unknown): number {
   const v = r && typeof r === "object" ? Number((r as { devolver?: unknown }).devolver) : 0;
   return Number.isFinite(v) && v > 0 ? Math.round(v) : 0;
 }
-export const textoDevolver = (centavos: number) =>
-  `Devolva ${brl(centavos)} ao cliente: é o que ele já tinha pago desta venda no fiado.`;
+export const textoDevolver = (centavos: number, gaveta = false) => gaveta
+  ? `Tire ${brl(centavos)} da gaveta e devolva ao cliente: é o que ele já tinha pago desta venda no fiado. Essa saída já foi descontada do caixa.`
+  : `Devolva ${brl(centavos)} ao cliente: é o que ele já tinha pago desta venda no fiado.`;

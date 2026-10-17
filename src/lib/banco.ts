@@ -770,12 +770,13 @@ export async function caixaRegistrarVenda(chave: string, venda: ReturnType<typeo
 const comErro = (data: any) => { if (data?.erro) throw new Error(String(data.erro)); return data; };
 /** Cancelar uma venda do celular com o PIN do dono: os produtos voltam para a gôndola. */
 /** Resultado do cancelamento. `devolver` (centavos) é o que o cliente já tinha pago desta venda no fiado. */
-export type CancelamentoVenda = { situacao: "cancelada" | "repetida"; devolver: number };
+/** gaveta: A5 — a devolução já foi registrada como dinheiro tirado da gaveta deste caixa. */
+export type CancelamentoVenda = { situacao: "cancelada" | "repetida"; devolver: number; gaveta?: boolean };
 export async function caixaCancelarVenda(chave: string, vendaId: string, pinDono: string, motivo: string): Promise<CancelamentoVenda> {
   const { data, error } = await rpc("caixa_cancelar_venda", { _chave: chave, _venda: vendaId, _pin_dono: pinDono, _motivo: motivo });
   if (error) throw error;
   const r = comErro(data);
-  return { situacao: r.situacao, devolver: centavos(r.devolver) };
+  return { situacao: r.situacao, devolver: centavos(r.devolver), gaveta: r.gaveta === true };
 }
 /** Tirar dinheiro da gaveta (sangria) com o PIN do dono. Repetir o mesmo id não tira duas vezes. */
 export async function caixaSangria(chave: string, id: string, turnoId: string, valorCentavos: number, motivo: string, pinDono: string): Promise<TurnoCaixa> {

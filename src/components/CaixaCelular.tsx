@@ -1074,12 +1074,13 @@ function VendasDoCaixa({ estado, guardadas, chave, api, offline, onClose, onMudo
   const [erro, setErro] = useState("");
   const [pronto, setPronto] = useState("");
   const [devolver, setDevolver] = useState(0);
+  const [gaveta, setGaveta] = useState(false);
   const [comprovante, setComprovante] = useState(false);
   const fazerCancelar = () => {
     if (!aberta || pin.length !== 4 || ocupado) return;
     setOcupado(true); setErro("");
     (api.cancelar ?? banco.caixaCancelarVenda)(chave, aberta.id, pin, motivo.trim()).then((r) => {
-      setDevolver(devolverDe(r));
+      setDevolver(devolverDe(r)); setGaveta(!!(r as { gaveta?: boolean })?.gaveta);
       setPronto(`Venda ${aberta.numero ? `nº ${aberta.numero} ` : ""}cancelada. Os produtos voltaram para a gôndola.`);
       setAberta(null); setCancelar(false); setPin(""); setMotivo(""); onMudou();
     }, (e) => { setErro(erroPinDono(e, "A venda não foi cancelada")); setPin(""); }).finally(() => setOcupado(false));
@@ -1127,7 +1128,7 @@ function VendasDoCaixa({ estado, guardadas, chave, api, offline, onClose, onMudo
     <Sheet title="Vendas deste caixa" onClose={onClose}>
       <div className="min-h-0 space-y-2 overflow-y-auto px-5 py-3">
         {pronto && <p role="status" className="rounded-2xl bg-accent/10 p-3 text-sm font-semibold text-accent">{pronto}</p>}
-        {pronto && devolver > 0 && <p role="alert" className="rounded-2xl border border-warning/60 bg-warning/10 p-3 text-base font-bold text-warning">{textoDevolver(devolver)}</p>}
+        {pronto && devolver > 0 && <p role="alert" className="rounded-2xl border border-warning/60 bg-warning/10 p-3 text-base font-bold text-warning">{textoDevolver(devolver, gaveta)}</p>}
         {guardadas.map((g) => (
           <div key={g.venda.id} className={`rounded-2xl border p-3 text-sm ${g.problema ? "border-destructive/50 bg-destructive/5" : "border-warning/50 bg-warning/5"}`}>
             <p className="flex justify-between"><b>{horaTxt(g.venda.feita_em)} · {g.formas}</b><b>{brl(g.total)}</b></p>

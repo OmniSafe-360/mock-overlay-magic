@@ -42,6 +42,8 @@ done
 "${psql_cega[@]}" -f "$temp_cega/f03.sql" >"$temp_cega/f03.log" 2>&1 || { tail -28 "$temp_cega/f03.log"; exit 1; }
 { echo 'begin;'; cat "$base_cega/015_base_caixa_estoque.sql" "$base_cega/018_vencido_por_ultimo.sql"; echo 'rollback;'; } >"$temp_cega/a1.sql"
 "${psql_cega[@]}" -f "$temp_cega/a1.sql" >"$temp_cega/a1.log" 2>&1 || { tail -16 "$temp_cega/a1.log"; exit 1; }
+{ echo 'begin;'; cat "$base_cega/015_base_caixa_estoque.sql" "$base_cega/021_devolucao_fiado_gaveta.sql"; echo 'rollback;'; } >"$temp_cega/a5.sql"
+"${psql_cega[@]}" -f "$temp_cega/a5.sql" >"$temp_cega/a5.log" 2>&1 || { tail -16 "$temp_cega/a5.log"; exit 1; }
 for regressao in 005_melhorias_operacionais.sql 011_coerencia_recebimento.sql 019_lote_outra_data.sql 020_entrega_parcial.sql; do
   "${psql_cega[@]}" -f "$base_cega/$regressao" >>"$temp_cega/regressao.log" 2>&1 || { tail -16 "$temp_cega/regressao.log"; exit 1; }
 done
@@ -52,4 +54,5 @@ PGHOST="$temp_cega" PGPORT="$porta_cega" PGUSER=postgres PGDATABASE=postgres PGO
 echo 'OK A1: lote vencido sai por último (venda, perda, acerto, caixa).'
 echo 'OK A2: lote com outra data não prende a entrega.'
 echo 'OK A4: entrega em duas vezes; o dono encerra o resto.'
+echo 'OK A5: devolução do fiado sai da gaveta; fechamento sem falta falsa.'
 echo 'OK: bloqueio do Caixa, contagens vinculadas, decisão do dono, idempotência, RLS e regressões; banco descartado.'
