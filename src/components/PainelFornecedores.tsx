@@ -18,10 +18,12 @@ export const linkWhatsApp = (tel: string, texto?: string) => {
   return `https://wa.me/${n}${texto ? `?text=${encodeURIComponent(texto)}` : ""}`;
 };
 
-type ItemProd = { p: Product; compra: boolean; acabou: boolean };
+type ItemProd = { p: Product; compra: boolean; acabou: boolean; pedido: boolean };
 
-export function PainelFornecedores({ products, tipo, suppliers, onOpen, onAdd, onUpdate }: {
+export function PainelFornecedores({ products, tipo, suppliers, onOpen, onAdd, onUpdate, jaPedidos }: {
   products: Product[]; tipo: string; suppliers: Supplier[]; onOpen: (p: Product) => void;
+  /** B2: produtos (id do banco) já num pedido em andamento: "Já pedido", fora do "para comprar". */
+  jaPedidos?: Set<string> | undefined;
   onAdd: (f: DadosFornecedor) => Promise<unknown>; onUpdate: (s: Supplier, f: DadosFornecedor) => Promise<unknown>;
 }) {
   const hoje = useHoje();
@@ -29,12 +31,13 @@ export function PainelFornecedores({ products, tipo, suppliers, onOpen, onAdd, o
   const porFornecedor = useMemo(() => {
     const m = new Map<EntityId | null, ItemProd[]>();
     for (const p of [...products].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))) {
-      const t = situacaoProduto(p, tipo, hoje).alertas.map((a) => a.tipo);
-      const k = suppliers.some((s) => s.id === p.fornecedor) ? p.fornecedor : null;
-      m.set(k, [...(m.get(k) ?? []), { p, compra: t.includes("comprar") || t.includes("acabou"), acabou: t.includes("acabou") }]);
+      const s = situacaoProduto(p, tipo, hoje, { jaPedido: !!p.db?.id && !!jaPedidos?.has(p.db.id) });
+      const t = s.alertas.map((a) => a.tipo);
+      const k = suppliers.some((f) => f.id === p.fornecedor) ? p.fornecedor : null;
+      m.set(k, [...(m.get(k) ?? []), { p, compra: t.includes("comprar") || t.includes("acabou"), acabou: t.includes("acabou"), pedido: !!s.aguardando }]);
     }
     return m;
-  }, [products, tipo, hoje, suppliers]);
+  }, [products, tipo, hoje, suppliers, jaPedidos]);
   const lista = [...suppliers].sort((a, b) => {
     const ca = (porFornecedor.get(a.id) ?? []).filter((i) => i.compra).length, cb = (porFornecedor.get(b.id) ?? []).filter((i) => i.compra).length;
     return cb - ca || a.nome.localeCompare(b.nome, "pt-BR");
@@ -136,7 +139,8 @@ function ListaItens({ itens, onOpen }: { itens: ItemProd[]; onOpen: (p: Product)
         <li key={i.p.id}>
           <button type="button" onClick={() => onOpen(i.p)} className="flex min-h-12 w-full items-center justify-between gap-3 py-2 text-left text-sm">
             <span className="min-w-0 break-words font-medium">{i.p.nome}</span>
-            {i.compra && <span className={`shrink-0 text-xs font-semibold ${i.acabou ? "text-destructive" : "text-warning"}`}>{i.acabou ? "Acabou" : "Comprar"}</span>}
+            {i.compra ? <span className={`shrink-0 text-xs font-semibold ${i.acabou ? "text-destructive" : "text-warning"}`}>{i.acabou ? "Acabou" : "Comprar"}</span>
+              : i.pedido && <span className="shrink-0 text-xs font-semibold text-primary">Já pedido</span>}
           </button>
         </li>
       ))}
