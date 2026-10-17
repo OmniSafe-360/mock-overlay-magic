@@ -9,7 +9,7 @@ import * as banco from "@/lib/banco";
 import { mensagemErro } from "@/lib/persistencia";
 import { PainelFiado, type ApiFiado } from "@/components/PainelFiado";
 import { nomeVenda } from "@/lib/situacao";
-import { devolverDe, textoDevolver } from "@/lib/caixa";
+import { devolverDe, textoCaixaAvisado, textoDevolver } from "@/lib/caixa";
 import {
   agruparPendentes, brl, codigoCaixaTexto, codigoVisivel, diaDaVenda, formaPagamento, haQuanto, horaVenda, normalizar, proximoNomeCaixa, resumoVendas, situacaoCaixa,
   textoCaixa, textoItemVenda, validadeCodigoCaixa, type Caixa, type GrupoPendente, type ItemPendente, type Venda,
@@ -267,8 +267,11 @@ export function PainelVendas({ comercioId, comercioNome = "", tipo, products, ap
         onCancelar={vendaSel.celular && vendaSel.situacao === "finalizada" ? async (motivo) => {
           const r = await (api.cancelarCelular ?? banco.cancelarVendaCelular)(vendaSel.id, motivo);
           const devolver = devolverDe(r);
+          // A6: com o caixa aberto, quem devolve é o caixa, da gaveta.
+          const c = (r ?? {}) as { caixaAberto?: boolean; devolverGaveta?: number };
+          const gaveta = c.caixaAberto ? c.devolverGaveta ?? 0 : 0;
           setPronto(`Venda ${vendaSel.numero ? `nº ${vendaSel.numero} ` : ""}cancelada. Os produtos voltaram para a ${area}.`
-            + (devolver > 0 ? ` ${textoDevolver(devolver)}` : ""));
+            + (gaveta > 0 ? ` ${textoCaixaAvisado(gaveta)}` : devolver > 0 ? ` ${textoDevolver(devolver)}` : ""));
           await recarregar(); onMudou?.();
         } : undefined} />}
     </div>

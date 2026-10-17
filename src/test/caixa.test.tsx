@@ -500,6 +500,39 @@ describe("dono: PIN do caixa, fechamentos e cancelar venda do celular", () => {
     expect((await screen.findByText(/Venda nº 4 cancelada/)).textContent?.replace(/\s/g, " "))
       .toMatch(/Devolva R\$ 20,50 ao cliente: é o que ele já tinha pago desta venda no fiado\./);
   });
+  it("checklist 3 A6: o dono cancela com o caixa aberto e vê que o caixa foi avisado", async () => {
+    const { PainelVendas } = await import("@/components/PainelVendas");
+    const hoje = new Date().toISOString();
+    const vendas = [{ id: "v2", caixaId: "cx", chave: null, numero: 4, emitidaEm: hoje, recebidaEm: hoje, total: 5000, situacao: "finalizada" as const, canceladaEm: null,
+      pagamentos: [{ forma: "dinheiro", valor: 5000 }], celular: true, troco: 0, turnoId: "t1", itens: [] }];
+    const cancelarCelular = vi.fn(async () => ({ situacao: "cancelada" as const, devolver: 0, caixaAberto: true, devolverGaveta: 5000 }));
+    const api = {
+      caixas: vi.fn(async () => [{ id: "cx", nome: "Celular · Maria", tipo: "celular" as const, codigo: null, codigoGeradoEm: null, ligadoEm: hoje, desligadoEm: null, ultimoContatoEm: hoje, ultimaVendaEm: hoje, aparelho: null }]),
+      vendas: vi.fn(async () => vendas), criar: vi.fn(), renomear: vi.fn(), novoCodigo: vi.fn(), desligar: vi.fn(), pendentes: vi.fn(async () => []), resolver: vi.fn(),
+      fechamentos: vi.fn(async () => []), conferirFechamento: vi.fn(async () => {}), cancelarCelular,
+    };
+    render(<PainelVendas comercioId="c1" tipo="mercado" products={[]} api={api as never} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Venda 4/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Cancelar esta venda/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Sim, cancelar a venda/ }));
+    expect((await screen.findByText(/Venda nº 4 cancelada/)).textContent?.replace(/\s/g, " "))
+      .toMatch(/O caixa foi avisado para tirar R\$ 50,00 da gaveta e devolver ao cliente\./);
+  });
+  it("checklist 3 A6: o caixa vê a venda cancelada pelo dono e marca que devolveu", async () => {
+    localStorage.clear();
+    const cancelada = { id: "v9", numero: 9, feitaEm: "2026-10-10T12:00:00Z", total: 2000, situacao: "cancelada" as const, troco: 1000, cliente: null,
+      pagamentos: [{ forma: "dinheiro", valor: 3000 }], itens: [], canceladaPor: "dono" as const, devolverGaveta: 2000 };
+    const api = apiCaixa({ estado: vi.fn(async () => ({ ...estado(), vendas: [cancelada] })) });
+    const tela = render(<CaixaCelular chave={CH} api={api} onSair={() => {}} />);
+    const aviso = await screen.findByText("O dono cancelou a venda nº 9. Tire R$ 20,00 da gaveta e devolva ao cliente.");
+    expect(aviso).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Já devolvi" }));
+    expect(screen.queryByText(/O dono cancelou a venda nº 9/)).toBeNull();
+    tela.unmount();
+    render(<CaixaCelular chave={CH} api={api} onSair={() => {}} />);
+    await screen.findByRole("button", { name: "Menu do caixa" });
+    expect(screen.queryByText(/O dono cancelou a venda nº 9/)).toBeNull();
+  });
   it("falta de um fechamento antigo que o dono não viu continua aparecendo, sem total de vendas falso", async () => {
     const { PainelVendas } = await import("@/components/PainelVendas");
     const antigo = new Date(Date.now() - 5 * 86_400_000).toISOString();

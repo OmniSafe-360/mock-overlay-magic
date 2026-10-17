@@ -335,6 +335,16 @@ export function devolverDe(r: unknown): number {
   const v = r && typeof r === "object" ? Number((r as { devolver?: unknown }).devolver) : 0;
   return Number.isFinite(v) && v > 0 ? Math.round(v) : 0;
 }
+/** A6: o que o dono lê depois de cancelar com o caixa aberto. */
+export const textoCaixaAvisado = (centavos: number) =>
+  `O caixa foi avisado para tirar ${brl(centavos)} da gaveta e devolver ao cliente.`;
+/** A6: aviso no caixa para a venda cancelada pelo dono. */
+export const textoCanceladaPeloDono = (numero: number | null, centavos: number) =>
+  `O dono cancelou a venda${numero ? ` nº ${numero}` : ""}. Tire ${brl(centavos)} da gaveta e devolva ao cliente.`;
+const DEVOLVIDO = "omni.caixa.devolvido.v1:";
+/** A6: o caixa marcou que já devolveu (guardado só neste celular; sem acesso ao armazenamento, o aviso continua). */
+export function jaDevolvido(vendaId: string): boolean { try { return localStorage.getItem(DEVOLVIDO + vendaId) === "1"; } catch { return false; } }
+export function marcarDevolvido(vendaId: string) { try { localStorage.setItem(DEVOLVIDO + vendaId, "1"); } catch { /* nada */ } }
 export const textoDevolver = (centavos: number, gaveta = false) => gaveta
   ? `Tire ${brl(centavos)} da gaveta e devolva ao cliente: é o que ele já tinha pago desta venda no fiado. Essa saída já foi descontada do caixa.`
   : `Devolva ${brl(centavos)} ao cliente: é o que ele já tinha pago desta venda no fiado.`;

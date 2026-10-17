@@ -17,7 +17,7 @@ import {
   itemDoProduto, limiteCarrinho, lerQuantidade, linkWhatsApp, mascaraDinheiro, montarVenda, notaNaoAceitas, qtdTexto, semInternet, situacaoPagamento, subtotal, textoComprovante, textoDiferencaCaixa, totalCarrinho,
   type DadosComprovante,
   vendaGuardadaValida, type Achado, type FormaCaixa, type ItemCarrinho, type PagamentoCaixa, type ProdutoCaixa, type VendaGuardada,
-  devolverDe, textoDevolver,
+  devolverDe, textoDevolver, textoCanceladaPeloDono, jaDevolvido, marcarDevolvido,
 } from "@/lib/caixa";
 import { newUid, unPlural, unSingular } from "@/lib/deposito";
 import { digits, maskPhone } from "@/lib/formatacao";
@@ -191,6 +191,8 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
         const c = lerCache(escopo);
         if (c) gravarCache(escopo, { ...c, produtos: prods });
       } catch { /* sem internet: mantém a lista atual */ }
+      // A6: traz também as vendas do turno, para o aviso de venda cancelada pelo dono aparecer.
+      if (vivo) atualizarEstado();
     };
     const t = setInterval(() => { void atualizar(); }, 120000);
     const voltou = () => { if (document.visibilityState === "visible") void atualizar(); };
@@ -198,7 +200,7 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
     document.addEventListener("visibilitychange", voltou);
     window.addEventListener("online", online);
     return () => { vivo = false; clearInterval(t); document.removeEventListener("visibilitychange", voltou); window.removeEventListener("online", online); };
-  }, [escopo, fase, api, chave]);
+  }, [escopo, fase, api, chave, atualizarEstado]);
   // Vendas guardadas: tenta de novo de tempos em tempos e quando a internet volta.
   useEffect(() => {
     if (!guardadas.some((g) => !g.problema)) return;
@@ -364,6 +366,26 @@ type Janela =
   | { j: "fiado" }
   | null;
 
+/** A6: venda cancelada pelo dono com o caixa aberto: o caixa devolve o dinheiro ao cliente, da gaveta. */
+function AvisoCanceladasDono({ vendas }: { vendas: banco.VendaDoCaixa[] }) {
+  const [vistos, setVistos] = useState<string[]>([]);
+  const lista = vendas.filter((v) => v.situacao === "cancelada" && v.canceladaPor === "dono" && (v.devolverGaveta ?? 0) > 0
+    && !vistos.includes(v.id) && !jaDevolvido(v.id));
+  if (!lista.length) return null;
+  return (
+    <div className="space-y-2">
+      {lista.map((v) => (
+        <div key={v.id} role="alert" className="rounded-2xl border border-warning/60 bg-warning/10 p-3">
+          <p className="break-words text-base font-bold text-warning">{textoCanceladaPeloDono(v.numero, v.devolverGaveta ?? 0)}</p>
+          <p className="text-xs text-muted-foreground">O fechamento do caixa já conta com essa devolução.</p>
+          <button type="button" onClick={() => { marcarDevolvido(v.id); setVistos((x) => [...x, v.id]); }}
+            className="mt-2 min-h-12 w-full rounded-2xl border border-border bg-background px-3 text-sm font-semibold">Já devolvi</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onReceber, onLimpar, guardadas, offline, erroFila, onEnviarGuardadas, onTentarDeNovo,
   chave, api, onEstado, onAtualizar, onFechar, onInstalar, erroEstoque, conferindo, onSolicitarContagem, onFecharAviso }: {
   erroEstoque: string; conferindo: boolean; onSolicitarContagem: (itens: ItemCarrinho[]) => void;
@@ -454,6 +476,7 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
             <CloudOff size={16} className="shrink-0" /> Sem internet: o carrinho fica guardado. Conecte para conferir o estoque e finalizar.
           </p>
         )}
+        <AvisoCanceladasDono vendas={estado.vendas} />
         {camera && <LeitorContinuo mercado={mercado} pausado={!!janela} onCode={lerCodigo} />}
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8em),1fr))] gap-2">
           <button type="button" onClick={() => setJanela({ j: "buscar" })} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-border bg-secondary/50 px-3 py-2 text-sm font-semibold"><Search size={18} className="shrink-0" /> Código ou nome</button>

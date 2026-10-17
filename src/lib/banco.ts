@@ -653,7 +653,9 @@ export type TurnoCaixa = {
   fechado?: boolean | undefined; dinheiroContado?: number | undefined; diferenca?: number | undefined;
 };
 export type VendaDoCaixa = { id: string; numero: number | null; feitaEm: string; total: number; situacao: "finalizada" | "cancelada";
-  pagamentos: { forma: string; valor: number }[]; troco: number; cliente: string | null; itens: { descricao: string; qtd: number; valor: number }[] };
+  pagamentos: { forma: string; valor: number }[]; troco: number; cliente: string | null; itens: { descricao: string; qtd: number; valor: number }[];
+  /** A6: cancelada pelo dono com o caixa aberto: quanto o caixa devolve da gaveta (centavos). */
+  canceladaPor?: "funcionario" | "dono" | null; devolverGaveta?: number };
 export type EstadoCaixa = {
   nome: string; comercio: { nome: string; tipo: string; telefone: string | null; endereco: string | null };
   donoTemPin: boolean; turno: TurnoCaixa | null; vendas: VendaDoCaixa[];
@@ -673,6 +675,7 @@ export async function caixaEstado(chave: string): Promise<EstadoCaixa> {
     donoTemPin: !!data.dono_tem_pin, turno: data.turno ? turno(data.turno) : null,
     vendas: (data.vendas ?? []).map((v: any) => ({
       id: v.id, numero: v.numero ?? null, feitaEm: v.feita_em, total: centavos(v.total), situacao: v.situacao, troco: centavos(v.troco), cliente: v.cliente ?? null,
+      canceladaPor: v.cancelada_por ?? null, devolverGaveta: centavos(v.devolver_gaveta),
       pagamentos: (v.pagamentos ?? []).map((p: any) => ({ forma: String(p.forma), valor: centavos(p.valor) })),
       itens: (v.itens ?? []).map((i: any) => ({ descricao: i.descricao, qtd: Number(i.qtd), valor: centavos(i.valor) })),
     })),
@@ -770,8 +773,9 @@ export async function caixaRegistrarVenda(chave: string, venda: ReturnType<typeo
 const comErro = (data: any) => { if (data?.erro) throw new Error(String(data.erro)); return data; };
 /** Cancelar uma venda do celular com o PIN do dono: os produtos voltam para a gôndola. */
 /** Resultado do cancelamento. `devolver` (centavos) é o que o cliente já tinha pago desta venda no fiado. */
-/** gaveta: A5 — a devolução já foi registrada como dinheiro tirado da gaveta deste caixa. */
-export type CancelamentoVenda = { situacao: "cancelada" | "repetida"; devolver: number; gaveta?: boolean };
+/** gaveta: A5 — a devolução já foi registrada como dinheiro tirado da gaveta deste caixa.
+ *  caixaAberto/devolverGaveta: A6 — o dono cancelou com o caixa aberto; o caixa devolve da gaveta (centavos). */
+export type CancelamentoVenda = { situacao: "cancelada" | "repetida"; devolver: number; gaveta?: boolean; caixaAberto?: boolean; devolverGaveta?: number };
 export async function caixaCancelarVenda(chave: string, vendaId: string, pinDono: string, motivo: string): Promise<CancelamentoVenda> {
   const { data, error } = await rpc("caixa_cancelar_venda", { _chave: chave, _venda: vendaId, _pin_dono: pinDono, _motivo: motivo });
   if (error) throw error;
@@ -804,7 +808,8 @@ export async function definirPinDono(pin: string) {
 export async function cancelarVendaCelular(vendaId: string, motivo: string): Promise<CancelamentoVenda> {
   const { data, error } = await rpc("cancelar_venda_celular", { _venda: vendaId, _motivo: motivo });
   if (error) throw error;
-  return { situacao: data?.situacao === "repetida" ? "repetida" : "cancelada", devolver: centavos(data?.devolver) };
+  return { situacao: data?.situacao === "repetida" ? "repetida" : "cancelada", devolver: centavos(data?.devolver),
+    caixaAberto: data?.caixa_aberto === true, devolverGaveta: centavos(data?.devolver_gaveta) };
 }
 export async function conferirFechamentoCaixa(turnoId: string) {
   const { error } = await rpc("conferir_fechamento_caixa", { _turno: turnoId });
