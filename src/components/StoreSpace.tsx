@@ -60,6 +60,18 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
   /** Muda a cada toque num alerta de antifurto para abrir a aba Diferenças já no Relatório. */
   const [verRelatorio, setVerRelatorio] = useState(inicio && "relatorio" in inicio ? 1 : 0);
   const [view, setView] = useState<Product | null>(() => (inicio && "produtoId" in inicio ? products.find((p) => p.id === inicio.produtoId) ?? null : null));
+  // B13: vindo de Alertas, os produtos deste comércio podem ainda estar carregando: a ficha abre quando o produto chegar (uma vez só).
+  const fichaPendente = useRef<Product["id"] | null>(inicio && "produtoId" in inicio && !view ? inicio.produtoId : null);
+  useEffect(() => {
+    const id = fichaPendente.current;
+    if (id == null) return;
+    const p = products.find((x) => x.id === id);
+    if (p) { fichaPendente.current = null; setView(p); }
+  }, [products]);
+  useEffect(() => { if (view) fichaPendente.current = null; }, [view]);
+  // Qualquer troca de parte (barra, "Atenção hoje", atalhos) cancela a ficha pendente.
+  const abaAnterior = useRef(tab);
+  useEffect(() => { if (abaAnterior.current !== tab) { abaAnterior.current = tab; fichaPendente.current = null; } }, [tab]);
   const entregasDecidir = useMemo(() => entregasParaDecidir(pedidos), [pedidos]);
   /** Muda a cada "Fazer pedido" para abrir a aba Pedidos já na montagem. */
   const [montar, setMontar] = useState(inicio && "pedidos" in inicio && inicio.pedidos === "montar" ? 1 : 0);
@@ -72,7 +84,7 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
   const nomeAba = (t: Aba) => (t === "Gôndolas" ? nomeAreaVenda(store.tipo) : textoDoTipo(store.tipo)(t));
   /** Nome curto na barra ("Área de venda" não cabe: vira "À venda"). */
   const curtoAba = (t: Aba) => (t === "Gôndolas" && nomeAreaVenda(store.tipo) !== "Gôndolas" ? "À venda" : nomeAba(t));
-  const irPara = (t: Aba) => { setTab(t); setMontar(0); setVerPagar(0); setVerRelatorio(0); };
+  const irPara = (t: Aba) => { fichaPendente.current = null; setTab(t); setMontar(0); setVerPagar(0); setVerRelatorio(0); };
   /** Números de cada parte no menu: quantos assuntos esperam o dono (vermelho = urgente). */
   const avisos = useMemo(() => {
     const grupos = atencaoHoje(products, store.tipo, hojeEm(), () => undefined, jaPedidos);
