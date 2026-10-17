@@ -561,3 +561,4 @@ Base aprovada para preparação: `f9b3401964e8a64a37ae61b57726d09e6de58341`; bra
 - 17/10/2026: checklist 3 **B6**: "Corrigir vencimento ou valor" mostra para o campo em branco o mesmo valor que a conta usa. Sem banco; precisa Publicar → Atualizar; falta o teste do dono.
 - 17/10/2026: checklist 3 **B7**: cadastrar de novo um comércio que já existe avisa e não adiciona; a lista não repete o comércio. Sem banco; precisa Publicar → Atualizar; falta o teste do dono.
 - 17/10/2026: checklist 3 **B8**: mercadoria recebida de produto sem área de depósito aparece no depósito (a área é criada ao receber). Migração `20261017211758`, aplicada. Sem mudança na tela; não precisa Publicar. Falta o teste do dono.
+- 17/10/2026: checklist 3 **B9**: contagem do depósito começada em outro dia recomeça na contagem 1, sem as contagens antigas. Migração `20261017212839`, aplicada. Sem mudança na tela; não precisa Publicar. Falta o teste do dono.

@@ -78,15 +78,15 @@ select pg_temp.ok((select bool_and(relrowsecurity) from pg_class where oid in ('
 select pg_temp.ok(not has_table_privilege('anon','saldos','INSERT') and not has_table_privilege('authenticated','saldos','INSERT'),'escrita direta de saldo recusada');
 select pg_temp.ok(not has_function_privilege('anon','resolver_conferencia(uuid,numeric)','EXECUTE'),'equipe não decide contagem');
 
--- Retomada da conferência aberta ontem mantém ID e rodada; ID novo não a substitui.
+-- Retomada da conferência aberta ontem mantém o ID (ID novo não a substitui) e, desde a B9 do checklist 3, recomeça na contagem 1.
 set local role anon;
 select funcionario_conferencia_contar(repeat('f',64),pg_temp.u('ontem'),pg_temp.u('ok'),null,99,1);
 reset role;
 update conferencias set created_at=now()-interval '2 days' where id=pg_temp.u('ontem');
 set local role anon;
-select pg_temp.ok(jsonb_path_exists(funcionario_conferencia_lista(repeat('f',64)),format('$.produtos[*] ? (@.conferencia_id == "%s" && @.rodada == 2)',pg_temp.u('ontem'))::jsonpath),'contagem aberta de ontem continua recuperável');
+select pg_temp.ok(jsonb_path_exists(funcionario_conferencia_lista(repeat('f',64)),format('$.produtos[*] ? (@.conferencia_id == "%s" && @.rodada == 1)',pg_temp.u('ontem'))::jsonpath),'contagem aberta de ontem continua recuperável, do zero');
 select pg_temp.recusa($q$select funcionario_conferencia_contar(repeat('f',64),pg_temp.u('ontem-nova'),pg_temp.u('ok'),null,20,1)$q$,'contagem_em_andamento');
-select funcionario_conferencia_contar(repeat('f',64),pg_temp.u('ontem'),pg_temp.u('ok'),null,20,2);
+select funcionario_conferencia_contar(repeat('f',64),pg_temp.u('ontem'),pg_temp.u('ok'),null,20,1);
 -- Venda/perda registrada no meio da reposição não é devolvida ao saldo.
 select funcionario_reposicao_contar(repeat('f',64),pg_temp.u('meio'),pg_temp.u('g'),null,8,1);
 reset role;
