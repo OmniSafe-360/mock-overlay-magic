@@ -1333,3 +1333,10 @@ A mudança é só de apresentação, em `src/components/PainelFornecedores.tsx`.
   - WhatsApp/Ligar/E-mail um embaixo do outro, abrindo certo;
   - o lápis abrindo a edição, cancelando sem salvar.
 - **Próximas da lista:** M23 (geometria do primeiro cadastro) e M24 (validação integrada).
+
+
+## F03-A/B — preparo transacional isolado (16/10/2026)
+
+Base aprovada para preparação: `f9b3401964e8a64a37ae61b57726d09e6de58341`; branch `codex/f03-ajuste-motivo-atomico-20261016`. Problema: a tela executava `resolver_conferencia` e, numa segunda chamada, `explicar_diferenca`. Se a segunda falha, o ajuste podia já estar persistido. Proposta: migração NOVA `20261016184500_f03_decisao_motivo_atomico.sql`, sem modificar as funções antigas, adicionando `resolver_conferencia_com_motivo` com SECURITY INVOKER e execução só por authenticated. O RPC chama as funções existentes na MESMA transação; erro ao explicar desfaz saldo, movimento e decisão. Casos de saldo zero e `aguardando_deposito` continuam como antes. Na tela, só a decisão de contagem passa a usar o novo RPC; explicações de diferenças existentes e perdas continuam usando os caminhos anteriores. Testes de interface e RPC foram adaptados. `016_f03_atomicidade.sql` testa rollback após falha induzida na segunda operação, permissões, idempotência, zero e depósito. `016_f03_concorrencia.py` disputa uma decisão em duas conexões. A bateria entra na suíte PostgreSQL descartável do CI, sem acessar o Supabase oficial.
+
+**Situação: SOMENTE branch e PR para verificação.** Não houve aplicação no banco oficial, merge, publicação nem aceite físico. O cliente novo exige aplicar a migração antes de publicá-lo; plano de implantação e reversão precisam de avaliação independente. A RPC antiga segue autorizada aos clientes autenticados por compatibilidade de versões; a remoção da possibilidade de chamar a decisão antiga sem motivo exige desligamento controlado ou restrição adicional APÓS todos os clientes terem migrado, com testes de regressão e aprovação próprios. Não afirmar que a F03 esteja totalmente eliminada enquanto o caminho legado permanecer disponível. Fonte da Verdade e histórico preservados.

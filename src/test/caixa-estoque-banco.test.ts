@@ -1,7 +1,7 @@
 import { it, expect, vi, beforeEach } from "vitest";
 const rpc=vi.hoisted(()=>vi.fn());
 vi.mock("@/integrations/supabase/client",()=>({supabase:{rpc}}));
-import { caixaProdutos, caixaConferirVenda, caixaRegistrarVenda, resolverConferencia } from "@/lib/banco";
+import { caixaProdutos, caixaConferirVenda, caixaRegistrarVenda, resolverConferencia, resolverConferenciaComMotivo } from "@/lib/banco";
 import { montarVenda } from "@/lib/caixa";
 const venda=montarVenda("v","t",[{id:"i",produtoId:"p",variacaoId:null,embalagemId:null,codigo:null,nome:"Bala",detalhe:"",unidade:"Unidade",fracionado:false,qtd:7,preco:399}],[{forma:"pix",valor:2793}],null);
 beforeEach(()=>rpc.mockReset());
@@ -25,4 +25,19 @@ it("reenvio usa número e troco confirmados pelo banco",async()=>{
 });
 it("depósito pendente não se transforma em acerto zero falso",async()=>{
  rpc.mockResolvedValue({data:{situacao:"aguardando_deposito"},error:null});await expect(resolverConferencia("d",7)).rejects.toThrow("deposito_aguardando_contagem");
+});
+
+it("F03: envia decisão e motivo no mesmo RPC",async()=>{
+ rpc.mockResolvedValue({data:{diferenca:-3,valor:-6},error:null});
+ expect(await resolverConferenciaComMotivo("d",17,"sumiu","ver câmeras")).toEqual({diferenca:-3});
+ expect(rpc).toHaveBeenCalledWith("resolver_conferencia_com_motivo",{_diferenca:"d",_contado:17,_motivo:"sumiu",_observacao:"ver câmeras"});
+});
+it("F03: espera depósito sem anunciar estoque ajustado",async()=>{
+ rpc.mockResolvedValue({data:{situacao:"aguardando_deposito"},error:null});
+ await expect(resolverConferenciaComMotivo("d",17,"sumiu","")).rejects.toThrow("deposito_aguardando_contagem");
+});
+it("F03: falha e resposta incorreta não confirmam",async()=>{
+ rpc.mockResolvedValueOnce({data:null,error:{message:"erro_sql"}}).mockResolvedValueOnce({data:null,error:null});
+ await expect(resolverConferenciaComMotivo("d",17,"sumiu","")).rejects.toMatchObject({message:"erro_sql"});
+ await expect(resolverConferenciaComMotivo("d",17,"sumiu","")).rejects.toThrow("resposta_resolucao_invalida");
 });

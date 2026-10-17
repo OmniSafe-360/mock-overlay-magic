@@ -2926,6 +2926,10 @@ export type Database = {
         Args: { _contado: number; _diferenca: string }
         Returns: Json
       }
+      resolver_conferencia_com_motivo: {
+        Args: { _contado: number; _diferenca: string; _motivo: string | null; _observacao: string }
+        Returns: Json
+      }
       resolver_item_recebimento: {
         Args: { _acao: string; _item: string; _tentativa: number }
         Returns: undefined

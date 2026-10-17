@@ -26,7 +26,7 @@ function api(over: Partial<ApiDiferencas> = {}, dados = { diferencas: [dif(), in
     carregar: vi.fn(async () => dados),
     decidirPerda: vi.fn(async () => {}),
     explicar: vi.fn(async () => {}),
-    resolver: vi.fn(async (_id: string, c: number) => ({ diferenca: c - 100 })),
+    resolverComMotivo: vi.fn(async (_id: string, c: number, _m: string | null, _o: string) => ({ diferenca: c - 100 })),
     registrarPerda: vi.fn(async () => {}),
     ...over,
   } satisfies ApiDiferencas;
@@ -95,7 +95,7 @@ describe("aba Diferenças", () => {
     fireEvent.click(salvar);
     await waitFor(() => expect(a.explicar).toHaveBeenCalledWith("d1", "sumiu", "ver câmera"));
     expect(await screen.findByText("Explicação salva.")).toBeTruthy();
-    expect(a.resolver).not.toHaveBeenCalled();
+    expect(a.resolverComMotivo).not.toHaveBeenCalled();
   });
   it("contagem que não bateu: escolhe o número e o motivo; manter o sistema não pede motivo", async () => {
     const a = api();
@@ -106,16 +106,33 @@ describe("aba Diferenças", () => {
     expect(dlg.getByText(/Faltam 9 unidades/).textContent).toMatch(/−R\$\s27,00/);
     fireEvent.click(dlg.getByRole("button", { name: /Erro de contagem/ }));
     fireEvent.click(dlg.getByRole("button", { name: "Acertar o estoque e salvar" }));
-    await waitFor(() => expect(a.resolver).toHaveBeenCalledWith("d2", 91));
-    await waitFor(() => expect(a.explicar).toHaveBeenCalledWith("d2", "erro_contagem", ""));
+    await waitFor(() => expect(a.resolverComMotivo).toHaveBeenCalledWith("d2", 91, "erro_contagem", ""));
+    expect(a.explicar).not.toHaveBeenCalled();
     fireEvent.click(await screen.findByRole("button", { name: /Cerveja lata/ }));
     dlg = within(screen.getByRole("dialog"));
     fireEvent.click(dlg.getByRole("button", { name: "Manter o número do sistema: 100 unidades" }));
     expect(dlg.getByText("O estoque fica como está.")).toBeTruthy();
     expect(dlg.queryByText("O que aconteceu?")).toBeNull();
     fireEvent.click(dlg.getByRole("button", { name: "Salvar" }));
-    await waitFor(() => expect(a.resolver).toHaveBeenCalledWith("d2", 100));
-    expect(a.explicar).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(a.resolverComMotivo).toHaveBeenCalledWith("d2", 100, null, ""));
+    expect(a.explicar).not.toHaveBeenCalled();
+  });
+  it("F03: falha não confirma o estoque e permite nova tentativa", async () => {
+    const falha = vi.fn().mockRejectedValueOnce(new Error("falha_simulada")).mockResolvedValueOnce({ diferenca: -9 });
+    const a = api({ resolverComMotivo: falha });
+    render(<PainelDiferencas comercioId="c1" tipo="mercado" products={products} api={a} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Cerveja lata/ }));
+    const dlg = within(screen.getByRole("dialog"));
+    fireEvent.click(dlg.getByRole("button", { name: "Contagem da equipe: 91 unidades" }));
+    fireEvent.click(dlg.getByRole("button", { name: /Sumiu/ }));
+    fireEvent.click(dlg.getByRole("button", { name: "Acertar o estoque e salvar" }));
+    await waitFor(() => expect(falha).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText("Estoque acertado com a contagem escolhida.")).toBeNull();
+    await waitFor(() => expect(dlg.getByRole("button", { name: "Acertar o estoque e salvar" })).toBeEnabled());
+    fireEvent.click(dlg.getByRole("button", { name: "Acertar o estoque e salvar" }));
+    await waitFor(() => expect(falha).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("Estoque acertado com a contagem escolhida.")).toBeTruthy();
+    expect(a.explicar).not.toHaveBeenCalled();
   });
   it("tudo certo e histórico", async () => {
     const dados = { diferencas: [dif({ situacao: "explicada", motivo: "sumiu" })], perdas: [perda({ situacao: "confirmada" })] };

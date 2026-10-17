@@ -588,6 +588,14 @@ export async function resolverConferencia(id: string, contado: number): Promise<
   if (data?.situacao === "aguardando_deposito") throw new Error("deposito_aguardando_contagem");
   return { diferenca: Number(data?.diferenca ?? 0) };
 }
+/** F03: decisão da contagem e justificativa em uma única transação PostgreSQL. */
+export async function resolverConferenciaComMotivo(id: string, contado: number, motivo: MotivoDiferenca | null, observacao: string): Promise<{ diferenca: number }> {
+  const { data, error } = await rpc("resolver_conferencia_com_motivo", { _diferenca: id, _contado: contado, _motivo: motivo, _observacao: observacao });
+  if (error) throw error;
+  if (data?.situacao === "aguardando_deposito") throw new Error("deposito_aguardando_contagem");
+  if (!data || typeof data.diferenca !== "number" || !Number.isFinite(data.diferenca)) throw new Error("resposta_resolucao_invalida");
+  return { diferenca: data.diferenca };
+}
 export type PerdaDono = { id: string; comercioId: string; produtoId: string; variacaoId: string | null; area: AreaEstoque; quantidade: number; motivo: MotivoPerda; observacao: string };
 /** O dono registra uma perda (já confirmada). */
 export async function registrarPerdaDono(p: PerdaDono) {
