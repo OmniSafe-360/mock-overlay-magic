@@ -71,6 +71,20 @@ select pg_temp.ok(descartar_recebimento(pg_temp.u('r1'))->>'situacao'='repetida'
 select pg_temp.ok((select situacao='descartado' and descartado_em is not null from recebimentos where id=pg_temp.u('r1')),'situação descartado');
 select pg_temp.ok(pg_temp.dep('arroz')=0 and pg_temp.dep('feijao')=0,'estoque continua igual');
 
+-- 3b. Produto separado para o dono numa contagem encerrada não trava a reposição (ajuste do Codex, PR #197).
+select pg_temp.pedido('p2',5,2);
+set local role anon;
+select funcionario_abrir_recebimento(repeat('a',64),pg_temp.u('r3'),pg_temp.u('p2'),null);
+select pg_temp.envia('r3',0,jsonb_build_array(pg_temp.conta('arroz',1)));
+select pg_temp.envia('r3',1,jsonb_build_array(pg_temp.conta('arroz',2)));
+select pg_temp.envia('r3',2,jsonb_build_array(pg_temp.conta('arroz',3)));
+reset role;
+select pg_temp.ok((select situacao from recebimentos where id=pg_temp.u('r3'))='contando','feijão não contado: contagem continua aberta');
+select pg_temp.ok((select situacao from recebimento_itens where recebimento_id=pg_temp.u('r3') and produto_id=pg_temp.u('arroz'))='inconsistente','arroz separado para o dono');
+select pg_temp.ok(public._motivo_sem_reposicao(pg_temp.u('arroz'),null)='estoque_nao_liberado','antes: reposição travada');
+select pg_temp.ok(descartar_recebimento(pg_temp.u('r3'))->>'situacao'='descartado','dono encerrou a contagem do p2');
+select pg_temp.ok(public._motivo_sem_reposicao(pg_temp.u('arroz'),null) is distinct from 'estoque_nao_liberado','depois: a contagem encerrada não trava a reposição');
+
 -- 4. O celular com a contagem antiga é avisado; a equipe começa outra e conclui. Só a contagem nova vale.
 set local role anon;
 select pg_temp.recusa($q$select funcionario_abrir_recebimento(repeat('a',64),pg_temp.u('r1'),pg_temp.u('p1'),null)$q$,'recebimento_descartado');
