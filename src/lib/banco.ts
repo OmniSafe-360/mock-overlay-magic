@@ -349,7 +349,9 @@ export async function carregarVendas(comercioId: string, desde: string): Promise
     unidadeNota: x.unidade_nota ?? null, valor: centavos(x.valor), produtoId: x.produto_id ?? null, qtdUnidades: x.qtd_unidades == null ? null : Number(x.qtd_unidades),
     qtdBaixada: Number(x.qtd_baixada ?? 0), qtdFaltou: Number(x.qtd_faltou ?? 0), situacao: x.situacao, motivo: x.motivo ?? null,
   });
-  return vs.map((v) => ({
+  // B12: cancelamento que chegou sem a venda (nota de antes de ligar o caixa, ou venda que nunca chegou) não é venda: sem itens, sem data e sem valor.
+  const soCancelamento = (v: any) => v.situacao === "cancelada" && v.origem !== "celular" && v.emitida_em == null && !its.some((i) => i.venda_id === v.id);
+  return vs.filter((v) => !soCancelamento(v)).map((v) => ({
     id: v.id, caixaId: v.caixa_id, chave: v.chave_nota ?? null, numero: v.numero ?? null, emitidaEm: v.emitida_em ?? null, recebidaEm: v.recebida_em,
     ...(v.origem === "celular" ? { celular: true, troco: centavos(v.troco), turnoId: v.turno_id ?? null, canceladaPor: v.cancelada_por ?? null, motivoCancelamento: v.motivo_cancelamento ?? null } : {}),
     total: centavos(v.total), situacao: v.situacao, canceladaEm: v.cancelada_em ?? null,
