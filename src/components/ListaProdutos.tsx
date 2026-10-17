@@ -19,12 +19,15 @@ export const precisaAtencao = (s: Situacao) => s.nivel === "urgente" || s.nivel 
 /** Frase curta da situação para a linha da lista. */
 export function fraseSituacao(s: Situacao): string {
   const a = s.alertas.find((x) => x.nivel === s.nivel);
+  if (s.aguardando && !precisaAtencao(s)) return "Já pedido · aguardando a entrega";
   if (s.nivel === "ok" || !a) return "Tudo certo";
   return s.nivel === "info" ? "Falta completar o cadastro" : a.titulo;
 }
 
-export function ListaProdutos({ products, tipo, suppliers, onNew, onOpen, resumo }: {
+export function ListaProdutos({ products, tipo, suppliers, onNew, onOpen, resumo, jaPedidos }: {
   products: Product[]; tipo: string; suppliers: Supplier[]; onNew: () => void; onOpen: (p: Product) => void;
+  /** B2: produtos (id do banco) já num pedido em andamento: aparecem como "Já pedido", não "Comprar". */
+  jaPedidos?: Set<string> | undefined;
   /** M08: resumo de atenção. Com produtos, aparece depois da busca/Novo produto e antes dos filtros; sem produtos, antes do cartão inicial. */
   resumo?: ReactNode;
 }) {
@@ -32,8 +35,8 @@ export function ListaProdutos({ products, tipo, suppliers, onNew, onOpen, resumo
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const hoje = useHoje();
   const itens = useMemo(() => products.map((p) => ({
-    p, s: situacaoProduto(p, tipo, hoje, { fornecedor: suppliers.find((f) => f.id === p.fornecedor)?.nome }),
-  })), [products, tipo, hoje, suppliers]);
+    p, s: situacaoProduto(p, tipo, hoje, { fornecedor: suppliers.find((f) => f.id === p.fornecedor)?.nome, jaPedido: !!p.db?.id && !!jaPedidos?.has(p.db.id) }),
+  })), [products, tipo, hoje, suppliers, jaPedidos]);
   const nAtencao = itens.filter((i) => precisaAtencao(i.s)).length;
   const nCompletar = itens.filter((i) => i.s.nivel === "info").length;
   const lista = useMemo(() => {
@@ -108,15 +111,17 @@ function Filtro({ on, onClick, rotulo, n, alerta }: { on: boolean; onClick: () =
 function Linha({ p, s, onOpen }: { p: Product; s: Situacao; onOpen: () => void }) {
   const t = s.qtd.total;
   const outros = s.alertas.filter((a) => a.nivel === "urgente" || a.nivel === "atencao").length - (precisaAtencao(s) ? 1 : 0);
+  const pedido = !!s.aguardando && !precisaAtencao(s);
+  const barra = pedido ? "bg-primary" : BARRA[s.nivel];
   return (
     <button type="button" onClick={onOpen}
       className="relative flex w-full flex-col items-stretch gap-3 overflow-hidden rounded-3xl border border-border bg-secondary/70 p-4 pl-5 text-left transition hover:border-primary focus-visible:outline-2 focus-visible:outline-ring">
-      <span aria-hidden className={`absolute inset-y-0 left-0 w-1.5 ${BARRA[s.nivel]}`} />
+      <span aria-hidden className={`absolute inset-y-0 left-0 w-1.5 ${barra}`} />
       <span className="min-w-0 flex-1">
         <span className="line-clamp-2 block break-words text-base font-semibold leading-snug">{p.nome}</span>
         <span className="block break-words text-sm text-muted-foreground">{p.categoria || "Sem categoria"} · <span className="whitespace-nowrap font-semibold text-accent">{brl(p.venda)}</span></span>
-        <span className={`mt-1.5 flex items-baseline gap-1.5 text-sm font-medium leading-snug ${TEXTO[s.nivel]}`}>
-          <span aria-hidden className={`h-2 w-2 shrink-0 translate-y-[-1px] rounded-full ${BARRA[s.nivel]}`} />
+        <span className={`mt-1.5 flex items-baseline gap-1.5 text-sm font-medium leading-snug ${pedido ? "text-primary" : TEXTO[s.nivel]}`}>
+          <span aria-hidden className={`h-2 w-2 shrink-0 translate-y-[-1px] rounded-full ${barra}`} />
           <span className="min-w-0 break-words">{fraseSituacao(s)}</span>
           {outros > 0 && <span className="shrink-0 text-xs text-muted-foreground">+{outros}</span>}
         </span>

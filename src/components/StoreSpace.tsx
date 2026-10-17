@@ -141,7 +141,7 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
       {tab === "Produtos" ? (
         <>
           {saved && <SavedBanner onAnother={() => { onDismissSaved(); onNew(); }} onList={onDismissSaved} />}
-          <ListaProdutos products={products} tipo={store.tipo} suppliers={suppliers} onNew={onNew} onOpen={(p) => { onDismissSaved(); setView(p); }} resumo={
+          <ListaProdutos products={products} tipo={store.tipo} suppliers={suppliers} jaPedidos={jaPedidos} onNew={onNew} onOpen={(p) => { onDismissSaved(); setView(p); }} resumo={
           <AtencaoHoje products={products} tipo={store.tipo} suppliers={suppliers} onOpen={(p) => { onDismissSaved(); setView(p); }}
             jaPedidos={jaPedidos} onFazerPedido={pedidosProntos ? () => { onDismissSaved(); setVerPagar(0); setMontar((n) => n + 1); setTab("Pedidos"); } : undefined}
             contas={pedidosProntos ? contas : undefined} onVerContas={() => { onDismissSaved(); setMontar(0); setVerPagar((n) => n + 1); setTab("Pedidos"); }}
@@ -162,7 +162,7 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
           </div>}
         </>
       ) : tab === "Fornecedores" ? (
-        <PainelFornecedores products={products} tipo={store.tipo} suppliers={suppliers} onOpen={(p) => { onDismissSaved(); setView(p); }}
+        <PainelFornecedores products={products} tipo={store.tipo} suppliers={suppliers} jaPedidos={jaPedidos} onOpen={(p) => { onDismissSaved(); setView(p); }}
           onAdd={onAddSupplier} onUpdate={onUpdateSupplier} />
       ) : tab === "Equipe" && store.id ? (
         <PainelEquipe comercioId={store.id} comercioNome={store.nome} />

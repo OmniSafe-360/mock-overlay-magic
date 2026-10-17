@@ -96,7 +96,7 @@ Este arquivo não repete o que já está no [checklist ponta a ponta](CHECKLIST_
   - **Correção (só banco):** função interna `_precisa_repor` (fechada para o app), a mesma regra do app do dono (`situacao.ts`): área de venda contada, no mínimo ou abaixo, e o produto não acabou de vez. `funcionario_reposicao_lista` usa essa regra e `funcionario_inicio` conta exatamente as mesmas linhas da lista, inclusive as contagens pedidas pelo caixa. Migração `20261017164403_repor_mesma_regra.sql`, aplicada depois de comparar os md5, testar em banco descartável e simular com rollback (só o Kilão mudou: 2 → 0).
   - **Continua diferente de propósito:** na loja de roupas o dono conta 1 por produto; a equipe, 1 por tamanho/cor (cada um é buscado separado).
   - **Verificação:** `docs/persistencia/teste/025_repor_mesma_regra.sql` em `rodar_caixa_estoque.sh` (falha sem a correção). Sem mudança no app; não precisa Publicar. Falta o teste do dono (no final).
-- [ ] **B2.** Produto "já pedido" continua como "Comprar" na lista de Produtos e em Fornecedores.
+- [x] **B2.** Produto "já pedido" continua como "Comprar" na lista de Produtos e em Fornecedores. — 17/10/2026: aparece "Já pedido · aguardando a entrega" (lista) e "Já pedido" (Fornecedores), fora de "Precisam de atenção" e de "N para comprar".
 - [ ] **B3.** "Para repor"/"Para comprar" das abas Depósito e Gôndolas ≠ Início e Atenção hoje.
 - [ ] **B4.** "Novo pedido" e o quadro "Comprar" sugerem produtos diferentes, nos dois sentidos.
 - [ ] **B5.** Conta a pagar não acompanha a alteração da resposta do fornecedor (valor e vencimento).

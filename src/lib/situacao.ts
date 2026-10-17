@@ -29,6 +29,8 @@ export type Situacao = {
   lotes: LoteVisto[];
   /** Nome curto das duas áreas no jeito do comércio ("Depósito"/"Estoque", "Gôndola"/"Área de venda"). */
   nomes: { dep: string; ven: string };
+  /** B2: o produto já está num pedido em andamento; os avisos de comprar/acabou viram "Já pedido" (títulos originais). */
+  aguardando?: string | undefined;
 };
 
 const somaOuNull = (xs: (number | null)[]) => (!xs.length || xs.some((x) => x == null) ? null : deMil(xs.reduce<number>((a, x) => a + mil(x ?? 0), 0)));
@@ -45,7 +47,9 @@ export function quandoVence(dias: number): string {
   return dias === -1 ? "venceu ontem" : `venceu há ${-dias} dias`;
 }
 
-export function situacaoProduto(p: Product, tipo: string, hoje: string, opts: { fornecedor?: string | undefined } = {}): Situacao {
+export function situacaoProduto(p: Product, tipo: string, hoje: string, opts: { fornecedor?: string | undefined;
+  /** B2: já está num pedido em andamento: "Comprar"/"Acabou" saem dos avisos, como no "Atenção hoje" ("Já pedidos"). */
+  jaPedido?: boolean | undefined } = {}): Situacao {
   const T = textoDoTipo(tipo);
   const nomes = { dep: T("Depósito"), ven: nomeVenda(tipo) };
   const farm = tipo === "farmacia";
@@ -151,9 +155,17 @@ export function situacaoProduto(p: Product, tipo: string, hoje: string, opts: { 
   if (!p.validade && (farm || !tipoSemValidade(tipo))) add(farm ? "atencao" : "info", "completar", "Validade não configurada", farm ? "Na farmácia, o controle de validade é obrigatório." : undefined);
   if (!p.fornecedor) add("info", "completar", "Fornecedor não definido");
 
+  let aguardando: string | undefined;
+  if (opts.jaPedido) {
+    const compra = alertas.filter((x) => x.tipo === "comprar" || x.tipo === "acabou");
+    if (compra.length) {
+      aguardando = compra.map((x) => x.titulo).join(" · ");
+      for (const x of compra) alertas.splice(alertas.indexOf(x), 1);
+    }
+  }
   const nivel: Nivel = alertas.some((x) => x.nivel === "urgente") ? "urgente" : alertas.some((x) => x.nivel === "atencao") ? "atencao"
     : alertas.some((x) => x.nivel === "info") ? "info" : "ok";
-  return { nivel, alertas, qtd, variacoes, lotes, nomes };
+  return { nivel, alertas, qtd, variacoes, lotes, nomes, aguardando };
 }
 
 /* ---------- Por local (abas Depósito/Estoque e Gôndola/Área de venda) ---------- */
