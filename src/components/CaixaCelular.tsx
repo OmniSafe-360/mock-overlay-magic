@@ -13,7 +13,7 @@ import { Sheet } from "@/components/parts/Sheet";
 import { btnGhost, btnPrimary } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";
 import {
-  FORMA_TXT, acharPorCodigo, adicionar, atalhosDinheiro, bip, brl, buscarProdutos, centavosDigitados, contarItens, enviarFila, erroCaixa, erroPinDono, filaCaixa,
+  FORMA_TXT, lerReais, acharPorCodigo, adicionar, atalhosDinheiro, bip, brl, buscarProdutos, centavosDigitados, contarItens, enviarFila, erroCaixa, erroPinDono, filaCaixa,
   itemDoProduto, limiteCarrinho, lerQuantidade, linkWhatsApp, mascaraDinheiro, montarVenda, notaNaoAceitas, qtdTexto, semInternet, situacaoPagamento, subtotal, textoComprovante, textoDiferencaCaixa, totalCarrinho,
   type DadosComprovante,
   vendaGuardadaValida, type Achado, type FormaCaixa, type ItemCarrinho, type PagamentoCaixa, type ProdutoCaixa, type VendaGuardada,
@@ -1382,7 +1382,8 @@ function ReceberFiadoCaixa({ chave, turnoId, cliente, onPago }: { chave: string;
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState("");
   const [ok, setOk] = useState("");
-  const cent = Math.round(Number(valor.replace(/\./g, "").replace(",", ".")) * 100);
+  // A7: "15.5" é R$ 15,50 (antes o ponto era apagado e virava R$ 155).
+  const cent = lerReais(valor) ?? NaN;
   const valido = Number.isFinite(cent) && cent > 0 && cent <= deve;
   const salvar = async () => {
     if (!valido || salvando) return;
