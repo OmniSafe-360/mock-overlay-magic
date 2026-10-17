@@ -98,7 +98,7 @@ it("dono vê duas contagens confirmadas com diferença sem texto falso de três 
   expect(precisaEscolher(dif)).toBe(true); expect(textoDiferenca(dif,"Unidade","mercado")).toMatch(/Contagem com diferença.*aguardando sua decisão/);
   expect(origemTexto(dif,"mercado")).toBe("Contagem na gôndola (contagem repetida com diferença)");
   const resolver = vi.fn(async () => ({ diferenca: 0, valor: 0 }));
-  const api = { carregar: vi.fn(async () => ({ diferencas: [dif], perdas: [] })), resolver, explicar: vi.fn(), decidirPerda: vi.fn(), registrarPerda: vi.fn() } as unknown as ApiDiferencas;
+  const api = { carregar: vi.fn(async () => ({ diferencas: [dif], perdas: [] })), resolverComMotivo: resolver, explicar: vi.fn(), decidirPerda: vi.fn(), registrarPerda: vi.fn() } as unknown as ApiDiferencas;
   render(<PainelDiferencas comercioId="com-cega" tipo="mercado" products={[]} api={api} />);
   fireEvent.click(await screen.findByRole("button", { name: /Contagem com diferença/ }));
   const dlg = within(screen.getByRole("dialog"));
@@ -107,5 +107,5 @@ it("dono vê duas contagens confirmadas com diferença sem texto falso de três 
   expect(dlg.getAllByRole("button", { name: "Contagem da equipe: 3 unidades" })).toHaveLength(1);
   fireEvent.click(dlg.getByRole("button", { name: "Manter o número do sistema: 0 unidades" }));
   fireEvent.click(dlg.getByRole("button", { name: /^Salvar$/ }));
-  await waitFor(() => expect(resolver).toHaveBeenCalledWith("d-cega",0)); expect(api.explicar).not.toHaveBeenCalled();
+  await waitFor(() => expect(resolver).toHaveBeenCalledWith("d-cega",0,null,"")); expect(api.explicar).not.toHaveBeenCalled();
 });

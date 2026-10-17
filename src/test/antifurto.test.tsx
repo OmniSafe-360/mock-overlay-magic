@@ -149,7 +149,7 @@ describe("tela do relatório", () => {
     expect(onMudou).toHaveBeenCalled();
   });
   it("aba Diferenças tem Para resolver e Relatório", async () => {
-    const apiD = { carregar: vi.fn(async () => ({ diferencas: [], perdas: [] })), decidirPerda: vi.fn(), explicar: vi.fn(), resolver: vi.fn(), registrarPerda: vi.fn() };
+    const apiD = { carregar: vi.fn(async () => ({ diferencas: [], perdas: [] })), decidirPerda: vi.fn(), explicar: vi.fn(), resolverComMotivo: vi.fn(), registrarPerda: vi.fn() };
     render(<PainelDiferencas comercioId="c1" tipo="farmacia" products={products} api={apiD} apiRelatorio={api()} />);
     expect(await screen.findByText(/Tudo certo! Nenhuma perda/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Relatório" }));
