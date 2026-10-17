@@ -40,6 +40,8 @@ done
 "${psql_cega[@]}" -f "$temp_cega/regra-anterior.sql" >"$temp_cega/regra-anterior.log" 2>&1 || { tail -16 "$temp_cega/regra-anterior.log"; exit 1; }
 { echo 'begin;'; cat "$base_cega/015_base_caixa_estoque.sql" "$base_cega/016_f03_atomicidade.sql"; echo 'rollback;'; } >"$temp_cega/f03.sql"
 "${psql_cega[@]}" -f "$temp_cega/f03.sql" >"$temp_cega/f03.log" 2>&1 || { tail -28 "$temp_cega/f03.log"; exit 1; }
+{ echo 'begin;'; cat "$base_cega/015_base_caixa_estoque.sql" "$base_cega/018_vencido_por_ultimo.sql"; echo 'rollback;'; } >"$temp_cega/a1.sql"
+"${psql_cega[@]}" -f "$temp_cega/a1.sql" >"$temp_cega/a1.log" 2>&1 || { tail -16 "$temp_cega/a1.log"; exit 1; }
 for regressao in 005_melhorias_operacionais.sql 011_coerencia_recebimento.sql; do
   "${psql_cega[@]}" -f "$base_cega/$regressao" >>"$temp_cega/regressao.log" 2>&1 || { tail -16 "$temp_cega/regressao.log"; exit 1; }
 done
@@ -47,4 +49,5 @@ done
 "${psql_cega[@]}" -1 -f "$base_cega/015_base_caixa_estoque.sql" >"$temp_cega/concorrencia.log" 2>&1 || { tail -16 "$temp_cega/concorrencia.log"; exit 1; }
 PGHOST="$temp_cega" PGPORT="$porta_cega" PGUSER=postgres PGDATABASE=postgres PGOPTIONS='-c statement_timeout=10000' python3 "$base_cega/015_caixa_estoque_concorrencia.py"
 PGHOST="$temp_cega" PGPORT="$porta_cega" PGUSER=postgres PGDATABASE=postgres PGOPTIONS='-c statement_timeout=10000' python3 "$base_cega/016_f03_concorrencia.py"
+echo 'OK A1: lote vencido sai por último (venda, perda, acerto, caixa).'
 echo 'OK: bloqueio do Caixa, contagens vinculadas, decisão do dono, idempotência, RLS e regressões; banco descartado.'
