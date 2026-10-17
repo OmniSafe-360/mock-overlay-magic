@@ -53,6 +53,16 @@ describe("B10 — caixa", () => {
     expect(screen.queryByRole("alert", { name: "Aviso de estoque" })).toBeNull();
     expect(screen.queryByText("Produto não encontrado", { selector: "h2" })).toBeNull();
   });
+  it("bipar antes de a lista chegar (ou depois de uma falha) pergunta de novo ao banco", async () => {
+    const foraEstoque = vi.fn().mockRejectedValueOnce(new Error("Failed to fetch")).mockResolvedValueOnce([sacola]);
+    const a = api({ foraEstoque });
+    render(<CaixaCelular chave={chave} api={a} onSair={() => {}} mercado />);
+    await screen.findByRole("button", { name: "ler sacola" });
+    await waitFor(() => expect(foraEstoque).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "ler sacola" }));
+    expect(await screen.findByText(/não sai do estoque/)).toBeInTheDocument();
+    expect(foraEstoque).toHaveBeenCalledTimes(2);
+  });
   it("código que não está marcado continua \"Produto não encontrado\"", async () => {
     const a = api({ foraEstoque: vi.fn(async () => []) });
     render(<CaixaCelular chave={chave} api={a} onSair={() => {}} mercado />);

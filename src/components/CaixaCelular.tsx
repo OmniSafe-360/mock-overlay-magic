@@ -426,7 +426,10 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
     const atualizar = () => { void ler(chave).then((f) => { if (vivo) setFora(f); }).catch(() => { /* sem internet: mantém a lista */ }); };
     atualizar();
     const t = setInterval(atualizar, 120000);
-    return () => { vivo = false; clearInterval(t); };
+    const voltou = () => { if (document.visibilityState === "visible") atualizar(); };
+    document.addEventListener("visibilitychange", voltou);
+    window.addEventListener("online", atualizar);
+    return () => { vivo = false; clearInterval(t); document.removeEventListener("visibilitychange", voltou); window.removeEventListener("online", atualizar); };
   }, [api, chave]);
   const colocar = useCallback((item: ItemCarrinho) => {
     if (conferindoAtual.current) return;
@@ -449,10 +452,18 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
     if (!a) {
       const f = acharForaEstoque(fora, c);
       if (f) { setJanela({ j: "fora", f }); return; }
-      avisar({ ok: false, texto: `Código ${c} não está cadastrado` }); setJanela({ j: "sem_cadastro", codigo: c }); return;
+      const naoAchou = () => { avisar({ ok: false, texto: `Código ${c} não está cadastrado` }); setJanela({ j: "sem_cadastro", codigo: c }); };
+      // A lista pode ainda não ter chegado (caixa acabou de abrir, internet caiu): pergunta de novo antes de dizer "não encontrado".
+      if (!api.foraEstoque) { naoAchou(); return; }
+      void api.foraEstoque(chave).then((lista) => {
+        setFora(lista);
+        const g = acharForaEstoque(lista, c);
+        if (g) setJanela({ j: "fora", f: g }); else naoAchou();
+      }).catch(naoAchou);
+      return;
     }
     incluir(a, c);
-  }, [produtos, incluir, fora]);
+  }, [produtos, incluir, fora, api, chave]);
 
   // Leitor de código ligado ao celular (bluetooth/USB): ele "digita" os números e aperta Enter.
   const lerRef = useRef(lerCodigo); lerRef.current = lerCodigo;
