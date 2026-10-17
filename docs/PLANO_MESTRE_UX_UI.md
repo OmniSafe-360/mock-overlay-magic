@@ -1369,7 +1369,7 @@ Pedido do dono: "Pode fazer o próximo" (etapa 5 da lista apresentada após a an
 
 **Depois (320/390/1280 × 100/200%, os 4 passos):** nenhum botão abaixo de 48 px, nenhum controle por cima de outro (descontando o que está escondido pela rolagem), nenhum fora da lateral, sem rolagem lateral e sem erros.
 
-Diferença visível com letra normal: em 390 px o CEP do resumo quebra em duas linhas, porque "Editar" ficou um pouco mais largo. Em 320 × 568 a lista de campos rola um pouco mais por dentro (passo 2: 60 → 104 px), porque CNPJ/CPF e as caixas de marcar ficaram mais altos.
+Correção após revisão do Codex: o atalho "Ainda não tenho CNPJ" e a escolha CNPJ/CPF tinham margem negativa, e a área de toque invadia o campo do documento. Tocar perto da borda de baixo do campo podia trocar para CPF e apagar o documento. As margens negativas saíram e os dois reservam a altura toda. Medido com CNPJ escolhido, em 320/390/1280 × 100/200%: nada encosta no campo do documento e, com letra normal, a tela não passou a rolar. Diferença visível com letra normal: em 390 px o CEP do resumo quebra em duas linhas, porque "Editar" ficou um pouco mais largo. Em 320 × 568 a lista de campos rola um pouco mais por dentro (passo 2: 60 → 104 px), porque CNPJ/CPF e as caixas de marcar ficaram mais altos.
 
 **Testes:** `src/test/m23-geometria-cadastro.test.tsx` (2, falham sem a mudança). Também passam `cadastro-sair`, `comercio-salvamento`, `tamanhos-tela`, `cep-comercio` e `m21-ajuda-erro`. Tipos 2×, 1.265 testes/139 arquivos 2×, build.
 

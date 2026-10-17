@@ -368,7 +368,7 @@ export function StoreSetup({ mode = "first", userId, onFinish, onCancel, onExit 
                       onChange={(x) => setDoc(docType === "CNPJ" ? maskCNPJ(x.target.value) : maskCPF(x.target.value))}
                       onBlur={blur("doc")} error={touched["doc"] ? errs.doc : ""}
                       extra={
-                        <div role="radiogroup" className="flex rounded-xl @min-[16rem]:-my-2 border border-border bg-background-deep/60 p-0.5">
+                        <div role="radiogroup" className="flex rounded-xl border border-border bg-background-deep/60 p-0.5">
                           {(["CNPJ", "CPF"] as const).map((t) => (
                             <button key={t} type="button" role="radio" aria-checked={docType === t}
                               onClick={() => { setDocType(t); setDoc(""); setTouched((s) => ({ ...s, doc: false })); }}
@@ -379,7 +379,7 @@ export function StoreSetup({ mode = "first", userId, onFinish, onCancel, onExit 
                         </div>
                       }
                       hint={docType === "CNPJ" ? (
-                        <button type="button" className="-my-3 inline-flex min-h-12 items-center font-medium text-primary hover:underline" onClick={() => { setDocType("CPF"); setDoc(""); }}>Ainda não tenho CNPJ</button>
+                        <button type="button" className="inline-flex min-h-12 items-center font-medium text-primary hover:underline" onClick={() => { setDocType("CPF"); setDoc(""); }}>Ainda não tenho CNPJ</button>
                       ) : "Use seu CPF enquanto não tem CNPJ."} />
                     <Field label="Telefone do comércio" name="tel" type="tel" inputMode="tel" autoComplete="tel" enterKeyHint="done" placeholder="(11) 99999-9999"
                       value={tel} onChange={(x) => setTel(maskPhone(x.target.value))} onBlur={blur("tel")}

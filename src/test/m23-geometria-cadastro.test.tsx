@@ -30,6 +30,11 @@ describe("M23 — geometria do primeiro cadastro", () => {
     expect(voltar.parentElement!.parentElement!.className).toContain("@container");
     expect(screen.getByRole("button", { name: "Continuar" }).className).toContain("min-w-0");
     for (const r of screen.getAllByRole("radio")) expect(r.className).toContain("min-h-12");
+    // Achado do Codex: margem negativa fazia o atalho e a escolha CNPJ/CPF invadirem o campo do documento.
+    expect(screen.getByRole("radiogroup").className).not.toMatch(/-my-/);
+    const atalho = screen.getByRole("button", { name: "Ainda não tenho CNPJ" });
+    expect(atalho.className).toContain("min-h-12");
+    expect(atalho.className).not.toMatch(/-my-/);
     expect(screen.getByText("Dados do comércio").className).not.toContain("truncate");
     fireEvent.click(sairBtn);
     expect(sair).toHaveBeenCalledTimes(1);
