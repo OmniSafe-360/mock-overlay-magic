@@ -74,14 +74,31 @@ it("erro do banco ao devolver aparece em português, não o código", async () =
   expect(await screen.findByRole("alert")).toHaveTextContent("Este item já foi resolvido. Atualize a página.");
 });
 
-it("contagem que não bateu continua igual (escolher a contagem certa)", async () => {
+it("contagem que não bateu: escolher a certa ou devolver (A3)", async () => {
   mock.tabelas["recebimentos"] = [{ ...recebimento, situacao: "concluido", concluido_em: "2026-10-17T10:00:00Z" }];
   mock.tabelas["recebimento_itens"] = [{ ...item, no_pedido: true, esperado: 3, situacao: "inconsistente", tentativas: [{ total: 2, avaria: 0, partes: [] }, { total: 4, avaria: 0, partes: [] }, { total: 5, avaria: 0, partes: [] }] }];
   const pedidos = await carregarPedidos("c1");
   render(<PainelPedidos {...props} pedidos={pedidos} />);
   fireEvent.click(screen.getByRole("button", { name: /Pedido nº 1/ }));
   expect(screen.getByRole("region", { name: "Recebimento" })).toHaveTextContent("A contagem não fechou");
-  expect(screen.queryByRole("button", { name: /Devolver/ })).toBeNull();
+  expect(screen.getByRole("button", { name: /Devolver/ })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "4 pacotes" }));
   expect(screen.getByRole("button", { name: /Confirmar 4 pacotes/ })).toBeTruthy();
+});
+
+it("contagem com validade vencida não pode ser escolhida; devolver continua possível (A3)", async () => {
+  mock.tabelas["recebimentos"] = [{ ...recebimento, situacao: "concluido", concluido_em: "2026-10-17T10:00:00Z" }];
+  mock.tabelas["recebimento_itens"] = [{ ...item, no_pedido: true, esperado: 3, situacao: "inconsistente", tentativas: [
+    { total: 2, avaria: 0, partes: [{ quantidade: 2, vencimento: "2020-01-01", lote: null }] },
+    { total: 4, avaria: 0, partes: [{ quantidade: 4, vencimento: "2999-12-31", lote: null }] },
+    { total: 5, avaria: 0, partes: [{ quantidade: 5, vencimento: "2999-12-31", lote: null }] }] }];
+  const pedidos = await carregarPedidos("c1");
+  render(<PainelPedidos {...props} pedidos={pedidos} />);
+  fireEvent.click(screen.getByRole("button", { name: /Pedido nº 1/ }));
+  expect(screen.getByRole("button", { name: "2 pacotes · vencida" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "4 pacotes" })).toBeEnabled();
+  expect(screen.getByRole("region", { name: "Recebimento" })).toHaveTextContent("A validade de uma contagem já passou");
+  props.onResolverRecebimento.mockResolvedValue(undefined);
+  fireEvent.click(screen.getByRole("button", { name: /Devolver/ }));
+  expect(props.onResolverRecebimento).toHaveBeenCalledWith("ri1", "recusar", null);
 });
