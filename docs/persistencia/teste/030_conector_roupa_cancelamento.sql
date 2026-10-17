@@ -40,6 +40,21 @@ set local role anon;
 select pg_temp.nota(pg_temp.chave(to_char(now(),'YYMM'),2),'CAM-P');
 reset role;
 select pg_temp.ok((select situacao='baixado' and variacao_id=pg_temp.u('P') from venda_itens where codigo_pdv='CAM-P'),'com tamanho: baixado do tamanho P');
+-- 2b. Ajuste da revisão (#209): escolher o tamanho de uma venda vale só para ela.
+set local role anon;
+select pg_temp.nota(pg_temp.chave(to_char(now(),'YYMM'),5),'CAM');
+reset role;
+select set_config('request.jwt.claim.sub',pg_temp.u('dono')::text,true);
+set local role authenticated;
+select pg_temp.ok(resolver_item_venda((select vi.id from venda_itens vi join vendas v on v.id=vi.venda_id where v.numero=1 and vi.codigo_pdv='CAM'),'ligar',pg_temp.u('camisa'),pg_temp.u('P'),null)->>'itens'='1','escolher P resolve só esta venda');
+reset role;
+select pg_temp.ok((select vi.situacao='baixado' and vi.variacao_id=pg_temp.u('P') from venda_itens vi join vendas v on v.id=vi.venda_id where v.numero=1 and vi.codigo_pdv='CAM'),'venda 1: P');
+select pg_temp.ok((select vi.situacao='conferir' and vi.motivo='escolher_variacao' and vi.variacao_id is null from venda_itens vi join vendas v on v.id=vi.venda_id where v.numero=5),'venda 5 continua perguntando');
+select pg_temp.ok((select variacao_id is null from codigos_pdv where comercio_id=pg_temp.u('loja') and codigo='CAM'),'código CAM continua sem tamanho');
+set local role anon;
+select pg_temp.nota(pg_temp.chave(to_char(now(),'YYMM'),6),'CAM');
+reset role;
+select pg_temp.ok((select vi.situacao='conferir' from venda_itens vi join vendas v on v.id=vi.venda_id where v.numero=6),'próxima venda também pergunta');
 -- 3. Cancelamento de nota de um mês antes do caixa: não cria nada.
 set local role anon;
 select pg_temp.ok(conector_cancelar_venda(repeat('e',64), pg_temp.chave(to_char(now() - interval '2 months','YYMM'),3))->>'situacao'='anterior','cancelamento de nota antiga: anterior');

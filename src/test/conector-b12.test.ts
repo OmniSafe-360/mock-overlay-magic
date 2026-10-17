@@ -34,3 +34,18 @@ describe("B12 — vendas do Conector", () => {
     expect(r).toMatchObject({ ok: true, texto: "Cancelamento de venda de antes de ligar o caixa (não conta)" });
   });
 });
+
+import { agruparPendentes, type ItemPendente } from "@/lib/vendas";
+describe("B12 — revisão do Codex (#209): tamanho escolhido por venda", () => {
+  const item = (id: string, motivo: string | null, situacao: "sem_cadastro" | "conferir" = "conferir"): ItemPendente => ({
+    id, codigoPdv: "CAM", codigoBarras: null, descricao: "Camisa", qtdNota: 1, unidadeNota: "UN", valor: 2000, situacao, motivo, produtoId: "camisa", vendidoEm: null });
+  it("roupa sem tamanho: cada venda fica separada, com o produto já ligado", () => {
+    const g = agruparPendentes([item("i1", "escolher_variacao"), item("i2", "escolher_variacao")]);
+    expect(g).toHaveLength(2);
+    expect(g.map((x) => x.itemId).sort()).toEqual(["i1", "i2"]);
+    expect(g[0]!.produtoId).toBe("camisa");
+  });
+  it("sem cadastro continua juntando as vendas do mesmo código", () => {
+    expect(agruparPendentes([item("i1", null, "sem_cadastro"), item("i2", null, "sem_cadastro")])).toHaveLength(1);
+  });
+});

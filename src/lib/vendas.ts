@@ -166,17 +166,20 @@ export type ItemPendente = {
 export type GrupoPendente = {
   codigo: string; codigoBarras: string | null; descricao: string; unidadeNota: string | null; itemId: string;
   vendas: number; qtd: number; valor: number; ultimaEm: string | null; conferir: boolean; motivo: string | null;
+  /** Produto já ligado ao item (só falta o tamanho/cor, por exemplo). */ produtoId?: string | null;
 };
 /** Código do caixa para mostrar ("Sem código" no produto vendido pelo celular sem código). */
 export const codigoVisivel = (c: string) => (c.startsWith("avulso:") ? "Sem código" : c);
 export function agruparPendentes(itens: ItemPendente[]): GrupoPendente[] {
   const g = new Map<string, GrupoPendente>();
   for (const i of itens) {
-    const x = g.get(i.codigoPdv) ?? { codigo: i.codigoPdv, codigoBarras: i.codigoBarras, descricao: i.descricao, unidadeNota: i.unidadeNota, itemId: i.id,
-      vendas: 0, qtd: 0, valor: 0, ultimaEm: null, conferir: i.situacao === "conferir", motivo: i.motivo };
+    // B12: roupa vendida sem tamanho/cor: cada venda pode ser de um tamanho, então cada uma é resolvida sozinha.
+    const chave = i.situacao === "conferir" && i.motivo === "escolher_variacao" ? `${i.codigoPdv}#${i.id}` : i.codigoPdv;
+    const x = g.get(chave) ?? { codigo: i.codigoPdv, codigoBarras: i.codigoBarras, descricao: i.descricao, unidadeNota: i.unidadeNota, itemId: i.id,
+      vendas: 0, qtd: 0, valor: 0, ultimaEm: null, conferir: i.situacao === "conferir", motivo: i.motivo, produtoId: i.produtoId };
     x.vendas += 1; x.qtd = Math.round((x.qtd + i.qtdNota) * 1000) / 1000; x.valor += i.valor;
     if (i.vendidoEm && (!x.ultimaEm || i.vendidoEm > x.ultimaEm)) x.ultimaEm = i.vendidoEm;
-    g.set(i.codigoPdv, x);
+    g.set(chave, x);
   }
   return [...g.values()].sort((a, b) => b.vendas - a.vendas || (b.ultimaEm ?? "").localeCompare(a.ultimaEm ?? ""));
 }
