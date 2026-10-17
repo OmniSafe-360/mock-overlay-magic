@@ -117,6 +117,7 @@ export async function processarArquivo(texto: string, chaveCaixa: string, api: A
     if (lido.tipo === "rejeitada") return { ok: true, nivel: "atencao", texto: `Não contou: ${lido.motivo}` };
     if (lido.tipo === "cancelamento") {
       const r = await api.cancelar(chaveCaixa, lido.chave);
+      if (r.situacao === "anterior") return { ok: true, nivel: "info", texto: "Cancelamento de venda de antes de ligar o caixa (não conta)" };
       return { ok: true, nivel: "info", texto: r.situacao === "repetida" ? "Cancelamento já recebido" : `Venda cancelada: os produtos voltaram para a ${area}` };
     }
     const n = lido.nota;
