@@ -700,6 +700,12 @@ export async function caixaProdutos(chave: string): Promise<import("@/lib/caixa"
     estoques: (p.estoques ?? []).map((e: any) => ({ variacaoId: e.variacao_id ?? null, quantidade: e.quantidade == null ? null : Number(e.quantidade) })),
   }));
 }
+/** B10: itens "não controlar" (sacola, serviço) deste comércio, para o caixa achar e digitar o preço. */
+export async function caixaItensForaEstoque(chave: string): Promise<import("@/lib/caixa").ForaEstoque[]> {
+  const { data, error } = await rpc("caixa_itens_fora_estoque", { _chave: chave });
+  if (error) throw error;
+  return (data ?? []).map((f: any) => ({ codigo: f.codigo == null ? null : String(f.codigo), nome: String(f.nome ?? "Item fora do estoque") }));
+}
 /** `deve` em centavos (null = o banco não informou); `desde` só quando deve. */
 export type ClienteFiado = { id: string; nome: string; telefone: string | null; deve?: number | null; desde?: string | null;
   /** F8: limite em centavos (null = sem limite) e bloqueio, definidos pelo dono. */ limite?: number | null; bloqueado?: boolean };

@@ -214,6 +214,7 @@ FORNECEDOR ──(receber, cego)──▶ DEPÓSITO ──(repor, cego)──▶
   - vender o código da embalagem desconta as unidades dela;
   - o código interno do caixa (incluindo balança) é ligado ao produto uma vez;
   - vendas externas sem cadastro vão para "Vendido sem cadastro"; no Caixa móvel, cadastrar/conferir o produto antes de vender;
+  - item que o dono marcou "Não é produto do estoque" (sacola, serviço) é vendido também no Caixa móvel, sem tirar do estoque; o caixa digita o preço (B10 do checklist 3, 17/10/2026);
   - vendas como "Diversos" são contadas por caixa e avisadas;
   - no Conector, falta para uma venda externa já finalizada fica registrada; no Caixa móvel, quantidade acima da área de venda bloqueia a venda inteira e solicita conferência cega, sem baixa ou dinheiro/fiado;
   - cada venda grava uma `operacoes`.

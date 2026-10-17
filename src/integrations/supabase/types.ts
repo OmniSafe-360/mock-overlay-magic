@@ -2715,6 +2715,7 @@ export type Database = {
         Args: { _chave: string; _cliente: string }
         Returns: string
       }
+      caixa_itens_fora_estoque: { Args: { _chave: string }; Returns: Json }
       caixa_produtos: { Args: { _chave: string }; Returns: Json }
       caixa_receber_fiado: {
         Args: {
