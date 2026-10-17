@@ -102,3 +102,22 @@ it("contagem com validade vencida não pode ser escolhida; devolver continua pos
   fireEvent.click(screen.getByRole("button", { name: /Devolver/ }));
   expect(props.onResolverRecebimento).toHaveBeenCalledWith("ri1", "recusar", null);
 });
+
+it("contagem escolhida que vence com a tela aberta não pode mais ser confirmada (Codex #190)", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true, now: new Date("2026-10-17T12:00:00-03:00") });
+  try {
+    mock.tabelas["recebimentos"] = [{ ...recebimento, situacao: "concluido", concluido_em: "2026-10-17T10:00:00Z" }];
+    mock.tabelas["recebimento_itens"] = [{ ...item, no_pedido: true, esperado: 3, situacao: "inconsistente", tentativas: [
+      { total: 2, avaria: 0, partes: [{ quantidade: 2, vencimento: "2026-10-17", lote: null }] },
+      { total: 4, avaria: 0, partes: [] }, { total: 5, avaria: 0, partes: [] }] }];
+    const pedidos = await carregarPedidos("c1");
+    const tela = render(<PainelPedidos {...props} pedidos={pedidos} />);
+    fireEvent.click(screen.getByRole("button", { name: /Pedido nº 1/ }));
+    fireEvent.click(screen.getByRole("button", { name: "2 pacotes" }));
+    expect(screen.getByRole("button", { name: /Confirmar 2 pacotes/ })).toBeTruthy();
+    vi.setSystemTime(new Date("2026-10-18T00:05:00-03:00"));
+    tela.rerender(<PainelPedidos {...props} pedidos={pedidos} />);
+    expect(screen.queryByRole("button", { name: /Confirmar 2 pacotes/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "2 pacotes · vencida" })).toBeDisabled();
+  } finally { vi.useRealTimers(); }
+});

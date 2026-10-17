@@ -841,7 +841,8 @@ function LinhaRecebida({ i, products, onResolver }: {
             })}
           </div>
           {i.tentativas.some((t) => contagemVencida(t, hoje)) && <p className="text-xs text-warning">A validade de uma contagem já passou. Produto vencido não entra no estoque como bom: escolha outra contagem ou devolva.</p>}
-          {escolha != null && (
+          {/* Codex #190: a contagem escolhida pode vencer com a tela aberta (meia-noite); aí não dá para confirmar. */}
+          {escolha != null && !contagemVencida(i.tentativas[escolha]!, hoje) && (
             <button type="button" disabled={trabalhando} onClick={() => fazer("aceitar", escolha)} className={`flex items-center justify-center gap-2 ${btnPrimary(!trabalhando)}`}>
               <Check size={18} /> Confirmar {qtdUn(i.tentativas[escolha]!.total, unidade)}{variacaoRemovida && i.tentativas[escolha]!.total > i.tentativas[escolha]!.avaria ? " e restaurar tamanho e cor" : ""}
             </button>
