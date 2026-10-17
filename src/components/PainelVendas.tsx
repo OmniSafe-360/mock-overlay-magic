@@ -9,7 +9,7 @@ import * as banco from "@/lib/banco";
 import { mensagemErro } from "@/lib/persistencia";
 import { PainelFiado, type ApiFiado } from "@/components/PainelFiado";
 import { nomeVenda } from "@/lib/situacao";
-import { devolverDe, textoCaixaAvisado, textoDevolver } from "@/lib/caixa";
+import { devolverDe, lerReais, textoCaixaAvisado, textoDevolver } from "@/lib/caixa";
 import {
   agruparPendentes, brl, codigoCaixaTexto, codigoVisivel, diaDaVenda, formaPagamento, haQuanto, horaVenda, normalizar, proximoNomeCaixa, resumoVendas, situacaoCaixa,
   textoCaixa, textoItemVenda, validadeCodigoCaixa, type Caixa, type GrupoPendente, type ItemPendente, type Venda,
@@ -28,6 +28,8 @@ export type ApiVendas = {
   fechamentos?: ((comercioId: string, desde: string) => Promise<banco.FechamentoCaixa[]>) | undefined;
   conferirFechamento?: ((turnoId: string) => Promise<unknown>) | undefined;
   cancelarCelular?: ((vendaId: string, motivo: string) => Promise<unknown>) | undefined;
+  /** A8: o dono fecha o caixa que ficou aberto sem o funcionário poder fechar. */
+  fecharTurno?: ((turnoId: string, contadoCentavos: number, observacao: string) => Promise<unknown>) | undefined;
   /** Fiado (C4): contas dos clientes, receber e cobrar. */
   fiado?: ApiFiado | undefined;
 };
@@ -35,6 +37,7 @@ const API_PADRAO: ApiVendas = {
   caixas: banco.carregarCaixas, vendas: banco.carregarVendas, criar: banco.criarCaixa, renomear: banco.renomearCaixa,
   novoCodigo: banco.novoCodigoCaixa, desligar: banco.desligarCaixa, pendentes: banco.carregarPendentesVenda, resolver: banco.resolverItemVenda,
   fechamentos: banco.carregarFechamentos, conferirFechamento: banco.conferirFechamentoCaixa, cancelarCelular: banco.cancelarVendaCelular,
+  fecharTurno: banco.fecharCaixaDono,
   fiado: { carregar: banco.carregarFiado, receber: banco.receberFiado, salvarCliente: banco.salvarClienteFiado },
 };
 const erroTexto = (e: unknown) => mensagemErro(e).replace("Seus dados continuam no formulário. ", "");
@@ -153,7 +156,8 @@ export function PainelVendas({ comercioId, comercioNome = "", tipo, products, ap
       {api.fiado && <PainelFiado comercioId={comercioId} comercioNome={comercioNome} api={api.fiado} atualizadoEm={agora} />}
 
       <Fechamentos lista={fechamentos.filter((f) => !f.fechadoEm || diaSP(Date.parse(f.abertoEm)) === diaSel || (f.diferenca && !f.conferidoEm))}
-        vendas={vendas ?? []} vendasDesde={Date.parse(`${diaSP(agora - 86_400_000)}T00:00:00-03:00`)} onVisto={async (id) => { await (api.conferirFechamento ?? banco.conferirFechamentoCaixa)(id); await recarregar(); }} />
+        vendas={vendas ?? []} vendasDesde={Date.parse(`${diaSP(agora - 86_400_000)}T00:00:00-03:00`)} onVisto={async (id) => { await (api.conferirFechamento ?? banco.conferirFechamentoCaixa)(id); await recarregar(); }}
+        onFechar={async (id, contado, obs) => { await (api.fecharTurno ?? banco.fecharCaixaDono)(id, contado, obs); await recarregar(); }} />
 
       {/* vendido sem cadastro */}
       {grupos.length > 0 && (
@@ -580,7 +584,10 @@ function ResolverPendente({ g, products, area, onResolver, onClose }: {
 
 /** Abertura e fechamento do caixa no celular, com a diferença do dinheiro na gaveta. */
 /** `vendasDesde`: as vendas carregadas começam nesse instante; turno mais antigo não mostra total (seria zero falso). */
-function Fechamentos({ lista, vendas, vendasDesde, onVisto }: { lista: banco.FechamentoCaixa[]; vendas: Venda[]; vendasDesde: number; onVisto: (id: string) => Promise<unknown> }) {
+function Fechamentos({ lista, vendas, vendasDesde, onVisto, onFechar }: {
+  lista: banco.FechamentoCaixa[]; vendas: Venda[]; vendasDesde: number; onVisto: (id: string) => Promise<unknown>;
+  onFechar: (id: string, contadoCentavos: number, observacao: string) => Promise<unknown>;
+}) {
   const [ocupado, setOcupado] = useState<string | null>(null);
   if (!lista.length) return null;
   const hora = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
@@ -614,11 +621,57 @@ function Fechamentos({ lista, vendas, vendasDesde, onVisto }: { lista: banco.Fec
                   )}
                 </div>
               )}
-              {!f.fechadoEm && <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-accent"><span className="h-2 w-2 rounded-full bg-accent" /> Vendendo agora</p>}
+              {!f.fechadoEm && !f.semAcesso && <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-accent"><span className="h-2 w-2 rounded-full bg-accent" /> Vendendo agora</p>}
+              {!f.fechadoEm && f.semAcesso && <FecharPeloDono turno={f} onFechar={onFechar} />}
             </li>
           );
         })}
       </ul>
     </section>
+  );
+}
+
+/** A8: caixa que ficou aberto quando o funcionário perdeu o Caixa ou foi bloqueado. O dono conta a gaveta e fecha. */
+function FecharPeloDono({ turno, onFechar }: { turno: banco.FechamentoCaixa; onFechar: (id: string, contadoCentavos: number, observacao: string) => Promise<unknown> }) {
+  const [aberto, setAberto] = useState(false);
+  const [valor, setValor] = useState("");
+  const [obs, setObs] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const contado = lerReais(valor);
+  const fechar = async () => {
+    if (contado == null || ocupado) return;
+    setOcupado(true); setErro(null);
+    try { await onFechar(turno.id, contado, obs); } catch (e) { setErro(erroTexto(e)); } finally { setOcupado(false); }
+  };
+  return (
+    <div className="mt-2 space-y-2 rounded-2xl border border-warning/60 bg-warning/10 p-3">
+      <p className="font-semibold text-warning">Caixa aberto sem ninguém para fechar</p>
+      <p className="text-muted-foreground">{turno.funcionario} não tem mais acesso ao caixa. Conte o dinheiro da gaveta e feche este caixa por aqui.</p>
+      {!aberto ? (
+        <button type="button" onClick={() => setAberto(true)} className="flex min-h-12 items-center gap-2 rounded-2xl border border-border bg-background/40 px-4 font-semibold">
+          Fechar este caixa</button>
+      ) : (
+        <div className="space-y-2">
+          <label className="block">
+            <span className="text-sm font-semibold">Quanto tem na gaveta?</span>
+            <input inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="Ex.: 150,00"
+              className="mt-1 h-12 w-full rounded-2xl border border-border bg-background px-4 text-base" />
+          </label>
+          {valor.trim() && contado == null && <p className="text-xs text-destructive">Digite o valor em reais, ex.: 150,00.</p>}
+          <label className="block">
+            <span className="text-sm font-semibold">Recado (opcional)</span>
+            <input value={obs} maxLength={280} onChange={(e) => setObs(e.target.value)}
+              className="mt-1 h-12 w-full rounded-2xl border border-border bg-background px-4 text-base" />
+          </label>
+          {erro && <p role="alert" className="text-sm text-destructive">{erro}</p>}
+          <div className="flex flex-wrap gap-2">
+            <button type="button" disabled={contado == null || ocupado} onClick={() => void fechar()} className={btnPrimary(contado != null && !ocupado)}>
+              {ocupado ? "Fechando…" : "Fechar o caixa"}</button>
+            <button type="button" disabled={ocupado} onClick={() => { setAberto(false); setErro(null); }} className={btnGhost}>Cancelar</button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

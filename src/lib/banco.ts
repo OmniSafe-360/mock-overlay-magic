@@ -822,10 +822,17 @@ export type FechamentoCaixa = {
   id: string; caixaId: string; funcionario: string; abertoEm: string; fechadoEm: string | null; trocoInicial: number;
   esperado: number | null; contado: number | null; diferenca: number | null; observacao: string | null; conferidoEm: string | null;
   sangrias: number;
+  /** A8: caixa aberto de funcionário que perdeu a função Caixa ou foi bloqueado: só o dono consegue fechar. */
+  semAcesso?: boolean;
 };
+/** A8: o dono fecha o caixa que ficou aberto (funcionário sem o Caixa ou bloqueado), com o dinheiro que contou. */
+export async function fecharCaixaDono(turnoId: string, contadoCentavos: number, observacao: string) {
+  const { error } = await rpc("fechar_caixa_dono" as any, { _turno: turnoId, _contado: contadoCentavos / 100, _observacao: observacao } as any);
+  if (error) throw error;
+}
 /** Turnos do caixa do celular abertos desde a data (ISO) e os que ainda estão abertos. */
 export async function carregarFechamentos(comercioId: string, desde: string): Promise<FechamentoCaixa[]> {
-  const ts = await todos("caixa_turnos", "id,caixa_id,aberto_em,fechado_em,troco_inicial,dinheiro_esperado,dinheiro_contado,diferenca,observacao,conferido_em,situacao,funcionarios(nome)",
+  const ts = await todos("caixa_turnos", "id,caixa_id,aberto_em,fechado_em,troco_inicial,dinheiro_esperado,dinheiro_contado,diferenca,observacao,conferido_em,situacao,funcionarios(nome,caixa,bloqueado_em)",
     // Também os fechamentos com falta ou sobra que o dono ainda não viu, de qualquer dia (não podem sumir sem ele ver).
     (q) => q.eq("comercio_id", comercioId).or(`aberto_em.gte.${desde},situacao.eq.aberto,and(conferido_em.is.null,diferenca.neq.0)`));
   const ids = ts.map((t) => t.id);
@@ -836,6 +843,7 @@ export async function carregarFechamentos(comercioId: string, desde: string): Pr
     trocoInicial: centavos(t.troco_inicial), esperado: ct(t.dinheiro_esperado), contado: ct(t.dinheiro_contado), diferenca: ct(t.diferenca),
     observacao: t.observacao ?? null, conferidoEm: t.conferido_em ?? null,
     sangrias: sg.filter((x) => x.turno_id === t.id).reduce((a, x) => a + centavos(x.valor), 0),
+    semAcesso: t.situacao === "aberto" && (!t.funcionarios || !t.funcionarios.caixa || !!t.funcionarios.bloqueado_em),
   })).sort((a, b) => b.abertoEm.localeCompare(a.abertoEm));
 }
 
