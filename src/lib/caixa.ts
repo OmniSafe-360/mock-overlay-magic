@@ -242,7 +242,9 @@ export function erroPinDono(e: unknown, naoFeito?: string): string {
 
 /** Erros que não se resolvem tentando de novo (a venda fica separada para o dono ver). Os outros: tenta de novo depois. */
 const DEFINITIVOS = ["estoque_bloqueado", "produto_inativo", "pagamento_", "item_invalido", "venda_invalida", "venda_sem_itens", "data_invalida", "produto_de_outro_comercio",
-  "variacao_invalida", "embalagem_invalida", "turno_invalido", "cliente_invalido", "fiado_sem_cliente", "nome_cliente_invalido", "telefone_cliente_invalido"];
+  "variacao_invalida", "embalagem_invalida", "turno_invalido", "cliente_invalido", "fiado_sem_cliente", "nome_cliente_invalido", "telefone_cliente_invalido",
+  // A9: caixa fechado (pelo funcionário ou pelo dono) e fiado bloqueado/acima do limite não mudam tentando de novo.
+  "turno_fechado", "cliente_fiado_bloqueado", "limite_fiado_excedido"];
 export const erroDefinitivo = (e: unknown) => {
   const m = String((e as { message?: string } | null)?.message ?? e ?? "");
   if (m.includes("resposta_venda_invalida")) return false;
