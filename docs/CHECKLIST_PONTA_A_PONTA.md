@@ -551,3 +551,4 @@ Base aprovada para preparação: `f9b3401964e8a64a37ae61b57726d09e6de58341`; bra
 - 17/10/2026: checklist 3 **A6 aplicada no banco**: o dono cancela venda com o caixa aberto e o caixa é avisado para devolver o dinheiro da gaveta; o fechamento bate. Precisa Publicar → Atualizar; falta o teste do dono.
 - 17/10/2026: checklist 3 **A7**: no fiado, "15.5" passa a ser R$ 15,50 (caixa e limite do dono). Sem banco. Precisa Publicar → Atualizar; falta o teste do dono.
 - 17/10/2026: checklist 3 **A8**: o dono fecha pelo app o caixa que ficou aberto com o funcionário sem o Caixa ou bloqueado (`fechar_caixa_dono`, migração `20261017125903`, aplicada). Precisa Publicar → Atualizar; falta o teste do dono.
+- 17/10/2026: checklist 3 **A9**: venda guardada recusada por caixa fechado ou fiado bloqueado/acima do limite não trava mais a fila do caixa. Sem banco. Precisa Publicar → Atualizar; falta o teste do dono.
