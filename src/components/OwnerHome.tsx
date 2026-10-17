@@ -293,7 +293,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
   if (adding)
     return (
       <StoreSetup mode="add" userId={userId} onCancel={() => { setEscolherVendas(false); setAdding(false); }}
-        onFinish={(s) => { setStores((l) => [...l, s]); setEscolherVendas(false); setAdding(false); setTab("comercios"); setToast("Comércio adicionado!"); }} />
+        onFinish={(s) => { setStores((l) => (l.some((x) => x.id === s.id) ? l : [...l, s])); setEscolherVendas(false); setAdding(false); setTab("comercios"); setToast("Comércio adicionado!"); }} />
     );
 
   const cur = open ?? undefined;
