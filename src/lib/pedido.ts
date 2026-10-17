@@ -24,9 +24,38 @@ export type Pedido = {
   resposta?: RespostaPedido | null | undefined;
   /** Conta a pagar (D2c). valor em centavos: o informado pelo fornecedor ou corrigido pelo dono. */
   pagamento?: { situacao: "a_pagar" | "pago" | null; vencimento: string | null; pagoEm: string | null; valor?: number | null | undefined } | undefined;
-  /** Recebimento pelo app do funcionário (E2). */
+  /** Recebimento pelo app do funcionário (E2): o em contagem, ou o mais recente. */
   recebimento?: Recebimento | null | undefined;
+  /** A4: todas as entregas do pedido, da mais antiga para a mais nova. */
+  recebimentos?: Recebimento[] | undefined;
+  /** A4: o dono disse que não vem mais nada. */
+  entregaEncerrada?: boolean | undefined;
 };
+/** A4: todas as entregas do pedido (as antigas sem a lista completa só têm a última). */
+export const entregasDoPedido = (p: Pick<Pedido, "recebimento" | "recebimentos">): Recebimento[] =>
+  p.recebimentos ?? (p.recebimento ? [p.recebimento] : []);
+/** A4: quanto ainda falta chegar de cada produto/variação do pedido (unidades de venda). */
+function faltaPorProduto(p: Pick<Pedido, "itens">): Map<string, { produtoId: string; falta: number }> {
+  const falta = new Map<string, { produtoId: string; falta: number }>();
+  for (const i of p.itens) {
+    const k = `${i.produtoId}:${i.variacaoId ?? ""}`;
+    const esperado = i.qtdConfirmada != null ? (i.qtdConfirmada * i.qtdUnidades) / i.qtdEmbalagens : i.qtdUnidades;
+    const atual = falta.get(k) ?? { produtoId: i.produtoId, falta: 0 };
+    falta.set(k, { produtoId: i.produtoId, falta: atual.falta + esperado - (i.qtdRecebida ?? 0) });
+  }
+  return falta;
+}
+/** A4: o pedido espera o resto: chegou em parte, o dono não encerrou e ainda falta algum produto. */
+export function esperaResto(p: Pick<Pedido, "situacao" | "entregaEncerrada" | "itens">): boolean {
+  if (p.situacao !== "recebido_parcial" || p.entregaEncerrada) return false;
+  return [...faltaPorProduto(p).values()].some((v) => v.falta > 1e-9);
+}
+/** Produtos que ainda estão pedidos: de pedido aberto; no recebido em parte, só os que ainda faltam chegar (Codex #191). */
+export function produtosAindaPedidos(pedidos: Pedido[]): Set<string> {
+  return new Set(pedidos.filter(pedidoAberto).flatMap((p) => p.situacao === "recebido_parcial"
+    ? (esperaResto(p) ? [...faltaPorProduto(p).values()].filter((v) => v.falta > 1e-9).map((v) => v.produtoId) : [])
+    : p.itens.map((i) => i.produtoId)));
+}
 export const FORMA_TXT: Record<FormaPagamento, string> = { a_vista: "À vista", pix: "Pix", boleto: "Boleto", a_prazo: "A prazo" };
 /** "Boleto 30 dias", "Pix". */
 export const formaTexto = (forma: FormaPagamento | null, prazo: number | null) =>

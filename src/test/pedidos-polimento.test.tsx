@@ -189,7 +189,7 @@ describe("orientações sem mudar o fluxo do pedido", () => {
     ["enviado", "Aguarde a resposta do fornecedor"],
     ["aceito", "Acompanhe a entrega"],
     ["aceito_ajustes", "Confira as mudanças na resposta"],
-    ["recebido_parcial", "acompanhe o que ainda falta chegar"],
+    ["recebido_parcial", "Faltou parte do pedido. A equipe recebe o resto"],
     ["recebido", "Confira os produtos e os dados do pagamento"],
     ["recusado", "O fornecedor não pode atender"],
     ["cancelado", "Pedido cancelado"],

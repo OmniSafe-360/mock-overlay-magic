@@ -128,7 +128,7 @@ const centavosDe = (v: unknown) => (v == null ? null : Math.round(Number(v) * 10
 export async function carregarPedidos(comercioId: string): Promise<Pedido[]> {
   const doComercio = (q: any) => q.eq("comercio_id", comercioId);
   const [ped, itens, recs] = await Promise.all([
-    todos("pedidos_compra", "id,numero,fornecedor_id,situacao,canal,enviado_em,observacao,token,created_at,resposta_em,previsao_entrega,valor_total,valor_fornecedor,forma_pagamento,prazo_dias,recado_fornecedor,pagamento_situacao,vencimento,pago_em",
+    todos("pedidos_compra", "id,numero,fornecedor_id,situacao,canal,enviado_em,observacao,token,created_at,resposta_em,previsao_entrega,valor_total,valor_fornecedor,forma_pagamento,prazo_dias,recado_fornecedor,pagamento_situacao,vencimento,pago_em,entrega_encerrada_em",
       (q) => doComercio(q).order("created_at", { ascending: false })),
     todos("pedido_itens", "pedido_id,produto_id,variacao_id,embalagem_id,qtd_embalagens,qtd_unidades,preco_estimado,qtd_confirmada,qtd_recebida,created_at", (q) => doComercio(q).order("created_at")),
     carregarRecebimentos(comercioId, true),
@@ -145,6 +145,9 @@ export async function carregarPedidos(comercioId: string): Promise<Pedido[]> {
       qtdConfirmada: i.qtd_confirmada == null ? null : Number(i.qtd_confirmada), qtdRecebida: i.qtd_recebida == null ? null : Number(i.qtd_recebida),
     })),
     recebimento: recs.find((x) => x.pedidoId === r.id) ?? null,
+    recebimentos: recs.filter((x) => x.pedidoId === r.id)
+      .sort((x, y) => (x.concluidoEm ?? "\uffff").localeCompare(y.concluidoEm ?? "\uffff")),
+    entregaEncerrada: !!r.entrega_encerrada_em,
   }));
 }
 
@@ -178,6 +181,11 @@ export async function carregarRecebimentos(comercioId: string, comPedido: boolea
       tentativas: (Array.isArray(i.tentativas) ? i.tentativas : []).map((t: any) => ({ total: Number(t.total), avaria: Number(t.avaria ?? 0), partes: t.partes ?? [], variacaoRemovida: t.variacao_removida === true, variacao: t.variacao ?? null, validadeRecontar: t.validade_recontar === true, motivo: motivoDoBanco(t ?? {}) })),
     })),
   }));
+}
+/** A4: o dono diz que o resto do pedido não vem mais. */
+export async function encerrarEntregaPedido(pedidoId: string) {
+  const { error } = await rpc("encerrar_entrega_pedido", { _pedido: pedidoId });
+  if (error) throw error;
 }
 /** Dono decide um item: aceitar (escolhendo a contagem, se não fechou) ou recusar (fora do pedido). */
 export async function resolverItemRecebimento(itemId: string, acao: "aceitar" | "recusar", tentativa: number | null) {

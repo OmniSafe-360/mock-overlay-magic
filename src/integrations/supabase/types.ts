@@ -1338,6 +1338,7 @@ export type Database = {
           created_at: string
           criado_por: string
           enviado_em: string | null
+          entrega_encerrada_em: string | null
           forma_pagamento: string | null
           fornecedor_id: string
           id: string
@@ -1362,6 +1363,7 @@ export type Database = {
           created_at?: string
           criado_por: string
           enviado_em?: string | null
+          entrega_encerrada_em?: string | null
           forma_pagamento?: string | null
           fornecedor_id: string
           id: string
@@ -1386,6 +1388,7 @@ export type Database = {
           created_at?: string
           criado_por?: string
           enviado_em?: string | null
+          entrega_encerrada_em?: string | null
           forma_pagamento?: string | null
           fornecedor_id?: string
           id?: string
@@ -2788,6 +2791,7 @@ export type Database = {
       definir_pin_dono: { Args: { _pin: string }; Returns: undefined }
       desligar_caixa: { Args: { _id: string }; Returns: undefined }
       ean_upc_mercado: { Args: { _codigo: string }; Returns: string }
+      encerrar_entrega_pedido: { Args: { _pedido: string }; Returns: undefined }
       entrar_funcionario: {
         Args: { _aparelho: string; _codigo: string; _pin: string }
         Returns: Json

@@ -204,6 +204,7 @@ const MSG: [string, string][] = [
   ["sem_comercio", "Cadastre um comércio antes de continuar."],
   ["app_desatualizado", "O app está desatualizado. Feche e abra de novo para atualizar."],
   ["item_ja_resolvido", "Este item já foi resolvido. Atualize a página."],
+  ["pedido_nao_espera_entrega", "Este pedido não está esperando outra entrega. Atualize a página."],
   ["nao_e_contagem_inconsistente", "Esta diferença já foi resolvida. Atualize a página."],
   ["contagem_invalida", "Escolha uma das contagens da lista."],
   ["recebimento_em_contagem", "A equipe ainda está conferindo esta entrega. Espere terminar para decidir."],
