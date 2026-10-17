@@ -171,7 +171,7 @@ FORNECEDOR ──(receber, cego)──▶ DEPÓSITO ──(repor, cego)──▶
   - **primeiro** o funcionário conta a prateleira (cega), **depois** o app diz quanto buscar, até o máximo;
   - o produto que vence primeiro sai antes, mantendo o lote.
   - registrar a contagem sem transferir produto não é reposição concluída. Sem estoque disponível, distinguir entrega em conferência, estoque aguardando liberação/validade, depósito sem estoque e depósito ainda não contado;
-- **Conferir o depósito (Fase 4.2):** até 5 produtos por dia, revezando; o funcionário conta fardos/caixas fechados e o que está sem embalagem, e o app soma. Cada nova contagem começa do zero.
+- **Conferir o depósito (Fase 4.2):** até 5 produtos por dia, revezando; o funcionário conta fardos/caixas fechados e o que está sem embalagem, e o app soma. Cada nova contagem começa do zero. Contagem começada num dia e não terminada continua no dia seguinte, mas recomeça na contagem 1, sem as contagens do dia anterior (B9 do checklist 3, 17/10/2026).
 - **Mesmo sem caixa ligado**, uma contagem da gôndola diferente do saldo conhecido segue a regra de recontagem e decisão do dono. O bloqueio impede nova contagem/reposição daquele produto/variação na área pendente; não impede recebimentos/vendas legítimos. A decisão conserva movimentos posteriores à fotografia da diferença.
 
 ### 7.3 Depósito e gôndola
