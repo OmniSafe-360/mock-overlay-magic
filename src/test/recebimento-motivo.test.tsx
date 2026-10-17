@@ -43,6 +43,8 @@ it("mostra o motivo 'vencido' na lista e na janela de contagem", async () => {
 it("lote com outra data mostra o lote e a data em dd/mm/aaaa", async () => {
   await contarEEnviar(api(recontar({ motivo: "lote_outra_data", lote: "AB12", loteData: "2027-03-05" })));
   expect(screen.getByText(/O lote AB12 já está registrado com validade 05\/03\/2027/)).toBeTruthy();
+  // A2: na segunda vez igual o banco separa o produto para o dono; o texto explica isso.
+  expect(screen.getByText(/Se estiver certo, envie de novo sem mudar: o produto fica separado para o dono decidir/)).toBeTruthy();
 });
 
 it("sem motivo continua com a tela antiga", async () => {

@@ -544,3 +544,4 @@ Base aprovada para preparação: `f9b3401964e8a64a37ae61b57726d09e6de58341`; bra
 - 16/10/2026: M23 (geometria do primeiro cadastro no celular) implementada (PLANO §42). Falta o teste do dono (no final), inclusive com teclado em aparelho real.
 
 - 17/10/2026: análise ponta a ponta registrada em [checklist funcional 3](checklist-funcional-3.md). **A1 (F02) aplicada no banco:** lote vencido sai por último na venda, perda e acerto; perda "venceu" tira o vencido primeiro. Falta o teste do dono.
+- 17/10/2026: checklist 3 **A2 aplicada no banco**: recebimento com lote já cadastrado com outra data não fica preso em "Conte de novo"; na 2ª vez o produto fica para o dono decidir e a entrega conclui. O dono vê o motivo e pode Devolver (aba Pedidos). Precisa Publicar → Atualizar; falta o teste do dono.

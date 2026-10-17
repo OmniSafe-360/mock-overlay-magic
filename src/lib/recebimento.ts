@@ -112,6 +112,19 @@ export function motivoDoBanco(x: { motivo?: unknown; lote?: unknown; lote_data?:
   return m;
 }
 /** Texto que explica por que o produto voltou para recontar; vazio na recontagem comum. */
+/** A2: o que o dono lê quando a validade/lote não deixa a mercadoria entrar. */
+export function textoMotivoDono(m: MotivoInfo | undefined): string {
+  switch (m?.motivo) {
+    case "vencido": return "A equipe contou este produto como vencido. Produto vencido não entra no estoque como bom. Devolva ao fornecedor.";
+    case "sem_data": return "A equipe não informou a validade. Sem a data, não dá para entrar no estoque. Devolva, ou peça para contar de novo numa nova entrega.";
+    case "sem_lote": return "A equipe não informou o lote. Sem o lote, não dá para entrar no estoque. Devolva, ou peça para contar de novo numa nova entrega.";
+    case "lote_outra_data": {
+      const d = m.loteData ? m.loteData.split("-").reverse().join("/") : "outra data";
+      return `O lote ${m.lote ?? ""} já está no estoque com validade ${d}, mas veio com outra data. O mesmo lote não pode ter duas datas. Confira com o fornecedor e devolva.`;
+    }
+    default: return "A validade ou o lote não confere. Esta mercadoria não pode entrar no estoque. Devolva ao fornecedor.";
+  }
+}
 export function textoMotivo(m: MotivoInfo | undefined): string {
   switch (m?.motivo) {
     case "vencido": return "Este produto está vencido. Se veio vencido, marque em 'Veio quebrado ou vencido'. Ele não entra como produto bom.";
@@ -119,7 +132,7 @@ export function textoMotivo(m: MotivoInfo | undefined): string {
     case "sem_lote": return "Falta o lote. Confira na caixa e informe.";
     case "lote_outra_data": {
       const d = m.loteData ? m.loteData.split("-").reverse().join("/") : "outra data";
-      return `O lote ${m.lote ?? ""} já está registrado com validade ${d}. Confira o lote e a data na caixa. Se a caixa estiver certa, avise o dono.`;
+      return `O lote ${m.lote ?? ""} já está registrado com validade ${d}. Confira o lote e a data na caixa. Se estiver certo, envie de novo sem mudar: o produto fica separado para o dono decidir.`;
     }
     default: return "";
   }
@@ -164,7 +177,9 @@ export const chaveRascunho = (pedidoId: string | null, escopo: string, fornecedo
 
 /* ---------- dono ---------- */
 export type SituacaoItemRecebido = "recontar" | "aceito" | "inconsistente" | "fora_do_pedido" | "recusado";
-export type TentativaRecebida = { total: number; avaria: number; partes: { quantidade: number; vencimento: string; lote: string | null }[]; variacaoRemovida?: boolean; variacao?: string | null };
+export type TentativaRecebida = { total: number; avaria: number; partes: { quantidade: number; vencimento: string; lote: string | null }[]; variacaoRemovida?: boolean; variacao?: string | null;
+  /** A2: voltou porque a validade/lote não pode entrar no estoque (vencido, sem data, sem lote, lote com outra data). */
+  validadeRecontar?: boolean; motivo?: MotivoInfo };
 export type ItemRecebido = {
   id: string; produtoId: string; variacaoId: string | null; noPedido: boolean; esperado: number | null; situacao: SituacaoItemRecebido;
   quantidadeAceita: number | null; avaria: number; entrouEstoque: number; tentativas: TentativaRecebida[];
@@ -181,6 +196,8 @@ export function resultadoItem(i: ItemRecebido, unidade: string): { tipo: TipoRes
   if (i.situacao === "inconsistente") {
     if (i.tentativas[i.tentativas.length - 1]?.variacaoRemovida)
       return { tipo: "inconsistente", texto: "Este tamanho e esta cor foram removidos do cadastro. A mercadoria ficou separada para sua decisão." };
+    if (i.tentativas[i.tentativas.length - 1]?.validadeRecontar)
+      return { tipo: "inconsistente", texto: "A validade ou o lote não confere com o cadastro, mesmo depois de conferir de novo. A mercadoria ficou separada para sua decisão." };
     const ns = i.tentativas.map((t) => fmtQ(t.total));
     return { tipo: "inconsistente", texto: `A contagem não fechou (${ns.slice(0, -1).join(", ")} e ${ns[ns.length - 1]}). Escolha a certa.` };
   }

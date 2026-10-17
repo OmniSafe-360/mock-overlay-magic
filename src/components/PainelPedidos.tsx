@@ -13,7 +13,8 @@ import { CampoQtd } from "@/components/CampoQtd";
 import { descricaoEmbalagem } from "@/lib/embalagem";
 import { estadoPagamento, ordemPagamento, resumoPagamentos, somaDias, textoPagamento, valorConta, type EstadoPagamento } from "@/lib/pagamento";
 import { hojeEm } from "@/lib/validade";
-import { precisaDecidir, resultadoItem, resumoRecebimento, type ItemRecebido, type Recebimento, type TipoResultado } from "@/lib/recebimento";
+import { precisaDecidir, resultadoItem, textoMotivoDono, resumoRecebimento, type ItemRecebido, type Recebimento, type TipoResultado } from "@/lib/recebimento";
+import { mensagemErro } from "@/lib/persistencia";
 import {
   CANAL_TXT, SITUACAO_TXT, chaveLinha, dataEntregaTexto, formaTexto, linkPedido, respostaItem, linhaManual, linhasDoPedido, nomeLinha, pedidoAberto, pedidoFechado, quantidadeTexto,
   sugerirPedido, textoPedido, totalLinha, totalLinhas, totalPedido, unidadesDaLinha, embalagensTexto, valorItemPedido, type CanalPedido, type LinhaPedido, type Pedido, type SituacaoPedido,
@@ -792,7 +793,10 @@ function LinhaRecebida({ i, products, onResolver }: {
 }) {
   const { nome, unidade } = nomeDoItem(i, products);
   const res = resultadoItem(i, unidade);
-  const variacaoRemovida = i.tentativas[i.tentativas.length - 1]?.variacaoRemovida === true;
+  const ultima = i.tentativas[i.tentativas.length - 1];
+  const variacaoRemovida = ultima?.variacaoRemovida === true;
+  // A2: validade/lote que não pode entrar no estoque. Aceitar daria erro de novo; o dono devolve.
+  const validadeNaoEntra = !variacaoRemovida && ultima?.validadeRecontar === true;
   const [escolha, setEscolha] = useState<number | null>(null);
   const [trabalhando, setTrabalhando] = useState(false);
   const [erro, setErro] = useState("");
@@ -807,7 +811,11 @@ function LinhaRecebida({ i, products, onResolver }: {
           ? "O código desta variação já está em outro cadastro. Confira os códigos antes de aceitar. A mercadoria continua separada."
           : mensagem.includes("variacao_removida_recebimento")
             ? "Esta variação foi removida. Atualize a entrega para conferir antes de aceitar."
-            : mensagem);
+            : mensagem.includes("lote_com_datas_diferentes")
+              ? "Este lote já está no estoque com outra validade. A mercadoria não pode entrar assim: devolva ao fornecedor."
+              : mensagem.includes("recebimento_vencido_como_bom")
+                ? "Produto vencido não entra no estoque como bom. Devolva ao fornecedor."
+                : mensagemErro(e));
     }).finally(() => setTrabalhando(false));
   };
   return (
@@ -818,6 +826,7 @@ function LinhaRecebida({ i, products, onResolver }: {
       {i.entrouEstoque > 0 && <p className="text-xs text-muted-foreground">Entrou no estoque: {qtdUn(i.entrouEstoque, unidade)}</p>}
       {i.situacao === "inconsistente" && onResolver && (
         <div className="mt-2 space-y-2">
+          {validadeNaoEntra ? <p className="text-sm text-muted-foreground">{textoMotivoDono(ultima?.motivo)}</p> : <>
           <p className="text-xs text-muted-foreground">{variacaoRemovida ? "Confira a quantidade. Ao aceitar peças boas, este tamanho e esta cor voltam ao cadastro antes de entrar no depósito. Se não quiser ficar com a mercadoria, devolva." : "Qual contagem está certa? Ela entra no estoque."}</p>
           <div className="flex flex-wrap gap-2">
             {i.tentativas.map((t, k) => (
@@ -830,7 +839,8 @@ function LinhaRecebida({ i, products, onResolver }: {
               <Check size={18} /> Confirmar {qtdUn(i.tentativas[escolha]!.total, unidade)}{variacaoRemovida && i.tentativas[escolha]!.total > i.tentativas[escolha]!.avaria ? " e restaurar tamanho e cor" : ""}
             </button>
           )}
-          {variacaoRemovida && <button type="button" disabled={trabalhando} onClick={() => fazer("recusar", null)} className="flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl border border-destructive/50 px-4 text-base font-semibold text-destructive"><X size={18} /> Devolver</button>}
+          </>}
+          {(variacaoRemovida || validadeNaoEntra) && <button type="button" disabled={trabalhando} onClick={() => fazer("recusar", null)} className="flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl border border-destructive/50 px-4 text-base font-semibold text-destructive"><X size={18} /> Devolver</button>}
         </div>
       )}
       {i.situacao === "fora_do_pedido" && onResolver && (
