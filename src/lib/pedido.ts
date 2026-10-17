@@ -24,9 +24,27 @@ export type Pedido = {
   resposta?: RespostaPedido | null | undefined;
   /** Conta a pagar (D2c). valor em centavos: o informado pelo fornecedor ou corrigido pelo dono. */
   pagamento?: { situacao: "a_pagar" | "pago" | null; vencimento: string | null; pagoEm: string | null; valor?: number | null | undefined } | undefined;
-  /** Recebimento pelo app do funcionário (E2). */
+  /** Recebimento pelo app do funcionário (E2): o em contagem, ou o mais recente. */
   recebimento?: Recebimento | null | undefined;
+  /** A4: todas as entregas do pedido, da mais antiga para a mais nova. */
+  recebimentos?: Recebimento[] | undefined;
+  /** A4: o dono disse que não vem mais nada. */
+  entregaEncerrada?: boolean | undefined;
 };
+/** A4: todas as entregas do pedido (as antigas sem a lista completa só têm a última). */
+export const entregasDoPedido = (p: Pick<Pedido, "recebimento" | "recebimentos">): Recebimento[] =>
+  p.recebimentos ?? (p.recebimento ? [p.recebimento] : []);
+/** A4: o pedido espera o resto: chegou em parte, o dono não encerrou e ainda falta algum produto. */
+export function esperaResto(p: Pick<Pedido, "situacao" | "entregaEncerrada" | "itens">): boolean {
+  if (p.situacao !== "recebido_parcial" || p.entregaEncerrada) return false;
+  const falta = new Map<string, number>();
+  for (const i of p.itens) {
+    const k = `${i.produtoId}:${i.variacaoId ?? ""}`;
+    const esperado = i.qtdConfirmada != null ? (i.qtdConfirmada * i.qtdUnidades) / i.qtdEmbalagens : i.qtdUnidades;
+    falta.set(k, (falta.get(k) ?? 0) + esperado - (i.qtdRecebida ?? 0));
+  }
+  return [...falta.values()].some((v) => v > 1e-9);
+}
 export const FORMA_TXT: Record<FormaPagamento, string> = { a_vista: "À vista", pix: "Pix", boleto: "Boleto", a_prazo: "A prazo" };
 /** "Boleto 30 dias", "Pix". */
 export const formaTexto = (forma: FormaPagamento | null, prazo: number | null) =>

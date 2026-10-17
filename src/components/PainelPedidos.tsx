@@ -18,7 +18,7 @@ import { mensagemErro } from "@/lib/persistencia";
 import {
   CANAL_TXT, SITUACAO_TXT, chaveLinha, dataEntregaTexto, formaTexto, linkPedido, respostaItem, linhaManual, linhasDoPedido, nomeLinha, pedidoAberto, pedidoFechado, quantidadeTexto,
   sugerirPedido, textoPedido, totalLinha, totalLinhas, totalPedido, unidadesDaLinha, embalagensTexto, valorItemPedido, type CanalPedido, type LinhaPedido, type Pedido, type SituacaoPedido,
-  trocarEmbalagem,
+  trocarEmbalagem, entregasDoPedido, esperaResto,
 } from "@/lib/pedido";
 
 const dataCurta = (ts: string) => new Date(ts).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
@@ -42,7 +42,8 @@ function orientacaoPedido(p: Pedido): string {
   if (p.situacao === "cancelado") return "Pedido cancelado. Consulte os dados no histórico.";
   if (p.situacao === "recusado") return "O fornecedor não pode atender. Você pode cancelar e pedir a outro fornecedor.";
   if (p.recebimento?.situacao === "contando") return "A equipe está conferindo a mercadoria. Aguarde a conclusão da contagem.";
-  if (p.recebimento?.itens.some(precisaDecidir)) return "Confira o recebimento e decida sobre os produtos que ficaram separados.";
+  if (entregasDoPedido(p).some((r) => r.situacao === "concluido" && r.itens.some(precisaDecidir))) return "Confira o recebimento e decida sobre os produtos que ficaram separados.";
+  if (esperaResto(p)) return "Faltou parte do pedido. A equipe recebe o resto quando chegar. Se não vem mais nada, toque em “Não vem mais nada”.";
   switch (p.situacao) {
     case "rascunho": return "Pedido salvo. Envie ao fornecedor para ele confirmar.";
     case "enviado": return "Aguarde a resposta do fornecedor pelo link enviado.";
@@ -61,6 +62,7 @@ function entregaPedido(p: Pedido): { texto: string; cor: string } {
   if (rec?.situacao === "contando") return { texto: `Conferência em andamento por ${rec.funcionario.split(" ")[0]}`, cor: "text-warning" };
   if (rec) {
     const rr = resumoRecebimento(rec);
+    if (!rr.alerta || rr.alerta === "diferenca") { if (esperaResto(p)) return { texto: `${rr.texto.split(" · ")[0]} · falta chegar o resto`, cor: "text-warning" }; }
     return { texto: rr.texto, cor: rr.alerta === "decidir" ? "text-destructive" : rr.alerta ? "text-warning" : "text-accent" };
   }
   if (p.situacao === "recebido") return { texto: "Mercadoria recebida", cor: "text-accent" };
@@ -89,12 +91,13 @@ function SituacaoPedidoResumo({ pedido, hoje }: { pedido: Pedido; hoje: string }
 }
 export type SalvarPedido = (a: { fornecedor: Supplier; linhas: LinhaPedido[]; observacao: string }) => Promise<{ id: string; numero: number; token?: string | undefined; recuperado?: boolean }>;
 
-export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora = false, soAPagar = false, onSalvar, onEnviado, onCancelar, onNovoLink, onPagamento, onOpenProduto, onResolverRecebimento, onCarregarSemPedido }: {
+export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora = false, soAPagar = false, onSalvar, onEnviado, onCancelar, onNovoLink, onPagamento, onOpenProduto, onResolverRecebimento, onEncerrarEntrega, onCarregarSemPedido }: {
   products: Product[]; store: StoreData; suppliers: Supplier[]; pedidos: Pedido[]; montarAgora?: boolean; soAPagar?: boolean;
   onSalvar: SalvarPedido; onEnviado: (id: string, canal: CanalPedido) => Promise<unknown>; onCancelar: (id: string) => Promise<unknown>;
   onNovoLink: (id: string) => Promise<string>; onPagamento: (id: string, d: DadosPagamento) => Promise<unknown>; onOpenProduto: (p: Product) => void;
   /** Dono decide um item recebido (E2). */ onResolverRecebimento?: ((itemId: string, acao: "aceitar" | "recusar", tentativa: number | null) => Promise<unknown>) | undefined;
   /** Entregas que chegaram sem pedido (E2). */ onCarregarSemPedido?: (() => Promise<Recebimento[]>) | undefined;
+  /** A4: o dono diz que o resto do pedido não vem mais. */ onEncerrarEntrega?: ((id: string) => Promise<unknown>) | undefined;
 }) {
   const hoje = useHoje();
   const [filtro, setFiltro] = useState<FiltroPedidos>(soAPagar ? "pagar" : "todos");
@@ -107,7 +110,7 @@ export function PainelPedidos({ products, store, suppliers, pedidos, montarAgora
   const sel = view.t === "detalhe" ? pedidos.find((p) => p.id === view.id) : undefined;
   if (sel)
     return <DetalhePedido pedido={sel} products={products} store={store} fornecedor={fornecedorDe(sel.fornecedorId)} onEnviado={onEnviado} onCancelar={onCancelar} onNovoLink={onNovoLink} onPagamento={onPagamento} hoje={hoje}
-      onResolver={onResolverRecebimento} onOpenProduto={onOpenProduto} onVoltar={() => setView({ t: "lista" })} />;
+      onResolver={onResolverRecebimento} onEncerrarEntrega={onEncerrarEntrega} onOpenProduto={onOpenProduto} onVoltar={() => setView({ t: "lista" })} />;
 
   const abertos = pedidos.filter(pedidoAberto);
   const contas = resumoPagamentos(pedidos, hoje);
@@ -487,11 +490,12 @@ function EnviarSheet({ numero, fornecedor, texto, novo, onCanal, onClose }: {
 }
 
 /* ---------- detalhe ---------- */
-function DetalhePedido({ pedido, products, store, fornecedor, hoje, onEnviado, onCancelar, onNovoLink, onPagamento, onResolver, onOpenProduto, onVoltar }: {
+function DetalhePedido({ pedido, products, store, fornecedor, hoje, onEnviado, onCancelar, onNovoLink, onPagamento, onResolver, onEncerrarEntrega, onOpenProduto, onVoltar }: {
   pedido: Pedido; products: Product[]; store: StoreData; fornecedor: Supplier | undefined;
   onEnviado: (id: string, canal: CanalPedido) => Promise<unknown>; onCancelar: (id: string) => Promise<unknown>; onNovoLink: (id: string) => Promise<string>;
   onPagamento: (id: string, d: DadosPagamento) => Promise<unknown>; hoje: string; onOpenProduto: (p: Product) => void; onVoltar: () => void;
   onResolver?: ((itemId: string, acao: "aceitar" | "recusar", tentativa: number | null) => Promise<unknown>) | undefined;
+  onEncerrarEntrega?: ((id: string) => Promise<unknown>) | undefined;
 }) {
   const linhas = useMemo(() => linhasDoPedido(pedido, products), [pedido, products]);
   const [enviar, setEnviar] = useState(false);
@@ -540,7 +544,12 @@ function DetalhePedido({ pedido, products, store, fornecedor, hoje, onEnviado, o
         </section>
       )}
 
-      {pedido.recebimento && <RecebimentoPedido rec={pedido.recebimento} products={products} onResolver={onResolver} />}
+      {(() => {
+        const entregas = entregasDoPedido(pedido);
+        return entregas.map((rec, k) => <RecebimentoPedido key={rec.id} rec={rec} products={products} onResolver={onResolver}
+          titulo={entregas.length > 1 ? `Entrega ${k + 1} de ${entregas.length}` : undefined} />);
+      })()}
+      {esperaResto(pedido) && pedido.recebimento?.situacao !== "contando" && <FaltaChegar pedidoId={pedido.id} onEncerrar={onEncerrarEntrega} />}
 
       <section aria-label="Produtos do pedido" className="rounded-3xl border border-border bg-secondary/60 p-4">
         <h3 className="mb-3 flex items-center gap-2 text-base font-bold"><ClipboardList size={20} className="text-primary" /> O que foi pedido</h3>
@@ -770,14 +779,43 @@ const nomeDoItem = (i: Pick<ItemRecebido, "produtoId" | "variacaoId" | "tentativ
   return { nome: variacao ? `${p.nome} — ${variacao}` : p.nome, unidade: p.unidade };
 };
 
-function RecebimentoPedido({ rec, products, onResolver }: {
-  rec: Recebimento; products: Product[];
+/** A4: o pedido espera o resto; o dono pode encerrar. */
+function FaltaChegar({ pedidoId, onEncerrar }: { pedidoId: string; onEncerrar?: ((id: string) => Promise<unknown>) | undefined }) {
+  const [confirmar, setConfirmar] = useState(false);
+  const [trabalhando, setTrabalhando] = useState(false);
+  const [erro, setErro] = useState("");
+  const encerrar = () => {
+    if (!onEncerrar) return;
+    setTrabalhando(true); setErro("");
+    onEncerrar(pedidoId).catch((e) => setErro(mensagemErro(e))).finally(() => setTrabalhando(false));
+  };
+  return (
+    <section aria-label="Falta chegar" className="rounded-3xl border border-warning/50 bg-warning/10 p-4">
+      <p className="flex items-center gap-2 text-base font-bold text-warning"><PackageCheck size={20} /> Falta chegar parte do pedido</p>
+      <p className="mt-1 text-sm">A equipe vai receber o resto neste mesmo pedido quando chegar. Confere só o que faltou.</p>
+      {onEncerrar && !confirmar && (
+        <button type="button" onClick={() => setConfirmar(true)} className={`mt-3 w-full ${btnGhost}`}>Não vem mais nada</button>
+      )}
+      {confirmar && (
+        <div className="mt-3 space-y-2">
+          <p className="text-sm text-muted-foreground">O que faltou fica como faltou, e o pedido sai da lista da equipe. Se o resto chegar depois, receba em “Chegou sem pedido”.</p>
+          <button type="button" disabled={trabalhando} onClick={encerrar} className={`flex w-full items-center justify-center gap-2 ${btnPrimary(!trabalhando)}`}>Confirmar: não vem mais nada</button>
+          <button type="button" disabled={trabalhando} onClick={() => setConfirmar(false)} className={`w-full ${btnGhost}`}>Voltar</button>
+        </div>
+      )}
+      {erro && <p role="alert" className="mt-2 text-sm font-semibold text-destructive">{erro}</p>}
+    </section>
+  );
+}
+
+function RecebimentoPedido({ rec, products, onResolver, titulo }: {
+  rec: Recebimento; products: Product[]; titulo?: string | undefined;
   onResolver?: ((itemId: string, acao: "aceitar" | "recusar", tentativa: number | null) => Promise<unknown>) | undefined;
 }) {
   const decidir = rec.situacao === "concluido" ? rec.itens.filter(precisaDecidir).length : 0;
   return (
-    <section aria-label="Recebimento" className={`rounded-3xl border p-4 ${decidir ? "border-destructive/50 bg-destructive/5" : "border-border bg-secondary/40"}`}>
-      <p className="flex items-center gap-2 text-base font-bold"><PackageCheck size={20} className="text-primary" /> {rec.situacao === "contando" ? "Conferência da mercadoria" : "Mercadoria recebida"}</p>
+    <section aria-label={titulo ? `Recebimento · ${titulo}` : "Recebimento"} className={`rounded-3xl border p-4 ${decidir ? "border-destructive/50 bg-destructive/5" : "border-border bg-secondary/40"}`}>
+      <p className="flex items-center gap-2 text-base font-bold"><PackageCheck size={20} className="text-primary" /> {rec.situacao === "contando" ? "Conferência da mercadoria" : "Mercadoria recebida"}{titulo ? ` · ${titulo}` : ""}</p>
       <p className="text-xs text-muted-foreground">{rec.situacao === "contando" ? "Em contagem por" : "Conferida por"} {rec.funcionario}{rec.concluidoEm ? ` em ${dataHoraCurta(rec.concluidoEm)}` : ""} · contagem cega</p>
       {rec.situacao === "contando" && <p className="mt-2 text-sm text-warning">A equipe ainda não concluiu a entrega. Os produtos aceitos nesta conferência aguardam a conclusão para entrar no estoque.</p>}
       {decidir > 0 && <p className="mt-2 text-sm font-semibold text-destructive">{decidir === 1 ? "1 produto precisa" : `${decidir} produtos precisam`} da sua decisão.</p>}
