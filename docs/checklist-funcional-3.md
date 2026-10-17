@@ -45,7 +45,8 @@ Este arquivo não repete o que já está no [checklist ponta a ponta](CHECKLIST_
     - Depois de aplicar: a função ficou igual à testada e os avisos de segurança não mudaram.
     - Tipos 2×, 1.267 testes 2×.
   - **Publicação e testes:** precisa Publicar → Atualizar, por causa do texto. Falta o teste do dono, no final.
-  - **Depende da A3:** o dono ainda não tem o botão "Devolver" nem o texto do motivo para decidir esse produto separado.
+  - **Decisão do dono (achado do Codex no PR #189):** o produto separado por validade/lote mostra ao dono o motivo ("O lote AB1 já está no estoque com validade 16/12/2026, mas veio com outra data…") e o botão **Devolver** (`resolver_item_recebimento` com "recusar", que o banco já aceitava). Escolher contagem não aparece nesse caso, porque daria o mesmo erro. Os erros do banco ao decidir aparecem em português (`lote_com_datas_diferentes`, `recebimento_vencido_como_bom` e os de `mensagemErro`). `textoMotivoDono` e `validadeRecontar` em `src/lib/recebimento.ts`, `LinhaRecebida` em `PainelPedidos.tsx`. Teste `src/test/recebimento-lote-dono.test.tsx` (falha sem a correção). Tipos e 1.272 testes duas vezes. Sem mudança no banco.
+  - **Fica para a A3:** "Devolver" na contagem comum que não bateu 3 vezes e o caso da validade que vence depois de a entrega ser separada.
 - [ ] **A3. Contagem de recebimento que não bateu 3 vezes.** O dono só pode escolher uma contagem: não há "Devolver". Se a validade passar, o item fica pendente para sempre, e o erro aparece em código, sem tradução.
 - [ ] **A4. Entrega parcial impossível.** Recebida metade, o pedido vira "recebido" e a segunda parte não pode entrar nele.
 - [ ] **A5. Gaveta com falta falsa.** O dinheiro devolvido ao cliente do fiado no cancelamento sai da gaveta, mas não é descontado do esperado.
