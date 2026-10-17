@@ -40,4 +40,10 @@ describe("B13 — Alertas abre a ficha", () => {
     r.rerender(<StoreSpace {...base} products={[antigo, novo]} inicio={{ produtoId: "p2" }} />);
     expect(ficha()).toBeNull();
   });
+  it("atalho do Atenção hoje (Vendido sem cadastro) antes de a lista chegar também cancela a ficha", () => {
+    const r = render(<StoreSpace {...base} products={[antigo]} vendidoSemCadastro={2} inicio={{ produtoId: "p2" }} />);
+    fireEvent.click(screen.getByRole("button", { name: /Vendido sem cadastro/ }));
+    r.rerender(<StoreSpace {...base} products={[antigo, novo]} vendidoSemCadastro={2} inicio={{ produtoId: "p2" }} />);
+    expect(ficha()).toBeNull();
+  });
 });

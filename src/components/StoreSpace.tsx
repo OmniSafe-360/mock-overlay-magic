@@ -69,6 +69,9 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
     if (p) { fichaPendente.current = null; setView(p); }
   }, [products]);
   useEffect(() => { if (view) fichaPendente.current = null; }, [view]);
+  // Qualquer troca de parte (barra, "Atenção hoje", atalhos) cancela a ficha pendente.
+  const abaAnterior = useRef(tab);
+  useEffect(() => { if (abaAnterior.current !== tab) { abaAnterior.current = tab; fichaPendente.current = null; } }, [tab]);
   const entregasDecidir = useMemo(() => entregasParaDecidir(pedidos), [pedidos]);
   /** Muda a cada "Fazer pedido" para abrir a aba Pedidos já na montagem. */
   const [montar, setMontar] = useState(inicio && "pedidos" in inicio && inicio.pedidos === "montar" ? 1 : 0);
