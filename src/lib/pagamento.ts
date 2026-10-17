@@ -16,6 +16,12 @@ export function valorConta(p: Pedido): { valor: number; estimado: boolean } {
   return v != null ? { valor: v, estimado: false } : { valor: totalConfirmado(p), estimado: true };
 }
 
+/** B6: o que a conta vale quando o dono deixa o valor em branco: o que o fornecedor informou, senão o estimado (só o que ele vai mandar). */
+export function valorSemCorrecao(p: Pedido): { valor: number; estimado: boolean } {
+  const v = p.resposta?.valorTotal ?? null;
+  return v != null ? { valor: v, estimado: false } : { valor: totalConfirmado(p), estimado: true };
+}
+
 /** null = pedido sem conta registrada. */
 export function estadoPagamento(p: Pedido, hoje: string): { estado: EstadoPagamento; dias: number | null } | null {
   const pg = p.pagamento;
