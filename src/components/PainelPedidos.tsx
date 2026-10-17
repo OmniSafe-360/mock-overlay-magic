@@ -11,7 +11,7 @@ import { btnGhost, btnPrimary, type StoreData } from "@/components/StoreSetup";
 import { aceitaFracao, fmtQ, qtdUn, unPlural, unSingular } from "@/lib/deposito";
 import { CampoQtd } from "@/components/CampoQtd";
 import { descricaoEmbalagem } from "@/lib/embalagem";
-import { estadoPagamento, ordemPagamento, resumoPagamentos, somaDias, textoPagamento, valorConta, type EstadoPagamento } from "@/lib/pagamento";
+import { estadoPagamento, ordemPagamento, resumoPagamentos, somaDias, textoPagamento, valorConta, valorSemCorrecao, type EstadoPagamento } from "@/lib/pagamento";
 import { hojeEm } from "@/lib/validade";
 import { contagemVencida, precisaDecidir, resultadoItem, textoMotivoDono, resumoRecebimento, type ItemRecebido, type Recebimento, type TipoResultado } from "@/lib/recebimento";
 import { mensagemErro } from "@/lib/persistencia";
@@ -688,7 +688,7 @@ function PagamentoPedido({ pedido, hoje, onPagamento }: { pedido: Pedido; hoje: 
       {erro && <p role="alert" className="mt-2 text-sm font-semibold text-destructive">{erro}</p>}
       {sheet === "pagar" && <MarcarPagoSheet valor={valor} estimado={estimado} hoje={hoje} onClose={() => setSheet(null)}
         onConfirmar={(data) => enviar({ situacao: "pago", pagoEm: data }).then(() => setSheet(null))} />}
-      {sheet === "corrigir" && <CorrigirPagamentoSheet vencimento={pg?.vencimento ?? null} valor={pg?.valor ?? pedido.resposta?.valorTotal ?? null} estimado={totalPedido(pedido)}
+      {sheet === "corrigir" && <CorrigirPagamentoSheet vencimento={pg?.vencimento ?? null} valor={pg?.valor ?? pedido.resposta?.valorTotal ?? null} vazio={valorSemCorrecao(pedido)}
         novo={!e} hoje={hoje} onClose={() => setSheet(null)} onSalvar={(venc, v) => enviar({ situacao: "a_pagar", vencimento: venc, valor: v }).then(() => setSheet(null))} />}
     </section>
   );
@@ -726,8 +726,10 @@ function MarcarPagoSheet({ valor, estimado, hoje, onClose, onConfirmar }: {
   );
 }
 
-function CorrigirPagamentoSheet({ vencimento, valor, estimado, novo, hoje, onClose, onSalvar }: {
-  vencimento: string | null; valor: number | null; estimado: number; novo: boolean; hoje: string; onClose: () => void;
+function CorrigirPagamentoSheet({ vencimento, valor, vazio, novo, hoje, onClose, onSalvar }: {
+  vencimento: string | null; valor: number | null; novo: boolean; hoje: string; onClose: () => void;
+  /** B6: o que a conta vale com o campo em branco (o mesmo cálculo da conta). */
+  vazio: { valor: number; estimado: boolean };
   onSalvar: (vencimento: string, valor: number | null) => Promise<unknown>;
 }) {
   const [venc, setVenc] = useState(vencimento ?? "");
@@ -752,10 +754,10 @@ function CorrigirPagamentoSheet({ vencimento, valor, estimado, novo, hoje, onClo
         </div>
         <label className="block space-y-1">
           <span className="text-sm font-medium">Valor da conta</span>
-          <input inputMode="numeric" value={v ? brl(v) : ""} placeholder={brl(estimado)} aria-label="Valor da conta"
+          <input inputMode="numeric" value={v ? brl(v) : ""} placeholder={brl(vazio.valor)} aria-label="Valor da conta"
             onChange={(e) => { const c = Number(e.target.value.replace(/\D/g, "").slice(0, 10) || 0); setV(c > 0 ? c : null); }}
             className="h-13 w-full rounded-2xl border border-border bg-background-deep/60 px-4 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus-visible:border-primary" />
-          <span className="block text-xs text-muted-foreground">Em branco, vale o total estimado do pedido ({brl(estimado)}).</span>
+          <span className="block text-xs text-muted-foreground">Em branco, vale {vazio.estimado ? "o total estimado do que o fornecedor vai mandar" : "o valor que o fornecedor informou"} ({brl(vazio.valor)}).</span>
         </label>
       </div>
       <div className="px-5 pt-2">
