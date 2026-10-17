@@ -8,7 +8,7 @@ import { linkClienteDono } from "@/lib/fiadoCliente";
 import { AcessoClienteFiado } from "@/components/AcessoClienteFiado";
 import { btnGhost, btnPrimary } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";
-import { centavosDigitados, mascaraDinheiro } from "@/lib/caixa";
+import { centavosDigitados, lerReais, mascaraDinheiro } from "@/lib/caixa";
 import { newUid } from "@/lib/deposito";
 import {
   DIAS_ANTIGO, FORMA_FIADO, buscarConta, contasFiado, haQuantoTempo, mensagemFiadoCompleta, resumoFiado, textoMovimento,
@@ -30,8 +30,9 @@ function LimiteFiado({ cliente, onSalvo }: { cliente: { id: string; limite?: num
   const [msg, setMsg] = useState("");
   const salvar = async () => {
     const t = limite.trim();
-    const cent = t ? Math.round(Number(t.replace(/\./g, "").replace(",", ".")) * 100) : null;
-    if (cent != null && (!Number.isFinite(cent) || cent < 0)) { setMsg("Confira o valor do limite."); return; }
+    // A7: "50.5" é R$ 50,50 (antes o ponto era apagado e virava R$ 505).
+    const cent = t ? lerReais(t) : null;
+    if (t && cent == null) { setMsg("Confira o valor do limite."); return; }
     setSalvando(true); setMsg("");
     try { await banco.definirLimiteFiado(cliente.id, cent, bloq); cliente.limite = cent; cliente.bloqueado = bloq; onSalvo(); }
     catch { setMsg("Não foi possível salvar agora. Confira a internet e tente de novo."); }

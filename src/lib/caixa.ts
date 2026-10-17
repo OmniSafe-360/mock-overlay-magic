@@ -140,6 +140,19 @@ export function atalhosDinheiro(falta: number): number[] {
 export const centavosDigitados = (txt: string) => Math.min(Number(txt.replace(/\D/g, "").slice(0, 9) || "0"), 99_999_999);
 export const mascaraDinheiro = (centavos: number) => (centavos / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+/** A7: valor em reais digitado à mão → centavos. Vírgula ou ponto como decimal, até 2 casas ("15,5", "15.5" e
+ * "15.50" valem R$ 15,50). Ponto de milhar só no formato brasileiro ("1.500" ou "1.500,00" = R$ 1.500,00).
+ * Vazio, negativo, mais de 2 casas, formato misturado ou acima de R$ 1.000.000,00 (o máximo que o banco aceita no limite do fiado) → null. */
+export function lerReais(txt: string): number | null {
+  let t = txt.trim().replace(/\s/g, "");
+  if (!t) return null;
+  if (/^\d{1,3}(\.\d{3})+(,\d{1,2})?$/.test(t)) t = t.replace(/\./g, "").replace(",", ".");
+  else if (/^\d+([.,]\d{1,2})?$/.test(t)) t = t.replace(",", ".");
+  else return null;
+  const c = Math.round(Number(t) * 100);
+  return Number.isFinite(c) && c <= 100_000_000 ? c : null;
+}
+
 /** Quantidade sem separador de milhar: vírgula ou ponto decimal, até 3 casas. Inválida retorna null. */
 export function lerQuantidade(txt: string): number | null {
   const t = txt.trim().replace(",", ".");
