@@ -1353,9 +1353,11 @@ export type Database = {
           situacao: string
           token: string
           updated_at: string
+          valor_do_dono: boolean
           valor_fornecedor: number | null
           valor_total: number | null
           vencimento: string | null
+          vencimento_do_dono: boolean
         }
         Insert: {
           canal?: string | null
@@ -1378,9 +1380,11 @@ export type Database = {
           situacao?: string
           token?: string
           updated_at?: string
+          valor_do_dono?: boolean
           valor_fornecedor?: number | null
           valor_total?: number | null
           vencimento?: string | null
+          vencimento_do_dono?: boolean
         }
         Update: {
           canal?: string | null
@@ -1403,9 +1407,11 @@ export type Database = {
           situacao?: string
           token?: string
           updated_at?: string
+          valor_do_dono?: boolean
           valor_fornecedor?: number | null
           valor_total?: number | null
           vencimento?: string | null
+          vencimento_do_dono?: boolean
         }
         Relationships: [
           {
