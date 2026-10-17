@@ -349,6 +349,24 @@ describe("caixa no celular", () => {
     expect((await screen.findByRole("alert")).textContent?.replace(/\s/g, " ")).toBe("Devolva R$ 60,00 ao cliente: é o que ele já tinha pago desta venda no fiado.");
   });
 
+  it("checklist 3 A5: a devolução sai da gaveta e o caixa diz que já foi descontada", async () => {
+    const vendaFiado = { id: "v7", numero: 7, feitaEm: "2026-10-10T12:00:00Z", total: 10000, situacao: "finalizada" as const, troco: 0, cliente: "João",
+      pagamentos: [{ forma: "fiado", valor: 10000 }], itens: [{ descricao: "Arroz", qtd: 4, valor: 10000 }] };
+    const api = apiCaixa({
+      estado: vi.fn(async () => ({ ...estado(), vendas: [vendaFiado] })),
+      cancelar: vi.fn(async () => ({ situacao: "cancelada" as const, devolver: 6000, gaveta: true })),
+    });
+    render(<CaixaCelular chave={CH} api={api} onSair={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Menu do caixa" }));
+    fireEvent.click(screen.getByRole("button", { name: /Vendas deste caixa/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Venda nº 7/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Cancelar esta venda/ }));
+    fireEvent.change(screen.getByLabelText("PIN do dono"), { target: { value: "2468" } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar cancelamento" }));
+    expect(await screen.findByText(/Venda nº 7 cancelada/)).toBeTruthy();
+    expect((await screen.findByRole("alert")).textContent?.replace(/\s/g, " ")).toBe("Tire R$ 60,00 da gaveta e devolva ao cliente: é o que ele já tinha pago desta venda no fiado. Essa saída já foi descontada do caixa.");
+  });
+
   it("o carrinho continua no celular se o app travar no meio da venda", async () => {
     const api = apiCaixa();
     const { unmount } = render(<CaixaCelular chave={CH} api={api} onSair={() => {}} />);
