@@ -391,15 +391,15 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | DOC-01 — este plano | Somente documentação autorizada | Documento criado; nenhuma implementação | Não realizados | Pendente |
 | M01 — textos equipe/erro | M01-A e M01-B autorizadas em escopos próprios | Ambas integradas; M01-B pelo PR #150 (§14) | M01-A: merge confirmado/publicação relatada. M01-B: merge confirmado/publicação não confirmada | M01-A: aceite Android restrito (§13). M01-B: validação física não confirmada |
 | M02 — produto não encontrado | Autorizada exclusivamente em 15/10/2026, com ajustes do dono (§14) | Integrada pelo PR #151 (§15) | Merge confirmado; publicação não verificada independentemente | Roteiro aceito por relato do dono; aparelho/versão não informados (§15) |
-| M03 — promessa primeiro cadastro | Autorizada exclusivamente em 15/10/2026 (§15) | Implementada/testada na branch exclusiva (§15) | Não realizados | Aguarda revisão/validação do dono |
-| M04 — indicadores globais | Pendente | Não iniciados | Não realizados | Pendente |
-| M05 — ganho bruto | Implementada (opção A, 15/10/2026), aguarda revisão | `m05-ganho-bruto` + preço/margem/farmácia aprovados; suíte 2× | Capturas responsivas não realizadas | Pendente |
-| M06 — mensagem limite caixa | Implementada, aguarda revisão | 1.189 testes 2× | 30 capturas | Pendente |
-| M07 — saldo por área | Pendente | Não iniciados | Não realizados | Pendente |
-| M08 — busca/resumo | Implementada (16/10/2026), aguarda revisão | atencao-hoje/lista-produtos/menu-comercio + m08 novo; suíte 1.194 2× | 12 capturas 320/390/1280 × 100/200%, com e sem produtos | Pendente |
-| M09 — cartões pedidos | Pendente | Não iniciados | Não realizados | Pendente |
-| M10 — alcance fornecedor | Pendente | Não iniciados | Não realizados | Pendente |
-| M11 — página fornecedor | Pendente | Não iniciados | Não realizados | Pendente |
+| M03 — promessa primeiro cadastro | Autorizada exclusivamente em 15/10/2026 (§15) | Integrada pelo PR #152 (§15) | No main; publicação relatada pelo dono | Publicação e validação relatadas pelo dono na transferência do AC01 (§18), não reinspecionadas |
+| M04 — indicadores globais | M04-A (textos) e M04-B (unidades e alcance) autorizadas em 15/10/2026 | Ambas no main (commits diretos); `rmc-m04b` + suíte 2× | No main; publicação relatada pelo dono | Publicação e validação relatadas pelo dono na transferência do AC01 (§18), não reinspecionadas |
+| M05 — ganho bruto | Autorizada (opção A, 15/10/2026) | No main; `m05-ganho-bruto` + preço/margem/farmácia; suíte 2× | No main; publicação relatada pelo dono | Publicação e validação relatadas pelo dono na transferência do AC01 (§18), não reinspecionadas |
+| M06 — mensagem limite caixa | Autorizada (opção completa, 15/10/2026) | No main; `m06-aviso-limite` + suíte 2×; 30 capturas | No main; publicação relatada pelo dono | Publicação e validação relatadas pelo dono na transferência do AC01 (§18), não reinspecionadas |
+| M07 — saldo por área | Autorizada em 15/10/2026 (§19) | Integrada pelo PR #155 (§19) | Merge confirmado; publicação não confirmada | Falta o teste do dono |
+| M08 — busca/resumo | Autorizada (16/10/2026) | No main; `m08-busca-antes-resumo` + suíte 1.194 2×; 12 capturas | No main; publicação não confirmada | Falta o teste do dono |
+| M09 — cartões pedidos | Autorizada em 16/10/2026 (§20) | Integrada pelo PR #163 (§20) | Merge confirmado; publicação não confirmada | Falta o teste do dono |
+| M10 — alcance fornecedor | M10-A autorizada em 16/10/2026 (§21); M10-B não iniciada (opcional) | M10-A integrada pelo PR #164 (§21) | Merge confirmado; publicação não confirmada | Falta o teste do dono |
+| M11 — página fornecedor | Autorizada em 16/10/2026 (§22) | Integrada pelo PR #165 (§22) | Merge confirmado; publicação não confirmada | Falta o teste do dono |
 | M12 — descoberta faixa | Implementada (16/10/2026), pedido do dono "finaliza ela" | `m12-faixa-deslizar` (3 novos) + menu-comercio/tamanhos-tela; suíte 2× | Chromium 320/390/1280 × 100/200% (§23) | Falta o teste do dono |
 | M13 — contexto unidade | Implementada, testada e integrada ao main (16/10/2026; revisão técnica aprovada em `ef75121`) | `m13-contexto-unidade` (6 novos); tipos e suíte 2× | Chromium 320/390/768/1280 × 100/200% (32 capturas) | Aguarda publicação e homologação final do dono |
 | M14 — progresso cadastro | Implementada (16/10/2026), pedido do dono "faça a etapa M14" | `m14-progresso-cadastro` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§24) | Falta o teste do dono |
@@ -407,10 +407,10 @@ Estados são independentes: **Pendente** (proposta), **Aprovada** (escopo/patch 
 | M16 — convite instalação | Implementada (16/10/2026), pedido do dono "Pode fazer a M16" | `m16-convite-instalacao` (1 novo, falha sem a mudança) + `instalar`; suíte 2× | Chromium 320/390/1280 × 100/200% (§29) | Falta o teste do dono |
 | M17 — fases reposição | Implementada (16/10/2026), pedido do dono "Pode fazer a M17" | `m17-fases-reposicao` (2 novos, um falha sem a mudança) + reposição; suíte 2× | Chromium 320/390/1280 × 100/200% (§30) | Falta o teste do dono |
 | M18 — estados recebimento | Implementada (16/10/2026), pedido do dono "Pode fazer a M18" | `m18-estados-recebimento` (1 novo, falha sem a mudança) + recebimento; suíte 2× | Chromium 320/390/1280 × 100/200% (§31) | Falta o teste do dono |
-| M19 — conferência existente | Implementada (16/10/2026), aguarda revisão | conferência/contagem cega/diferenças/vocabulário + suíte 1.189 2× | 60 capturas 320/390/1280 × 100/200% | Pendente |
+| M19 — conferência existente | Autorizada (16/10/2026) | No main; conferência/contagem cega/diferenças + suíte 1.189 2×; 60 capturas | No main; publicação não confirmada | Falta o teste do dono |
 | M20 — alvos cadastro | Implementada (16/10/2026), pedido do dono "Pode fazer a M20" | `m20-alvos-cadastro` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/1280 × 100/200% (§32) | Falta o teste do dono |
 | M21 — ajuda e erro | Implementada (16/10/2026), pedido do dono "Pode fazer a M21" | `m21-ajuda-erro` (4 novos, falham sem a mudança); suíte 2× | Chromium 390 px: referências válidas, sem id repetido (§33) | Falta o teste do dono |
-| M22 — largura e quebra | Subetapas 1 (lista de produtos), 2 (faixa do comércio) e 3 (Continuar do cadastro) implementadas (16/10/2026), pedido do dono "Pode fazer a M22" | `m22-lista-produtos` (2 novos, falham sem a mudança); suíte 2× | Chromium 320/390/768/1280 × 100/200% (§34–§36) | Falta o teste do dono; próximas subetapas não iniciadas |
+| M22 — largura e quebra | Subetapas 1 a 5 implementadas (16/10/2026): lista de produtos, faixa do comércio, Continuar do cadastro, cartões de variação da roupa e faixa de fases do Repor; pedidos do dono "Pode fazer a M22" / "Pode fazer a próxima" | `m22-lista-produtos`, `m22-faixa-comercio`, `m22-continuar-cadastro`, `m22-cartoes-variacao`, `m22-fases-repor` (falham sem a mudança); suíte 2× | Chromium 320/390/768/1280 × 100/200% (§34–§36, §39, §40) | Falta o teste do dono (o dono decidiu fazer todos os testes no final) |
 | M23 — geometria cadastro | Pendente | Não iniciados | Não realizados | Pendente |
 | M24 — validação integrada | Pendente | Não iniciados | Não realizados | Pendente |
 | X01–X10 — fila separada | Não autorizada; análise própria | Não iniciados | Não realizados | Pendente |
@@ -1257,6 +1257,82 @@ Aceitar ponto como decimal torna explícita a ausência de agrupamento de milhar
 **F01 corrigida/testada na branch; falta revisão, integração autorizada, publicação e teste do dono.** Não declarar sistema100% pronto. F03/ajuste+motivo, F02/validade/banco real, integridade numérica, residuais de M22, M23/M24 e demais E/G continuam separados; nenhum ajuste de estoque ou correção adicional nesta entrega. Documentação atualizada somente por acréscimo neste plano, CLAUDE e checklist.
 
 Próximo: revisarPR e autorizar merge separadamente. Após integração autorizada, Publicar→Atualizar e testar em produto fracionado de teste:1,5 e1.5 devem mostrar mesmo peso/total;0.350 deve virar0,35; fechar sem incluir conserva o carrinho. Antes de qualquer venda real, confirmar quantidade e preço. Registrar aparelho/versão/resultado. Em seguida preparar análise/diff próprio da F03, sem alteração de banco automática.
+
+## 38. Tabela de situação das etapas atualizada — 16/10/2026 UTC
+
+Pedido do dono ("Pode fazer a primeira etapa", depois da análise das etapas). A tabela da seção de situação mostrava como "Pendente" ou "aguarda revisão" etapas que já estão no main: M03 (PR #152), M04-A/M04-B, M05, M06, M07 (PR #155), M08, M09 (PR #163), M10-A (PR #164), M11 (PR #165) e M19. As linhas foram corrigidas conforme os merges conferidos no GitHub e os commits do main. Nenhuma etapa foi reaberta ou refeita; nenhum código, banco ou dado mudou. M03–M06 mantêm o relato do dono de publicação e validação (transferência do AC01, §18), sem reinspeção independente; M07–M11 e M19 continuam com **falta o teste do dono** depois de Publicar → Atualizar (o aceite do roteiro do AC01 não se estende a elas). Pendentes: M10-B (opcional), M22 subetapas 4 e 5, M23 e M24. Só documentação; não precisa Publicar.
+
+## 39. M22 — largura e quebra, subetapa 4: cartões de variação da roupa — 16/10/2026 UTC
+
+Pedido do dono: "Pode fazer a próxima" (etapa 2 da lista apresentada após a análise). Só apresentação em `src/components/ProductArea.tsx`, na "Grade de variações" do cadastro de roupa.
+
+- **Problema (achado anotado na M20):** com letra 200% os cartões "tamanho · cor · código · quantidade" passavam da borda da tela, porque o cartão não tinha limite de largura e o texto não quebrava.
+- **Mudança:** a grade passa a medir o próprio espaço (`@container`). O cartão fica limitado à largura disponível (`max-w-full`, `min-w-0`) e o texto quebra dentro dele (`break-words`); o lápis não é espremido. Os cantos ficam menos arredondados (`rounded-3xl`) para o texto em duas linhas caber. Quando há menos de 16 rem (só com letra grande ou tela muito estreita), o cartão ocupa a linha inteira, com o texto em cima e o botão de remover embaixo, à direita.
+- **Sem mudança:** textos, ordem, cores de erro, botões de 48 px, editar/remover, validação, salvamento e banco.
+- **Medido (Chromium, roupa fictícia com 3 variações, uma com cor longa e sem código):** antes, os cartões fora da borda eram 3 em 320 e 390 px a 200% e 2 em 1280 px a 200%; depois, 0 em todos. Com letra normal (320/390/1280) os cartões ficam como antes: botões de 48 px, sem rolagem lateral. Em 320 px a 200% o editar passou de 1.176 px de altura (texto quase uma letra por linha, na primeira tentativa sem o empilhamento) para 216–296 px, com o texto em ~7 letras por linha. Essa é a largura que sobra nessa tela.
+- **Testes:** `src/test/m22-cartoes-variacao.test.tsx` (falha sem a mudança) + `m20-alvos-cadastro`. Tipos 2×, 1.260 testes/136 arquivos 2×, build.
+- **Limites:** em 320 × 568 com letra 200% a área de conteúdo do cadastro é pequena (§36) e a lista precisa rolar; não testado em aparelho real.
+- **Precisa Publicar → Atualizar; falta o teste do dono.** Roteiro: cadastro de roupa → passo com a "Grade de variações" → conferir que cada tamanho/cor aparece inteiro dentro da tela, que o lápis abre a edição e que o X remove (cancelar sem salvar).
+- Próxima subetapa (5, faixa de fases do Repor) não iniciada.
+
+## 40. M22 — largura e quebra, subetapa 5: faixa de fases do Repor — 16/10/2026 UTC
+
+Pedido do dono: "Os testes eu vou fazer tudo no final. Pode fazer a próxima." (etapa 3 da lista apresentada após a análise). **Decisão registrada:** o dono vai testar tudo no final; as etapas seguem uma por vez sem esperar o teste dele, e cada uma continua com "falta o teste do dono".
+
+A mudança é só de apresentação, em `src/components/ReporGondola.tsx` (`Fases`, a faixa "1. Conte → 2. Busque → 3. Confirme o que levou" da M17).
+
+- **Problema, anotado na análise:** em 320 e 390 px com letra 200%, a faixa ocupava 224 px de altura em 3 linhas, empurrando a contagem para baixo.
+- **Mudança:**
+  - A faixa passa a medir o próprio espaço (`@container`).
+  - Quando há menos de 14 rem, o que só acontece com letra grande, só a fase atual mostra o nome. As outras mostram o número, por exemplo "✓1 → 2. Busque → 3", e o nome continua lá para o leitor de tela (`sr-only`).
+  - Nesse caso o espaço entre as fases também diminui um pouco.
+  - A fase atual é a mesma do `aria-current`. Na tela de buscar, a 3 continua em destaque, só sem o nome.
+- **Sem mudança:**
+  - Fases, cores, ✓ das feitas e destaque da M17.
+  - Contagem cega, envio, rascunho e banco.
+  - Letra normal em 320/390/1280: altura igual, 60/60/28 px.
+- **Medido no Chromium, com reposição fictícia (Arroz 5 kg):**
+
+  | Tela | Antes | Depois |
+  |---|---|---|
+  | 320 px a 200% | 224 px (3 linhas) | 120 px (2 linhas) |
+  | 390 px a 200% | 224 px | 56 px (ida) e 120 px (buscar) |
+  | 1280 px a 200% | 56 px | 56 px |
+
+  Sem rolagem lateral e sem erros.
+- **Testes:** `src/test/m22-fases-repor.test.tsx` (falha sem a mudança) e `m17-fases-reposicao`. Tipos 2×, 1.261 testes/137 arquivos 2×, build.
+- **Roteiro do dono (no final):** com letra grande no celular, abrir Repor → um produto → conferir que a faixa mostra a fase atual com o nome e as outras com o número, e que a contagem aparece sem rolar muito.
+- **M22 concluída no código** (subetapas 1 a 5). Próximas da lista: Fornecedores (botões de 44 px e contatos sobrepostos com letra grande), depois M23 e M24.
+
+## 41. Fornecedores — botões de 48 px e cartão com letra grande — 16/10/2026 UTC
+
+Pedido do dono: "Pode fazer o próximo" (etapa 4 da lista apresentada após a análise). Corrige limitações anotadas na M10-A (§21): contatos sobrepostos em 320 px com letra 200% e botões editar/abrir com 44 px. A M10-B (opcional) não foi feita.
+
+A mudança é só de apresentação, em `src/components/PainelFornecedores.tsx`.
+
+- **Botões com 48 px:**
+  - Lápis de editar (de 44 para 48 px, sem crescer a linha).
+  - "N produtos neste comércio", "Sem fornecedor" e cada produto da lista (de 44 para 48 px).
+- **Cartão do fornecedor:**
+  - Passa a medir o próprio espaço (`@container`).
+  - Com menos de 12 rem, o que só acontece com letra grande, o ícone do caminhão some. Ele é só decoração e fica marcado como escondido para o leitor de tela.
+  - O lápis vai para o canto de cima e o nome, o telefone e o e-mail ocupam a linha inteira.
+  - WhatsApp, Ligar e E-mail ficam um embaixo do outro, com ícone e nome lado a lado.
+  - Com letra normal, o cartão fica como antes, inclusive em 320 px com 3 contatos lado a lado.
+- **Problema medido antes (Chromium, fornecedor fictício com nome e e-mail longos):** em 320 px com letra 200%, nome e e-mail ficavam com uma letra por linha, cartão de ~3.500 px. Os 3 contatos tinham texto saindo da caixa: 3 em 320 px e 1 em 390 px.
+- **Depois:** nenhum contato com texto saindo da caixa nem sobreposto, em 320/390/1280 × 100/200%. Sem rolagem lateral e sem erros. Botões medidos: 48 px com letra normal, 96 px a 200%.
+- **Sem mudança:**
+  - Textos, ordem dos fornecedores e links (WhatsApp, tel:, mailto:).
+  - Abrir e editar, produtos do comércio e banco.
+- **Testes:**
+  - `src/test/fornecedores-alvos-letra.test.tsx`: os 2 testes falham sem a mudança.
+  - `painel-fornecedores` também passa.
+  - Tipos 2×, 1.263 testes/138 arquivos 2×, build.
+- **Roteiro do dono (no final):** em Fornecedores, com letra grande no celular, conferir:
+  - o nome inteiro legível;
+  - WhatsApp/Ligar/E-mail um embaixo do outro, abrindo certo;
+  - o lápis abrindo a edição, cancelando sem salvar.
+- **Próximas da lista:** M23 (geometria do primeiro cadastro) e M24 (validação integrada).
 
 
 ## F03-A/B — preparo transacional isolado (16/10/2026)

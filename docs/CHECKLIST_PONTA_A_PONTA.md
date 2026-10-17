@@ -527,6 +527,12 @@ Análise pedida pelo dono em 16/10/2026 sobre `main 529b360` (verificação remo
 - **Provas:**68direcionados;contraprova anterior10falhas esperadas;tipos2×;1259testes/135arquivos2×;build;48combinações Chromium/12capturas em320/390/1280×100/200,API fictícia,semregistrar venda. [Plano §37: escopo, risco e roteiro](PLANO_MESTRE_UX_UI.md#37-f01--entrada-decimal-do-peso-no-caixa-correção-funcional-separada--16102026-utc). CI remoto do commit exato separado; teclado/aparelho/PWA/banco publicado não verificados.
 - **Próximo:** revisarPR, autorizar merge separadamente; depois Publicar→Atualizar e conferir entradas decimais em produto de teste, registraraparelho/versão/resultado. F03/ajuste+motivo exige análise/diff próprios; F02/integridade/M22residuais/M23/M24 e demais E/G continuam pendentes. Nenhum dado removido/perda repetida.
 
+- 16/10/2026: tabela de situação das etapas UX/UI no PLANO corrigida (M03–M11 e M19 já no main; ver PLANO §38). Só documentação; M03–M06 com o relato do dono preservado; nenhum item novo marcado como validado.
+
+- 16/10/2026: M22 subetapa 4 (cartões de variação da roupa com letra grande) implementada; ver PLANO §39. Precisa Publicar → Atualizar; falta o teste do dono.
+- 16/10/2026: M22 subetapa 5 (faixa de fases do Repor com letra grande) implementada; M22 concluída no código (PLANO §40). O dono decidiu fazer todos os testes no final; falta o teste do dono.
+- 16/10/2026: Fornecedores com botões de 48 px e cartão legível com letra grande (PLANO §41). Falta o teste do dono (no final).
+
 
 ## Rastreabilidade F03-A/B — preparo transacional isolado (16/10/2026)
 
