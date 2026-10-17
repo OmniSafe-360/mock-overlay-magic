@@ -231,6 +231,13 @@ export function StoreSetup({ mode = "first", userId, onFinish, onCancel, onExit 
         setSaveErr("Sua sessão mudou. Entre novamente antes de cadastrar o comércio.");
         return;
       }
+      /* B7: comércio com este documento já cadastrado antes deste envio não vira "adicionado" (nem entra em dobro na lista). */
+      const antes = await comercioDoDocumento(u.user.id).catch(() => undefined);
+      if (!ativo.current) return;
+      if (antes) {
+        setSaveErr(`Você já cadastrou um comércio com este ${docType}${antes.nome.trim() ? `: ${antes.nome.trim()}` : ""}.`);
+        return;
+      }
       const { data, error } = await supabase.from("comercios").insert({
         dono_id: u.user.id,
         tipo: TIPO_TO_DB[tipo] as Database["public"]["Enums"]["tipo_comercio"],
@@ -271,12 +278,18 @@ export function StoreSetup({ mode = "first", userId, onFinish, onCancel, onExit 
     setSalvo(confirmado);
     if (mode === "add") onFinish?.(confirmado); else setDone(true);
   };
+  /** O comércio deste dono com este documento, se já existe. Falha de leitura = erro (quem chama decide). */
+  const comercioDoDocumento = async (dono: string): Promise<{ id: string; nome: string } | null> => {
+    const { data, error } = await supabase.from("comercios").select("id,nome").eq("dono_id", dono).eq("documento", digits(doc)).limit(1);
+    if (error) throw error;
+    const r = data?.[0];
+    return r && typeof r.id === "string" ? { id: r.id, nome: String(r.nome ?? "") } : null;
+  };
   /** Procura o comércio deste dono com o mesmo documento e nome (o envio que acabou de ser feito). */
   const recuperarSalvo = async (dono: string): Promise<string | null> => {
     try {
-      const { data } = await supabase.from("comercios").select("id,nome").eq("dono_id", dono).eq("documento", digits(doc)).limit(1);
-      const r = data?.[0];
-      return r && typeof r.id === "string" && r.nome.trim() === nome.trim() ? r.id : null;
+      const r = await comercioDoDocumento(dono);
+      return r && r.nome.trim() === nome.trim() ? r.id : null;
     } catch { return null; }
   };
   const next = () => {
