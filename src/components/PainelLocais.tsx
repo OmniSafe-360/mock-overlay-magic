@@ -5,7 +5,7 @@ import { ChevronDown, MapPin, Package } from "lucide-react";
 import type { Product } from "@/lib/produto";
 import { fmtQ, unPlural, unSingular } from "@/lib/deposito";
 import { textoDoTipo } from "@/lib/exemplos";
-import { nomeVenda, porLocal, precisaAtencaoItem, type EstadoItem, type ItemLocal } from "@/lib/situacao";
+import { nomeVenda, porLocal, precisaAtencaoItem, situacaoProduto, type EstadoItem, type ItemLocal } from "@/lib/situacao";
 import { hojeEm } from "@/lib/validade";
 
 const COR: Record<EstadoItem, { barra: string; texto: string }> = {
@@ -15,20 +15,29 @@ const COR: Record<EstadoItem, { barra: string; texto: string }> = {
   ok: { barra: "bg-transparent", texto: "" },
 };
 
-export function PainelLocais({ products, tipo, area, locaisCadastrados = [], onOpen }: {
+export function PainelLocais({ products, tipo, area, locaisCadastrados = [], onOpen, jaPedidos }: {
   products: Product[]; tipo: string; area: "dep" | "ven"; locaisCadastrados?: string[] | undefined; onOpen: (p: Product) => void;
+  /** B3: produtos (id do banco) já num pedido em andamento: no depósito aparecem como "Já pedido", fora do "Para comprar". */
+  jaPedidos?: Set<string> | undefined;
 }) {
   const hoje = useHoje();
   const d = useMemo(() => porLocal(products, area, hoje, locaisCadastrados), [products, area, hoje, locaisCadastrados]);
+  const pedido = (i: ItemLocal) => area === "dep" && (i.estado === "abaixo" || i.estado === "acabou") && !!i.p.db?.id && !!jaPedidos?.has(i.p.db.id);
+  const precisa = (i: ItemLocal) => precisaAtencaoItem(i) && !pedido(i);
+  /* B3: "Para comprar"/"Para repor" com a mesma regra do Início e do "Atenção hoje" (situacaoProduto): conta produtos, não tamanhos/cores;
+     produto que acabou de vez fica em "Acabaram"; já pedido não conta para comprar. */
+  const nAcao = useMemo(() => products.filter((p) => situacaoProduto(p, tipo, hoje, { jaPedido: !!p.db?.id && !!jaPedidos?.has(p.db.id) })
+    .alertas.some((a) => a.tipo === (area === "dep" ? "comprar" : "repor"))).length, [products, tipo, hoje, area, jaPedidos]);
   const [so, setSo] = useState(false);
   const [verFalta, setVerFalta] = useState(false);
   const nome = area === "dep" ? textoDoTipo(tipo)("Depósito") : nomeVenda(tipo);
   const nomeMin = nome.toLowerCase();
   /* No depósito, abaixo do mínimo = comprar; na área de venda = repor (regra 6.3 da fonte da verdade). */
   const acao = area === "dep" ? "Comprar" : "Repor";
-  const nAtencao = d.resumo.abaixo + d.resumo.acabou + d.resumo.vencido;
-  const grupos = so ? d.grupos.map((g) => ({ ...g, itens: g.itens.filter(precisaAtencaoItem) })).filter((g) => g.itens.length) : d.grupos;
-  const semLocal = so ? d.semLocal.filter(precisaAtencaoItem) : d.semLocal;
+  const todos = [...d.grupos.flatMap((g) => g.itens), ...d.semLocal];
+  const nAtencao = todos.filter(precisa).length;
+  const grupos = so ? d.grupos.map((g) => ({ ...g, itens: g.itens.filter(precisa) })).filter((g) => g.itens.length) : d.grupos;
+  const semLocal = so ? d.semLocal.filter(precisa) : d.semLocal;
 
   if (!products.length)
     return (
@@ -45,7 +54,7 @@ export function PainelLocais({ products, tipo, area, locaisCadastrados = [], onO
       <div className="grid grid-cols-3 gap-2">
         <Numero rotulo="Locais" n={d.resumo.locais} />
         <Numero rotulo="Produtos" n={d.resumo.produtos} />
-        <Numero rotulo={area === "dep" ? "Para comprar" : "Para repor"} n={d.resumo.abaixo + d.resumo.acabou} cor={d.resumo.abaixo + d.resumo.acabou ? "text-warning" : undefined} />
+        <Numero rotulo={area === "dep" ? "Para comprar" : "Para repor"} n={nAcao} cor={nAcao ? "text-warning" : undefined} />
       </div>
       {d.resumo.vencido > 0 && (
         <p role="alert" className="rounded-2xl border border-destructive/60 bg-destructive/10 p-3 text-sm font-semibold text-destructive">
@@ -66,8 +75,8 @@ export function PainelLocais({ products, tipo, area, locaisCadastrados = [], onO
       )}
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        {grupos.map((g) => <Local key={g.local} titulo={g.local} itens={g.itens} acao={acao} venda={area === "ven"} onOpen={onOpen} />)}
-        {semLocal.length > 0 && <Local titulo="Sem local definido" itens={semLocal} acao={acao} venda={area === "ven"} onOpen={onOpen} aviso />}
+        {grupos.map((g) => <Local key={g.local} titulo={g.local} itens={g.itens} acao={acao} venda={area === "ven"} onOpen={onOpen} pedido={pedido} />)}
+        {semLocal.length > 0 && <Local titulo="Sem local definido" itens={semLocal} acao={acao} venda={area === "ven"} onOpen={onOpen} pedido={pedido} aviso />}
       </div>
 
       {d.naoConfigurados.length > 0 && !so && (
@@ -105,8 +114,8 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
   );
 }
 
-function Local({ titulo, itens, acao, venda, onOpen, aviso }: {
-  titulo: string; itens: ItemLocal[]; acao: string; venda: boolean; onOpen: (p: Product) => void; aviso?: boolean;
+function Local({ titulo, itens, acao, venda, onOpen, aviso, pedido }: {
+  titulo: string; itens: ItemLocal[]; acao: string; venda: boolean; onOpen: (p: Product) => void; aviso?: boolean; pedido: (i: ItemLocal) => boolean;
 }) {
   const nProd = new Set(itens.map((i) => i.p.id)).size;
   return (
@@ -119,17 +128,17 @@ function Local({ titulo, itens, acao, venda, onOpen, aviso }: {
       {aviso && <p className="mt-2 text-xs text-muted-foreground">Abra o produto e toque em Editar para escolher o local.</p>}
       {itens.length ? (
         <ul className="mt-3 divide-y divide-border overflow-hidden rounded-2xl bg-background-deep/50">
-          {itens.map((i, k) => <li key={`${i.p.id}-${i.variacao ?? k}`}><Item i={i} acao={acao} venda={venda} onOpen={onOpen} /></li>)}
+          {itens.map((i, k) => <li key={`${i.p.id}-${i.variacao ?? k}`}><Item i={i} acao={acao} venda={venda} onOpen={onOpen} pedido={pedido(i)} /></li>)}
         </ul>
       ) : <p className="mt-3 rounded-2xl bg-background-deep/50 px-3 py-4 text-center text-sm text-muted-foreground">Nenhum produto neste local.</p>}
     </section>
   );
 }
 
-function Item({ i, acao, venda, onOpen }: { i: ItemLocal; acao: string; venda: boolean; onOpen: (p: Product) => void }) {
-  const c = COR[i.estado];
+function Item({ i, acao, venda, onOpen, pedido }: { i: ItemLocal; acao: string; venda: boolean; onOpen: (p: Product) => void; pedido: boolean }) {
+  const c = pedido ? { barra: "bg-primary", texto: "text-primary" } : COR[i.estado];
   const un = i.qtd != null && i.qtd >= 1 && i.qtd < 2 ? unSingular(i.p.unidade) : unPlural(i.p.unidade);
-  const etiqueta = i.estado === "vencido" ? "Vencido" : i.estado === "acabou" ? "Acabou" : i.estado === "abaixo" ? acao : "";
+  const etiqueta = pedido ? "Já pedido" : i.estado === "vencido" ? "Vencido" : i.estado === "acabou" ? "Acabou" : i.estado === "abaixo" ? acao : "";
   const lim = [i.min != null ? `mín. ${fmtQ(i.min)}` : "", i.max != null ? `${venda ? "cabe" : "máx."} ${fmtQ(i.max)}` : ""].filter(Boolean).join(" · ");
   const cheio = venda && i.max && i.qtd != null ? Math.min(100, Math.round((i.qtd / i.max) * 100)) : null;
   return (
@@ -151,7 +160,7 @@ function Item({ i, acao, venda, onOpen }: { i: ItemLocal; acao: string; venda: b
         )}
       </span>
       <span className="shrink-0 text-right">
-        <span className={`block text-xl font-bold leading-none tabular-nums ${i.estado === "acabou" ? "text-destructive" : i.estado === "abaixo" ? "text-warning" : ""}`}>{i.qtd == null ? "—" : fmtQ(i.qtd)}</span>
+        <span className={`block text-xl font-bold leading-none tabular-nums ${pedido ? "" : i.estado === "acabou" ? "text-destructive" : i.estado === "abaixo" ? "text-warning" : ""}`}>{i.qtd == null ? "—" : fmtQ(i.qtd)}</span>
         <span className="mt-0.5 block text-[11px] text-muted-foreground">{i.qtd == null ? "não contado" : un}</span>
       </span>
     </button>
