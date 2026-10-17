@@ -191,8 +191,6 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
         const c = lerCache(escopo);
         if (c) gravarCache(escopo, { ...c, produtos: prods });
       } catch { /* sem internet: mantém a lista atual */ }
-      // A6: traz também as vendas do turno, para o aviso de venda cancelada pelo dono aparecer.
-      if (vivo) atualizarEstado();
     };
     const t = setInterval(() => { void atualizar(); }, 120000);
     const voltou = () => { if (document.visibilityState === "visible") void atualizar(); };
@@ -200,7 +198,17 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
     document.addEventListener("visibilitychange", voltou);
     window.addEventListener("online", online);
     return () => { vivo = false; clearInterval(t); document.removeEventListener("visibilitychange", voltou); window.removeEventListener("online", online); };
-  }, [escopo, fase, api, chave, atualizarEstado]);
+  }, [escopo, fase, api, chave]);
+  // A6: com o caixa aberto (vendendo, recebendo ou na tela da venda feita), relê o turno a cada 2 min, ao voltar ao app
+  // e quando a internet volta, para o aviso de venda cancelada pelo dono aparecer.
+  useEffect(() => {
+    if (!escopo || (fase !== "vender" && fase !== "receber" && fase !== "feito")) return;
+    const t = setInterval(() => { atualizarEstado(); }, 120000);
+    const voltou = () => { if (document.visibilityState === "visible") atualizarEstado(); };
+    document.addEventListener("visibilitychange", voltou);
+    window.addEventListener("online", atualizarEstado);
+    return () => { clearInterval(t); document.removeEventListener("visibilitychange", voltou); window.removeEventListener("online", atualizarEstado); };
+  }, [escopo, fase, atualizarEstado]);
   // Vendas guardadas: tenta de novo de tempos em tempos e quando a internet volta.
   useEffect(() => {
     if (!guardadas.some((g) => !g.problema)) return;
@@ -274,7 +282,7 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
   </div></Tela>;
   if (fase === "abrir") return <AbrirCaixa nome={estado.nome} api={api} chave={chave} onSair={onSair}
     onAberto={(t) => { const e = { ...estado, turno: t, vendas: [] }; setEstado(e); gravarCache(escopo, { estado: e }); setFase("vender"); }} />;
-  if (fase === "feito" && feito) return <VendaFeita f={feito} chave={chave} comercioNome={estado?.comercio.nome ?? ""} onProxima={() => { setFeito(null); setFase("vender"); }} />;
+  if (fase === "feito" && feito) return <VendaFeita f={feito} chave={chave} comercioNome={estado?.comercio.nome ?? ""} avisos={estado?.avisosCancelamento} onProxima={() => { setFeito(null); setFase("vender"); }} />;
   if (fase === "fechar" && estado.turno) return (
     <FecharCaixa turno={estado.turno} guardadas={guardadas.filter((g) => !g.problema).length} naoAceitas={guardadas.filter((g) => g.problema && g.venda.turno_id === estado.turno?.id)} chave={chave} api={api} onEnviar={sincronizar}
       onVoltar={() => setFase("vender")} onFechado={() => { apagarCache(escopo); onSair(); }} />
@@ -367,16 +375,15 @@ type Janela =
   | null;
 
 /** A6: venda cancelada pelo dono com o caixa aberto: o caixa devolve o dinheiro ao cliente, da gaveta. */
-function AvisoCanceladasDono({ vendas }: { vendas: banco.VendaDoCaixa[] }) {
+function AvisoCanceladasDono({ avisos }: { avisos: banco.EstadoCaixa["avisosCancelamento"] }) {
   const [vistos, setVistos] = useState<string[]>([]);
-  const lista = vendas.filter((v) => v.situacao === "cancelada" && v.canceladaPor === "dono" && (v.devolverGaveta ?? 0) > 0
-    && !vistos.includes(v.id) && !jaDevolvido(v.id));
+  const lista = (avisos ?? []).filter((v) => v.devolverGaveta > 0 && !vistos.includes(v.id) && !jaDevolvido(v.id));
   if (!lista.length) return null;
   return (
     <div className="space-y-2">
       {lista.map((v) => (
         <div key={v.id} role="alert" className="rounded-2xl border border-warning/60 bg-warning/10 p-3">
-          <p className="break-words text-base font-bold text-warning">{textoCanceladaPeloDono(v.numero, v.devolverGaveta ?? 0)}</p>
+          <p className="break-words text-base font-bold text-warning">{textoCanceladaPeloDono(v.numero, v.devolverGaveta)}</p>
           <p className="text-xs text-muted-foreground">O fechamento do caixa já conta com essa devolução.</p>
           <button type="button" onClick={() => { marcarDevolvido(v.id); setVistos((x) => [...x, v.id]); }}
             className="mt-2 min-h-12 w-full rounded-2xl border border-border bg-background px-3 text-sm font-semibold">Já devolvi</button>
@@ -476,7 +483,7 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
             <CloudOff size={16} className="shrink-0" /> Sem internet: o carrinho fica guardado. Conecte para conferir o estoque e finalizar.
           </p>
         )}
-        <AvisoCanceladasDono vendas={estado.vendas} />
+        <AvisoCanceladasDono avisos={estado.avisosCancelamento} />
         {camera && <LeitorContinuo mercado={mercado} pausado={!!janela} onCode={lerCodigo} />}
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8em),1fr))] gap-2">
           <button type="button" onClick={() => setJanela({ j: "buscar" })} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-border bg-secondary/50 px-3 py-2 text-sm font-semibold"><Search size={18} className="shrink-0" /> Código ou nome</button>
@@ -830,7 +837,7 @@ function Fiado({ chave, escopo, api, valor, onEscolher, onClose }: { chave: stri
   );
 }
 
-function VendaFeita({ f, chave, comercioNome, onProxima }: { f: Feito; chave: string; comercioNome: string; onProxima: () => void }) {
+function VendaFeita({ f, chave, comercioNome, avisos, onProxima }: { f: Feito; chave: string; comercioNome: string; avisos?: banco.EstadoCaixa["avisosCancelamento"]; onProxima: () => void }) {
   const [comprovante, setComprovante] = useState(false);
   return (
     <Tela>
@@ -844,6 +851,7 @@ function VendaFeita({ f, chave, comercioNome, onProxima }: { f: Feito; chave: st
           <p role="status" className="flex items-center gap-2 rounded-2xl bg-secondary/60 px-3 py-2 text-sm text-muted-foreground"><CloudOff size={16} className="shrink-0" /> Guardada no celular. Vai para o Omni assim que a internet responder.</p>
         )}
         <p className="text-4xl font-bold tabular-nums">{brl(f.total)}</p>
+        <div className="w-full text-left"><AvisoCanceladasDono avisos={avisos} /></div>
         {f.troco > 0 && (
           <div className="w-full rounded-3xl bg-accent/15 p-4 text-accent">
             <p className="text-sm font-semibold">Troco</p>

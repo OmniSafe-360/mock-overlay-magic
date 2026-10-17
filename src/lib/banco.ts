@@ -659,6 +659,8 @@ export type VendaDoCaixa = { id: string; numero: number | null; feitaEm: string;
 export type EstadoCaixa = {
   nome: string; comercio: { nome: string; tipo: string; telefone: string | null; endereco: string | null };
   donoTemPin: boolean; turno: TurnoCaixa | null; vendas: VendaDoCaixa[];
+  /** A6: vendas do turno canceladas pelo dono, com quanto devolver da gaveta (centavos); sem o limite de 200 vendas. */
+  avisosCancelamento?: { id: string; numero: number | null; devolverGaveta: number }[];
 };
 const turno = (t: any): TurnoCaixa => ({
   id: t.id, abertoEm: t.aberto_em, trocoInicial: centavos(t.troco_inicial), vendas: numero(t.vendas), canceladas: numero(t.canceladas), total: centavos(t.total),
@@ -673,6 +675,7 @@ export async function caixaEstado(chave: string): Promise<EstadoCaixa> {
   return {
     nome: data.nome, comercio: { nome: data.comercio?.nome ?? "", tipo: data.comercio?.tipo ?? "", telefone: data.comercio?.telefone ?? null, endereco: data.comercio?.endereco ?? null },
     donoTemPin: !!data.dono_tem_pin, turno: data.turno ? turno(data.turno) : null,
+    avisosCancelamento: (data.avisos_cancelamento ?? []).map((a: any) => ({ id: a.id, numero: a.numero ?? null, devolverGaveta: centavos(a.devolver_gaveta) })),
     vendas: (data.vendas ?? []).map((v: any) => ({
       id: v.id, numero: v.numero ?? null, feitaEm: v.feita_em, total: centavos(v.total), situacao: v.situacao, troco: centavos(v.troco), cliente: v.cliente ?? null,
       canceladaPor: v.cancelada_por ?? null, devolverGaveta: centavos(v.devolver_gaveta),

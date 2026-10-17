@@ -29,6 +29,9 @@ select set_config('a6.c1',cancelar_venda_celular(pg_temp.u('a6-v1'),'teste')::te
 select pg_temp.ok((current_setting('a6.c1')::jsonb->>'caixa_aberto')::boolean and (current_setting('a6.c1')::jsonb->>'devolver_gaveta')::numeric=20,'dono: caixa avisado, devolver 20');
 set local role anon;
 select pg_temp.ok(pg_temp.na_tela('a6-v1')->>'cancelada_por'='dono' and (pg_temp.na_tela('a6-v1')->>'devolver_gaveta')::numeric=20,'caixa vê: cancelada pelo dono, devolver 20');
+-- Lista própria de avisos, sem o limite das 200 vendas (Codex #193).
+select pg_temp.ok((select (e->>'devolver_gaveta')::numeric from jsonb_array_elements(caixa_estado(repeat('f',64))->'avisos_cancelamento') e
+  where (e->>'id')::uuid=pg_temp.u('a6-v1'))=20,'aviso na lista própria');
 reset role;
 select pg_temp.ok(pg_temp.esperado()=55 and pg_temp.tirado()=0,'o dinheiro da venda sai da conta (55); nada registrado como tirado');
 -- 2. Dono cancela a venda 2 (fiado já pago em Pix): o caixa devolve 8 da gaveta, registrado como tirado.

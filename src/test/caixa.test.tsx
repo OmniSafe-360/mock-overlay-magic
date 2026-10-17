@@ -520,9 +520,8 @@ describe("dono: PIN do caixa, fechamentos e cancelar venda do celular", () => {
   });
   it("checklist 3 A6: o caixa vê a venda cancelada pelo dono e marca que devolveu", async () => {
     localStorage.clear();
-    const cancelada = { id: "v9", numero: 9, feitaEm: "2026-10-10T12:00:00Z", total: 2000, situacao: "cancelada" as const, troco: 1000, cliente: null,
-      pagamentos: [{ forma: "dinheiro", valor: 3000 }], itens: [], canceladaPor: "dono" as const, devolverGaveta: 2000 };
-    const api = apiCaixa({ estado: vi.fn(async () => ({ ...estado(), vendas: [cancelada] })) });
+    // A venda não vem na lista das vendas (mais de 200 no turno): o aviso vem da lista própria (Codex #193).
+    const api = apiCaixa({ estado: vi.fn(async () => ({ ...estado(), avisosCancelamento: [{ id: "v9", numero: 9, devolverGaveta: 2000 }] })) });
     const tela = render(<CaixaCelular chave={CH} api={api} onSair={() => {}} />);
     const aviso = await screen.findByText("O dono cancelou a venda nº 9. Tire R$ 20,00 da gaveta e devolva ao cliente.");
     expect(aviso).toBeTruthy();
@@ -532,6 +531,22 @@ describe("dono: PIN do caixa, fechamentos e cancelar venda do celular", () => {
     render(<CaixaCelular chave={CH} api={api} onSair={() => {}} />);
     await screen.findByRole("button", { name: "Menu do caixa" });
     expect(screen.queryByText(/O dono cancelou a venda nº 9/)).toBeNull();
+  });
+  it("checklist 3 A6: na tela da venda finalizada o caixa também recebe o aviso do dono (Codex #193)", async () => {
+    localStorage.clear();
+    let avisos: { id: string; numero: number | null; devolverGaveta: number }[] = [];
+    const api = apiCaixa({ estado: vi.fn(async () => ({ ...estado(), avisosCancelamento: avisos })) });
+    render(<CaixaCelular chave={CH} api={api} onSair={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: "ler tiss" }));
+    fireEvent.click(screen.getByRole("button", { name: /Receber/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Pix/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Finalizar venda/ }));
+    await screen.findByText("Venda finalizada");
+    avisos = [{ id: "v3", numero: 3, devolverGaveta: 1500 }];
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(await screen.findByText("O dono cancelou a venda nº 3. Tire R$ 15,00 da gaveta e devolva ao cliente.")).toBeTruthy();
+    expect(screen.getByText("Venda finalizada")).toBeTruthy();
   });
   it("falta de um fechamento antigo que o dono não viu continua aparecendo, sem total de vendas falso", async () => {
     const { PainelVendas } = await import("@/components/PainelVendas");
