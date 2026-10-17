@@ -45,4 +45,19 @@ describe("A8 — o dono fecha o caixa preso", () => {
     await waitFor(() => expect(fecharTurno).toHaveBeenCalledWith("t1", 6500, "gaveta"));
     expect(await screen.findByText("Faltaram R$ 5,00")).toBeTruthy();
   });
+
+  it("fechou, mas a leitura seguinte falhou: o caixa já aparece fechado, sem o botão (Codex #195)", async () => {
+    const { PainelVendas } = await import("@/components/PainelVendas");
+    const { api, fecharTurno } = montar(true);
+    const lerOk = api.fechamentos;
+    let chamadas = 0;
+    api.fechamentos = vi.fn(async () => { chamadas++; if (chamadas > 1) throw new Error("sem internet"); return lerOk(); });
+    render(<PainelVendas comercioId="c1" tipo="mercado" products={[]} api={api as never} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Fechar este caixa/ }));
+    fireEvent.change(screen.getByLabelText(/Quanto tem na gaveta/), { target: { value: "65" } });
+    fireEvent.click(screen.getByRole("button", { name: "Fechar o caixa" }));
+    await waitFor(() => expect(fecharTurno).toHaveBeenCalled());
+    expect(await screen.findByText(/Caixa fechado. O resultado aparece/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Fechar/ })).toBeNull();
+  });
 });

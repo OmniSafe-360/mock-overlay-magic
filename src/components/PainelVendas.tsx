@@ -1,6 +1,6 @@
 /* Aba Vendas do comércio (Fase 3.2): os caixas do mercado ligados ao Omni e as vendas do dia.
  * Regra do dono: cada venda FINALIZADA no caixa desconta da gôndola na hora (bipar não desconta). */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Ban, Check, Copy, MonitorSmartphone, PackageSearch, Pencil, Plus, Receipt, RefreshCw, Search, Smartphone } from "lucide-react";
 import { Sheet } from "@/components/parts/Sheet";
 import { type Product } from "@/components/ProductArea";
@@ -70,6 +70,15 @@ export function PainelVendas({ comercioId, comercioNome = "", tipo, products, ap
   const [pronto, setPronto] = useState("");
   const [fechamentos, setFechamentos] = useState<banco.FechamentoCaixa[]>([]);
 
+  // Só a leitura mais recente dos caixas do celular vale (uma resposta antiga não volta a mostrar o caixa aberto).
+  const leituraFech = useRef(0);
+  const carregarFechamentos = useCallback(async () => {
+    if (!api.fechamentos) return;
+    const n = ++leituraFech.current;
+    const desde = new Date(`${diaSP(Date.now() - 86_400_000)}T00:00:00-03:00`).toISOString();
+    const f = await api.fechamentos(comercioId, desde);
+    if (n === leituraFech.current) setFechamentos(f ?? []);
+  }, [api, comercioId]);
   const recarregar = useCallback(async () => {
     setAtualizando(true);
     const t = Date.now();
@@ -77,12 +86,12 @@ export function PainelVendas({ comercioId, comercioNome = "", tipo, products, ap
     const desde = new Date(`${diaSP(t - 86_400_000)}T00:00:00-03:00`).toISOString();
     try {
       // O quadro do caixa no celular carrega à parte: se falhar ou demorar, não segura o resto da aba.
-      if (api.fechamentos) void api.fechamentos(comercioId, desde).then((f) => setFechamentos(f ?? []), () => {});
+      void carregarFechamentos().catch(() => {});
       const [cs, vs, ps] = await Promise.all([api.caixas(comercioId), api.vendas(comercioId, desde), api.pendentes(comercioId)]);
       setCaixas(cs); setVendas(vs); setPendentes(ps); setErro(false); setAgora(Date.now());
     } catch { setErro(true); }
     setAtualizando(false);
-  }, [api, comercioId]);
+  }, [api, comercioId, carregarFechamentos]);
   useEffect(() => { void recarregar(); }, [recarregar]);
   // Com a aba aberta, atualiza sozinha a cada minuto (vendas novas e a bolinha de cada caixa).
   useEffect(() => { const t = setInterval(() => { void recarregar(); }, 60_000); return () => clearInterval(t); }, [recarregar]);
@@ -157,7 +166,15 @@ export function PainelVendas({ comercioId, comercioNome = "", tipo, products, ap
 
       <Fechamentos lista={fechamentos.filter((f) => !f.fechadoEm || diaSP(Date.parse(f.abertoEm)) === diaSel || (f.diferenca && !f.conferidoEm))}
         vendas={vendas ?? []} vendasDesde={Date.parse(`${diaSP(agora - 86_400_000)}T00:00:00-03:00`)} onVisto={async (id) => { await (api.conferirFechamento ?? banco.conferirFechamentoCaixa)(id); await recarregar(); }}
-        onFechar={async (id, contado, obs) => { await (api.fecharTurno ?? banco.fecharCaixaDono)(id, contado, obs); await recarregar(); }} />
+        onFechar={async (id, contado, obs) => {
+          await (api.fecharTurno ?? banco.fecharCaixaDono)(id, contado, obs);
+          // A8: espera a leitura dos caixas; se falhar, o caixa já aparece fechado (o resultado vem na próxima leitura).
+          try { await carregarFechamentos(); } catch {
+            leituraFech.current++;
+            setFechamentos((l) => l.map((f) => (f.id === id ? { ...f, fechadoEm: new Date().toISOString(), semAcesso: false } : f)));
+          }
+          void recarregar();
+        }} />
 
       {/* vendido sem cadastro */}
       {grupos.length > 0 && (
@@ -610,6 +627,7 @@ function Fechamentos({ lista, vendas, vendasDesde, onVisto, onFechar }: {
                 </div>
                 {Date.parse(f.abertoEm) >= vendasDesde && <span className="shrink-0 text-right"><b className="block text-base">{brl(total)}</b><span className="text-xs text-muted-foreground">{doTurno.length === 1 ? "1 venda" : `${doTurno.length} vendas`}</span></span>}
               </div>
+              {f.fechadoEm && (f.esperado == null || f.contado == null) && <p className="mt-1 text-muted-foreground">Caixa fechado. O resultado aparece na próxima atualização.</p>}
               {f.fechadoEm && f.esperado != null && f.contado != null && (
                 <div className="mt-2 space-y-1">
                   <p className="text-muted-foreground">Deveria ter na gaveta <b className="text-foreground">{brl(f.esperado)}</b> · contou <b className="text-foreground">{brl(f.contado)}</b>{f.sangrias ? ` · tirado ${brl(f.sangrias)}` : ""}</p>
