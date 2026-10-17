@@ -34,7 +34,18 @@ Este arquivo não repete o que já está no [checklist ponta a ponta](CHECKLIST_
   - **Tela:** não muda. Não precisa Publicar.
   - **Falta:** o teste do dono, no final, com um produto de teste com dois lotes.
   - **Fica para outra etapa:** o limite do caixa ainda conta unidades vencidas como vendáveis; a sobra de uma contagem a mais pode cair num lote vencido (item C, raro).
-- [ ] **A2. Recebimento da farmácia preso em "Conte de novo".** Acontece quando o lote já existe com outra data (motivo `lote_outra_data`). A entrega nunca conclui e nada entra no depósito.
+- [x] **A2. Recebimento da farmácia preso em "Conte de novo".** — 17/10/2026.
+  - **Problema:** quando o lote já estava cadastrado com outra validade (motivo `lote_outra_data`), a equipe recontava com os mesmos dados verdadeiros, o item era aceito e voltava de novo para "Conte de novo". O laço não tinha fim: a entrega nunca concluía e nada entrava no depósito.
+  - **Correção no banco:** migração `20261017044457_recebimento_lote_outra_data.sql`. Troca só dois trechos do bloco A4 de `funcionario_enviar_recebimento`, conferindo o md5 e cada trecho antes de trocar.
+  - **Como fica:** se o item já voltou uma vez por validade/lote, na segunda vez ele fica separado para o dono decidir ("inconsistente"), como as contagens que não batem. A entrega conclui e os outros produtos entram no depósito. A validade cadastrada do lote não muda. Se a equipe corrige a data na segunda vez, o item entra normalmente.
+  - **Correção no app:** o texto da equipe passou a ser: "Se estiver certo, envie de novo sem mudar: o produto fica separado para o dono decidir" (`textoMotivo` em `src/lib/recebimento.ts`; teste `recebimento-motivo`).
+  - **Verificação:**
+    - Banco descartável: `docs/persistencia/teste/019_lote_outra_data.sql` tem 5 casos e falha sem a correção, na 2ª contagem igual. Ele entrou em `rodar_caixa_estoque.sh`, que o CI roda.
+    - Banco oficial: simulação com `begin … rollback` deu o mesmo md5 e as mesmas permissões. Nenhuma entrega real estava presa nesse caso; as 4 contagens abertas são as vazias de teste da F-16H.
+    - Depois de aplicar: a função ficou igual à testada e os avisos de segurança não mudaram.
+    - Tipos 2×, 1.267 testes 2×.
+  - **Publicação e testes:** precisa Publicar → Atualizar, por causa do texto. Falta o teste do dono, no final.
+  - **Depende da A3:** o dono ainda não tem o botão "Devolver" nem o texto do motivo para decidir esse produto separado.
 - [ ] **A3. Contagem de recebimento que não bateu 3 vezes.** O dono só pode escolher uma contagem: não há "Devolver". Se a validade passar, o item fica pendente para sempre, e o erro aparece em código, sem tradução.
 - [ ] **A4. Entrega parcial impossível.** Recebida metade, o pedido vira "recebido" e a segunda parte não pode entrar nele.
 - [ ] **A5. Gaveta com falta falsa.** O dinheiro devolvido ao cliente do fiado no cancelamento sai da gaveta, mas não é descontado do esperado.

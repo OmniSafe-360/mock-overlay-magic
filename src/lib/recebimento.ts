@@ -119,7 +119,7 @@ export function textoMotivo(m: MotivoInfo | undefined): string {
     case "sem_lote": return "Falta o lote. Confira na caixa e informe.";
     case "lote_outra_data": {
       const d = m.loteData ? m.loteData.split("-").reverse().join("/") : "outra data";
-      return `O lote ${m.lote ?? ""} já está registrado com validade ${d}. Confira o lote e a data na caixa. Se a caixa estiver certa, avise o dono.`;
+      return `O lote ${m.lote ?? ""} já está registrado com validade ${d}. Confira o lote e a data na caixa. Se estiver certo, envie de novo sem mudar: o produto fica separado para o dono decidir.`;
     }
     default: return "";
   }
