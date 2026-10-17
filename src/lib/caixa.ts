@@ -342,16 +342,37 @@ export const semInternet = (e: unknown) => /fetch|network|Failed to|Load failed|
 
 /* ---------- B11: pagamento do fiado enviado sem resposta ---------- */
 /** Fica guardado no celular até o banco responder: tentar de novo usa o mesmo id, o mesmo valor e a mesma forma (nunca registra duas vezes). */
-export type FiadoPendente = { id: string; centavos: number; forma: "dinheiro" | "pix" | "cartao" };
-const chaveFiadoPendente = (cliente: string) => `omni.caixa.fiado.pendente.v1:${cliente}`;
+export type FiadoPendente = { id: string; centavos: number; forma: "dinheiro" | "pix" | "cartao"; /** O caixa (turno) em que o dinheiro entrou. */ turnoId: string };
+const PREFIXO_FIADO_PENDENTE = "omni.caixa.fiado.pendente.v1:";
+const fiadoPendenteValido = (p: unknown): p is FiadoPendente => {
+  const x = p as FiadoPendente | null;
+  return !!x && typeof x.id === "string" && typeof x.turnoId === "string" && Number.isInteger(x.centavos) && x.centavos > 0 && ["dinheiro", "pix", "cartao"].includes(x.forma);
+};
 export function lerFiadoPendente(cliente: string): FiadoPendente | null {
-  try {
-    const p = JSON.parse(localStorage.getItem(chaveFiadoPendente(cliente)) ?? "null");
-    return p && typeof p.id === "string" && Number.isInteger(p.centavos) && p.centavos > 0 && ["dinheiro", "pix", "cartao"].includes(p.forma) ? p : null;
-  } catch { return null; }
+  try { const p = JSON.parse(localStorage.getItem(PREFIXO_FIADO_PENDENTE + cliente) ?? "null"); return fiadoPendenteValido(p) ? p : null; } catch { return null; }
 }
-export function guardarFiadoPendente(cliente: string, p: FiadoPendente | null) {
-  try { if (p) localStorage.setItem(chaveFiadoPendente(cliente), JSON.stringify(p)); else localStorage.removeItem(chaveFiadoPendente(cliente)); } catch { /* sem armazenamento: segue só na tela */ }
+/** Guarda (ou apaga) e confere. `false` = o celular não guardou: quem chama não pode enviar. */
+export function guardarFiadoPendente(cliente: string, p: FiadoPendente | null): boolean {
+  try {
+    const k = PREFIXO_FIADO_PENDENTE + cliente;
+    if (!p) { localStorage.removeItem(k); return localStorage.getItem(k) == null; }
+    const txt = JSON.stringify(p);
+    localStorage.setItem(k, txt);
+    return localStorage.getItem(k) === txt;
+  } catch { return false; }
+}
+/** Pagamentos do fiado deste caixa (turno) ainda sem resposta: o caixa não fecha antes de resolver. */
+export function fiadoPendentesDoTurno(turnoId: string): FiadoPendente[] {
+  try {
+    const r: FiadoPendente[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k?.startsWith(PREFIXO_FIADO_PENDENTE)) continue;
+      const p = JSON.parse(localStorage.getItem(k) ?? "null");
+      if (fiadoPendenteValido(p) && p.turnoId === turnoId) r.push(p);
+    }
+    return r;
+  } catch { return []; }
 }
 
 /* ---------- C4: comprovante pelo WhatsApp (não é nota fiscal) ---------- */

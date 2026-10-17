@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CaixaCelular, type ApiCaixa } from "@/components/CaixaCelular";
 import * as banco from "@/lib/banco";
-import { erroCaixa } from "@/lib/caixa";
+import { erroCaixa, guardarFiadoPendente } from "@/lib/caixa";
 import type { EstadoCaixa } from "@/lib/banco";
 
 // B11: receber pagamento do fiado no caixa. Erros em português; o mesmo id só repete o mesmo pagamento.
@@ -79,5 +79,32 @@ describe("B11 — caixa", () => {
     fireEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
     await screen.findByText("Conta em dia");
     await waitFor(() => expect(receber.mock.calls[1]![1]).toBe(id));
+  });
+});
+
+describe("B11 — revisão do Codex (#208)", () => {
+  it("se o celular não conseguir guardar, o pagamento não é enviado", async () => {
+    await abrirConta();
+    fireEvent.click(await screen.findByRole("button", { name: "Recebeu pagamento" }));
+    const set = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("QuotaExceededError"); });
+    fireEvent.click(screen.getByRole("button", { name: "Registrar pagamento" }));
+    expect(await screen.findByText(/não conseguiu guardar o pagamento/)).toBeInTheDocument();
+    expect(receber).not.toHaveBeenCalled();
+    set.mockRestore();
+  });
+  it("tentar de novo usa o caixa (turno) em que o dinheiro entrou", async () => {
+    expect(guardarFiadoPendente("cli-b11", { id: "env-1", centavos: 700, forma: "pix", turnoId: "t-velho" })).toBe(true);
+    receber.mockResolvedValueOnce({ situacao: "registrado", deve: 300 });
+    await abrirConta();
+    fireEvent.click(await screen.findByRole("button", { name: "Tentar de novo" }));
+    await waitFor(() => expect(receber).toHaveBeenCalledWith(chave, "env-1", "t-velho", "cli-b11", 700, "pix"));
+  });
+  it("com pagamento de fiado sem resposta, o caixa não fecha", async () => {
+    guardarFiadoPendente("cli-b11", { id: "env-2", centavos: 1000, forma: "dinheiro", turnoId: "t-b11" });
+    render(<CaixaCelular chave={chave} api={api()} onSair={() => {}} mercado />);
+    fireEvent.click(await screen.findByRole("button", { name: "Menu do caixa" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Fechar o caixa/ }));
+    expect(await screen.findByText(/pagamento de fiado \(R\$\s?10,00\) ficou sem resposta/)).toBeInTheDocument();
+    expect(screen.queryByText("Quanto tem na gaveta?")).toBeNull();
   });
 });

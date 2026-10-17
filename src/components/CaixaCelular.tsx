@@ -19,7 +19,7 @@ import {
   vendaGuardadaValida, type Achado, type FormaCaixa, type ItemCarrinho, type PagamentoCaixa, type ProdutoCaixa, type VendaGuardada,
   devolverDe, textoDevolver, textoCanceladaPeloDono, jaDevolvido, marcarDevolvido,
   acharForaEstoque, buscarForaEstoque, itemForaEstoque, type ForaEstoque,
-  lerFiadoPendente, guardarFiadoPendente, type FiadoPendente,
+  lerFiadoPendente, guardarFiadoPendente, fiadoPendentesDoTurno, type FiadoPendente,
 } from "@/lib/caixa";
 import { newUid, unPlural, unSingular } from "@/lib/deposito";
 import { digits, maskPhone } from "@/lib/formatacao";
@@ -1298,6 +1298,8 @@ function FecharCaixa({ turno, guardadas, naoAceitas, chave, api, onEnviar, onVol
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState("");
   const [fim, setFim] = useState<banco.TurnoCaixa | null>(null);
+  // B11: pagamento de fiado deste caixa sem resposta fica de fora da conta da gaveta; precisa resolver antes de fechar.
+  const fiadoPend = fiadoPendentesDoTurno(turno.id);
   const fechar = () => {
     setOcupado(true); setErro("");
     // Vendas não aceitas vão primeiro na anotação (o dono vê no fechamento por que pode sobrar dinheiro).
@@ -1356,6 +1358,11 @@ function FecharCaixa({ turno, guardadas, naoAceitas, chave, api, onEnviar, onVol
           <div role="alert" className="space-y-2 rounded-2xl border border-warning/60 bg-warning/10 p-3 text-sm">
             <p><b>{guardadas === 1 ? "1 venda ainda está guardada" : `${guardadas} vendas ainda estão guardadas`}</b> no celular. Para fechar, elas precisam chegar ao Omni (precisa de internet).</p>
             <button type="button" onClick={() => void onEnviar()} className={btnPrimary(true)}>Enviar agora</button>
+          </div>
+        ) : fiadoPend.length > 0 ? (
+          <div role="alert" className="space-y-2 rounded-2xl border border-warning/60 bg-warning/10 p-3 text-sm">
+            <p><b>{fiadoPend.length === 1 ? `1 pagamento de fiado (${brl(fiadoPend[0]!.centavos)}) ficou sem resposta.` : `${fiadoPend.length} pagamentos de fiado ficaram sem resposta.`}</b> Para fechar, abra Clientes do fiado e toque em Tentar de novo (precisa de internet).</p>
+            <button type="button" onClick={onVoltar} className={btnPrimary(true)}>Voltar ao caixa</button>
           </div>
         ) : (
           <>
@@ -1452,14 +1459,20 @@ function ReceberFiadoCaixa({ chave, turnoId, cliente, onPago }: { chave: string;
   // A7: "15.5" é R$ 15,50 (antes o ponto era apagado e virava R$ 155).
   const cent = pendente ? pendente.centavos : lerReais(valor) ?? NaN;
   const valido = pendente ? true : Number.isFinite(cent) && cent > 0 && cent <= deve;
-  const travar = (p: FiadoPendente | null) => { setPendente(p); guardarFiadoPendente(cliente.id, p); };
+  const travar = (p: FiadoPendente | null) => { setPendente(p); return guardarFiadoPendente(cliente.id, p); };
   const salvar = async () => {
     if (!valido || salvando) return;
-    const envio: FiadoPendente = pendente ?? { id: crypto.randomUUID(), centavos: cent, forma };
-    travar(envio); // guardado antes da rede: se o app fechar, o próximo envio repete este
+    // O envio leva o caixa (turno) em que o dinheiro entrou: repetir depois não muda de caixa.
+    const envio: FiadoPendente = pendente ?? { id: crypto.randomUUID(), centavos: cent, forma, turnoId };
+    // Guardado antes da rede: se o app fechar, o próximo envio repete este. Sem guardar, não envia (poderia registrar duas vezes).
+    if (!travar(envio)) {
+      if (!pendente) setPendente(null);
+      setMsg("Este celular não conseguiu guardar o pagamento, então ele não foi enviado. Confira a memória do navegador e tente de novo.");
+      return;
+    }
     setSalvando(true); setMsg("");
     try {
-      const r = await banco.caixaReceberFiado(chave, envio.id, turnoId, cliente.id, envio.centavos, envio.forma);
+      const r = await banco.caixaReceberFiado(chave, envio.id, envio.turnoId, cliente.id, envio.centavos, envio.forma);
       travar(null);
       setOk(`Pagamento de ${brl(envio.centavos)} registrado.${envio.forma === "dinheiro" ? " O dinheiro entra na conta da gaveta." : ""}`);
       setAberto(false); onPago(r.deve);
