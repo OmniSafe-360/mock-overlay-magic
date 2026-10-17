@@ -61,4 +61,34 @@ select pg_temp.responde(repeat('2',64),130,current_date+2,'pix',null);
 reset role;
 select pg_temp.ok((select valor_total=90 and vencimento=current_date+30 from pedidos_compra where id=pg_temp.u('p2')),
  'vencimento corrigido pelo dono fica');
+-- Revisão: o dono corrige para R$ 120, o fornecedor manda R$ 120 e depois R$ 130: a correção do dono continua.
+set local role authenticated;
+select salvar_pedido(jsonb_build_object('id',pg_temp.u('p4'),'comercio_id',pg_temp.u('loja'),'fornecedor_id',pg_temp.u('forn'),
+ 'itens',jsonb_build_array(jsonb_build_object('produto_id',pg_temp.u('arroz'),'qtd_embalagens',5))));
+select marcar_pedido_enviado(pg_temp.u('p4'),'copiado');
+reset role;
+update pedidos_compra set token=repeat('4',64) where id=pg_temp.u('p4');
+set local role anon;
+select pg_temp.responde(repeat('4',64),100,current_date+1,'pix',null);
+reset role;
+set local role authenticated;
+select atualizar_pagamento(pg_temp.u('p4'),jsonb_build_object('situacao','a_pagar','vencimento',current_date+1,'valor_total',120));
+reset role;
+select pg_temp.ok((select valor_do_dono and not vencimento_do_dono from pedidos_compra where id=pg_temp.u('p4')),'mudar só o valor marca só o valor');
+set local role anon;
+select pg_temp.responde(repeat('4',64),120,current_date+2,'pix',null);
+select pg_temp.responde(repeat('4',64),130,current_date+4,'pix',null);
+reset role;
+select pg_temp.ok((select valor_total=120 and valor_fornecedor=130 and vencimento=current_date+4 from pedidos_compra where id=pg_temp.u('p4')),
+ 'correção do dono igual a uma resposta não se perde na resposta seguinte');
+-- Recusa tira a conta e as marcas; a próxima resposta cria a conta do zero.
+set local role anon;
+select responder_pedido(repeat('4',64),jsonb_build_object('aceito',false));
+reset role;
+select pg_temp.ok((select pagamento_situacao is null and not valor_do_dono and not vencimento_do_dono from pedidos_compra where id=pg_temp.u('p4')),'recusa desliga as marcas');
+set local role anon;
+select pg_temp.responde(repeat('4',64),140,current_date+5,'pix',null);
+select pg_temp.responde(repeat('4',64),150,current_date+6,'pix',null);
+reset role;
+select pg_temp.ok((select valor_total=150 and vencimento=current_date+6 from pedidos_compra where id=pg_temp.u('p4')),'conta nova segue as respostas');
 rollback;

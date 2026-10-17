@@ -187,6 +187,7 @@ FORNECEDOR ──(receber, cego)──▶ DEPÓSITO ──(repor, cego)──▶
 - **Envio:** pelo WhatsApp ou pelo e-mail do celular, com o **link secreto** do pedido. O fornecedor responde se tem cada item, a entrega, o valor e o pagamento.
 - **Situações do pedido:** rascunho → enviado → aceito / aceito com ajustes / recusado → recebido (ou recebido em parte).
 - **Contas a pagar:** de "a pagar" para "pago", com os avisos "atrasado" e "vence hoje" no "Atenção hoje".
+- **Conta e resposta do fornecedor (17/10/2026, B5):** quando o fornecedor altera a resposta, a conta "a pagar" passa a ter o novo valor e o novo vencimento. O que o dono já corrigiu fica (marcas `valor_do_dono`/`vencimento_do_dono` em `pedidos_compra`, ligadas ao corrigir). Conta paga não muda. A recusa tira a conta "a pagar" e as marcas.
 - O estoque **só aumenta no recebimento**.
 - E-mail automático e WhatsApp automático (pago) ficam para depois.
 
