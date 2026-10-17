@@ -1,6 +1,6 @@
 import { useHoje } from "@/hooks/useHoje";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { conferirEnvio, carregarFornecedores, carregarProdutos, carregarVendas, carregarPendentesVenda, buscarCatalogo, carregarDiferencas, carregarLimiteFaltas, carregarFuncionarios, carregarCaixas, atualizarFornecedor, criarFornecedor, gerarCodigoInterno, embalagensEmUso, salvarProduto, carregarPedidos, salvarPedido, tokenDoPedido, marcarPedidoEnviado, cancelarPedido, novoLinkPedido, atualizarPagamento, resolverItemRecebimento, encerrarEntregaPedido, carregarRecebimentos, type LocaisCadastrados } from "@/lib/banco";
+import { conferirEnvio, carregarFornecedores, carregarProdutos, carregarVendas, carregarPendentesVenda, buscarCatalogo, carregarDiferencas, carregarLimiteFaltas, carregarFuncionarios, carregarCaixas, atualizarFornecedor, criarFornecedor, gerarCodigoInterno, embalagensEmUso, salvarProduto, carregarPedidos, salvarPedido, tokenDoPedido, marcarPedidoEnviado, cancelarPedido, novoLinkPedido, atualizarPagamento, resolverItemRecebimento, encerrarEntregaPedido, descartarRecebimento, carregarRecebimentos, type LocaisCadastrados } from "@/lib/banco";
 import type { CanalPedido, LinhaPedido, Pedido } from "@/lib/pedido";
 import type { DadosPagamento } from "@/components/PainelPedidos";
 import type { Recebimento } from "@/lib/recebimento";
@@ -377,6 +377,10 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
     await encerrarEntregaPedido(pedidoId);
     await recarregar(comercioId);
   };
+  const descartarContagem = (comercioId: string) => async (recebimentoId: string) => {
+    await descartarRecebimento(recebimentoId);
+    await recarregar(comercioId);
+  };
   const semPedido = (comercioId: string) => (semPedidoCache.current[comercioId] ??= () => carregarRecebimentos(comercioId, false));
   const pedidoPagamento = (comercioId: string) => async (id: string, d: DadosPagamento) => {
     await comMensagem(() => atualizarPagamento(id, d), "Não foi possível salvar o pagamento.");
@@ -516,6 +520,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
               onPagamentoPedido={sid ? pedidoPagamento(sid) : async () => { throw new Error(NO_ID); }}
               onResolverRecebimento={sid ? resolverRecebimento(sid) : undefined}
               onEncerrarEntrega={sid ? encerrarEntrega(sid) : undefined}
+              onDescartarRecebimento={sid ? descartarContagem(sid) : undefined}
               onCarregarSemPedido={sid ? semPedido(sid) : undefined}
               inicio={inicioLoja}
               vendidoSemCadastro={sid ? geral[sid]?.vendas?.semCadastro ?? 0 : 0}
