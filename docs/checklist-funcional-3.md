@@ -91,7 +91,11 @@ Este arquivo não repete o que já está no [checklist ponta a ponta](CHECKLIST_
 
 ## Etapa B — número errado ou tela incoerente
 
-- [ ] **B1.** "Repor" da equipe ≠ "Para repor" do dono. O contador da equipe também não bate com a lista dela.
+- [x] **B1.** "Repor" da equipe ≠ "Para repor" do dono. O contador da equipe também não bate com a lista dela. — 17/10/2026.
+  - **Problema:** três regras diferentes. O contador da equipe contava qualquer gôndola com saldo ≤ mínimo, inclusive a nunca contada (desconhecida, não zero) e a do produto que acabou de vez (gôndola e depósito 0, que o dono vê como "Acabou"). A lista da equipe tinha a mesma regra mais as contagens da gôndola pedidas pelo caixa, que o contador não somava. No Supermercado o Kilão a equipe via "2 para repor" sem nada para buscar.
+  - **Correção (só banco):** função interna `_precisa_repor` (fechada para o app), a mesma regra do app do dono (`situacao.ts`): área de venda contada, no mínimo ou abaixo, e o produto não acabou de vez. `funcionario_reposicao_lista` usa essa regra e `funcionario_inicio` conta exatamente as mesmas linhas da lista, inclusive as contagens pedidas pelo caixa. Migração `20261017164403_repor_mesma_regra.sql`, aplicada depois de comparar os md5, testar em banco descartável e simular com rollback (só o Kilão mudou: 2 → 0).
+  - **Continua diferente de propósito:** na loja de roupas o dono conta 1 por produto; a equipe, 1 por tamanho/cor (cada um é buscado separado).
+  - **Verificação:** `docs/persistencia/teste/025_repor_mesma_regra.sql` em `rodar_caixa_estoque.sh` (falha sem a correção). Sem mudança no app; não precisa Publicar. Falta o teste do dono (no final).
 - [ ] **B2.** Produto "já pedido" continua como "Comprar" na lista de Produtos e em Fornecedores.
 - [ ] **B3.** "Para repor"/"Para comprar" das abas Depósito e Gôndolas ≠ Início e Atenção hoje.
 - [ ] **B4.** "Novo pedido" e o quadro "Comprar" sugerem produtos diferentes, nos dois sentidos.

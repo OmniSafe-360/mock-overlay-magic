@@ -48,7 +48,7 @@ done
 "${psql_cega[@]}" -f "$temp_cega/a6.sql" >"$temp_cega/a6.log" 2>&1 || { tail -16 "$temp_cega/a6.log"; exit 1; }
 { echo 'begin;'; cat "$base_cega/015_base_caixa_estoque.sql" "$base_cega/023_fechar_caixa_dono.sql"; echo 'rollback;'; } >"$temp_cega/a8.sql"
 "${psql_cega[@]}" -f "$temp_cega/a8.sql" >"$temp_cega/a8.log" 2>&1 || { tail -16 "$temp_cega/a8.log"; exit 1; }
-for regressao in 005_melhorias_operacionais.sql 011_coerencia_recebimento.sql 019_lote_outra_data.sql 020_entrega_parcial.sql 024_descartar_recebimento.sql; do
+for regressao in 005_melhorias_operacionais.sql 011_coerencia_recebimento.sql 019_lote_outra_data.sql 020_entrega_parcial.sql 024_descartar_recebimento.sql 025_repor_mesma_regra.sql; do
   "${psql_cega[@]}" -f "$base_cega/$regressao" >>"$temp_cega/regressao.log" 2>&1 || { tail -16 "$temp_cega/regressao.log"; exit 1; }
 done
 # As disputas usam apenas os dados fictícios neste servidor privado; o EXIT descarta tudo.
@@ -62,4 +62,5 @@ echo 'OK A5: devolução do fiado sai da gaveta; fechamento sem falta falsa.'
 echo 'OK A6: dono cancela com o caixa aberto; o caixa devolve da gaveta e o fechamento bate.'
 echo "OK A8: dono fecha o caixa que ficou aberto com o funcionário sem o Caixa ou bloqueado."
 echo "OK A10: dono encerra a contagem de recebimento largada; nada entra no estoque."
+echo "OK B1: Repor da equipe = lista da equipe = Para repor do dono."
 echo 'OK: bloqueio do Caixa, contagens vinculadas, decisão do dono, idempotência, RLS e regressões; banco descartado.'
