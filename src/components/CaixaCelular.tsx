@@ -18,6 +18,7 @@ import {
   type DadosComprovante,
   vendaGuardadaValida, type Achado, type FormaCaixa, type ItemCarrinho, type PagamentoCaixa, type ProdutoCaixa, type VendaGuardada,
   devolverDe, textoDevolver, textoCanceladaPeloDono, jaDevolvido, marcarDevolvido,
+  acharForaEstoque, buscarForaEstoque, itemForaEstoque, type ForaEstoque,
 } from "@/lib/caixa";
 import { newUid, unPlural, unSingular } from "@/lib/deposito";
 import { digits, maskPhone } from "@/lib/formatacao";
@@ -37,10 +38,13 @@ export type ApiCaixa = {
   cancelar?: typeof banco.caixaCancelarVenda | undefined;
   sangria?: typeof banco.caixaSangria | undefined;
   fechar?: typeof banco.caixaFechar | undefined;
+  /** B10: itens "não controlar" (sacola, serviço). */
+  foraEstoque?: typeof banco.caixaItensForaEstoque | undefined;
 };
 const API_PADRAO: ApiCaixa = {
   estado: banco.caixaEstado, produtos: banco.caixaProdutos, clientes: banco.caixaClientesFiado, abrir: banco.caixaAbrir, registrar: banco.caixaRegistrarVenda,
   conferir: banco.caixaConferirVenda, cancelar: banco.caixaCancelarVenda, sangria: banco.caixaSangria, fechar: banco.caixaFechar,
+  foraEstoque: banco.caixaItensForaEstoque,
 };
 
 type ClienteVenda = { id: string; nome: string; telefone: string | null; novo: boolean };
@@ -365,6 +369,7 @@ function AbrirCaixa({ nome, chave, api, onAberto, onSair }: { nome: string; chav
 type Janela =
   | { j: "buscar" }
   | { j: "sem_cadastro"; codigo: string | null }
+  | { j: "fora"; f: ForaEstoque }
   | { j: "peso"; a: Achado; codigo: string | null; editar?: string | undefined; qtd?: number | undefined }
   | { j: "variacao"; a: Achado; codigo: string | null }
   | { j: "limpar" }
@@ -412,6 +417,17 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
   const avisar = (a: Aviso) => { setAviso(a); };
   const carrinhoAtual = useRef(carrinho); carrinhoAtual.current = carrinho;
   const conferindoAtual = useRef(conferindo); conferindoAtual.current = conferindo;
+  // B10: sacola, serviço e outros itens que o dono marcou "não controlar": vendem sem tirar do estoque.
+  const [fora, setFora] = useState<ForaEstoque[]>([]);
+  useEffect(() => {
+    const ler = api.foraEstoque;
+    if (!ler) return;
+    let vivo = true;
+    const atualizar = () => { void ler(chave).then((f) => { if (vivo) setFora(f); }).catch(() => { /* sem internet: mantém a lista */ }); };
+    atualizar();
+    const t = setInterval(atualizar, 120000);
+    return () => { vivo = false; clearInterval(t); };
+  }, [api, chave]);
   const colocar = useCallback((item: ItemCarrinho) => {
     if (conferindoAtual.current) return;
     const candidato = adicionar(carrinhoAtual.current, item);
@@ -430,9 +446,13 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
     if (conferindoAtual.current) return;
     bip();
     const a = acharPorCodigo(produtos, c);
-    if (!a) { avisar({ ok: false, texto: `Código ${c} não está cadastrado` }); setJanela({ j: "sem_cadastro", codigo: c }); return; }
+    if (!a) {
+      const f = acharForaEstoque(fora, c);
+      if (f) { setJanela({ j: "fora", f }); return; }
+      avisar({ ok: false, texto: `Código ${c} não está cadastrado` }); setJanela({ j: "sem_cadastro", codigo: c }); return;
+    }
     incluir(a, c);
-  }, [produtos, incluir]);
+  }, [produtos, incluir, fora]);
 
   // Leitor de código ligado ao celular (bluetooth/USB): ele "digita" os números e aperta Enter.
   const lerRef = useRef(lerCodigo); lerRef.current = lerCodigo;
@@ -558,11 +578,16 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
       </footer>
 
       {janela?.j === "buscar" && (
-        <BuscarProduto produtos={produtos} onClose={() => setJanela(null)}
+        <BuscarProduto produtos={produtos} fora={fora} onClose={() => setJanela(null)}
+          onFora={(f) => setJanela({ j: "fora", f })}
           onCodigo={(c) => { setJanela(null); lerCodigo(c); }}
           onEscolher={(p) => { setJanela(null); incluir({ produto: p, variacaoId: null, embalagemId: null }, null); }} />
       )}
       {janela?.j === "sem_cadastro" && <SemCadastro codigo={janela.codigo} onClose={() => setJanela(null)} />}
+      {janela?.j === "fora" && (
+        <PrecoForaEstoque f={janela.f} onClose={() => setJanela(null)}
+          onIncluir={(preco) => { setJanela(null); colocar(itemForaEstoque(newUid(), janela.f, preco)); }} />
+      )}
       {janela?.j === "peso" && (
         <Peso a={janela.a} onClose={() => setJanela(null)}
           onIncluir={(q) => { setJanela(null); colocar(itemDoProduto(newUid(), janela.a, janela.codigo, q)); }} />
@@ -604,9 +629,11 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
   );
 }
 
-function BuscarProduto({ produtos, onEscolher, onCodigo, onClose }: { produtos: ProdutoCaixa[]; onEscolher: (p: ProdutoCaixa) => void; onCodigo: (c: string) => void; onClose: () => void }) {
+function BuscarProduto({ produtos, fora = [], onEscolher, onFora, onCodigo, onClose }: { produtos: ProdutoCaixa[]; fora?: ForaEstoque[]; onEscolher: (p: ProdutoCaixa) => void;
+  onFora?: (f: ForaEstoque) => void; onCodigo: (c: string) => void; onClose: () => void }) {
   const [q, setQ] = useState("");
   const achados = useMemo(() => buscarProdutos(produtos, q), [produtos, q]);
+  const achadosFora = useMemo(() => (onFora ? buscarForaEstoque(fora, q) : []), [fora, q, onFora]);
   const soNumeros = /^\d{6,14}$/.test(q.trim());
   return (
     <Sheet title="Código ou nome" onClose={onClose}>
@@ -618,7 +645,7 @@ function BuscarProduto({ produtos, onEscolher, onCodigo, onClose }: { produtos: 
         </label>
         {soNumeros && <button type="submit" className={btnPrimary(true)}>Usar o código {q.trim()}</button>}
         <ul className="space-y-1.5" aria-label="Produtos encontrados">
-          {q.trim().length >= 2 && !achados.length && !soNumeros && <li className="p-3 text-center text-sm text-muted-foreground">Nenhum produto com esse nome.</li>}
+          {q.trim().length >= 2 && !achados.length && !achadosFora.length && !soNumeros && <li className="p-3 text-center text-sm text-muted-foreground">Nenhum produto com esse nome.</li>}
           {achados.map((p) => (
             <li key={p.id}>
               <button type="button" onClick={() => onEscolher(p)} className="flex min-h-13 w-full items-center justify-between gap-2 rounded-2xl border border-border px-3 text-left">
@@ -627,7 +654,34 @@ function BuscarProduto({ produtos, onEscolher, onCodigo, onClose }: { produtos: 
               </button>
             </li>
           ))}
+          {achadosFora.map((f) => (
+            <li key={`fora:${f.codigo ?? f.nome}`}>
+              <button type="button" onClick={() => onFora?.(f)} className="flex min-h-13 w-full items-center justify-between gap-2 rounded-2xl border border-border px-3 text-left">
+                <span className="min-w-0"><span className="block break-words text-base font-semibold">{f.nome}</span><span className="block text-xs text-muted-foreground">Fora do estoque · digite o preço</span></span>
+                <Plus size={18} className="shrink-0 text-primary" />
+              </button>
+            </li>
+          ))}
         </ul>
+      </form>
+    </Sheet>
+  );
+}
+
+/** B10: sacola, serviço… o dono marcou "não controlar": não sai do estoque; o caixa digita o preço. */
+function PrecoForaEstoque({ f, onIncluir, onClose }: { f: ForaEstoque; onIncluir: (preco: number) => void; onClose: () => void }) {
+  const [txt, setTxt] = useState("");
+  const preco = lerReais(txt);
+  return (
+    <Sheet title={f.nome} onClose={onClose}>
+      <form className="min-h-0 space-y-3 overflow-y-auto px-5 py-3" onSubmit={(e) => { e.preventDefault(); if (preco != null) onIncluir(preco); }}>
+        <p className="text-sm text-muted-foreground">Este item não sai do estoque (o dono marcou que não é controlado). Digite o preço.</p>
+        <label className="block space-y-1">
+          <span className="text-sm font-medium">Preço (R$)</span>
+          <input autoFocus inputMode="decimal" value={txt} onChange={(e) => setTxt(e.target.value)} placeholder="Ex.: 0,50" aria-label="Preço do item"
+            className="h-16 w-full rounded-2xl border border-border bg-background-deep/60 px-4 text-center text-3xl font-bold tabular-nums text-foreground outline-none focus-visible:border-primary" />
+        </label>
+        <button type="submit" disabled={preco == null} className={btnPrimary(preco != null)}>Incluir</button>
       </form>
     </Sheet>
   );

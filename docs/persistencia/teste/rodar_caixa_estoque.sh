@@ -48,6 +48,8 @@ done
 "${psql_cega[@]}" -f "$temp_cega/a6.sql" >"$temp_cega/a6.log" 2>&1 || { tail -16 "$temp_cega/a6.log"; exit 1; }
 { echo 'begin;'; cat "$base_cega/015_base_caixa_estoque.sql" "$base_cega/023_fechar_caixa_dono.sql"; echo 'rollback;'; } >"$temp_cega/a8.sql"
 "${psql_cega[@]}" -f "$temp_cega/a8.sql" >"$temp_cega/a8.log" 2>&1 || { tail -16 "$temp_cega/a8.log"; exit 1; }
+{ echo 'begin;'; cat "$base_cega/015_base_caixa_estoque.sql" "$base_cega/029_caixa_nao_controlar.sql"; echo 'rollback;'; } >"$temp_cega/b10.sql"
+"${psql_cega[@]}" -f "$temp_cega/b10.sql" >"$temp_cega/b10.log" 2>&1 || { tail -16 "$temp_cega/b10.log"; exit 1; }
 for regressao in 005_melhorias_operacionais.sql 011_coerencia_recebimento.sql 019_lote_outra_data.sql 020_entrega_parcial.sql 024_descartar_recebimento.sql 025_repor_mesma_regra.sql 026_conta_segue_resposta.sql 027_recebido_sem_deposito.sql 028_conferencia_outro_dia.sql; do
   "${psql_cega[@]}" -f "$base_cega/$regressao" >>"$temp_cega/regressao.log" 2>&1 || { tail -16 "$temp_cega/regressao.log"; exit 1; }
 done
@@ -66,4 +68,5 @@ echo "OK B1: Repor da equipe = lista da equipe = Para repor do dono."
 echo "OK B5: conta a pagar segue a nova resposta do fornecedor; o que o dono corrigiu e a conta paga ficam."
 echo "OK B8: mercadoria recebida aparece no depósito também quando o produto não tinha essa área."
 echo "OK B9: contagem do depósito começada em outro dia recomeça do zero."
+echo "OK B10: item \"não controlar\" (sacola, serviço) vendido no caixa do celular sem tirar do estoque."
 echo 'OK: bloqueio do Caixa, contagens vinculadas, decisão do dono, idempotência, RLS e regressões; banco descartado.'

@@ -25,6 +25,8 @@ export type ItemCarrinho = {
   nome: string; detalhe: string;
   unidade: string; fracionado: boolean;
   qtd: number; /** centavos por unidade (ou por kg/metro/litro) */ preco: number;
+  /** B10: item que o dono marcou "não controlar" (sacola, serviço): vende sem tirar do estoque. */
+  foraEstoque?: boolean;
 };
 
 export type FormaCaixa = "dinheiro" | "pix" | "cartao" | "fiado";
@@ -49,6 +51,24 @@ export function acharPorCodigo(produtos: ProdutoCaixa[], codigo: string): Achado
     for (const c of p.codigos)
       if (vs.includes(c.codigo)) return { produto: p, variacaoId: c.variacaoId, embalagemId: c.embalagemId };
   return null;
+}
+
+/** B10: item que o dono marcou "não controlar" (sacola, serviço). `codigo` vazio = item sem código, achado pelo nome. */
+export type ForaEstoque = { codigo: string | null; nome: string };
+export function acharForaEstoque(lista: ForaEstoque[], codigo: string): ForaEstoque | null {
+  const vs = variantesCodigo(codigo);
+  return lista.find((f) => f.codigo != null && vs.includes(f.codigo)) ?? null;
+}
+export function buscarForaEstoque(lista: ForaEstoque[], texto: string, limite = 5): ForaEstoque[] {
+  const q = normalizar(texto);
+  if (q.length < 2) return [];
+  const palavras = q.split(/\s+/);
+  return lista.filter((f) => palavras.every((w) => normalizar(f.nome).includes(w)) || (f.codigo?.startsWith(q) ?? false)).slice(0, limite);
+}
+/** O código vai como o dono marcou (o banco procura igual); sem código, vai o nome. */
+export function itemForaEstoque(id: string, f: ForaEstoque, preco: number): ItemCarrinho {
+  return { id, produtoId: null, variacaoId: null, embalagemId: null, codigo: f.codigo, nome: f.nome, detalhe: "Fora do estoque",
+    unidade: "Unidade", fracionado: false, qtd: 1, preco, foraEstoque: true };
 }
 
 /** Busca pelo nome (sem acento) ou pelo começo do código. */
@@ -97,6 +117,7 @@ export function adicionar(carrinho: ItemCarrinho[], item: ItemCarrinho): ItemCar
 export function limiteCarrinho(carrinho: ItemCarrinho[], produtos: ProdutoCaixa[]): { item: ItemCarrinho; motivo: string } | null {
   const somas = new Map<string, number>();
   for (const item of carrinho) {
+    if (item.foraEstoque && !item.produtoId) continue;
     const p = produtos.find((x) => x.id === item.produtoId);
     if (!p) return { item, motivo: "Produto sem cadastro. Peça ao dono para cadastrar antes de vender." };
     const e = item.embalagemId ? p.embalagens.find((x) => x.id === item.embalagemId) : null;
