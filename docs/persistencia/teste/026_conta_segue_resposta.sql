@@ -91,4 +91,28 @@ select pg_temp.responde(repeat('4',64),140,current_date+5,'pix',null);
 select pg_temp.responde(repeat('4',64),150,current_date+6,'pix',null);
 reset role;
 select pg_temp.ok((select valor_total=150 and vencimento=current_date+6 from pedidos_compra where id=pg_temp.u('p4')),'conta nova segue as respostas');
+-- Segundo ajuste: apagar o valor desliga a marca; corrigir só o vencimento (reenviando o valor do fornecedor) não marca o valor.
+set local role authenticated;
+select salvar_pedido(jsonb_build_object('id',pg_temp.u('p5'),'comercio_id',pg_temp.u('loja'),'fornecedor_id',pg_temp.u('forn'),
+ 'itens',jsonb_build_array(jsonb_build_object('produto_id',pg_temp.u('arroz'),'qtd_embalagens',5))));
+select marcar_pedido_enviado(pg_temp.u('p5'),'copiado');
+reset role;
+update pedidos_compra set token=repeat('5',64) where id=pg_temp.u('p5');
+set local role anon;
+select pg_temp.responde(repeat('5',64),100,current_date+1,'pix',null);
+reset role;
+set local role authenticated;
+select atualizar_pagamento(pg_temp.u('p5'),jsonb_build_object('situacao','a_pagar','vencimento',current_date+9,'valor_total',100));
+reset role;
+select pg_temp.ok((select not valor_do_dono and vencimento_do_dono from pedidos_compra where id=pg_temp.u('p5')),'corrigir só a data não marca o valor');
+set local role authenticated;
+select atualizar_pagamento(pg_temp.u('p5'),jsonb_build_object('situacao','a_pagar','vencimento',current_date+9,'valor_total',70));
+select atualizar_pagamento(pg_temp.u('p5'),jsonb_build_object('situacao','a_pagar','vencimento',current_date+9,'valor_total',null));
+reset role;
+select pg_temp.ok((select not valor_do_dono and valor_total is null from pedidos_compra where id=pg_temp.u('p5')),'apagar o valor desliga a marca');
+set local role anon;
+select pg_temp.responde(repeat('5',64),110,current_date+2,'pix',null);
+reset role;
+select pg_temp.ok((select valor_total=110 and vencimento=current_date+9 from pedidos_compra where id=pg_temp.u('p5')),
+ 'valor volta a seguir o fornecedor; vencimento corrigido fica');
 rollback;
