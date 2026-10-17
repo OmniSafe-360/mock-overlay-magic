@@ -98,7 +98,7 @@ Este arquivo não repete o que já está no [checklist ponta a ponta](CHECKLIST_
   - **Verificação:** `docs/persistencia/teste/025_repor_mesma_regra.sql` em `rodar_caixa_estoque.sh` (falha sem a correção). Sem mudança no app; não precisa Publicar. Falta o teste do dono (no final).
 - [x] **B2.** Produto "já pedido" continua como "Comprar" na lista de Produtos e em Fornecedores. — 17/10/2026: aparece "Já pedido · aguardando a entrega" (lista) e "Já pedido" (Fornecedores), fora de "Precisam de atenção" e de "N para comprar".
 - [x] **B3.** "Para repor"/"Para comprar" das abas Depósito e Gôndolas ≠ Início e Atenção hoje. — 17/10/2026: o número das abas usa a mesma regra do Início (`situacaoProduto`): conta produtos (não tamanhos/cores), quem acabou de vez fica em "Acabaram" e o já pedido não conta para comprar (no depósito aparece "Já pedido" e sai de "Precisam de atenção"). Sem banco.
-- [ ] **B4.** "Novo pedido" e o quadro "Comprar" sugerem produtos diferentes, nos dois sentidos.
+- [x] **B4.** "Novo pedido" e o quadro "Comprar" sugerem produtos diferentes, nos dois sentidos. — 17/10/2026: `sugerirPedido` usa a mesma regra dos quadros "Comprar" e "Acabaram" (`situacaoProduto`): depósito no mínimo (só com mínimo definido) ou produto todo zerado. Saiu o depósito vazio sem mínimo com gôndola cheia; entrou o produto sem área de depósito que acabou (quantidade pelo que cabe na área de venda). Sem banco.
 - [ ] **B5.** Conta a pagar não acompanha a alteração da resposta do fornecedor (valor e vencimento).
 - [ ] **B6.** "Corrigir vencimento ou valor" promete um valor e usa outro.
 - [ ] **B7.** Cadastrar de novo um comércio que já existe aparece como "adicionado" e ele entra em dobro na lista.

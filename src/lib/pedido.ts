@@ -6,6 +6,7 @@ import type { StoreData } from "@/components/StoreSetup";
 import { aceitaFracao, fmtQ, qtdUn } from "@/lib/deposito";
 import type { Embalagem } from "@/lib/embalagem";
 import type { Recebimento } from "@/lib/recebimento";
+import { situacaoProduto } from "@/lib/situacao";
 
 export type SituacaoPedido = "rascunho" | "enviado" | "aceito" | "aceito_ajustes" | "recusado" | "recebido_parcial" | "recebido" | "cancelado";
 export type CanalPedido = "whatsapp" | "email" | "copiado";
@@ -139,27 +140,33 @@ export function resumoResposta(r: RespostaPedido, brl: (c: number) => string): s
 export const nomeLinha = (l: Pick<LinhaPedido, "p" | "variacao">) => (l.variacao ? `${l.p.nome} — ${l.variacao.tam} · ${l.variacao.cor}` : l.p.nome);
 export const chaveLinha = (p: Product, v: Variation | null) => `${p.id}:${v?.uid ?? "_"}`;
 
-/** Sugestão de pedido: produtos que chegaram ao mínimo do depósito (ou acabaram), agrupados por fornecedor.
- *  Produtos já num pedido aberto não entram. Roupas: por variação. */
+/** Sugestão de pedido: produtos que chegaram ao mínimo do depósito ou acabaram, agrupados por fornecedor.
+ *  B4: a mesma regra dos quadros "Comprar" e "Acabaram" do "Atenção hoje" (`situacaoProduto`): mínimo do depósito
+ *  (precisa ter mínimo) ou o produto todo zerado. Produtos já num pedido aberto não entram. Roupas: por variação. */
 export function sugerirPedido(products: Product[], suppliers: Supplier[], jaPedidos: Set<string>): { porFornecedor: Map<EntityId, LinhaPedido[]>; semFornecedor: Product[] } {
   const porFornecedor = new Map<EntityId, LinhaPedido[]>();
   const semFornecedor: Product[] = [];
+  const m = (n: number) => Math.round(n * 1000);
   for (const p of [...products].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))) {
-    if (!p.db?.id || jaPedidos.has(p.db.id) || !p.deposito) continue;
-    const d = p.deposito;
-    const alvos: { v: Variation | null; qtd: number | null; min: number | null; max: number | null }[] = d.vars && p.variacoes.length
-      ? p.variacoes.map((v) => ({ v, qtd: d.vars?.[v.uid ?? ""]?.qtd ?? null, min: d.vars?.[v.uid ?? ""]?.min ?? null, max: d.vars?.[v.uid ?? ""]?.max ?? null }))
-      : [{ v: null, qtd: d.qtd, min: d.min, max: d.max }];
+    if (!p.db?.id || jaPedidos.has(p.db.id)) continue;
+    const s = situacaoProduto(p, "", hojeISO());
+    const alvos = s.variacoes.length
+      ? s.variacoes.map((x) => ({ v: p.variacoes.find((v) => (v.uid ?? "") === x.uid) ?? null, ...x }))
+      : [{ v: null, ...s.qtd }];
     const linhas: LinhaPedido[] = [];
     for (const a of alvos) {
-      const precisa = a.qtd != null && (a.qtd <= 0 || (a.min != null && a.qtd <= a.min));
-      if (!precisa) continue;
-      const falta = faltaParaMaximo(a.qtd, a.min, a.max) ?? (a.min && a.min > 0 ? a.min : 1);
-      const s = sugerirQuantidade(falta, p.unidade, a.v ? [] : p.embalagens ?? []);
-      linhas.push({ chave: chaveLinha(p, a.v), p, variacao: a.v, embalagem: s.embalagem, qtd: s.qtd });
+      const zerado = a.total != null && m(a.total) === 0;
+      const comprar = a.dep != null && a.depMin != null && m(a.dep) <= m(a.depMin);
+      if (!zerado && !comprar) continue;
+      /* Sem área de depósito, a quantidade sai da área de venda (o que cabe nela). */
+      const falta = p.deposito
+        ? faltaParaMaximo(a.dep ?? 0, a.depMin, a.depMax) ?? (a.depMin && a.depMin > 0 ? a.depMin : 1)
+        : faltaParaMaximo(a.ven ?? 0, a.venMin, a.venMax) ?? (a.venMin && a.venMin > 0 ? a.venMin : 1);
+      const q = sugerirQuantidade(falta, p.unidade, a.v ? [] : p.embalagens ?? []);
+      linhas.push({ chave: chaveLinha(p, a.v), p, variacao: a.v, embalagem: q.embalagem, qtd: q.qtd });
     }
     if (!linhas.length) continue;
-    if (p.fornecedor == null || !suppliers.some((s) => s.id === p.fornecedor)) { semFornecedor.push(p); continue; }
+    if (p.fornecedor == null || !suppliers.some((f) => f.id === p.fornecedor)) { semFornecedor.push(p); continue; }
     porFornecedor.set(p.fornecedor, [...(porFornecedor.get(p.fornecedor) ?? []), ...linhas]);
   }
   return { porFornecedor, semFornecedor };
