@@ -19,6 +19,7 @@ import {
   vendaGuardadaValida, type Achado, type FormaCaixa, type ItemCarrinho, type PagamentoCaixa, type ProdutoCaixa, type VendaGuardada,
   devolverDe, textoDevolver, textoCanceladaPeloDono, jaDevolvido, marcarDevolvido,
   acharForaEstoque, buscarForaEstoque, itemForaEstoque, type ForaEstoque,
+  lerFiadoPendente, guardarFiadoPendente, type FiadoPendente,
 } from "@/lib/caixa";
 import { newUid, unPlural, unSingular } from "@/lib/deposito";
 import { digits, maskPhone } from "@/lib/formatacao";
@@ -1429,48 +1430,55 @@ function HistoricoFiado({ chave, clienteId }: { chave: string; clienteId: string
 /** F6: o cliente pagou o fiado no balcão. Precisa do caixa aberto e de internet; o id fica guardado até dar certo (repetir não duplica). */
 function ReceberFiadoCaixa({ chave, turnoId, cliente, onPago }: { chave: string; turnoId: string; cliente: banco.ClienteFiado; onPago: (deve: number) => void }) {
   const deve = cliente.deve ?? 0;
-  const [aberto, setAberto] = useState(false);
-  const [valor, setValor] = useState(() => (deve / 100).toFixed(2).replace(".", ","));
-  const [forma, setForma] = useState<"dinheiro" | "pix" | "cartao">("dinheiro");
-  const [id, setId] = useState(() => crypto.randomUUID());
+  // B11: pagamento enviado sem resposta (internet caiu) fica travado com o mesmo id, valor e forma até o banco responder.
+  const [pendente, setPendente] = useState<FiadoPendente | null>(() => lerFiadoPendente(cliente.id));
+  const [aberto, setAberto] = useState(() => !!pendente);
+  const [valor, setValor] = useState(() => ((pendente?.centavos ?? deve) / 100).toFixed(2).replace(".", ","));
+  const [forma, setForma] = useState<"dinheiro" | "pix" | "cartao">(() => pendente?.forma ?? "dinheiro");
   const [salvando, setSalvando] = useState(false);
-  const [msg, setMsg] = useState("");
+  const [msg, setMsg] = useState(() => (pendente ? "O último envio ficou sem resposta. Toque em Tentar de novo: o mesmo pagamento não é registrado duas vezes." : ""));
   const [ok, setOk] = useState("");
   // A7: "15.5" é R$ 15,50 (antes o ponto era apagado e virava R$ 155).
-  const cent = lerReais(valor) ?? NaN;
-  const valido = Number.isFinite(cent) && cent > 0 && cent <= deve;
+  const cent = pendente ? pendente.centavos : lerReais(valor) ?? NaN;
+  const valido = pendente ? true : Number.isFinite(cent) && cent > 0 && cent <= deve;
+  const travar = (p: FiadoPendente | null) => { setPendente(p); guardarFiadoPendente(cliente.id, p); };
   const salvar = async () => {
     if (!valido || salvando) return;
+    const envio: FiadoPendente = pendente ?? { id: crypto.randomUUID(), centavos: cent, forma };
+    travar(envio); // guardado antes da rede: se o app fechar, o próximo envio repete este
     setSalvando(true); setMsg("");
     try {
-      const r = await banco.caixaReceberFiado(chave, id, turnoId, cliente.id, cent, forma);
-      setOk(`Pagamento de ${brl(cent)} registrado.${forma === "dinheiro" ? " O dinheiro entra na conta da gaveta." : ""}`);
-      setId(crypto.randomUUID()); setAberto(false); onPago(r.deve);
-    } catch (e) { setMsg(erroCaixa(e, "O pagamento não foi registrado")); }
-    finally { setSalvando(false); }
+      const r = await banco.caixaReceberFiado(chave, envio.id, turnoId, cliente.id, envio.centavos, envio.forma);
+      travar(null);
+      setOk(`Pagamento de ${brl(envio.centavos)} registrado.${envio.forma === "dinheiro" ? " O dinheiro entra na conta da gaveta." : ""}`);
+      setAberto(false); onPago(r.deve);
+    } catch (e) {
+      if (ehIncerto(e)) setMsg(`${erroCaixa(e, "O pagamento não foi confirmado")} O valor fica guardado: tentar de novo não registra duas vezes.`);
+      else { travar(null); setMsg(erroCaixa(e, "O pagamento não foi registrado")); }
+    } finally { setSalvando(false); }
   };
   if (!aberto) return (
     <div className="space-y-1">
-      <button type="button" onClick={() => { setAberto(true); setOk(""); }} className="flex min-h-12 w-full items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground">Recebeu pagamento</button>
+      <button type="button" onClick={() => { setAberto(true); setOk(""); }} className="flex min-h-12 w-full items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground">{pendente ? `Pagamento de ${brl(pendente.centavos)} sem resposta: conferir` : "Recebeu pagamento"}</button>
       {ok && <p role="status" className="text-center text-xs font-semibold text-accent">{ok}</p>}
     </div>
   );
   const btn = (f: "dinheiro" | "pix" | "cartao", t: string) => (
-    <button type="button" disabled={salvando} onClick={() => setForma(f)} aria-pressed={forma === f}
+    <button type="button" disabled={salvando || !!pendente} onClick={() => setForma(f)} aria-pressed={forma === f}
       className={`h-11 flex-1 rounded-2xl border text-sm font-semibold ${forma === f ? "border-primary bg-primary/15 text-primary" : "border-border"}`}>{t}</button>
   );
   return (
     <div className="space-y-2 rounded-3xl border border-border bg-secondary/40 p-4">
       <p className="text-sm font-semibold">Quanto o cliente pagou?</p>
-      <input value={valor} onChange={(e) => setValor(e.target.value.replace(/[^0-9,.]/g, ""))} disabled={salvando} inputMode="decimal" aria-label="Valor pago"
+      <input value={valor} onChange={(e) => setValor(e.target.value.replace(/[^0-9,.]/g, ""))} disabled={salvando || !!pendente} inputMode="decimal" aria-label="Valor pago"
         className="h-12 w-full rounded-2xl border border-border bg-background-deep/60 px-4 text-base text-foreground outline-none focus-visible:border-primary" />
       <div className="flex gap-2">{btn("dinheiro", "Dinheiro")}{btn("pix", "Pix")}{btn("cartao", "Cartão")}</div>
-      {cent > deve && <p className="text-xs text-warning">Não pode passar do que deve ({brl(deve)}).</p>}
-      {valido && <p className="text-xs text-muted-foreground">{cent === deve ? "A conta fica em dia." : `Vai continuar devendo ${brl(deve - cent)}.`}</p>}
+      {!pendente && cent > deve && <p className="text-xs text-warning">Não pode passar do que deve ({brl(deve)}).</p>}
+      {!pendente && valido && <p className="text-xs text-muted-foreground">{cent === deve ? "A conta fica em dia." : `Vai continuar devendo ${brl(deve - cent)}.`}</p>}
       {msg && <p role="alert" className="text-sm font-semibold text-destructive">{msg}</p>}
       <div className="flex gap-2">
-        <button type="button" disabled={salvando} onClick={() => { setAberto(false); setMsg(""); }} className="h-12 flex-1 rounded-2xl border border-border text-sm font-semibold">Cancelar</button>
-        <button type="button" disabled={!valido || salvando} onClick={() => void salvar()} className="h-12 flex-1 rounded-2xl bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-50">{salvando ? "Registrando…" : "Registrar pagamento"}</button>
+        <button type="button" disabled={salvando} onClick={() => { setAberto(false); if (!pendente) setMsg(""); }} className="h-12 flex-1 rounded-2xl border border-border text-sm font-semibold">Cancelar</button>
+        <button type="button" disabled={!valido || salvando} onClick={() => void salvar()} className="h-12 flex-1 rounded-2xl bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-50">{salvando ? "Registrando…" : pendente ? "Tentar de novo" : "Registrar pagamento"}</button>
       </div>
       <p className="text-xs text-muted-foreground">Precisa de internet. Dinheiro recebido entra no fechamento do caixa.</p>
     </div>

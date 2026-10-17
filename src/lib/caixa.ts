@@ -226,6 +226,12 @@ export function erroCaixa(e: unknown, naoFeito = "A venda não foi enviada"): st
     return "Um produto desta venda mudou no cadastro (foi apagado ou alterado). Mostre ao dono.";
   if (m.includes("venda_invalida")) return "Esta venda não vale mais (já foi cancelada ou não é deste caixa). Mostre ao dono.";
   if (m.includes("id_obrigatorio")) return "O app está desatualizado. Feche e abra de novo para atualizar.";
+  // B11: recebimento do fiado no caixa.
+  if (m.includes("valor_maior_que_a_conta")) return "O valor passa do que o cliente deve agora (a conta pode ter mudado). Confira o valor.";
+  if (m.includes("cliente_nao_encontrado")) return "Cliente do fiado não encontrado. Volte à lista e escolha o cliente de novo.";
+  if (m.includes("operacao_repetida_com_outros_dados")) return "Este pagamento já tinha sido enviado com outro valor ou forma. Confira a conta do cliente antes de registrar de novo.";
+  if (m.includes("forma_invalida")) return "Escolha Dinheiro, Pix ou Cartão.";
+  if (m.includes("valor_invalido")) return "Confira o valor.";
   if (/fetch|network|Failed to|Load failed/i.test(m)) return `Sem internet. ${naoFeito}: confira a conexão e toque em tentar de novo.`;
   return "Não foi possível concluir agora. Tente de novo.";
 }
@@ -333,6 +339,20 @@ export function textoDiferencaCaixa(diferenca: number): { nivel: "ok" | "falta" 
 
 /** O erro foi falta de internet (não uma recusa do banco). */
 export const semInternet = (e: unknown) => /fetch|network|Failed to|Load failed|timeout|aborted/i.test(String((e as { message?: string } | null)?.message ?? e ?? ""));
+
+/* ---------- B11: pagamento do fiado enviado sem resposta ---------- */
+/** Fica guardado no celular até o banco responder: tentar de novo usa o mesmo id, o mesmo valor e a mesma forma (nunca registra duas vezes). */
+export type FiadoPendente = { id: string; centavos: number; forma: "dinheiro" | "pix" | "cartao" };
+const chaveFiadoPendente = (cliente: string) => `omni.caixa.fiado.pendente.v1:${cliente}`;
+export function lerFiadoPendente(cliente: string): FiadoPendente | null {
+  try {
+    const p = JSON.parse(localStorage.getItem(chaveFiadoPendente(cliente)) ?? "null");
+    return p && typeof p.id === "string" && Number.isInteger(p.centavos) && p.centavos > 0 && ["dinheiro", "pix", "cartao"].includes(p.forma) ? p : null;
+  } catch { return null; }
+}
+export function guardarFiadoPendente(cliente: string, p: FiadoPendente | null) {
+  try { if (p) localStorage.setItem(chaveFiadoPendente(cliente), JSON.stringify(p)); else localStorage.removeItem(chaveFiadoPendente(cliente)); } catch { /* sem armazenamento: segue só na tela */ }
+}
 
 /* ---------- C4: comprovante pelo WhatsApp (não é nota fiscal) ---------- */
 export type DadosComprovante = {
