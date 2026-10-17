@@ -321,7 +321,8 @@ describe("recebimento no app do dono", () => {
     fireEvent.click(sec.getByRole("button", { name: "2 unidades" }));
     fireEvent.click(sec.getByRole("button", { name: /Confirmar 2 unidades/ }));
     await waitFor(() => expect(onResolver).toHaveBeenCalledWith("i-tiss", "aceitar", 1));
-    fireEvent.click(sec.getByRole("button", { name: /Devolver/ }));
+    // A3: cada produto separado tem o próprio Devolver; aqui o da cerveja (fora do pedido).
+    fireEvent.click(within(sec.getByText("Cerveja").closest("li")!).getByRole("button", { name: /Devolver/ }));
     await waitFor(() => expect(onResolver).toHaveBeenCalledWith("i-cerv", "recusar", null));
   });
   it("Atenção hoje mostra entregas para decidir", () => {
