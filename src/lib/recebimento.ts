@@ -210,6 +210,9 @@ export function resultadoItem(i: ItemRecebido, unidade: string): { tipo: TipoRes
   if (q > i.esperado) return { tipo: "sobra", texto: `Veio a mais: ${fmtQ(q)} de ${qtdUn(i.esperado, unidade)}` };
   return { tipo: "ok", texto: `Chegou tudo (${qtdUn(q, unidade)})` };
 }
+/** A3: contagem com validade que já passou não pode entrar no estoque como boa (o banco recusa `recebimento_vencido_como_bom`). */
+export const contagemVencida = (t: Pick<TentativaRecebida, "total" | "avaria" | "partes">, hoje: string) =>
+  t.total > t.avaria && t.partes.some((p) => !!p.vencimento && p.vencimento < hoje);
 /** Itens que esperam o dono decidir. */
 export const precisaDecidir = (i: Pick<ItemRecebido, "situacao">) => i.situacao === "inconsistente" || i.situacao === "fora_do_pedido";
 /** Resumo para o cartão do pedido: "Recebido por Maria em 09/10 · faltou 1 produto". */

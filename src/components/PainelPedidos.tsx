@@ -13,7 +13,7 @@ import { CampoQtd } from "@/components/CampoQtd";
 import { descricaoEmbalagem } from "@/lib/embalagem";
 import { estadoPagamento, ordemPagamento, resumoPagamentos, somaDias, textoPagamento, valorConta, type EstadoPagamento } from "@/lib/pagamento";
 import { hojeEm } from "@/lib/validade";
-import { precisaDecidir, resultadoItem, textoMotivoDono, resumoRecebimento, type ItemRecebido, type Recebimento, type TipoResultado } from "@/lib/recebimento";
+import { contagemVencida, precisaDecidir, resultadoItem, textoMotivoDono, resumoRecebimento, type ItemRecebido, type Recebimento, type TipoResultado } from "@/lib/recebimento";
 import { mensagemErro } from "@/lib/persistencia";
 import {
   CANAL_TXT, SITUACAO_TXT, chaveLinha, dataEntregaTexto, formaTexto, linkPedido, respostaItem, linhaManual, linhasDoPedido, nomeLinha, pedidoAberto, pedidoFechado, quantidadeTexto,
@@ -798,6 +798,7 @@ function LinhaRecebida({ i, products, onResolver }: {
   // A2: validade/lote que não pode entrar no estoque. Aceitar daria erro de novo; o dono devolve.
   const validadeNaoEntra = !variacaoRemovida && ultima?.validadeRecontar === true;
   const [escolha, setEscolha] = useState<number | null>(null);
+  const hoje = hojeEm();
   const [trabalhando, setTrabalhando] = useState(false);
   const [erro, setErro] = useState("");
   const fazer = (acao: "aceitar" | "recusar", t: number | null) => {
@@ -827,20 +828,27 @@ function LinhaRecebida({ i, products, onResolver }: {
       {i.situacao === "inconsistente" && onResolver && (
         <div className="mt-2 space-y-2">
           {validadeNaoEntra ? <p className="text-sm text-muted-foreground">{textoMotivoDono(ultima?.motivo)}</p> : <>
-          <p className="text-xs text-muted-foreground">{variacaoRemovida ? "Confira a quantidade. Ao aceitar peças boas, este tamanho e esta cor voltam ao cadastro antes de entrar no depósito. Se não quiser ficar com a mercadoria, devolva." : "Qual contagem está certa? Ela entra no estoque."}</p>
+          <p className="text-xs text-muted-foreground">{variacaoRemovida ? "Confira a quantidade. Ao aceitar peças boas, este tamanho e esta cor voltam ao cadastro antes de entrar no depósito. Se não quiser ficar com a mercadoria, devolva." : "Qual contagem está certa? Ela entra no estoque. Se não quiser ficar com a mercadoria, devolva."}</p>
           <div className="flex flex-wrap gap-2">
-            {i.tentativas.map((t, k) => (
-              <button key={k} type="button" aria-pressed={escolha === k} onClick={() => setEscolha(k)}
-                className={`min-h-11 rounded-xl border px-3 text-sm font-semibold ${escolha === k ? "border-primary bg-primary/15 text-primary" : "border-border"}`}>{qtdUn(t.total, unidade)}</button>
-            ))}
+            {i.tentativas.map((t, k) => {
+              const vencida = contagemVencida(t, hoje);
+              return (
+                <button key={k} type="button" aria-pressed={escolha === k} disabled={vencida} onClick={() => setEscolha(k)}
+                  className={`min-h-12 rounded-xl border px-3 text-sm font-semibold disabled:opacity-60 ${escolha === k ? "border-primary bg-primary/15 text-primary" : "border-border"}`}>
+                  {qtdUn(t.total, unidade)}{vencida ? " · vencida" : ""}
+                </button>
+              );
+            })}
           </div>
-          {escolha != null && (
+          {i.tentativas.some((t) => contagemVencida(t, hoje)) && <p className="text-xs text-warning">A validade de uma contagem já passou. Produto vencido não entra no estoque como bom: escolha outra contagem ou devolva.</p>}
+          {/* Codex #190: a contagem escolhida pode vencer com a tela aberta (meia-noite); aí não dá para confirmar. */}
+          {escolha != null && !contagemVencida(i.tentativas[escolha]!, hoje) && (
             <button type="button" disabled={trabalhando} onClick={() => fazer("aceitar", escolha)} className={`flex items-center justify-center gap-2 ${btnPrimary(!trabalhando)}`}>
               <Check size={18} /> Confirmar {qtdUn(i.tentativas[escolha]!.total, unidade)}{variacaoRemovida && i.tentativas[escolha]!.total > i.tentativas[escolha]!.avaria ? " e restaurar tamanho e cor" : ""}
             </button>
           )}
           </>}
-          {(variacaoRemovida || validadeNaoEntra) && <button type="button" disabled={trabalhando} onClick={() => fazer("recusar", null)} className="flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl border border-destructive/50 px-4 text-base font-semibold text-destructive"><X size={18} /> Devolver</button>}
+          <button type="button" disabled={trabalhando} onClick={() => fazer("recusar", null)} className="flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl border border-destructive/50 px-4 text-base font-semibold text-destructive"><X size={18} /> Devolver</button>
         </div>
       )}
       {i.situacao === "fora_do_pedido" && onResolver && (
