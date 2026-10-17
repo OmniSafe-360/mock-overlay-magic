@@ -2,7 +2,7 @@
  * Usa as mesmas regras do "Atenção hoje" de cada comércio (situacao.ts, pagamento.ts, recebimento.ts): nunca inventa número. */
 import type { Product } from "@/lib/produto";
 import { atencaoHoje, type GrupoAtencao } from "@/lib/situacao";
-import { entregasDoPedido, pedidoAberto, type Pedido } from "@/lib/pedido";
+import { entregasDoPedido, produtosAindaPedidos, type Pedido } from "@/lib/pedido";
 import { resumoPagamentos } from "@/lib/pagamento";
 import { precisaDecidir } from "@/lib/recebimento";
 
@@ -32,7 +32,7 @@ export type ResumoComercio = {
 };
 
 /** Produtos (id do banco) que estão num pedido em andamento. */
-export const produtosJaPedidos = (pedidos: Pedido[]) => new Set(pedidos.filter(pedidoAberto).flatMap((p) => p.itens.map((i) => i.produtoId)));
+export const produtosJaPedidos = (pedidos: Pedido[]) => produtosAindaPedidos(pedidos);
 
 export const entregasParaDecidir = (pedidos: Pedido[]) => pedidos.reduce((n, p) => n + entregasDoPedido(p)
   .reduce((m, r) => m + (r.situacao === "concluido" ? r.itens.filter(precisaDecidir).length : 0), 0), 0);

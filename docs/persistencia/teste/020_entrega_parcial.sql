@@ -58,6 +58,8 @@ select pg_temp.ok(pg_temp.sit('p1')='recebido_parcial','faltou feijão: pedido r
 select pg_temp.ok(pg_temp.dep('arroz')=10 and pg_temp.dep('feijao')=0,'só o arroz entrou no depósito');
 set local role anon;
 select pg_temp.ok(pg_temp.na_lista('p1'),'pedido continua na lista da equipe');
+select pg_temp.ok((select (e->>'produtos')::int from jsonb_array_elements(funcionario_entregas(repeat('a',64))->'pedidos') e
+  where (e->>'id')::uuid = pg_temp.u('p1')) = 1,'cartão da equipe conta só o produto que falta');
 -- 2. Segunda entrega: abre de novo (antes: pedido_ja_recebido) e só o feijão precisa ser contado.
 select pg_temp.ok((select jsonb_agg(e->>'produto_id') from jsonb_array_elements(
   funcionario_abrir_recebimento(repeat('a',64),pg_temp.u('r1b'),pg_temp.u('p1'),null)->'produtos') e)
@@ -103,6 +105,19 @@ select resolver_item_recebimento((select id from recebimento_itens where recebim
 select pg_temp.ok(pg_temp.sit('p3')='recebido_parcial','dono aceitou 2 de 5: espera o resto');
 set local role anon;
 select pg_temp.ok(pg_temp.na_lista('p3'),'depois da decisão, volta para a lista');
+reset role;
+
+-- 4b. Produto fora do pedido esperando o dono também impede outra entrega (Codex #191).
+select pg_temp.pedido('p5',4,0);
+set local role anon;
+select funcionario_abrir_recebimento(repeat('a',64),pg_temp.u('r5a'),pg_temp.u('p5'),null);
+select pg_temp.envia('r5a',0,jsonb_build_array(pg_temp.conta('arroz',1),pg_temp.conta('feijao',3)));
+select pg_temp.ok(pg_temp.envia('r5a',1,jsonb_build_array(pg_temp.conta('arroz',1)))='concluido','arroz 1 de 4 e feijão fora do pedido');
+select pg_temp.ok(not pg_temp.na_lista('p5'),'fora do pedido separado: fora da lista');
+reset role;
+select resolver_item_recebimento((select id from recebimento_itens where recebimento_id=pg_temp.u('r5a') and produto_id=pg_temp.u('feijao')),'recusar',null);
+set local role anon;
+select pg_temp.ok(pg_temp.na_lista('p5'),'depois de devolver o que veio fora, volta para a lista');
 reset role;
 
 -- 5. Encerrar com a equipe contando é recusado.

@@ -34,16 +34,27 @@ export type Pedido = {
 /** A4: todas as entregas do pedido (as antigas sem a lista completa só têm a última). */
 export const entregasDoPedido = (p: Pick<Pedido, "recebimento" | "recebimentos">): Recebimento[] =>
   p.recebimentos ?? (p.recebimento ? [p.recebimento] : []);
-/** A4: o pedido espera o resto: chegou em parte, o dono não encerrou e ainda falta algum produto. */
-export function esperaResto(p: Pick<Pedido, "situacao" | "entregaEncerrada" | "itens">): boolean {
-  if (p.situacao !== "recebido_parcial" || p.entregaEncerrada) return false;
-  const falta = new Map<string, number>();
+/** A4: quanto ainda falta chegar de cada produto/variação do pedido (unidades de venda). */
+function faltaPorProduto(p: Pick<Pedido, "itens">): Map<string, { produtoId: string; falta: number }> {
+  const falta = new Map<string, { produtoId: string; falta: number }>();
   for (const i of p.itens) {
     const k = `${i.produtoId}:${i.variacaoId ?? ""}`;
     const esperado = i.qtdConfirmada != null ? (i.qtdConfirmada * i.qtdUnidades) / i.qtdEmbalagens : i.qtdUnidades;
-    falta.set(k, (falta.get(k) ?? 0) + esperado - (i.qtdRecebida ?? 0));
+    const atual = falta.get(k) ?? { produtoId: i.produtoId, falta: 0 };
+    falta.set(k, { produtoId: i.produtoId, falta: atual.falta + esperado - (i.qtdRecebida ?? 0) });
   }
-  return [...falta.values()].some((v) => v > 1e-9);
+  return falta;
+}
+/** A4: o pedido espera o resto: chegou em parte, o dono não encerrou e ainda falta algum produto. */
+export function esperaResto(p: Pick<Pedido, "situacao" | "entregaEncerrada" | "itens">): boolean {
+  if (p.situacao !== "recebido_parcial" || p.entregaEncerrada) return false;
+  return [...faltaPorProduto(p).values()].some((v) => v.falta > 1e-9);
+}
+/** Produtos que ainda estão pedidos: de pedido aberto; no recebido em parte, só os que ainda faltam chegar (Codex #191). */
+export function produtosAindaPedidos(pedidos: Pedido[]): Set<string> {
+  return new Set(pedidos.filter(pedidoAberto).flatMap((p) => p.situacao === "recebido_parcial"
+    ? (esperaResto(p) ? [...faltaPorProduto(p).values()].filter((v) => v.falta > 1e-9).map((v) => v.produtoId) : [])
+    : p.itens.map((i) => i.produtoId)));
 }
 export const FORMA_TXT: Record<FormaPagamento, string> = { a_vista: "À vista", pix: "Pix", boleto: "Boleto", a_prazo: "A prazo" };
 /** "Boleto 30 dias", "Pix". */

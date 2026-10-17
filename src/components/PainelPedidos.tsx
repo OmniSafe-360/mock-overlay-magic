@@ -18,7 +18,7 @@ import { mensagemErro } from "@/lib/persistencia";
 import {
   CANAL_TXT, SITUACAO_TXT, chaveLinha, dataEntregaTexto, formaTexto, linkPedido, respostaItem, linhaManual, linhasDoPedido, nomeLinha, pedidoAberto, pedidoFechado, quantidadeTexto,
   sugerirPedido, textoPedido, totalLinha, totalLinhas, totalPedido, unidadesDaLinha, embalagensTexto, valorItemPedido, type CanalPedido, type LinhaPedido, type Pedido, type SituacaoPedido,
-  trocarEmbalagem, entregasDoPedido, esperaResto,
+  trocarEmbalagem, entregasDoPedido, esperaResto, produtosAindaPedidos,
 } from "@/lib/pedido";
 
 const dataCurta = (ts: string) => new Date(ts).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
@@ -243,7 +243,7 @@ function MontarPedidos({ products, store, suppliers, pedidos, onSalvar, onEnviad
   products: Product[]; store: StoreData; suppliers: Supplier[]; pedidos: Pedido[]; onSalvar: SalvarPedido;
   onEnviado: (id: string, canal: CanalPedido) => Promise<unknown>; onVoltar: () => void;
 }) {
-  const jaPedidos = useMemo(() => new Set(pedidos.filter(pedidoAberto).flatMap((p) => p.itens.map((i) => i.produtoId))), [pedidos]);
+  const jaPedidos = useMemo(() => produtosAindaPedidos(pedidos), [pedidos]);
   const sug = useMemo(() => sugerirPedido(products, suppliers, jaPedidos), [products, suppliers, jaPedidos]);
   const [grupos, setGrupos] = useState<Grupo[]>(() => [...sug.porFornecedor.entries()].map(([fornecedorId, linhas]) => ({ fornecedorId, linhas, obs: "" })));
   const [enviados, setEnviados] = useState<EntityId[]>([]);

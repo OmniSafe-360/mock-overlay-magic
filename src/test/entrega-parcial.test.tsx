@@ -4,7 +4,7 @@ import { carregarPedidos, carregarRecebimentos } from "@/lib/banco";
 import { PainelPedidos } from "@/components/PainelPedidos";
 import type { Product, Supplier } from "@/lib/produto";
 import { entregasParaDecidir } from "@/lib/resumoGeral";
-import { esperaResto } from "@/lib/pedido";
+import { esperaResto, produtosAindaPedidos } from "@/lib/pedido";
 
 const mock = vi.hoisted(() => ({ tabelas: {} as Record<string, Record<string, unknown>[]>, erro: null as object | null }));
 // Executa os filtros contra as linhas: um mock que devolvesse tudo esconderia o bug original.
@@ -88,4 +88,13 @@ it("duas entregas aparecem no pedido e as decisões das duas contam no Atenção
   fireEvent.click(screen.getByRole("button", { name: /Pedido nº 1/ }));
   expect(screen.getByRole("region", { name: "Recebimento · Entrega 1 de 2" })).toBeTruthy();
   expect(screen.getByRole("region", { name: "Recebimento · Entrega 2 de 2" })).toBeTruthy();
+});
+
+it("produto que já chegou todo deixa de contar como já pedido; o que falta continua (Codex #191)", async () => {
+  parcial(null);
+  mock.tabelas["pedido_itens"]!.push({ id: "pi2", comercio_id: "c1", pedido_id: "pedido1", produto_id: "p2", variacao_id: null, qtd_embalagens: 3, qtd_unidades: 3, preco_estimado: 1, qtd_recebida: 3 });
+  const pedidos = await carregarPedidos("c1");
+  expect([...produtosAindaPedidos(pedidos)]).toEqual(["p1"]);
+  mock.tabelas["pedidos_compra"]![0]!["entrega_encerrada_em"] = "2026-10-12T10:00:00Z";
+  expect([...produtosAindaPedidos(await carregarPedidos("c1"))]).toEqual([]);
 });
