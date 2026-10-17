@@ -187,6 +187,11 @@ export async function encerrarEntregaPedido(pedidoId: string) {
   const { error } = await rpc("encerrar_entrega_pedido", { _pedido: pedidoId });
   if (error) throw error;
 }
+/** A10: o dono encerra a contagem largada no meio. Nada entra no estoque; o pedido volta a esperar a entrega. */
+export async function descartarRecebimento(recebimentoId: string) {
+  const { error } = await rpc("descartar_recebimento" as any, { _id: recebimentoId } as any);
+  if (error) throw error;
+}
 /** Dono decide um item: aceitar (escolhendo a contagem, se não fechou) ou recusar (fora do pedido). */
 export async function resolverItemRecebimento(itemId: string, acao: "aceitar" | "recusar", tentativa: number | null) {
   const { error } = await rpc("resolver_item_recebimento", { _item: itemId, _acao: acao, _tentativa: tentativa });

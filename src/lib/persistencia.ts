@@ -208,6 +208,8 @@ const MSG: [string, string][] = [
   ["pedido_nao_espera_entrega", "Este pedido não está esperando outra entrega. Atualize a página."],
   ["nao_e_contagem_inconsistente", "Esta diferença já foi resolvida. Atualize a página."],
   ["contagem_invalida", "Escolha uma das contagens da lista."],
+  ["recebimento_descartado", "O dono encerrou esta contagem. Volte às entregas e comece de novo."],
+  ["recebimento_ja_concluido", "Esta entrega já foi concluída. Atualize a página."],
   ["recebimento_em_contagem", "A equipe ainda está conferindo esta entrega. Espere terminar para decidir."],
   ["recebimento_nao_encontrado", "Esta entrega não foi encontrada. Volte às entregas e abra de novo."],
   ["recebimento_de_outro_comercio", "Esta entrega não foi encontrada. Volte às entregas e abra de novo."],

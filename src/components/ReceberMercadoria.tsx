@@ -106,7 +106,16 @@ function ReceberPorAcesso({ chave, onVoltar, apiDada, mercado }: { chave: string
       if (rasc && (rasc.pedidoId !== pedidoId || (!pedidoId && rasc.fornecedorId !== fornecedorId)))
         throw new Error("rascunho_de_outra_entrega");
       if (!pedidoId && !rasc) { await abrirNovaSemPedido(kr, fornecedorId); return; }
-      const aberto = await api.abrir(chave, rasc?.id ?? newUid(), pedidoId, fornecedorId);
+      let aberto: Awaited<ReturnType<ApiReceber["abrir"]>>;
+      try { aberto = await api.abrir(chave, rasc?.id ?? newUid(), pedidoId, fornecedorId); }
+      catch (e) {
+        // A10: o dono encerrou a contagem guardada neste celular. Ela não vale mais: começa outra do zero.
+        if (!rasc || !String((e as { message?: string } | null)?.message ?? "").includes("recebimento_descartado")) throw e;
+        apagarRascunho(kr);
+        if (!pedidoId) { await abrirNovaSemPedido(kr, fornecedorId); return; }
+        rasc = null;
+        aberto = await api.abrir(chave, newUid(), pedidoId, fornecedorId);
+      }
       if (!pedidoId && rasc) {
         const pendente = temEnvioPendente(kr, rasc.id);
         if (aberto.situacao === "concluido" && !pendente) {
@@ -421,7 +430,11 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
       setContagens((m) => { const n = { ...m }; for (const k of recontar) delete n[k]; return n; });
       setRodada(r.rodada);
       setAviso("");
-    } catch (e) { setErro(erroTexto(e)); }
+    } catch (e) {
+      // A10: o dono encerrou esta contagem. O que estava guardado no celular não vale mais.
+      if (String((e as { message?: string } | null)?.message ?? "").includes("recebimento_descartado")) apagarRascunho(kr);
+      setErro(erroTexto(e));
+    }
     finally { setEnviando(false); }
   };
 
