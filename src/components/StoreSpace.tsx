@@ -151,7 +151,7 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
             antifurto={antifurto} onVerAntifurto={() => { onDismissSaved(); setVerRelatorio((n) => n + 1); setTab("Diferenças"); }} />} />
         </>
       ) : tab === "Depósito" || tab === "Gôndolas" ? (
-        <PainelLocais products={products} tipo={store.tipo} area={tab === "Depósito" ? "dep" : "ven"}
+        <PainelLocais products={products} tipo={store.tipo} jaPedidos={jaPedidos} area={tab === "Depósito" ? "dep" : "ven"}
           locaisCadastrados={tab === "Depósito" ? locais?.deposito : locais?.venda} onOpen={(p) => { onDismissSaved(); setView(p); }} />
       ) : tab === "Pedidos" ? (
         <>
