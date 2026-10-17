@@ -234,21 +234,23 @@ function Reposicao({ chave, onVoltar, apiDada }: { chave: string; onVoltar: () =
 const FASES = ["Conte", "Busque", "Confirme o que levou"] as const;
 function Fases({ atual }: { atual: 1 | 2 | 3 }) {
   return (
-    <ol aria-label="Fases da reposição" className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm">
+    <div className="@container">
+    <ol aria-label="Fases da reposição" className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm @max-[14rem]:gap-x-1">
       {FASES.map((f, i) => {
         const n = i + 1;
         const agora = atual === 2 ? n >= 2 : n === atual;
         const feita = n < atual;
         return (
-          <li key={f} aria-current={n === atual ? "step" : undefined} className="flex items-center gap-1.5">
+          <li key={f} aria-current={n === atual ? "step" : undefined} className="flex items-center gap-1.5 @max-[14rem]:gap-1">
             {i > 0 && <span aria-hidden className="text-muted-foreground">→</span>}
-            <span className={`rounded-full px-2.5 py-1 font-semibold ${agora ? "bg-primary text-primary-foreground" : feita ? "bg-accent/15 text-accent" : "bg-secondary text-muted-foreground"}`}>
-              {feita && <Check size={13} className="mr-0.5 inline align-[-2px]" />}{n}. {f}
+            <span className={`rounded-full px-2.5 py-1 font-semibold @max-[14rem]:px-2 ${agora ? "bg-primary text-primary-foreground" : feita ? "bg-accent/15 text-accent" : "bg-secondary text-muted-foreground"}`}>
+              {feita && <Check size={13} className="mr-0.5 inline align-[-2px]" />}{n}<span className={n === atual ? undefined : "@max-[14rem]:sr-only"}>. {f}</span>
             </span>
           </li>
         );
       })}
     </ol>
+    </div>
   );
 }
 
