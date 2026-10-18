@@ -30,6 +30,12 @@ for migracao in "$repo_cega"/supabase/migrations/*.sql; do
   esac
   "${psql_cega[@]}" -1 -f "$migracao" >>"$temp_cega/setup.log" 2>&1 || { tail -12 "$temp_cega/setup.log"; exit 1; }
 done
+# Caixa móvel: limite e baixa excluem vencidos conhecidos; dados fictícios com rollback.
+{ echo 'begin;'; cat "$base_cega/015_base_caixa_estoque.sql" "$base_cega/034_caixa_validade.sql"; echo 'rollback;'; } >"$temp_cega/validade.sql"
+"${psql_cega[@]}" -f "$temp_cega/validade.sql" >"$temp_cega/validade.log" 2>&1 || { tail -20 "$temp_cega/validade.log"; exit 1; }
+"${psql_cega[@]}" -c 'create database caixa_validade_concorrencia template postgres;'
+psql -h "$temp_cega" -p "$porta_cega" -U postgres -d caixa_validade_concorrencia -v ON_ERROR_STOP=1 -X -q -1 -f "$base_cega/015_base_caixa_estoque.sql" >"$temp_cega/validade-concorrencia.log" 2>&1
+PGHOST="$temp_cega" PGPORT="$porta_cega" PGUSER=postgres PGDATABASE=caixa_validade_concorrencia PGOPTIONS='-c statement_timeout=10000' python3 "$base_cega/034_caixa_validade_concorrencia.py"
 {
   echo 'begin;'
   cat "$base_cega/015_base_caixa_estoque.sql" "$base_cega/015_caixa_estoque_contagens.sql"
