@@ -169,3 +169,23 @@ describe("tela inicial do app da equipe", () => {
     expect(await screen.findByText(/Sai do estoque agora/)).toBeTruthy();
   });
 });
+
+describe("C8 — Voltar depois de um envio sem resposta", () => {
+  it("lê a lista de novo: a contagem que chegou ao banco aparece na rodada certa", async () => {
+    const contar = vi.fn().mockRejectedValueOnce(new Error("Failed to fetch"));
+    const lista = vi.fn()
+      .mockResolvedValueOnce({ tipo: "mercado", feitosHoje: 0, meta: 5, produtos: [itens[1]!] })
+      .mockResolvedValueOnce({ tipo: "mercado", feitosHoje: 0, meta: 5, produtos: [{ ...itens[1]!, conferenciaId: "cf-9", rodada: 2 }] });
+    const a = apiC({ contar, lista });
+    render(<ConferirDeposito chave={CH} api={a} onVoltar={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Tiss/ }));
+    fireEvent.change(screen.getByLabelText("No depósito (unidades)"), { target: { value: "7" } });
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar contagem/ }));
+    expect(await screen.findByText(/Sem conexão|Não foi possível enviar/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Lista/ }));
+    expect(await screen.findByText("Contagem começada: termine")).toBeTruthy();
+    expect(lista).toHaveBeenCalledTimes(2);
+    fireEvent.click(screen.getByRole("button", { name: /Tiss/ }));
+    expect(screen.getByText(/Contagem 2 de 3/)).toBeTruthy();
+  });
+});

@@ -1,6 +1,6 @@
 /* Conferir o depósito no app do funcionário (Fase 4.2): até 5 produtos por dia, revezando.
  * A contagem é cega. Diferença confirmada por repetição e três números diferentes aguardam o dono, sem acerto automático. */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, ArrowLeft, Camera, Check, CheckCircle2, ClipboardCheck, MapPin, RotateCcw } from "lucide-react";
 import { Scanner } from "@/components/Scanner";
 import { Contador } from "@/components/parts/Contador";
@@ -49,14 +49,21 @@ export function ConferirDeposito({ chave, onVoltar, api: apiDada }: { chave: str
   const [dados, setDados] = useState<Awaited<ReturnType<typeof banco.listaConferencia>> | null>(null);
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null);
-  const carregar = useCallback(() => { setErro(""); api.lista(chave).then((d) => setDados({ ...d, produtos: [...d.produtos].sort(porLocal) })).catch((e) => setErro(erroTexto(e))); }, [api, chave]);
+  const leitura = useRef(0);
+  const carregar = useCallback(() => {
+    // só a leitura mais recente vale (uma resposta antiga não volta a lista para trás)
+    const n = ++leitura.current;
+    setErro("");
+    api.lista(chave).then((d) => { if (n === leitura.current) setDados({ ...d, produtos: [...d.produtos].sort(porLocal) }); })
+      .catch((e) => { if (n === leitura.current) setErro(erroTexto(e)); });
+  }, [api, chave]);
   useEffect(carregar, [carregar]);
   const tipo = TIPO_FROM_DB[dados?.tipo ?? ""] ?? "mercado";
   const t = textoDoTipo(tipo);
   const titulo = t("Conferir depósito");
 
   if (tela.t === "contar")
-    return <Contar mercado={tipo === "mercado"} key={tela.rodada} item={tela.item} id={tela.id} rodada={tela.rodada} chave={chave} api={api} t={t} onVoltar={() => setTela({ t: "lista" })}
+    return <Contar mercado={tipo === "mercado"} key={tela.rodada} item={tela.item} id={tela.id} rodada={tela.rodada} chave={chave} api={api} t={t} onVoltar={() => { setTela({ t: "lista" }); carregar(); }}
       onFim={(r) => {
         if (r.situacao === "recontar") { setTela({ ...tela, rodada: r.rodada ?? tela.rodada + 1 }); return; }
         setAviso(r.situacao === "concluida"
