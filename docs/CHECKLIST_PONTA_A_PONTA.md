@@ -1,3 +1,4 @@
+# Omni Safe 360 — checklist ponta a ponta
 
 Plano de execução pedido pelo dono em **11/10/2026**. As regras continuam em [FONTE_DA_VERDADE.md](FONTE_DA_VERDADE.md); este arquivo detalha suas etapas. O histórico permanece em [CLAUDE.md](../CLAUDE.md). Não há uma segunda fonte de regras.
 

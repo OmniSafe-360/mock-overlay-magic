@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mensagemAcao, mensagemErro } from "@/lib/persistencia";
+import { mensagemAcao, mensagemErro, mensagemFornecedor } from "@/lib/persistencia";
 import { erroCaixa } from "@/lib/caixa";
 
 // C9: recusas do banco que caíam na mensagem genérica ("tente de novo") ou na de outra tela.
@@ -23,6 +23,11 @@ describe("C9 — recusas do banco com mensagem própria", () => {
   it("variação removida na entrega não fala de pendência", () => {
     expect(mensagemErro(new Error("variacao_removida_recebimento"))).toMatch(/Avise o dono/);
     expect(mensagemErro(new Error("variacao_removida"))).toMatch(/pendência/);
+  });
+  it("fornecedor: quantidade fora do limite diz o limite (zero vale)", () => {
+    expect(mensagemFornecedor(new Error("quantidade_invalida"))).toMatch(/100 vezes/);
+    expect(mensagemFornecedor(new Error("previsao_obrigatoria"))).toBe("Informe a data prevista de entrega.");
+    expect(mensagemAcao(new Error("quantidade_invalida"))).toMatch(/maiores que zero/);
   });
   it("caixa: cliente de outro comércio", () => {
     expect(erroCaixa(new Error("sem_permissao"))).toMatch(/cliente não é deste comércio/);

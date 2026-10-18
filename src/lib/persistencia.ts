@@ -293,6 +293,12 @@ export function mensagemErro(e: unknown): string {
   if (/fetch|network|Failed to/i.test(m)) return "Sem conexão. Seus dados continuam no formulário. Tente salvar de novo.";
   return MSG.find(([k]) => m.includes(k))?.[1] ?? "Não foi possível salvar agora. Seus dados continuam no formulário. Tente de novo.";
 }
+/** C9: página do fornecedor. Na resposta, a quantidade pode ser zero e não pode passar de 100 vezes o pedido (`responder_pedido`). */
+export function mensagemFornecedor(e: unknown): string {
+  const m = String((e as { message?: string } | null)?.message ?? e ?? "");
+  if (m.includes("quantidade_invalida")) return "Confira as quantidades: não podem ser negativas nem passar de 100 vezes o que foi pedido.";
+  return mensagemErro(e).replace("Seus dados continuam no formulário. ", "");
+}
 /** C4: a mesma mensagem para ações sem formulário (cancelar, pagar, encerrar…): sem "Seus dados continuam no formulário". */
 export function mensagemAcao(e: unknown): string {
   return mensagemErro(e).replace(" Seus dados continuam no formulário.", "").replace("Tente salvar de novo", "Tente de novo")
