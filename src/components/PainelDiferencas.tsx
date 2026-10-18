@@ -1,6 +1,7 @@
 /* Aba Diferenças do comércio (Fase 4.3): o dono confirma as perdas da equipe e explica cada diferença entre o que foi
  * contado e o que o sistema tinha, com o valor em reais. Também registra perdas ele mesmo. */
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useHoje } from "@/hooks/useHoje";
 import { Check, CheckCircle2, ChevronRight, PackageX, RefreshCw, Search } from "lucide-react";
 import { Sheet } from "@/components/parts/Sheet";
 import { type Product } from "@/components/ProductArea";
@@ -17,7 +18,6 @@ import {
 import { falaDoTipo, textoDoTipo } from "@/lib/exemplos";
 import { mensagemErro } from "@/lib/persistencia";
 import { nomeVenda } from "@/lib/situacao";
-import { hojeEm } from "@/lib/validade";
 import { brl, haQuanto, normalizar } from "@/lib/vendas";
 import { operacaoLocal } from "@/lib/operacaoLocal";
 import { ERRO_REGISTRO } from "@/lib/envios";
@@ -71,15 +71,17 @@ export function PainelDiferencas({ comercioId, tipo, products, api = API_PADRAO,
   const [registrar, setRegistrar] = useState(false);
   const [pronto, setPronto] = useState("");
   const [agora, setAgora] = useState(() => Date.now());
+  /** C6: o dia do comércio; muda à meia-noite com a tela aberta (o mês do resumo vira junto). */
+  const hoje = useHoje();
   const recarregar = useCallback(async () => {
     setAtualizando(true);
     try {
       // C3: lê desde o começo do mês quando ele é mais antigo que 30 dias (dia 31), para "Faltou este mês" bater com o Relatório.
-      const desde = desdeDiferencas(hojeEm(), Date.now());
+      const desde = desdeDiferencas(hoje, Date.now());
       setDados(await api.carregar(comercioId, desde)); setErro(false); setAgora(Date.now());
     } catch { setErro(true); }
     setAtualizando(false);
-  }, [api, comercioId]);
+  }, [api, comercioId, hoje]);
   useEffect(() => { void recarregar(); }, [recarregar]);
 
   const prod = useCallback((id: string) => products.find((p) => (p.db?.id ?? String(p.id)) === id), [products]);
@@ -89,7 +91,7 @@ export function PainelDiferencas({ comercioId, tipo, products, api = API_PADRAO,
     return `${p?.nome ?? "Produto removido"}${v ? ` · ${[v.tam, v.cor].filter(Boolean).join(" ")}` : ""}`;
   };
   const unidade = (produtoId: string) => prod(produtoId)?.unidade ?? "Unidade";
-  const resumo = useMemo(() => resumoDiferencas(dados?.diferencas ?? [], dados?.perdas ?? [], hojeEm(), (id) => prod(id)?.compra ?? 0), [dados, prod]);
+  const resumo = useMemo(() => resumoDiferencas(dados?.diferencas ?? [], dados?.perdas ?? [], hoje, (id) => prod(id)?.compra ?? 0), [dados, prod, hoje]);
   const perdasAguardando = (dados?.perdas ?? []).filter((p) => p.situacao === "aguardando").sort((a, b) => b.criadaEm.localeCompare(a.criadaEm));
   const abertas = (dados?.diferencas ?? []).filter((d) => d.situacao === "aberta").sort(ordemDiferencas);
   const historico = [
