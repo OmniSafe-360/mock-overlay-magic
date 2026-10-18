@@ -275,6 +275,11 @@ export function mensagemErro(e: unknown): string {
   if (/fetch|network|Failed to/i.test(m)) return "Sem conexão. Seus dados continuam no formulário. Tente salvar de novo.";
   return MSG.find(([k]) => m.includes(k))?.[1] ?? "Não foi possível salvar agora. Seus dados continuam no formulário. Tente de novo.";
 }
+/** C4: a mesma mensagem para ações sem formulário (cancelar, pagar, encerrar…): sem "Seus dados continuam no formulário". */
+export function mensagemAcao(e: unknown): string {
+  return mensagemErro(e).replace(" Seus dados continuam no formulário.", "").replace("Tente salvar de novo", "Tente de novo")
+    .replace("Não foi possível salvar agora.", "Não foi possível concluir agora.");
+}
 
 /* ---------- carregar ---------- */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
