@@ -4,7 +4,7 @@ import type { Product, Supplier } from "@/components/ProductArea";
 import { PainelPedidos } from "@/components/PainelPedidos";
 import { PaginaFornecedor } from "@/components/PaginaFornecedor";
 import type { PedidoPublico, RespostaFornecedor } from "@/lib/banco";
-import { dataEntregaTexto, hojeISO, linkPedido, qtdItemTexto, respostaItem, resumoResposta, type Pedido } from "@/lib/pedido";
+import { SITUACAO_TXT, dataEntregaTexto, hojeISO, linkPedido, qtdItemTexto, respostaItem, resumoResposta, type Pedido } from "@/lib/pedido";
 
 vi.mock("@/components/Scanner", () => ({ Scanner: () => null }));
 
@@ -105,6 +105,19 @@ describe("página do fornecedor (link)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Alterar a resposta" }));
     expect(screen.getByRole("button", { name: /Confirmar pedido/ })).toBeTruthy();
     expect(within(screen.getByRole("group", { name: "Resposta para Soro fisiológico" })).getByRole("button", { name: "Não tenho" }).getAttribute("aria-pressed")).toBe("true");
+  });
+  it("C3: se a página não consegue ler de novo depois de responder, mostra a resposta enviada (não a antiga)", async () => {
+    const carregar = vi.fn().mockResolvedValueOnce(publico()).mockRejectedValue(new Error("Failed to fetch"));
+    const responder = vi.fn(async () => "aceito");
+    render(<PaginaFornecedor token={TOKEN} carregar={carregar} responder={responder} />);
+    await screen.findByText("Farmácia Vida");
+    fireEvent.change(screen.getByLabelText("Data prevista de entrega"), { target: { value: amanha } });
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar pedido/ }));
+    expect(await screen.findByText(/já recebeu sua resposta/)).toBeTruthy();
+    expect(carregar).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("Você confirmou o pedido")).toBeTruthy();
+    expect(screen.getByText(SITUACAO_TXT.aceito)).toBeTruthy();
+    expect(screen.getAllByText(/Vai mandar/).length).toBe(2);
   });
   it("tudo 'Não tenho' não deixa confirmar", async () => {
     const { responder } = abrirPagina(publico());
