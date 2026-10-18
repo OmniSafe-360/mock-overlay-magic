@@ -1,5 +1,6 @@
 /* Aba Equipe (E1): o dono cadastra os funcionários do comércio e dá o acesso ao app "Omni Operação"
  * (QR Code ou código de 6 números + PIN que o funcionário cria). Bloquear e "Novo acesso" desligam o celular na hora. */
+import { falaDoTipo } from "@/lib/exemplos";
 import { useCallback, useEffect, useState } from "react";
 import { Ban, Check, Copy, KeyRound, LockKeyhole, MessageCircle, Pencil, ShieldCheck, ShoppingCart, Smartphone, UserPlus, Users } from "lucide-react";
 import { Sheet } from "@/components/parts/Sheet";
@@ -7,7 +8,7 @@ import { QrCode } from "@/components/QrCode";
 import { btnGhost, btnPrimary } from "@/components/StoreSetup";
 import * as banco from "@/lib/banco";
 import {
-  FUNCAO_TXT, FUNCOES, HORAS_CODIGO, NOME_APP_FUNCIONARIO, codigoTexto, linkAcesso, pinFacil, quandoTexto, situacaoFuncionario, validadeCodigoTexto,
+  FUNCOES, funcaoTexto, HORAS_CODIGO, NOME_APP_FUNCIONARIO, codigoTexto, linkAcesso, pinFacil, quandoTexto, situacaoFuncionario, validadeCodigoTexto,
   type Funcao, type Funcionario, type SituacaoFuncionario,
 } from "@/lib/funcionario";
 import { mensagemErro } from "@/lib/persistencia";
@@ -39,9 +40,10 @@ const SIT: Record<SituacaoFuncionario, { txt: string; cor: string }> = {
 };
 const iniciais = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join("");
 
-export function PainelEquipe({ comercioId, comercioNome, api = API_PADRAO, titulo = false }: {
-  comercioId: string; comercioNome: string; api?: ApiEquipe; titulo?: boolean;
+export function PainelEquipe({ comercioId, comercioNome, tipo, api = API_PADRAO, titulo = false }: {
+  comercioId: string; comercioNome: string; /** C1: "gôndola" ou "área de venda" nos textos. */ tipo?: string | undefined; api?: ApiEquipe; titulo?: boolean;
 }) {
+  const fala = falaDoTipo(tipo);
   const [lista, setLista] = useState<Funcionario[] | null>(null);
   const [erroCarga, setErroCarga] = useState(false);
   const [novo, setNovo] = useState(false);
@@ -57,7 +59,7 @@ export function PainelEquipe({ comercioId, comercioNome, api = API_PADRAO, titul
         <div className="rounded-3xl border border-border bg-secondary/40 p-4">
           <p className="flex items-center gap-2 text-base font-bold"><Users size={20} className="text-primary" /> Equipe</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Os funcionários usam o app <b className="text-foreground">{NOME_APP_FUNCIONARIO}</b> no próprio celular para receber mercadoria, repor a gôndola e vender no caixa.
+            Os funcionários usam o app <b className="text-foreground">{NOME_APP_FUNCIONARIO}</b> no próprio celular para receber mercadoria, {fala("repor a gôndola")} e vender no caixa.
             Nas contagens, a equipe não vê a quantidade esperada. Quem tem acesso ao caixa vê os preços de venda.
           </p>
         </div>
@@ -89,7 +91,7 @@ export function PainelEquipe({ comercioId, comercioNome, api = API_PADRAO, titul
                   <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-base font-bold text-primary">{iniciais(f.nome)}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block break-words text-base font-bold leading-snug">{f.nome}</span>
-                    <span className="block text-sm text-muted-foreground">{FUNCAO_TXT[f.funcao]}{f.caixa ? " · Caixa" : ""}</span>
+                    <span className="block text-sm text-muted-foreground">{funcaoTexto(f.funcao, tipo)}{f.caixa ? " · Caixa" : ""}</span>
                     <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                       <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${SIT[s].cor}`}>{SIT[s].txt}</span>
                       {s === "ativo" && f.ultimoAcesso && <span className="text-xs text-muted-foreground">usou {quandoTexto(f.ultimoAcesso)}</span>}
@@ -103,20 +105,20 @@ export function PainelEquipe({ comercioId, comercioNome, api = API_PADRAO, titul
       )}
 
       {novo && (
-        <EditarFuncionario titulo="Adicionar funcionário" onClose={() => setNovo(false)}
+        <EditarFuncionario titulo="Adicionar funcionário" tipo={tipo} onClose={() => setNovo(false)}
           onSalvar={async (nome, funcao) => {
             const r = await api.criar(comercioId, nome, funcao);
             await recarregar();
             setNovo(false); setAberto(r.id);
           }} />
       )}
-      {sel && <DetalheFuncionario f={sel} comercioNome={comercioNome} api={api} onMudou={recarregar} onClose={() => setAberto(null)} />}
+      {sel && <DetalheFuncionario f={sel} comercioNome={comercioNome} tipo={tipo} api={api} onMudou={recarregar} onClose={() => setAberto(null)} />}
     </section>
   );
 }
 
-function EditarFuncionario({ titulo, inicial, onSalvar, onClose }: {
-  titulo: string; inicial?: { nome: string; funcao: Funcao }; onSalvar: (nome: string, funcao: Funcao) => Promise<unknown>; onClose: () => void;
+function EditarFuncionario({ titulo, tipo, inicial, onSalvar, onClose }: {
+  titulo: string; tipo?: string | undefined; inicial?: { nome: string; funcao: Funcao }; onSalvar: (nome: string, funcao: Funcao) => Promise<unknown>; onClose: () => void;
 }) {
   const [nome, setNome] = useState(inicial?.nome ?? "");
   const [funcao, setFuncao] = useState<Funcao | null>(inicial?.funcao ?? null);
@@ -136,7 +138,7 @@ function EditarFuncionario({ titulo, inicial, onSalvar, onClose }: {
           {FUNCOES.map((f) => (
             <button key={f} type="button" aria-pressed={funcao === f} onClick={() => setFuncao(f)}
               className={`flex min-h-13 w-full items-center justify-between rounded-2xl border px-4 text-left text-base font-semibold transition ${funcao === f ? "border-primary bg-primary/15 text-primary" : "border-border"}`}>
-              {FUNCAO_TXT[f]} {funcao === f && <Check size={18} />}
+              {funcaoTexto(f, tipo)} {funcao === f && <Check size={18} />}
             </button>
           ))}
         </fieldset>
@@ -152,8 +154,8 @@ function EditarFuncionario({ titulo, inicial, onSalvar, onClose }: {
   );
 }
 
-function DetalheFuncionario({ f, comercioNome, api, onMudou, onClose }: {
-  f: Funcionario; comercioNome: string; api: ApiEquipe; onMudou: () => Promise<unknown>; onClose: () => void;
+function DetalheFuncionario({ f, comercioNome, tipo, api, onMudou, onClose }: {
+  f: Funcionario; comercioNome: string; tipo?: string | undefined; api: ApiEquipe; onMudou: () => Promise<unknown>; onClose: () => void;
 }) {
   const [editar, setEditar] = useState(false);
   const [confirmar, setConfirmar] = useState<"bloquear" | "novo" | null>(null);
@@ -169,7 +171,7 @@ function DetalheFuncionario({ f, comercioNome, api, onMudou, onClose }: {
   const convite = `Olá, ${f.nome.split(" ")[0]}! Para usar o app ${NOME_APP_FUNCIONARIO} de ${comercioNome}, abra este link no seu celular: ${link}\nSeu código: ${codigoTexto(f.codigo)}. No primeiro acesso você cria um PIN de 4 números.`;
 
   if (editar)
-    return <EditarFuncionario titulo="Editar funcionário" inicial={{ nome: f.nome, funcao: f.funcao }} onClose={() => setEditar(false)}
+    return <EditarFuncionario titulo="Editar funcionário" tipo={tipo} inicial={{ nome: f.nome, funcao: f.funcao }} onClose={() => setEditar(false)}
       onSalvar={async (nome, funcao) => { await api.atualizar(f.id, nome, funcao); await onMudou(); setEditar(false); }} />;
 
   return (
@@ -177,7 +179,7 @@ function DetalheFuncionario({ f, comercioNome, api, onMudou, onClose }: {
       <div className="min-h-0 space-y-4 overflow-y-auto px-5 py-3">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-sm text-muted-foreground">{FUNCAO_TXT[f.funcao]}</p>
+            <p className="text-sm text-muted-foreground">{funcaoTexto(f.funcao, tipo)}</p>
             <p className={`mt-1 inline-block rounded-full border px-2 py-0.5 text-xs font-semibold ${SIT[s].cor}`}>{SIT[s].txt}</p>
           </div>
           <button type="button" onClick={() => setEditar(true)} className="flex min-h-11 items-center gap-1.5 rounded-xl border border-border px-3 text-sm font-semibold"><Pencil size={16} /> Editar</button>
@@ -252,7 +254,7 @@ function DetalheFuncionario({ f, comercioNome, api, onMudou, onClose }: {
                 <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${f.caixa ? "left-7" : "left-1"}`} />
               </button>
             </div>
-            {f.caixa && <p className="text-xs text-muted-foreground">No app {NOME_APP_FUNCIONARIO}, aparece o botão <b>Caixa</b>. O produto só sai da gôndola quando a venda é finalizada.</p>}
+            {f.caixa && <p className="text-xs text-muted-foreground">No app {NOME_APP_FUNCIONARIO}, aparece o botão <b>Caixa</b>. {falaDoTipo(tipo)("O produto só sai da gôndola quando a venda é finalizada.")}</p>}
           </section>
         )}
 

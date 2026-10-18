@@ -10,7 +10,8 @@ import {
 } from "lucide-react";
 import { LeitorContinuo } from "@/components/LeitorContinuo";
 import { Sheet } from "@/components/parts/Sheet";
-import { btnGhost, btnPrimary } from "@/components/StoreSetup";
+import { TIPO_FROM_DB, btnGhost, btnPrimary } from "@/components/StoreSetup";
+import { falaDoTipo } from "@/lib/exemplos";
 import * as banco from "@/lib/banco";
 import {
   FORMA_TXT, lerReais, acharPorCodigo, adicionar, atalhosDinheiro, bip, brl, buscarProdutos, centavosDigitados, contarItens, enviarFila, erroCaixa, erroPinDono, filaCaixa,
@@ -618,7 +619,7 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
       {janela?.j === "limpar" && (
         <Sheet title="Limpar a venda?" onClose={() => setJanela(null)}>
           <div className="space-y-2 px-5 py-3">
-            <p className="text-sm">Tira todos os produtos desta venda. Nada saiu da gôndola ainda.</p>
+            <p className="text-sm">{falaDoTipo(TIPO_FROM_DB[estado.comercio.tipo])("Tira todos os produtos desta venda. Nada saiu da gôndola ainda.")}</p>
             <button type="button" onClick={() => { onLimpar(); setAviso(null); setJanela(null); }} className="flex min-h-12 w-full items-center justify-center rounded-2xl border border-destructive/60 px-4 text-base font-semibold text-destructive">Sim, limpar</button>
             <button type="button" onClick={() => setJanela(null)} className={`w-full ${btnGhost}`}>Voltar</button>
           </div>
@@ -1165,6 +1166,7 @@ function VendasDoCaixa({ estado, guardadas, chave, api, offline, onClose, onMudo
 }) {
   const [aberta, setAberta] = useState<banco.VendaDoCaixa | null>(null);
   const [cancelar, setCancelar] = useState(false);
+  const fala = falaDoTipo(TIPO_FROM_DB[estado.comercio.tipo]);
   const [motivo, setMotivo] = useState("");
   const [pin, setPin] = useState("");
   const [ocupado, setOcupado] = useState(false);
@@ -1178,7 +1180,7 @@ function VendasDoCaixa({ estado, guardadas, chave, api, offline, onClose, onMudo
     setOcupado(true); setErro("");
     (api.cancelar ?? banco.caixaCancelarVenda)(chave, aberta.id, pin, motivo.trim()).then((r) => {
       setDevolver(devolverDe(r)); setGaveta(!!(r as { gaveta?: boolean })?.gaveta);
-      setPronto(`Venda ${aberta.numero ? `nº ${aberta.numero} ` : ""}cancelada. Os produtos voltaram para a gôndola.`);
+      setPronto(`Venda ${aberta.numero ? `nº ${aberta.numero} ` : ""}cancelada. ${fala("Os produtos voltaram para a gôndola.")}`);
       setAberta(null); setCancelar(false); setPin(""); setMotivo(""); onMudou();
     }, (e) => { setErro(erroPinDono(e, "A venda não foi cancelada")); setPin(""); }).finally(() => setOcupado(false));
   };
@@ -1186,7 +1188,7 @@ function VendasDoCaixa({ estado, guardadas, chave, api, offline, onClose, onMudo
     <Sheet title={`Venda ${aberta.numero ? `nº ${aberta.numero}` : ""} · ${horaTxt(aberta.feitaEm)}`} onClose={onClose}>
       <div className="min-h-0 space-y-3 overflow-y-auto px-5 py-3">
         <p className={`text-3xl font-bold tabular-nums ${aberta.situacao === "cancelada" ? "line-through opacity-60" : ""}`}>{brl(aberta.total)}</p>
-        {aberta.situacao === "cancelada" && <p className="rounded-2xl border border-border p-2 text-sm">Cancelada. Os produtos voltaram para a gôndola.</p>}
+        {aberta.situacao === "cancelada" && <p className="rounded-2xl border border-border p-2 text-sm">Cancelada. {fala("Os produtos voltaram para a gôndola.")}</p>}
         <p className="text-sm text-muted-foreground">{aberta.pagamentos.map((p) => `${FORMA_TXT[p.forma as FormaCaixa] ?? p.forma} ${brl(p.valor)}`).join(" · ")}{aberta.troco ? ` · troco ${brl(aberta.troco)}` : ""}{aberta.cliente ? ` · ${aberta.cliente}` : ""}</p>
         <ul className="divide-y divide-border rounded-2xl border border-border px-3">
           {aberta.itens.map((i, k) => (
@@ -1207,7 +1209,7 @@ function VendasDoCaixa({ estado, guardadas, chave, api, offline, onClose, onMudo
           </button>
         ) : (
           <div className="space-y-3 rounded-2xl border border-destructive/50 bg-destructive/5 p-3">
-            <p className="text-sm">Os produtos voltam para a gôndola{aberta.cliente ? " e o valor sai da conta do fiado" : ""}. {offline ? <b>Precisa de internet.</b> : ""}</p>
+            <p className="text-sm">{fala("Os produtos voltam para a gôndola")}{aberta.cliente ? " e o valor sai da conta do fiado" : ""}. {offline ? <b>Precisa de internet.</b> : ""}</p>
             <input value={motivo} maxLength={200} onChange={(e) => setMotivo(e.target.value)} placeholder="Motivo (ex.: cliente desistiu)" aria-label="Motivo do cancelamento"
               className="h-13 w-full rounded-2xl border border-border bg-background-deep/60 px-4 text-base text-foreground outline-none focus-visible:border-primary" />
             <CampoPinDono valor={pin} onMudar={setPin} />

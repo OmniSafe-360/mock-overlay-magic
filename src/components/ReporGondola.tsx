@@ -51,7 +51,7 @@ const motivoSemEstoque = (motivo?: banco.MotivoSemReposicao | null) =>
   motivo === "recebimento_em_conferencia" ? "Há uma entrega em conferência. O estoque desta entrega só fica disponível após sua conclusão."
     : motivo === "estoque_nao_liberado" ? "Há produto aguardando liberação ou sem validade disponível para reposição. Deixe separado e avise o dono."
     : motivo === "deposito_sem_estoque" ? "O depósito está sem estoque deste produto. Avise o dono."
-    : motivo === "deposito_nao_contado" ? "O estoque do depósito ainda não foi contado. Avise o dono para conferir."
+    : motivo === "deposito_nao_contado" ? "O depósito ainda não foi contado. Avise o dono para conferir."
     : "Sem estoque disponível para reposição. Avise o dono para conferir o depósito.";
 
 type Item = ItemReposicaoLocal;
@@ -168,13 +168,13 @@ function Reposicao({ chave, onVoltar, apiDada }: { chave: string; onVoltar: () =
 
   if (!pronto) return <div className="space-y-4">
     <button type="button" onClick={onVoltar} className={btnGhost}>Início</button>
-    {erroEnvio ? <p role="alert" className="text-destructive">{erroEnvio}</p> : <p className="py-8 text-center text-muted-foreground">Abrindo reposição…</p>}
+    {erroEnvio ? <p role="alert" className="text-destructive">{t(erroEnvio)}</p> : <p className="py-8 text-center text-muted-foreground">Abrindo reposição…</p>}
   </div>;
   if (tela) {
     const pendente = tela.t === "contar" ? tela.contado !== null : tela.t === "buscar" && tela.levado !== null;
     return <>
       {retomada && <p className="mb-3 rounded-2xl border border-primary/50 p-3 text-sm">Reposição retomada. Continue do ponto em que parou.</p>}
-      {erroEnvio && <p role="alert" className="mb-3 rounded-2xl border border-destructive/50 bg-destructive/10 p-3 text-sm font-semibold text-destructive">{erroEnvio}</p>}
+      {erroEnvio && <p role="alert" className="mb-3 rounded-2xl border border-destructive/50 bg-destructive/10 p-3 text-sm font-semibold text-destructive">{t(erroEnvio)}</p>}
       {pendente && <p className="mb-3 rounded-2xl border border-warning/50 p-3 text-sm">Há um envio sem confirmação. Confirme o envio anterior; não conte nem leve produtos novamente.</p>}
       {tela.t === "buscar" && <button type="button" onClick={onVoltar} className="mb-3 flex min-h-12 items-center gap-2 text-base font-semibold text-primary"><ArrowLeft size={18} /> Início</button>}
       {tela.t === "ir" && <Ir mercado={tipo === "mercado"} item={tela.item} prateleira={prateleira} chave={chave} api={api}
@@ -197,8 +197,8 @@ function Reposicao({ chave, onVoltar, apiDada }: { chave: string; onVoltar: () =
       {feito && <p role="status" className={`flex items-start gap-2 rounded-2xl border p-3 text-sm font-semibold ${feito.reposto ? "border-accent/50 bg-accent/10 text-accent" : "border-warning/50 bg-warning/10 text-warning"}`}>
         {feito.reposto ? <CheckCircle2 size={18} className="mt-0.5 shrink-0" /> : <AlertTriangle size={18} className="mt-0.5 shrink-0" />} {feito.texto}
       </p>}
-      {erro && <p role="alert" className="rounded-2xl border border-destructive/50 bg-destructive/10 p-3 text-sm font-semibold text-destructive">{erro}</p>}
-      {erroEnvio && <p role="alert" className="rounded-2xl border border-destructive/50 bg-destructive/10 p-3 text-sm font-semibold text-destructive">{erroEnvio}</p>}
+      {erro && <p role="alert" className="rounded-2xl border border-destructive/50 bg-destructive/10 p-3 text-sm font-semibold text-destructive">{t(erro)}</p>}
+      {erroEnvio && <p role="alert" className="rounded-2xl border border-destructive/50 bg-destructive/10 p-3 text-sm font-semibold text-destructive">{t(erroEnvio)}</p>}
       {!dados && !erro && <p className="py-8 text-center text-muted-foreground">Carregando…</p>}
       {dados && !dados.produtos.length && (
         <div className="flex flex-col items-center gap-2 rounded-3xl border border-dashed border-border px-4 py-8 text-center">

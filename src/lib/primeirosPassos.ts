@@ -20,7 +20,7 @@ export function primeirosPassos(d: DadosPassos): Passo[] {
   return [
     { id: "comercio", titulo: "Cadastrar o comércio", ajuda: "Pronto!", feito: true },
     { id: "produto", titulo: "Cadastrar o primeiro produto", ajuda: "Bipe o código de barras e siga os passos", feito: d.produtos > 0 },
-    { id: "lugares", titulo: `Dizer onde fica: ${d.deposito.toLowerCase()} e ${d.venda.toLowerCase()}`, ajuda: "No cadastro do produto, diga em que prateleira e gôndola ele fica", feito: lugares },
+    { id: "lugares", titulo: `Dizer onde fica: ${d.deposito.toLowerCase()} e ${d.venda.toLowerCase()}`, ajuda: d.venda === "Gôndolas" ? "No cadastro do produto, diga em que prateleira e gôndola ele fica" : `No cadastro do produto, diga em que lugar do ${d.deposito.toLowerCase()} e da ${d.venda.toLowerCase()} ele fica`, feito: lugares },
     { id: "fornecedor", titulo: "Cadastrar um fornecedor", ajuda: "Para fazer pedidos de compra com um toque", feito: d.fornecedores > 0 },
     { id: "equipe", titulo: "Adicionar um funcionário", ajuda: "Ele recebe mercadoria, repõe e confere pelo celular", feito: (d.funcionarios ?? 0) > 0 },
     { id: "caixa", titulo: "Ligar o caixa", ajuda: "No computador do caixa ou no próprio celular", feito: (d.caixas ?? 0) > 0 },

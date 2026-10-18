@@ -549,7 +549,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
                 <h1 className="text-xl font-bold">Equipe</h1>
                 <p className="text-sm text-muted-foreground">Cada comércio tem a sua equipe. Também dá para ver dentro do comércio, na aba Equipe.</p>
               </div>
-              {stores.filter((s) => s.id).map((s) => <PainelEquipe key={s.id} comercioId={s.id!} comercioNome={s.nome} titulo />)}
+              {stores.filter((s) => s.id).map((s) => <PainelEquipe key={s.id} comercioId={s.id!} comercioNome={s.nome} tipo={s.tipo} titulo />)}
             </div>
           ) : (
             null

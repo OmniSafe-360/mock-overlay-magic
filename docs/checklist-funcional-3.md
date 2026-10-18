@@ -112,7 +112,7 @@ Este arquivo não repete o que já está no [checklist ponta a ponta](CHECKLIST_
 
 ## Etapa C — textos e detalhes
 
-- [ ] **C1.** "Depósito"/"gôndola" escritos fixos onde farmácia, roupas, construção e autopeças dizem "Estoque"/"Área de venda". Aparece no app da equipe, em Diferenças, em Pedidos, nos Primeiros passos, na Equipe e no caixa.
+- [x] **C1.** "Depósito"/"gôndola" escritos fixos onde farmácia, roupas, construção e autopeças dizem "Estoque"/"Área de venda". Aparece no app da equipe, em Diferenças, em Pedidos, nos Primeiros passos, na Equipe e no caixa. — 18/10/2026: novo `falaDoTipo` (`src/lib/exemplos.ts`, troca também "gôndola" por "área de venda"; só em frases, nunca em nomes de local) e `funcaoTexto` (`src/lib/funcionario.ts`, "Repõe área de venda"). Corrigidos: Equipe (explicação, função do funcionário e aviso do Caixa — `PainelEquipe` recebe o tipo), Diferenças (aviso do depósito pendente, "Estoque conferido", exemplo da anotação e mensagens de erro), Pedidos ("entrar no estoque"), Vendas ("Só saiu da área de venda"), Primeiros passos (ajuda dos lugares), caixa do celular (cancelar venda/limpar), recebimento (avisos de entrada no estoque), reposição (erros com "estoque"; "O estoque do depósito" virava "O estoque do estoque") e conferência ("No estoque"). Mercado e pet shop continuam iguais. Sem banco. Teste `src/test/c1-textos-tipo.test.tsx` (falha sem a correção).
 - [ ] **C2.** Pedido recusado ainda mostra os produtos como "confirmado"/"vai mandar".
 - [ ] **C3.** Página do fornecedor contraditória quando a recarga falha logo depois de responder.
 - [ ] **C4.** "Seus dados continuam no formulário" em ações sem formulário (cancelar, pagar).

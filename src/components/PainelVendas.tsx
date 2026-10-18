@@ -481,7 +481,7 @@ function DetalheVenda({ v, caixa, products, area, onClose, onCancelar }: {
             );
           })}
         </ul>
-        <p className="flex items-center gap-2 text-xs text-muted-foreground"><Receipt size={14} /> {v.celular ? "Vendida pelo celular da equipe (sem nota fiscal). Só saiu da gôndola ao finalizar." : "Chegou do caixa depois de finalizada. Bipar sem finalizar não desconta."}</p>
+        <p className="flex items-center gap-2 text-xs text-muted-foreground"><Receipt size={14} /> {v.celular ? `Vendida pelo celular da equipe (sem nota fiscal). Só saiu da ${area} ao finalizar.` : "Chegou do caixa depois de finalizada. Bipar sem finalizar não desconta."}</p>
         {onCancelar && (!cancelar ? (
           <button type="button" onClick={() => setCancelar(true)} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-destructive/50 px-4 text-base font-semibold text-destructive"><Ban size={18} /> Cancelar esta venda</button>
         ) : (

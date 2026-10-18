@@ -23,6 +23,12 @@ export const usaEstoque = (tipo: string | undefined) => !!tipo && !["mercado", "
 /** Troca "depósito" por "estoque" num texto, quando o tipo fala assim ("no depósito" vira "no estoque"). */
 export const textoDoTipo = (tipo: string | undefined) => (s: string) =>
   usaEstoque(tipo) ? s.replace(/depósito/g, "estoque").replace(/Depósito/g, "Estoque") : s;
+/** C1: como `textoDoTipo`, e também troca "gôndola" por "área de venda" nos tipos que falam assim
+ *  ("na gôndola" vira "na área de venda"). Usar só em frases, nunca em nomes de local ("Gôndola 3"). */
+export const falaDoTipo = (tipo: string | undefined) => (s: string) =>
+  usaEstoque(tipo)
+    ? textoDoTipo(tipo)(s).replace(/gôndolas/g, "áreas de venda").replace(/Gôndolas/g, "Áreas de venda").replace(/gôndola/g, "área de venda").replace(/Gôndola/g, "Área de venda")
+    : s;
 
 /** Nomes de local que o comerciante toca para começar (depois completa: "Gôndola 3"). */
 export const LOCAIS_SUGERIDOS: Record<string, { dep: string[]; ven: string[] }> = {

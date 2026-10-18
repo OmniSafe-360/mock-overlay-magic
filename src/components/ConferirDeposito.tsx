@@ -166,7 +166,7 @@ function Contar({ item, id, rodada, chave, api, t, onVoltar, onFim, mercado }: {
           <Contador key={e.id} rotulo={`${e.tipo}s ${e.tipo === "Caixa" ? "fechadas" : "fechados"} com ${e.quantidade}`} valor={fechadas[e.id] ?? ""}
             onMudar={(v) => setFechadas((f) => ({ ...f, [e.id]: v }))} />
         ))}
-        <Contador rotulo={embs.length ? `Sem embalagem (${plural})` : `No depósito (${plural})`} valor={soltas} fracao={aceitaFracao(item.unidade)} onMudar={setSoltas} />
+        <Contador rotulo={embs.length ? `Sem embalagem (${plural})` : t(`No depósito (${plural})`)} valor={soltas} fracao={aceitaFracao(item.unidade)} onMudar={setSoltas} />
         {soltas && nSoltas.err && <p role="alert" className="text-sm font-semibold text-destructive">{nSoltas.err}</p>}
         {embs.length > 0 && !vazio && <p className="text-base font-bold">Total: {qtdUn(total, item.unidade)}</p>}
       </div>
