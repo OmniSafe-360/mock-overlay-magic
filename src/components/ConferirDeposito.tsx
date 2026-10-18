@@ -1,6 +1,6 @@
 /* Conferir o depósito no app do funcionário (Fase 4.2): até 5 produtos por dia, revezando.
  * A contagem é cega. Diferença confirmada por repetição e três números diferentes aguardam o dono, sem acerto automático. */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, ArrowLeft, Camera, Check, CheckCircle2, ClipboardCheck, MapPin, RotateCcw } from "lucide-react";
 import { Scanner } from "@/components/Scanner";
 import { Contador } from "@/components/parts/Contador";
@@ -49,14 +49,23 @@ export function ConferirDeposito({ chave, onVoltar, api: apiDada }: { chave: str
   const [dados, setDados] = useState<Awaited<ReturnType<typeof banco.listaConferencia>> | null>(null);
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null);
-  const carregar = useCallback(() => { setErro(""); api.lista(chave).then((d) => setDados({ ...d, produtos: [...d.produtos].sort(porLocal) })).catch((e) => setErro(erroTexto(e))); }, [api, chave]);
+  const leitura = useRef(0);
+  // enquanto a lista é lida de novo, os produtos ficam travados (não abrir a contagem na rodada antiga)
+  const [atualizando, setAtualizando] = useState(false);
+  const carregar = useCallback(() => {
+    // só a leitura mais recente vale (uma resposta antiga não volta a lista para trás)
+    const n = ++leitura.current;
+    setErro(""); setAtualizando(true);
+    api.lista(chave).then((d) => { if (n === leitura.current) { setDados({ ...d, produtos: [...d.produtos].sort(porLocal) }); setAtualizando(false); } })
+      .catch((e) => { if (n === leitura.current) { setErro(erroTexto(e)); setAtualizando(false); } });
+  }, [api, chave]);
   useEffect(carregar, [carregar]);
   const tipo = TIPO_FROM_DB[dados?.tipo ?? ""] ?? "mercado";
   const t = textoDoTipo(tipo);
   const titulo = t("Conferir depósito");
 
   if (tela.t === "contar")
-    return <Contar mercado={tipo === "mercado"} key={tela.rodada} item={tela.item} id={tela.id} rodada={tela.rodada} chave={chave} api={api} t={t} onVoltar={() => setTela({ t: "lista" })}
+    return <Contar mercado={tipo === "mercado"} key={tela.rodada} item={tela.item} id={tela.id} rodada={tela.rodada} chave={chave} api={api} t={t} onVoltar={() => { setTela({ t: "lista" }); carregar(); }}
       onFim={(r) => {
         if (r.situacao === "recontar") { setTela({ ...tela, rodada: r.rodada ?? tela.rodada + 1 }); return; }
         setAviso(r.situacao === "concluida"
@@ -87,6 +96,7 @@ export function ConferirDeposito({ chave, onVoltar, api: apiDada }: { chave: str
       )}
       {erro && <p role="alert" className="rounded-2xl border border-destructive/50 bg-destructive/10 p-3 text-sm font-semibold text-destructive">{erro}</p>}
       {!dados && !erro && <p className="py-8 text-center text-muted-foreground">Carregando…</p>}
+      {dados && atualizando && <p role="status" className="text-sm text-muted-foreground">Atualizando a lista…</p>}
       {dados && !dados.produtos.length && (
         <div className="flex flex-col items-center gap-2 rounded-3xl border border-dashed border-border px-4 py-8 text-center">
           <CheckCircle2 size={36} className="text-accent" />
@@ -97,7 +107,7 @@ export function ConferirDeposito({ chave, onVoltar, api: apiDada }: { chave: str
       <ul className="space-y-3">
         {dados?.produtos.map((p) => (
           <li key={`${p.produtoId}:${p.variacaoId ?? "_"}`}>
-            <button type="button" disabled={p.aguardandoDono} onClick={() => { setAviso(null); setTela({ t: "contar", item: p, id: p.conferenciaId ?? newUid(), rodada: p.conferenciaId ? p.rodada ?? 1 : 1 }); }}
+            <button type="button" disabled={p.aguardandoDono || atualizando} onClick={() => { setAviso(null); setTela({ t: "contar", item: p, id: p.conferenciaId ?? newUid(), rodada: p.conferenciaId ? p.rodada ?? 1 : 1 }); }}
               className="flex w-full items-center gap-3 rounded-3xl border-2 border-primary/40 bg-primary/5 p-4 text-left transition active:scale-[0.99]">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary"><ClipboardCheck size={24} /></span>
               <span className="min-w-0 flex-1">
