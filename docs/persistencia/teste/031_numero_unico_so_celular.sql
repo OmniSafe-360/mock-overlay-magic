@@ -1,8 +1,7 @@
--- Teste da proposta 031 (ainda não aplicada): número único só para o caixa do celular.
--- Banco descartável com as migrações; aplica a proposta dentro da transação e desfaz tudo. Nunca usar produção.
+-- 031: número único só para o caixa do celular (migração 20261018113000, aplicada em 18/10/2026).
+-- Banco descartável com as migrações; tudo é desfeito. Nunca usar produção.
 \set ON_ERROR_STOP 1
 begin;
-\ir ../031_numero_unico_so_celular.sql
 create function pg_temp.u(t text) returns uuid language sql immutable as $$ select md5('b12i-'||t)::uuid $$;
 create function pg_temp.ok(b boolean, nome text) returns text language plpgsql as $$
 begin if b is not true then raise exception 'FALHOU: %', nome; end if; return 'OK '||nome; end $$;
