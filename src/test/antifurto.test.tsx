@@ -132,6 +132,15 @@ describe("tela do relatório", () => {
     fireEvent.click(screen.getByRole("button", { name: "Mês passado" }));
     expect(screen.getByText("1 falta")).toBeTruthy();
   });
+  it("C5: falha ao carregar mostra Tentar de novo e lê outra vez", async () => {
+    const a = api();
+    (a.carregar as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("Failed to fetch"));
+    render(<RelatorioAntifurto comercioId="c1" tipo="mercado" products={products} api={a} />);
+    expect(await screen.findByText(/Não foi possível carregar o relatório agora/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
+    expect(await screen.findByRole("region", { name: "Equipe" })).toBeTruthy();
+    expect(a.carregar).toHaveBeenCalledTimes(2);
+  });
   it("alertas no topo, selo Visado e mudar o limite", async () => {
     const a = api();
     const onMudou = vi.fn();
