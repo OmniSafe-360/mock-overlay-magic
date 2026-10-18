@@ -42,6 +42,8 @@ done
 "${psql_cega[@]}" -f "$temp_cega/f03.sql" >"$temp_cega/f03.log" 2>&1 || { tail -28 "$temp_cega/f03.log"; exit 1; }
 { echo 'begin;'; cat "$base_cega/015_base_caixa_estoque.sql" "$base_cega/018_vencido_por_ultimo.sql"; echo 'rollback;'; } >"$temp_cega/a1.sql"
 "${psql_cega[@]}" -f "$temp_cega/a1.sql" >"$temp_cega/a1.log" 2>&1 || { tail -16 "$temp_cega/a1.log"; exit 1; }
+{ echo 'begin;'; cat "$base_cega/015_base_caixa_estoque.sql" "$base_cega/033_sobra_fora_do_vencido.sql"; echo 'rollback;'; } >"$temp_cega/c10.sql"
+"${psql_cega[@]}" -f "$temp_cega/c10.sql" >"$temp_cega/c10.log" 2>&1 || { tail -16 "$temp_cega/c10.log"; exit 1; }
 { echo 'begin;'; cat "$base_cega/015_base_caixa_estoque.sql" "$base_cega/021_devolucao_fiado_gaveta.sql"; echo 'rollback;'; } >"$temp_cega/a5.sql"
 "${psql_cega[@]}" -f "$temp_cega/a5.sql" >"$temp_cega/a5.log" 2>&1 || { tail -16 "$temp_cega/a5.log"; exit 1; }
 { echo 'begin;'; cat "$base_cega/015_base_caixa_estoque.sql" "$base_cega/022_cancelamento_dono_caixa.sql"; echo 'rollback;'; } >"$temp_cega/a6.sql"
@@ -71,4 +73,5 @@ echo "OK B9: contagem do depósito começada em outro dia recomeça do zero."
 echo "OK B10: item \"não controlar\" (sacola, serviço) vendido no caixa do celular sem tirar do estoque."
 echo "OK B12: Omni Conector sem \"faltou\" falso de roupa sem tamanho e sem venda cancelada vazia de nota antiga."
 echo "OK C7: PIN do fiado do cliente volta a ter 5 tentativas depois da trava."
+echo "OK C10: sobra da contagem não entra em lote vencido."
 echo 'OK: bloqueio do Caixa, contagens vinculadas, decisão do dono, idempotência, RLS e regressões; banco descartado.'
