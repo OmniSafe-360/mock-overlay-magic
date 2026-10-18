@@ -575,3 +575,4 @@ Base aprovada para preparação: `f9b3401964e8a64a37ae61b57726d09e6de58341`; bra
 - 18/10/2026: checklist 3 **C7**: PIN do fiado do cliente volta a ter 5 tentativas depois que a trava acaba. Migração `20261018102508`, aplicada. Não precisa Publicar; falta o teste do dono.
 - 18/10/2026: checklist 3 **C8**: Conferir depósito, Voltar da contagem lê a lista de novo (contagem enviada sem resposta aparece começada, na rodada certa). Sem banco. Precisa Publicar → Atualizar; falta o teste do dono.
 - 18/10/2026: checklist 3 **C9**: recusas do banco sem mensagem própria ou com a de outra tela ganharam texto certo (quantidades, app desatualizado, tamanho/cor, envio repetido etc.). Sem banco. Precisa Publicar → Atualizar; falta o teste do dono.
+- 18/10/2026: checklist 3 **C10**: sobra da contagem não entra mais num lote vencido (conferência, decisão do dono e reposição). Migração `20261018110415`, aplicada. Não precisa Publicar; falta o teste do dono.
