@@ -30,6 +30,8 @@ export function RelatorioAntifurto({ comercioId, tipo, products, api = API_PADRA
   const [dados, setDados] = useState<{ diferencas: Diferenca[]; perdas: Perda[]; contagens: Contagem[]; limite: number } | null>(null);
   const [erro, setErro] = useState(false);
   const [aberto, setAberto] = useState<string | null>(null);
+  /** C5: "Tentar de novo" lê outra vez. */
+  const [tentativa, setTentativa] = useState(0);
   useEffect(() => {
     let vivo = true;
     // Carrega 3 meses de uma vez; as contagens vêm de 30 dias antes, para achar o começo do intervalo da primeira falta.
@@ -40,7 +42,7 @@ export function RelatorioAntifurto({ comercioId, tipo, products, api = API_PADRA
       .then(([d, c, limite]) => { if (vivo) { setDados({ ...d, contagens: c, limite }); setErro(false); } })
       .catch(() => { if (vivo) setErro(true); });
     return () => { vivo = false; };
-  }, [api, comercioId, hoje]);
+  }, [api, comercioId, hoje, tentativa]);
 
   const prod = (id: string) => products.find((p) => (p.db?.id ?? String(p.id)) === id);
   const t = textoDoTipo(tipo);
@@ -48,7 +50,12 @@ export function RelatorioAntifurto({ comercioId, tipo, products, api = API_PADRA
   const rel = useMemo(() => dados && relatorioAntifurto(dados.diferencas, dados.perdas, dados.contagens, periodo, hoje, info, nomeAreaDoTipo(tipo)), [dados, periodo, hoje, info, tipo]);
   const alertas = useMemo(() => dados && alertasAntifurto(dados.diferencas, hoje, Date.now(), info, nomeAreaDoTipo(tipo), dados.limite), [dados, hoje, info, tipo]);
 
-  if (erro && !dados) return <p role="alert" className="rounded-2xl border border-warning/50 p-4 text-sm text-warning">Não foi possível carregar o relatório agora. Tente de novo em instantes.</p>;
+  if (erro && !dados) return (
+    <div role="alert" className="space-y-3 rounded-2xl border border-warning/50 p-4">
+      <p className="text-sm text-warning">Não foi possível carregar o relatório agora. Confira a internet e tente de novo.</p>
+      <button type="button" onClick={() => { setErro(false); setTentativa((n) => n + 1); }} className={btnGhost}>Tentar de novo</button>
+    </div>
+  );
   if (!rel || !alertas || !dados) return <p className="py-10 text-center text-muted-foreground">Carregando…</p>;
   const visados = new Set(alertas.visados.map((v) => v.chave));
   const unidade = (id: string) => prod(id)?.unidade ?? "Unidade";
