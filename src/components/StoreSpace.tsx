@@ -17,7 +17,6 @@ import { PainelPedidos, type DadosPagamento, type SalvarPedido } from "@/compone
 import { resumoPagamentos } from "@/lib/pagamento";
 import type { Recebimento } from "@/lib/recebimento";
 import { entregasParaDecidir, produtosJaPedidos } from "@/lib/resumoGeral";
-import { hojeEm } from "@/lib/validade";
 import type { CanalPedido, Pedido } from "@/lib/pedido";
 import type { LocaisCadastrados } from "@/lib/banco";
 import type { AlertasAntifurto } from "@/lib/antifurto";
@@ -87,7 +86,7 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
   const irPara = (t: Aba) => { fichaPendente.current = null; setTab(t); setMontar(0); setVerPagar(0); setVerRelatorio(0); };
   /** Números de cada parte no menu: quantos assuntos esperam o dono (vermelho = urgente). */
   const avisos = useMemo(() => {
-    const grupos = atencaoHoje(products, store.tipo, hojeEm(), () => undefined, jaPedidos);
+    const grupos = atencaoHoje(products, store.tipo, hoje, () => undefined, jaPedidos);
     const ids = (f: (n: string) => boolean) => new Set(grupos.filter((g) => f(g.nivel)).flatMap((g) => g.itens.map((i) => i.p.id))).size;
     const urgentes = ids((n) => n === "urgente");
     const m: Partial<Record<Aba, { n: number; urgente: boolean }>> = {
@@ -97,7 +96,7 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
       "Diferenças": { n: diferencasDecidir + nAlertas(antifurto), urgente: diferencasDecidir > 0 },
     };
     return m;
-  }, [products, store.tipo, jaPedidos, contas, entregasDecidir, vendidoSemCadastro, diferencasDecidir, antifurto]);
+  }, [products, store.tipo, hoje, jaPedidos, contas, entregasDecidir, vendidoSemCadastro, diferencasDecidir, antifurto]);
   /* Faixa que corre para os lados: ao escolher uma parte, ela vai para o meio e as seguintes aparecem. */
   const faixa = useRef<HTMLDivElement>(null);
   const [bordas, setBordas] = useState({ esq: false, dir: false });
