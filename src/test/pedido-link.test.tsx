@@ -221,6 +221,12 @@ describe("pedido do dono com a resposta do fornecedor", () => {
     expect(screen.getByText("Vai mandar 1 caixa (12 pacotes)")).toBeTruthy();
     expect(screen.getByText("O fornecedor não tem")).toBeTruthy();
   });
+  it("C2: pedido recusado não mostra produto confirmado nem \"vai mandar\" (resposta anterior ficou)", () => {
+    abrirDono([{ ...respondido, situacao: "recusado", resposta: { ...respondido.resposta!, previsaoEntrega: null, valorTotal: null, forma: null, prazoDias: null } }]);
+    fireEvent.click(screen.getByRole("button", { name: /Pedido nº 3/ }));
+    const produtos = within(screen.getByRole("region", { name: "Produtos do pedido" }));
+    expect(produtos.queryByText(/Vai mandar|Confirmado:|Fornecedor confirmou|O fornecedor não tem/)).toBeNull();
+  });
   it("recusado aparece em vermelho no cartão", () => {
     abrirDono([{ ...respondido, situacao: "recusado", resposta: { ...respondido.resposta!, previsaoEntrega: null, valorTotal: null, forma: null, prazoDias: null } }]);
     expect(screen.getByRole("button", { name: /Pedido nº 3/ }).textContent).toMatch(/O fornecedor não pode atender/);
