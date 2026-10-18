@@ -30,6 +30,9 @@ for migracao in "$repo_cega"/supabase/migrations/*.sql; do
   esac
   "${psql_cega[@]}" -1 -f "$migracao" >>"$temp_cega/setup.log" 2>&1 || { tail -12 "$temp_cega/setup.log"; exit 1; }
 done
+# Quantidades especiais: cenários fictícios, sem persistência.
+{ echo 'begin;'; cat "$base_cega/015_base_caixa_estoque.sql" "$base_cega/035_quantidades_finitas.sql"; echo 'rollback;'; } >"$temp_cega/quantidades.sql"
+"${psql_cega[@]}" -f "$temp_cega/quantidades.sql" >"$temp_cega/quantidades.log" 2>&1 || { tail -24 "$temp_cega/quantidades.log"; exit 1; }
 {
   echo 'begin;'
   cat "$base_cega/015_base_caixa_estoque.sql" "$base_cega/015_caixa_estoque_contagens.sql"
