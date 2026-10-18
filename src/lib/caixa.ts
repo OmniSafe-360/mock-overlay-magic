@@ -232,6 +232,8 @@ export function erroCaixa(e: unknown, naoFeito = "A venda não foi enviada"): st
   if (m.includes("operacao_repetida_com_outros_dados")) return "Este pagamento já tinha sido enviado com outro valor ou forma. Confira a conta do cliente antes de registrar de novo.";
   if (m.includes("forma_invalida")) return "Escolha Dinheiro, Pix ou Cartão.";
   if (m.includes("valor_invalido")) return "Confira o valor.";
+  // C9: cliente do fiado de outro comércio (caixa_salvar_cliente_fiado).
+  if (m.includes("sem_permissao")) return "Este cliente não é deste comércio. Volte à lista e escolha de novo.";
   if (/fetch|network|Failed to|Load failed/i.test(m)) return `Sem internet. ${naoFeito}: confira a conexão e toque em tentar de novo.`;
   return "Não foi possível concluir agora. Tente de novo.";
 }

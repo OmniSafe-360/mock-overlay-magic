@@ -9,7 +9,7 @@ import { btnGhost, btnPrimary, digits } from "@/components/StoreSetup";
 import { carregarPedidoPublico, responderPedido, type ItemPublico, type PedidoPublico, type RespostaFornecedor } from "@/lib/banco";
 import { aceitaFracao, fmtQ } from "@/lib/deposito";
 import { CampoQtd } from "@/components/CampoQtd";
-import { mensagemErro } from "@/lib/persistencia";
+import { mensagemFornecedor } from "@/lib/persistencia";
 import { FORMA_TXT, SITUACAO_TXT, dataEntregaTexto, formaTexto, hojeISO, qtdItemTexto, respostaItem, type FormaPagamento } from "@/lib/pedido";
 
 const dataHora = (ts: string) => new Date(ts).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -236,7 +236,7 @@ function Formulario({ p, onEnviar, onCancelar }: { p: PedidoPublico; onEnviar: (
         valorTotal: aceito ? valor : null, forma: aceito ? forma : null, prazoDias: aceito && comPrazo && prazo !== "" ? Number(prazo) : null, recado: recado.trim(),
       });
     } catch (e) {
-      setErro(mensagemErro(e).replace("Seus dados continuam no formulário. ", ""));
+      setErro(mensagemFornecedor(e));
     } finally { setEnviando(false); }
   };
 
