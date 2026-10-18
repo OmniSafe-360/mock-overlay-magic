@@ -217,6 +217,13 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
     document.addEventListener("visibilitychange", atualizar);
     return () => { window.removeEventListener("online", atualizar); document.removeEventListener("visibilitychange", atualizar); };
   }, [sidAberto, atualizarAvisos]);
+  // C6: com um comércio aberto, a meia-noite também relê "Vendas hoje" e as diferenças (o dia mudou).
+  const diaAvisos = useRef(hojeGeral);
+  useEffect(() => {
+    if (diaAvisos.current === hojeGeral) return;
+    diaAvisos.current = hojeGeral;
+    if (sidAberto) void atualizarAvisos(sidAberto);
+  }, [hojeGeral, sidAberto, atualizarAvisos]);
   const visao: VisaoGeral = useMemo(() => {
     const resumos: Record<string, ResumoComercio> = {};
     const alertas: Record<string, AlertasAntifurto> = {};

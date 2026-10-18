@@ -571,3 +571,4 @@ Base aprovada para preparação: `f9b3401964e8a64a37ae61b57726d09e6de58341`; bra
 - 18/10/2026: checklist 3 **C3**: página do fornecedor mostra a resposta enviada mesmo quando não consegue ler o pedido de novo. Sem banco. Precisa Publicar → Atualizar; falta o teste do dono.
 - 18/10/2026: checklist 3 **C4**: cancelar, pagar, encerrar e decidir não falam mais em "formulário" quando falham. Sem banco. Precisa Publicar → Atualizar; falta o teste do dono.
 - 18/10/2026: checklist 3 **C5**: relatório antifurto que não carregou tem o botão "Tentar de novo". Sem banco. Precisa Publicar → Atualizar; falta o teste do dono.
+- 18/10/2026: checklist 3 **C6**: "Faltou este mês"/"Perdas este mês" e os números do dia viram à meia-noite com a tela aberta. Sem banco. Precisa Publicar → Atualizar; falta o teste do dono.
