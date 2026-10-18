@@ -4,7 +4,7 @@ import { conferirEnvio, carregarFornecedores, carregarProdutos, carregarVendas, 
 import type { CanalPedido, LinhaPedido, Pedido } from "@/lib/pedido";
 import type { DadosPagamento } from "@/components/PainelPedidos";
 import type { Recebimento } from "@/lib/recebimento";
-import { ehIncerto, mensagemErro, type Sessao } from "@/lib/persistencia";
+import { ehIncerto, mensagemAcao, mensagemErro, type Sessao } from "@/lib/persistencia";
 import { ERRO_REGISTRO, registroEnvio, type TipoEnvio } from "@/lib/envios";
 import { newUid } from "@/lib/deposito";
 import { AlertTriangle, Bell, CalendarClock, ChevronRight, CircleCheck, Home, Loader2, Plus, ShieldAlert, ShoppingBag, ShoppingBasket, ShoppingCart, Store, UserCircle, Users, CheckCircle2 } from "lucide-react";
@@ -319,7 +319,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
     } catch (e) {
       setToast(e instanceof Error && e.message === ERRO_REGISTRO ? ERRO_REGISTRO : ehIncerto(e)
         ? "Ainda não foi possível confirmar o envio. Tente de novo quando a conexão voltar."
-        : `O envio foi recusado. ${mensagemErro(e)}`);
+        : `O envio foi recusado. ${mensagemAcao(e)}`);
     } finally {
       atualizarEnvios((n) => n + 1);
       await recarregar(sid);
@@ -349,7 +349,7 @@ export function OwnerApp({ userId, owner, initial, fullName = "", email = "", av
   };
   const comMensagem = async <T,>(acao: () => Promise<T>, inicio: string): Promise<T> => {
     try { return await acao(); }
-    catch (e) { throw new Error(`${inicio} ${mensagemErro(e).replace(/^Não foi possível salvar agora\. /, "")}`); }
+    catch (e) { throw new Error(`${inicio} ${mensagemAcao(e).replace(/^Não foi possível concluir agora\. /, "")}`); }
   };
   const salvarPedidoNovo = (comercioId: string) => async (a: { fornecedor: Supplier; linhas: LinhaPedido[]; observacao: string }) => {
     if (!a.fornecedor.dbId) throw new Error("Este fornecedor ainda não foi salvo.");

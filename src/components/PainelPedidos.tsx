@@ -14,7 +14,7 @@ import { descricaoEmbalagem } from "@/lib/embalagem";
 import { estadoPagamento, ordemPagamento, resumoPagamentos, somaDias, textoPagamento, valorConta, valorSemCorrecao, type EstadoPagamento } from "@/lib/pagamento";
 import { hojeEm } from "@/lib/validade";
 import { contagemVencida, precisaDecidir, resultadoItem, textoMotivoDono, resumoRecebimento, type ItemRecebido, type Recebimento, type TipoResultado } from "@/lib/recebimento";
-import { mensagemErro } from "@/lib/persistencia";
+import { mensagemAcao } from "@/lib/persistencia";
 import {
   CANAL_TXT, SITUACAO_TXT, chaveLinha, dataEntregaTexto, formaTexto, linkPedido, respostaItem, linhaManual, linhasDoPedido, nomeLinha, pedidoAberto, pedidoFechado, quantidadeTexto,
   sugerirPedido, textoPedido, totalLinha, totalLinhas, totalPedido, unidadesDaLinha, embalagensTexto, valorItemPedido, type CanalPedido, type LinhaPedido, type Pedido, type SituacaoPedido,
@@ -792,7 +792,7 @@ function FaltaChegar({ pedidoId, onEncerrar }: { pedidoId: string; onEncerrar?: 
   const encerrar = () => {
     if (!onEncerrar) return;
     setTrabalhando(true); setErro("");
-    onEncerrar(pedidoId).catch((e) => setErro(mensagemErro(e))).finally(() => setTrabalhando(false));
+    onEncerrar(pedidoId).catch((e) => setErro(mensagemAcao(e))).finally(() => setTrabalhando(false));
   };
   return (
     <section aria-label="Falta chegar" className="rounded-3xl border border-warning/50 bg-warning/10 p-4">
@@ -820,7 +820,7 @@ function EncerrarContagem({ recebimentoId, funcionario, onDescartar }: { recebim
   const [erro, setErro] = useState("");
   const encerrar = () => {
     setTrabalhando(true); setErro("");
-    onDescartar(recebimentoId).catch((e) => setErro(mensagemErro(e))).finally(() => setTrabalhando(false));
+    onDescartar(recebimentoId).catch((e) => setErro(mensagemAcao(e))).finally(() => setTrabalhando(false));
   };
   if (!confirmar) return <button type="button" onClick={() => setConfirmar(true)} className={`mt-3 w-full ${btnGhost}`}>Encerrar esta contagem</button>;
   return (
@@ -881,7 +881,7 @@ function LinhaRecebida({ i, products, onResolver }: {
               ? "Este lote já está no estoque com outra validade. A mercadoria não pode entrar assim: devolva ao fornecedor."
               : mensagem.includes("recebimento_vencido_como_bom")
                 ? "Produto vencido não entra no estoque como bom. Devolva ao fornecedor."
-                : mensagemErro(e));
+                : mensagemAcao(e));
     }).finally(() => setTrabalhando(false));
   };
   return (

@@ -98,3 +98,15 @@ it("produto que já chegou todo deixa de contar como já pedido; o que falta con
   mock.tabelas["pedidos_compra"]![0]!["entrega_encerrada_em"] = "2026-10-12T10:00:00Z";
   expect([...produtosAindaPedidos(await carregarPedidos("c1"))]).toEqual([]);
 });
+
+it("C4: encerrar a entrega sem internet não fala em formulário", async () => {
+  parcial(null);
+  const pedidos = await carregarPedidos("c1");
+  render(<PainelPedidos {...props} pedidos={pedidos} />);
+  fireEvent.click(screen.getByRole("button", { name: /Pedido nº 1/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Não vem mais nada" }));
+  props.onEncerrarEntrega.mockRejectedValue(new Error("Failed to fetch"));
+  fireEvent.click(screen.getByRole("button", { name: "Confirmar: não vem mais nada" }));
+  expect(await screen.findByText("Sem conexão. Tente de novo.")).toBeInTheDocument();
+  expect(screen.queryByText(/formulário/)).toBeNull();
+});
