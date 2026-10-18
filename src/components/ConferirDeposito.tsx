@@ -50,12 +50,14 @@ export function ConferirDeposito({ chave, onVoltar, api: apiDada }: { chave: str
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null);
   const leitura = useRef(0);
+  // enquanto a lista é lida de novo, os produtos ficam travados (não abrir a contagem na rodada antiga)
+  const [atualizando, setAtualizando] = useState(false);
   const carregar = useCallback(() => {
     // só a leitura mais recente vale (uma resposta antiga não volta a lista para trás)
     const n = ++leitura.current;
-    setErro("");
-    api.lista(chave).then((d) => { if (n === leitura.current) setDados({ ...d, produtos: [...d.produtos].sort(porLocal) }); })
-      .catch((e) => { if (n === leitura.current) setErro(erroTexto(e)); });
+    setErro(""); setAtualizando(true);
+    api.lista(chave).then((d) => { if (n === leitura.current) { setDados({ ...d, produtos: [...d.produtos].sort(porLocal) }); setAtualizando(false); } })
+      .catch((e) => { if (n === leitura.current) { setErro(erroTexto(e)); setAtualizando(false); } });
   }, [api, chave]);
   useEffect(carregar, [carregar]);
   const tipo = TIPO_FROM_DB[dados?.tipo ?? ""] ?? "mercado";
@@ -94,6 +96,7 @@ export function ConferirDeposito({ chave, onVoltar, api: apiDada }: { chave: str
       )}
       {erro && <p role="alert" className="rounded-2xl border border-destructive/50 bg-destructive/10 p-3 text-sm font-semibold text-destructive">{erro}</p>}
       {!dados && !erro && <p className="py-8 text-center text-muted-foreground">Carregando…</p>}
+      {dados && atualizando && <p role="status" className="text-sm text-muted-foreground">Atualizando a lista…</p>}
       {dados && !dados.produtos.length && (
         <div className="flex flex-col items-center gap-2 rounded-3xl border border-dashed border-border px-4 py-8 text-center">
           <CheckCircle2 size={36} className="text-accent" />
@@ -104,7 +107,7 @@ export function ConferirDeposito({ chave, onVoltar, api: apiDada }: { chave: str
       <ul className="space-y-3">
         {dados?.produtos.map((p) => (
           <li key={`${p.produtoId}:${p.variacaoId ?? "_"}`}>
-            <button type="button" disabled={p.aguardandoDono} onClick={() => { setAviso(null); setTela({ t: "contar", item: p, id: p.conferenciaId ?? newUid(), rodada: p.conferenciaId ? p.rodada ?? 1 : 1 }); }}
+            <button type="button" disabled={p.aguardandoDono || atualizando} onClick={() => { setAviso(null); setTela({ t: "contar", item: p, id: p.conferenciaId ?? newUid(), rodada: p.conferenciaId ? p.rodada ?? 1 : 1 }); }}
               className="flex w-full items-center gap-3 rounded-3xl border-2 border-primary/40 bg-primary/5 p-4 text-left transition active:scale-[0.99]">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary"><ClipboardCheck size={24} /></span>
               <span className="min-w-0 flex-1">

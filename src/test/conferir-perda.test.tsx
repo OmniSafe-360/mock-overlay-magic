@@ -189,3 +189,24 @@ describe("C8 — Voltar depois de um envio sem resposta", () => {
     expect(screen.getByText(/Contagem 2 de 3/)).toBeTruthy();
   });
 });
+
+describe("C8 — lista travada enquanto atualiza", () => {
+  it("não deixa abrir o produto antigo antes de a lista nova chegar", async () => {
+    const contar = vi.fn().mockRejectedValueOnce(new Error("Failed to fetch"));
+    let libera: (v: unknown) => void = () => {};
+    const lista = vi.fn()
+      .mockResolvedValueOnce({ tipo: "mercado", feitosHoje: 0, meta: 5, produtos: [itens[1]!] })
+      .mockImplementationOnce(() => new Promise((r) => { libera = r; }));
+    render(<ConferirDeposito chave={CH} api={apiC({ contar, lista })} onVoltar={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Tiss/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Não tem nenhum no depósito/ }));
+    expect(await screen.findByText(/Sem conexão|Não foi possível enviar/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Lista/ }));
+    expect(screen.getByText("Atualizando a lista…")).toBeTruthy();
+    expect((screen.getByRole("button", { name: /Tiss/ }) as HTMLButtonElement).disabled).toBe(true);
+    libera({ tipo: "mercado", feitosHoje: 0, meta: 5, produtos: [{ ...itens[1]!, conferenciaId: "cf-9", rodada: 2 }] });
+    await waitFor(() => expect((screen.getByRole("button", { name: /Tiss/ }) as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: /Tiss/ }));
+    expect(screen.getByText(/Contagem 2 de 3/)).toBeTruthy();
+  });
+});
