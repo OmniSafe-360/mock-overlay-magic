@@ -1,4 +1,5 @@
--- PREPARADA, NÃO APLICADA (precisa da confirmação do dono: apaga um índice e cria outro no lugar).
+-- APLICADA em 18/10/2026 pelo dono no painel do Supabase; migração `supabase/migrations/20261018113000_numero_unico_so_celular.sql`.
+-- (Antes: preparada, aguardando a confirmação do dono, porque apaga um índice e cria outro no lugar.)
 -- Achado no teste da B12 (checklist funcional 3, 17/10/2026): o número único da A6 (vendas_comercio_numero_unico,
 -- comercio + número) vale para todas as vendas, inclusive as notas do Omni Conector, que trazem o número da nota fiscal.
 -- Duas notas com o mesmo número (séries diferentes, dois computadores de caixa ou uma venda do celular com o mesmo
