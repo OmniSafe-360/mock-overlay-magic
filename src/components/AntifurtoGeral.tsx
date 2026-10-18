@@ -79,7 +79,7 @@ export function AntifurtoGeral({ linhas, carregando, onAbrir, onVoltar }: {
           {carregando ? "Carregando…" : `Não foi possível atualizar: ${semDados.map((l) => l.s.nome).join(", ")}.`}
         </p>
       )}
-      <p className="text-xs text-muted-foreground">Falta é o que a contagem achou a menos e que não foi explicado como erro de contagem. A gôndola só acusa falta quando o caixa está ligado ao Omni.</p>
+      <p className="text-xs text-muted-foreground">Falta é o que a contagem achou a menos e que não foi explicado como erro de contagem. A gôndola (área de venda) só acusa falta quando o caixa está ligado ao Omni.</p>
     </div>
   );
 }

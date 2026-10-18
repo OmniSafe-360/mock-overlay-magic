@@ -14,7 +14,7 @@ import {
   MOTIVOS_DIFERENCA, MOTIVO_PERDA_TXT, motivoDiferencaTxt, ondeTexto, ordemDiferencas, origemTexto, precisaEscolher, resumoDiferencas, textoDiferenca, valorSinal,
   type AreaEstoque, type Diferenca, type MotivoDiferenca, type MotivoPerda, type Perda,
 } from "@/lib/diferencas";
-import { textoDoTipo } from "@/lib/exemplos";
+import { falaDoTipo, textoDoTipo } from "@/lib/exemplos";
 import { mensagemErro } from "@/lib/persistencia";
 import { nomeVenda } from "@/lib/situacao";
 import { hojeEm } from "@/lib/validade";
@@ -39,9 +39,10 @@ const MSG: [string, string][] = [
   ["variacao_obrigatoria", "Escolha o tamanho e a cor."],
   ["unidade_exige_inteiro", "Este produto é contado inteiro (sem vírgula)."],
 ];
-const erroTexto = (e: unknown) => {
+/** C1: "depósito"/"gôndola" viram "estoque"/"área de venda" nos tipos que falam assim. */
+const erroTexto = (e: unknown, tipo: string) => {
   const m = String((e as { message?: string } | null)?.message ?? e ?? "");
-  return MSG.find(([k]) => m.includes(k))?.[1] ?? mensagemErro(e).replace("Seus dados continuam no formulário. ", "");
+  return falaDoTipo(tipo)(MSG.find(([k]) => m.includes(k))?.[1] ?? mensagemErro(e).replace("Seus dados continuam no formulário. ", ""));
 };
 /** "98, 97 e 98 unidades". */
 const listaContagens = (ns: number[], unidade: string) => {
@@ -252,7 +253,7 @@ function CartaoPerda({ p, nome, unidade, tipo, agora, valor, onDecidir }: {
   const [erro, setErro] = useState("");
   const decidir = (aceitar: boolean) => {
     setEnviando(true); setErro("");
-    onDecidir(aceitar).catch((e) => { setErro(erroTexto(e)); setEnviando(false); });
+    onDecidir(aceitar).catch((e) => { setErro(erroTexto(e, tipo)); setEnviando(false); });
   };
   return (
     <li className="space-y-2 rounded-2xl border border-warning/50 bg-warning/5 p-3">
@@ -320,7 +321,7 @@ function ExplicarDiferenca({ d, nome, unidade, tipo, precoCompra, onSalvar, onCl
   const ok = !salvando && (!escolher || contado != null) && (!d.depositoPendente || contado === d.esperado) && (!precisaMotivo || (!!motivo && (motivo !== "outro" || obs.trim().length >= 3)));
   const salvar = () => {
     setSalvando(true); setErro("");
-    onSalvar(escolher ? contado : null, precisaMotivo ? motivo : null, obs.trim()).catch((e) => { setErro(erroTexto(e)); setSalvando(false); });
+    onSalvar(escolher ? contado : null, precisaMotivo ? motivo : null, obs.trim()).catch((e) => { setErro(erroTexto(e, tipo)); setSalvando(false); });
   };
   return (
     <Sheet title="Explicar diferença" onClose={onClose}>
@@ -329,8 +330,8 @@ function ExplicarDiferenca({ d, nome, unidade, tipo, precoCompra, onSalvar, onCl
           <p className="text-base font-bold">{nome}</p>
           <p className="text-sm text-muted-foreground">{origemTexto(d, tipo)}{d.funcionario ? ` · ${d.funcionario}` : ""}</p>
           {d.solicitacaoCaixa && <p className="mt-2 text-sm">Conferência solicitada pelo caixa.</p>}
-          {d.depositoPendente && <p role="status" className="mt-2 text-sm font-semibold text-warning">Aguarda a conferência do depósito. Resolva o depósito na lista antes de aceitar a diferença da gôndola.</p>}
-          {!d.depositoPendente && d.depositoContado != null && <p className="mt-2 text-sm">Depósito conferido: {qtdUn(d.depositoContado, unidade)}.</p>}
+          {d.depositoPendente && <p role="status" className="mt-2 text-sm font-semibold text-warning">{falaDoTipo(tipo)("Aguarda a conferência do depósito. Resolva o depósito na lista antes de aceitar a diferença da gôndola.")}</p>}
+          {!d.depositoPendente && d.depositoContado != null && <p className="mt-2 text-sm">{textoDoTipo(tipo)("Depósito conferido")}: {qtdUn(d.depositoContado, unidade)}.</p>}
           {d.saldoTotalPreservado && <p className="mt-2 text-sm">As conferências dos dois locais preservaram a quantidade total. Confira se houve reposição sem registro; isto não foi contado como falta total.</p>}
 
           {!escolher && (
@@ -374,7 +375,7 @@ function ExplicarDiferenca({ d, nome, unidade, tipo, precoCompra, onSalvar, onCl
             </div>
             <label className="block space-y-1">
               <span className="text-sm font-medium">{motivo === "outro" ? "O que aconteceu? (obrigatório)" : "Anotação (opcional)"}</span>
-              <input value={obs} maxLength={300} onChange={(e) => setObs(e.target.value)} placeholder="Ex.: conferir câmera da gôndola"
+              <input value={obs} maxLength={300} onChange={(e) => setObs(e.target.value)} placeholder={falaDoTipo(tipo)("Ex.: conferir câmera da gôndola")}
                 className="h-13 w-full rounded-2xl border border-border bg-background-deep/60 px-4 text-base text-foreground outline-none focus-visible:border-primary" />
             </label>
           </fieldset>
@@ -425,7 +426,7 @@ function PerdaDono({ comercioId, products, tipo, onRegistrar, onClose }: {
     if (!ok || !registro) return;
     setSalvando(true); setErro("");
     registro.enviar(() => ({ id: newUid(), produtoId: sel!.db!.id, variacaoId: variacao, area: area!, quantidade: n.v!, motivo: motivo!, observacao: obs.trim() }), onRegistrar)
-      .catch((e) => { setErro(erroTexto(e)); setSalvando(false); });
+      .catch((e) => { setErro(erroTexto(e, tipo)); setSalvando(false); });
   };
   return (
     <Sheet title="Registrar perda" onClose={onClose}>

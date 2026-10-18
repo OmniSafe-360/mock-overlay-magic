@@ -4,6 +4,9 @@
 export const NOME_APP_FUNCIONARIO = "Omni Operação";
 export type Funcao = "receber" | "repor" | "ambos";
 export const FUNCAO_TXT: Record<Funcao, string> = { receber: "Recebe mercadoria", repor: "Repõe gôndola", ambos: "Recebe e repõe" };
+/** C1: "Repõe gôndola" só em mercado e pet shop; nos outros tipos, "Repõe área de venda". */
+export const funcaoTexto = (f: Funcao, tipo?: string | undefined) =>
+  f === "repor" && tipo && !["mercado", "pet"].includes(tipo) ? "Repõe área de venda" : FUNCAO_TXT[f];
 export const FUNCOES: Funcao[] = ["receber", "repor", "ambos"];
 export const fazReceber = (f: Funcao) => f === "receber" || f === "ambos";
 export const fazRepor = (f: Funcao) => f === "repor" || f === "ambos";

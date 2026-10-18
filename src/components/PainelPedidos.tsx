@@ -892,7 +892,7 @@ function LinhaRecebida({ i, products, onResolver }: {
       {i.situacao === "inconsistente" && onResolver && (
         <div className="mt-2 space-y-2">
           {validadeNaoEntra ? <p className="text-sm text-muted-foreground">{textoMotivoDono(ultima?.motivo)}</p> : <>
-          <p className="text-xs text-muted-foreground">{variacaoRemovida ? "Confira a quantidade. Ao aceitar peças boas, este tamanho e esta cor voltam ao cadastro antes de entrar no depósito. Se não quiser ficar com a mercadoria, devolva." : "Qual contagem está certa? Ela entra no estoque. Se não quiser ficar com a mercadoria, devolva."}</p>
+          <p className="text-xs text-muted-foreground">{variacaoRemovida ? "Confira a quantidade. Ao aceitar peças boas, este tamanho e esta cor voltam ao cadastro antes de entrar no estoque. Se não quiser ficar com a mercadoria, devolva." : "Qual contagem está certa? Ela entra no estoque. Se não quiser ficar com a mercadoria, devolva."}</p>
           <div className="flex flex-wrap gap-2">
             {i.tentativas.map((t, k) => {
               const vencida = contagemVencida(t, hoje);

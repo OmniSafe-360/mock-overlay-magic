@@ -203,7 +203,7 @@ export function AppFuncionario({ codigoInicial, api = API_PADRAO, modoCaixa = fa
         )}
         <div hidden={!!trava} className={trava ? undefined : "contents"}>
         {tela.t === "receber" && (
-          <ReceberMercadoria chave={lerChave() ?? ""} api={api.receber} mercado={ultimo.current?.comercio.tipo === "mercado"}
+          <ReceberMercadoria chave={lerChave() ?? ""} api={api.receber} mercado={ultimo.current?.comercio.tipo === "mercado"} tipo={TIPO_FROM_DB[ultimo.current?.comercio.tipo ?? ""]}
             onVoltar={() => { const c = lerChave(); if (c) void abrirInicio(c); else setTela({ t: "codigo" }); }} />
         )}
         {tela.t === "repor" && (

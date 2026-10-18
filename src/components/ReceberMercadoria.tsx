@@ -1,3 +1,4 @@
+import { textoDoTipo } from "@/lib/exemplos";
 import { Contador } from "@/components/parts/Contador";
 import { useHoje } from "@/hooks/useHoje";
 /* Receber mercadoria no app do funcionário (E2). Conferência cega: o funcionário bipa e conta o que chegou, sem nunca ver
@@ -73,11 +74,12 @@ const GRUPOS_LISTA: { id: string; titulo: string; nota?: string; estados: Estado
   { id: "enviado", titulo: "Já enviado", nota: "O que for aceito só entra no depósito quando a entrega for concluída.", estados: ["aguardando_dono", "enviado", "recusado", "conferido"] },
 ];
 
-export function ReceberMercadoria({ chave, onVoltar, api: apiDada, mercado = false }: { chave: string; onVoltar: () => void; api?: ApiReceber | undefined; mercado?: boolean }) {
-  return <ReceberPorAcesso key={chave} mercado={mercado} chave={chave} onVoltar={onVoltar} apiDada={apiDada} />;
+export function ReceberMercadoria({ chave, onVoltar, api: apiDada, mercado = false, tipo }: { chave: string; onVoltar: () => void; api?: ApiReceber | undefined; mercado?: boolean; /** C1: "depósito" ou "estoque" nos textos. */ tipo?: string | undefined }) {
+  return <ReceberPorAcesso key={chave} mercado={mercado} tipo={tipo} chave={chave} onVoltar={onVoltar} apiDada={apiDada} />;
 }
 
-function ReceberPorAcesso({ chave, onVoltar, apiDada, mercado }: { chave: string; onVoltar: () => void; apiDada?: ApiReceber | undefined; mercado: boolean }) {
+function ReceberPorAcesso({ chave, onVoltar, apiDada, mercado, tipo }: { chave: string; onVoltar: () => void; apiDada?: ApiReceber | undefined; mercado: boolean; tipo?: string | undefined }) {
+  const t = textoDoTipo(tipo);
   const api = apiDada ?? API_PADRAO;
   const [tela, setTela] = useState<Tela>({ t: "lista" });
   const [erro, setErro] = useState("");
@@ -164,13 +166,13 @@ function ReceberPorAcesso({ chave, onVoltar, apiDada, mercado }: { chave: string
     </div>;
   }
   if (tela.t === "contando")
-    return <Contando mercado={mercado} chave={chave} api={api} aberto={tela.aberto} kr={tela.kr} fornecedorId={tela.fornecedorId} onSair={() => setTela({ t: "lista" })} onPronto={(avisos, produtos) => setTela({ t: "pronto", avisos, produtos })} />;
+    return <Contando mercado={mercado} tipo={tipo} chave={chave} api={api} aberto={tela.aberto} kr={tela.kr} fornecedorId={tela.fornecedorId} onSair={() => setTela({ t: "lista" })} onPronto={(avisos, produtos) => setTela({ t: "pronto", avisos, produtos })} />;
   if (tela.t === "pronto")
     return (
       <div className="m-auto flex w-full flex-col items-center gap-4 py-10 text-center">
         <span className="flex h-20 w-20 items-center justify-center rounded-full bg-accent/15 text-accent"><CheckCircle2 size={44} /></span>
         <p className="text-2xl font-bold">Pronto!</p>
-        <p className="text-base">Recebimento concluído. Somente as quantidades boas e aceitas foram registradas no depósito.</p>
+        <p className="text-base">{t("Recebimento concluído. Somente as quantidades boas e aceitas foram registradas no depósito.")}</p>
         {tela.avisos && <p className="rounded-2xl border border-warning/50 bg-warning/10 p-3 text-sm">Há diferenças para o dono conferir. Produtos aguardando decisão, fora do pedido, quebrados ou vencidos devem ficar separados.</p>}
         <button type="button" onClick={onVoltar} className={btnPrimary(true)}>Voltar ao início</button>
       </div>
@@ -276,9 +278,9 @@ function ListaEntregas({ chave, api, erroAbrir, ocupado, onVoltar, onAbrir }: {
 }
 
 /* ---------- contagem ---------- */
-function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, mercado }: {
+function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, mercado, tipo }: {
   chave: string; api: ApiReceber; aberto: banco.RecebimentoAberto; onSair: () => void; onPronto: (avisos: boolean, produtos: number) => void;
-  kr: string; fornecedorId: string | null; mercado: boolean;
+  kr: string; fornecedorId: string | null; mercado: boolean; tipo?: string | undefined;
 }) {
   const inicial = useMemo(() => {
     let r: Rascunho | null = null;
@@ -371,7 +373,7 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
   const envioTexto = envioPendente ? "Confirmar envio anterior" : pendentes.length ? "Enviar contagens" : "Conferir e concluir entrega";
   const encerrado = (e: EstadoItem | undefined) => !!e && !["falta", "contado", "recontar"].includes(e);
   const explicar = (p: ProdutoFunc, e: EstadoItem) => setAviso(e === "conferido"
-    ? `${nomeProdutoFunc(p)} já foi conferido. A entrega ainda não terminou e esta quantidade ainda não entrou no depósito.`
+    ? `${nomeProdutoFunc(p)} já foi conferido. A entrega ainda não terminou e esta quantidade ainda não entrou no ${textoDoTipo(tipo)("depósito")}.`
     : `${nomeProdutoFunc(p)}: ${textoEstado[e]}.`);
 
   const escolher = (p: ProdutoFunc) => {
@@ -467,7 +469,7 @@ function Contando({ chave, api, aberto, kr, fornecedorId, onSair, onPronto, merc
         return (
       <section key={g.id} aria-label={g.titulo} className="space-y-2">
         <h2 className="flex items-baseline justify-between gap-2 text-sm font-semibold text-muted-foreground"><span>{g.titulo}</span><span className="tabular-nums">{doGrupo.length}</span></h2>
-        {g.nota && <p className="-mt-1 text-xs text-muted-foreground">{g.nota}</p>}
+        {g.nota && <p className="-mt-1 text-xs text-muted-foreground">{textoDoTipo(tipo)(g.nota)}</p>}
       <ul className="space-y-2">
         {doGrupo.map((k) => {
           const p = produtos[k]!;

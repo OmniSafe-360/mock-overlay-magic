@@ -177,7 +177,7 @@ export function StoreSpace({ store, products, suppliers, saved, locais, pedidos 
         <PainelFornecedores products={products} tipo={store.tipo} suppliers={suppliers} jaPedidos={jaPedidos} onOpen={(p) => { onDismissSaved(); setView(p); }}
           onAdd={onAddSupplier} onUpdate={onUpdateSupplier} />
       ) : tab === "Equipe" && store.id ? (
-        <PainelEquipe comercioId={store.id} comercioNome={store.nome} />
+        <PainelEquipe comercioId={store.id} comercioNome={store.nome} tipo={store.tipo} />
       ) : tab === "Vendas" && store.id ? (
         <PainelVendas comercioId={store.id} comercioNome={store.nome} tipo={store.tipo} products={products} onMudou={onVendasMudou} />
       ) : tab === "Diferenças" && store.id ? (
