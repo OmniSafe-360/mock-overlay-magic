@@ -31,6 +31,19 @@ const respostasIniciais = (p: PedidoPublico): Record<string, Resp> =>
     return [i.id, r == null || (r === "tudo" && i.qtdConfirmada === i.qtdEmbalagens) ? { modo: "tenho", qtd: i.qtdEmbalagens } : r === "nada" ? { modo: "nao", qtd: 0 } : { modo: "outra", qtd: i.qtdConfirmada ?? i.qtdEmbalagens }];
   }));
 
+/** C3: o pedido com a resposta que o banco acabou de aceitar, para quando a releitura falha. */
+export function comResposta(p: PedidoPublico, r: RespostaFornecedor, situacao: unknown): PedidoPublico {
+  const conf = new Map(r.itens.map((i) => [i.id, i.qtdConfirmada]));
+  const tudo = p.itens.every((i) => (conf.get(i.id) ?? 0) >= i.qtdEmbalagens);
+  const s = typeof situacao === "string" && situacao ? situacao as PedidoPublico["situacao"]
+    : !r.aceito ? "recusado" : tudo ? "aceito" : "aceito_ajustes";
+  return {
+    ...p, situacao: s,
+    resposta: { em: new Date().toISOString(), previsaoEntrega: r.previsaoEntrega, valorTotal: r.valorTotal, forma: r.forma, prazoDias: r.prazoDias, recado: r.recado },
+    itens: p.itens.map((i) => ({ ...i, qtdConfirmada: conf.get(i.id) ?? i.qtdConfirmada })),
+  };
+}
+
 export function PaginaFornecedor({ token, carregar = carregarPedidoPublico, responder = responderPedido }: {
   token: string; carregar?: (t: string) => Promise<PedidoPublico | null>; responder?: (t: string, r: RespostaFornecedor) => Promise<unknown>;
 }) {
@@ -66,9 +79,10 @@ export function PaginaFornecedor({ token, carregar = carregarPedidoPublico, resp
             {editando ? (
               <Formulario p={estado.p} onCancelar={estado.p.resposta ? () => setEditando(false) : undefined}
                 onEnviar={async (r) => {
-                  await responder(token, r);
+                  const situacao = await responder(token, r);
                   const novo = await carregar(token).catch(() => null);
-                  if (novo) setEstado({ t: "ok", p: novo });
+                  // C3: se a página não conseguir ler de novo, mostra a resposta que acabou de ser aceita (não a antiga).
+                  setEstado({ t: "ok", p: novo ?? comResposta(estado.p, r, situacao) });
                   setEditando(false); setFeito(true); window.scrollTo?.({ top: 0 });
                 }} />
             ) : (
