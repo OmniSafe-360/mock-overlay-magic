@@ -27,8 +27,12 @@ afterEach(() => { vi.restoreAllMocks(); localStorage.clear(); });
 
 describe("M06 — textos do servidor", () => {
   it("contagem solicitada e não solicitada, com quantidade informada", () => {
-    expect(textoBloqueioCaixa(bloqueio(true), [produto])).toBe("Bala fictícia: o sistema registra 2 unidades na área de venda. Contagem solicitada. Para vender mais, aguarde a conferência ou a reposição.");
-    expect(textoBloqueioCaixa(bloqueio(false), [produto])).toBe("Bala fictícia: o sistema registra 2 unidades na área de venda. Confira a quantidade da venda. Se necessário, aguarde a conferência ou a reposição na área de venda.");
+    expect(textoBloqueioCaixa(bloqueio(true), [produto])).toBe("Bala fictícia: há 2 unidades disponíveis para vender. Contagem solicitada. Para vender mais, aguarde a conferência ou a reposição.");
+    expect(textoBloqueioCaixa(bloqueio(false), [produto])).toBe("Bala fictícia: há 2 unidades disponíveis para vender. Confira a quantidade da venda. Se necessário, aguarde a conferência ou a reposição na área de venda.");
+  });
+  it("explica o limite por vencimento sem apresentar o saldo físico como vendável", () => {
+    const r = { ...bloqueio(true, 3), bloqueios: [{ ...bloqueio(true, 3).bloqueios[0]!, motivo: "estoque_vencido" }] };
+    expect(textoBloqueioCaixa(r, [produto])).toBe("Bala fictícia: há 3 unidades disponíveis para vender. As unidades vencidas não entram na venda. Peça ao responsável para separá-las e registrar a perda ou devolução.");
   });
   it("preserva sem cadastro, sem área e gôndola não contada; nunca afirma aviso entregue", () => {
     const r = { situacao: "bloqueada" as const, bloqueios: [
