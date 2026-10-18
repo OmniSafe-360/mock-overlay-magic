@@ -558,7 +558,8 @@ function DetalhePedido({ pedido, products, store, fornecedor, hoje, onEnviado, o
         <ul className="space-y-3">
           {linhas.map((l, k) => {
             const item = pedido.itens[k]!;
-            const s = respostaItem(item.qtdEmbalagens, item.qtdConfirmada);
+            // C2: pedido recusado não tem produto "confirmado" nem "vai mandar" (pode sobrar a resposta anterior).
+            const s = recusado ? null : respostaItem(item.qtdEmbalagens, item.qtdConfirmada);
             const valor = valorItemPedido(item);
             const por = l.embalagem?.qtd ?? 1;
             const unidadeCompra = l.embalagem?.tipo.toLowerCase() ?? unSingular(l.p.unidade);
