@@ -497,13 +497,13 @@ function Vender({ estado, produtos, mercado, carrinho, onCarrinho, onSair, onRec
   return (
     <Tela>
       <header className="flex shrink-0 items-center gap-2 px-4 pb-2 pt-3">
-        <button type="button" onClick={onSair} aria-label="Voltar ao início" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border"><ArrowLeft size={20} /></button>
+        <button type="button" onClick={onSair} aria-label="Voltar ao início" className="flex h-12 w-12 min-w-[48px] items-center justify-center rounded-2xl border border-border"><ArrowLeft size={20} /></button>
         <button type="button" onClick={() => setCamera((v) => !v)} aria-pressed={camera} aria-label={camera ? "Desligar a câmera" : "Ligar a câmera"}
-          className={`ml-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border ${camera ? "border-primary text-primary" : "border-border text-muted-foreground"}`}>
+          className={`ml-auto flex h-12 w-12 min-w-[48px] items-center justify-center rounded-2xl border ${camera ? "border-primary text-primary" : "border-border text-muted-foreground"}`}>
           {camera ? <Camera size={20} /> : <CameraOff size={20} />}
         </button>
         <button type="button" onClick={() => { onAtualizar(); setJanela({ j: "menu" }); }} aria-label="Menu do caixa"
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border"><Menu size={20} /></button>
+          className="flex h-12 w-12 min-w-[48px] items-center justify-center rounded-2xl border border-border"><Menu size={20} /></button>
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3">
       <div className="space-y-2">
