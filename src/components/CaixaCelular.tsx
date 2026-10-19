@@ -14,7 +14,7 @@ import { TIPO_FROM_DB, btnGhost, btnPrimary } from "@/components/StoreSetup";
 import { falaDoTipo } from "@/lib/exemplos";
 import * as banco from "@/lib/banco";
 import {
-  FORMA_TXT, lerReais, acharPorCodigo, adicionar, atalhosDinheiro, bip, brl, buscarProdutos, centavosDigitados, contarItens, enviarFila, erroCaixa, erroPinDono, filaCaixa,
+  FORMA_TXT, lerReais, acharPorCodigo, adicionar, atalhosDinheiro, bip, brl, buscarProdutos, centavosDigitados, contarItens, enviarFila, erroCaixa, erroPinDono, filaCaixa, ErroLeituraFilaCaixa,
   itemDoProduto, limiteCarrinho, lerQuantidade, linkWhatsApp, mascaraDinheiro, montarVenda, notaNaoAceitas, qtdTexto, semInternet, situacaoPagamento, subtotal, textoComprovante, textoDiferencaCaixa, totalCarrinho,
   type DadosComprovante,
   vendaGuardadaValida, type Achado, type FormaCaixa, type ItemCarrinho, type PagamentoCaixa, type ProdutoCaixa, type VendaGuardada,
@@ -100,6 +100,11 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
   const [erroVenda, setErroVenda] = useState("");
   const fila = useRef<ReturnType<typeof filaCaixa> | null>(null);
   const sincronizando = useRef(false);
+  const filaBloqueada = useRef(false);
+  const bloquearFila = useCallback((e: unknown) => {
+    filaBloqueada.current = true;
+    setErroCarga(erroCaixa(e)); setFase("erro");
+  }, []);
   const idCarrinho = useRef(newUid());
   const [envioPendente, setEnvioPendente] = useState<VendaGuardada | null>(null);
   const [enviandoVenda, setEnviandoVenda] = useState(false);
@@ -118,7 +123,7 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
 
   /** Envia as vendas guardadas (a mais antiga primeiro). */
   const sincronizar = useCallback(async () => {
-    if (!fila.current || sincronizando.current) return;
+    if (!fila.current || sincronizando.current || filaBloqueada.current) return;
     sincronizando.current = true;
     try {
       setEnviandoVenda(true);
@@ -149,18 +154,20 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
       setOffline(false); setErroFila("");
       atualizarEstado();
     } catch (e) {
-      if (semInternet(e)) setOffline(true); else setErroFila(erroCaixa(e));
+      if (e instanceof ErroLeituraFilaCaixa) bloquearFila(e);
+      else if (semInternet(e)) setOffline(true); else setErroFila(erroCaixa(e));
     } finally {
       sincronizando.current = false; setEnviandoVenda(false);
-      setGuardadas(fila.current.ler());
+      try { setGuardadas(fila.current.ler()); } catch (e) { bloquearFila(e); }
     }
-  }, [api, chave, atualizarEstado, atualizarProdutos, produtos]);
+  }, [api, chave, atualizarEstado, atualizarProdutos, produtos, bloquearFila]);
 
   const carregar = useCallback(async () => {
     setFase("carregando"); setErroCarga("");
     try {
       const esc = await escopoAcesso(chave);
       fila.current = filaCaixa(esc);
+      fila.current.ler(); // Não migrar nem remover registros antigos com a fila ilegível.
       trazerVendaAntiga(esc, fila.current);
       setGuardadas(fila.current.ler());
       const r = lerRascunho(esc);
@@ -178,9 +185,13 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
         est = c.estado; prods = c.produtos; setOffline(true);
       }
       setEstado(est); setProdutos(prods);
+      filaBloqueada.current = false;
       setFase(est.turno ? "vender" : "abrir");
-    } catch (e) { setErroCarga(erroCaixa(e, "O caixa não carregou")); setFase("erro"); }
-  }, [api, chave]);
+    } catch (e) {
+      if (e instanceof ErroLeituraFilaCaixa) bloquearFila(e);
+      else { setErroCarga(erroCaixa(e, "O caixa não carregou")); setFase("erro"); }
+    }
+  }, [api, chave, bloquearFila]);
   useEffect(() => { void carregar(); }, [carregar]);
   useEffect(() => { if (escopo) guardarRascunho(escopo, { carrinho, pags, cliente, vendaId: idCarrinho.current }); }, [escopo, carrinho, pags, cliente]);
   // Preços e produtos novos do dono chegam com o caixa aberto: a cada 2 min, ao voltar ao app e quando a internet volta.
@@ -237,7 +248,7 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
   const total = totalCarrinho(carrinho);
 
   const conferirCarrinho = async (itens: ItemCarrinho[], receber = false) => {
-    if (!estado?.turno || verificando.current || envioPendente) return;
+    if (!estado?.turno || verificando.current || envioPendente || filaBloqueada.current) return;
     if (offline || navigator.onLine === false) { setErroVenda("Conecte à internet para conferir o estoque e finalizar. O carrinho continua guardado."); return; }
     verificando.current = true; setConferindo(true); setErroVenda("");
     try {
@@ -255,7 +266,7 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
 
   /** Guardar antes do envio, manter o carrinho e só concluir após confirmação do banco. */
   const finalizar = () => {
-    if (!fila.current || !estado?.turno || sincronizando.current || envioPendente) return;
+    if (!fila.current || !estado?.turno || sincronizando.current || envioPendente || filaBloqueada.current) return;
     if (offline || navigator.onLine === false) { setErroVenda("Conecte à internet para finalizar. O carrinho continua guardado."); return; }
     const situacao = situacaoPagamento(total, pags);
     if (!situacao.pronto) return;
@@ -264,14 +275,21 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
     const v: VendaGuardada = { venda: montarVenda(idCarrinho.current, estado.turno.id, carrinho, pags,
       cliente ? (cliente.novo ? { id: cliente.id, nome: cliente.nome, ...(cliente.telefone ? { telefone: cliente.telefone } : {}) } : { id: cliente.id }) : null, comprovante.feitaEm),
       total, troco: situacao.troco, formas: pags.map((p) => FORMA_TXT[p.forma]).join(" + "), confirmacaoPendente: true, comprovante };
-    try { fila.current.por(v); } catch (e) { setErroVenda(e instanceof Error ? e.message : String(e)); return; }
-    setErroVenda(""); setEnvioPendente(v); setGuardadas(fila.current.ler()); void sincronizar();
+    try {
+      fila.current.por(v);
+      setGuardadas(fila.current.ler());
+    } catch (e) {
+      if (e instanceof ErroLeituraFilaCaixa) bloquearFila(e);
+      else setErroVenda(e instanceof Error ? e.message : String(e));
+      return;
+    }
+    setErroVenda(""); setEnvioPendente(v); void sincronizar();
   };
 
   if (fase === "carregando") return <Tela><p className="m-auto text-base text-muted-foreground">Abrindo o caixa…</p></Tela>;
   if (fase === "erro" || !estado) return (
     <Tela>
-      <div className="m-auto w-full space-y-3 px-4 text-center">
+      <div className={`m-auto w-full space-y-3 px-4 text-center ${filaBloqueada.current ? "max-h-full overflow-y-auto py-4" : ""}`}>
         <TriangleAlert size={32} className="mx-auto text-warning" />
         <p className="text-base font-semibold">{erroCarga || "Não foi possível abrir o caixa."}</p>
         <button type="button" onClick={() => void carregar()} className={btnPrimary(true)}>Tentar de novo</button>
@@ -300,7 +318,11 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
   return (
     <Vender estado={estado} produtos={produtos} mercado={mercado} carrinho={carrinho} onCarrinho={setCarrinho} onSair={onSair}
       guardadas={guardadas} offline={offline} erroFila={erroFila} onEnviarGuardadas={() => void sincronizar()}
-      onTentarDeNovo={(id) => { if (!fila.current) return; fila.current.tentarDeNovo(id); setGuardadas(fila.current.ler()); setErroFila(""); void sincronizar(); }}
+      onTentarDeNovo={(id) => {
+        if (!fila.current || filaBloqueada.current) return;
+        try { fila.current.tentarDeNovo(id); setGuardadas(fila.current.ler()); setErroFila(""); void sincronizar(); }
+        catch (e) { if (e instanceof ErroLeituraFilaCaixa) bloquearFila(e); else setErroFila(erroCaixa(e)); }
+      }}
       chave={chave} api={api} onEstado={(e) => { setEstado(e); gravarCache(escopo, { estado: e }); }} onAtualizar={() => { atualizarEstado(); void atualizarProdutos(); }}
       onFechar={() => setFase("fechar")} onInstalar={onInstalar}
       erroEstoque={erroVenda} conferindo={conferindo} onSolicitarContagem={(itens) => void conferirCarrinho(itens)}
