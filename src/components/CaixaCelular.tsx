@@ -52,11 +52,26 @@ const API_PADRAO: ApiCaixa = {
 type ClienteVenda = { id: string; nome: string; telefone: string | null; novo: boolean };
 type Rascunho = { carrinho: ItemCarrinho[]; pags: PagamentoCaixa[]; cliente: ClienteVenda | null; vendaId?: string };
 const chaveRascunho = (escopo: string) => `omni.caixa.rascunho.v1:${escopo}`;
+class ErroLeituraRascunho extends Error {}
 function lerRascunho(escopo: string): Rascunho | null {
-  try { const r = JSON.parse(localStorage.getItem(chaveRascunho(escopo)) ?? "null"); return r && Array.isArray(r.carrinho) && Array.isArray(r.pags) ? r : null; } catch { return null; }
+  try {
+    const raw = localStorage.getItem(chaveRascunho(escopo));
+    if (raw === null) return null;
+    const r = JSON.parse(raw);
+    if (!r || !Array.isArray(r.carrinho) || !Array.isArray(r.pags)) throw new Error();
+    return r;
+  } catch { throw new ErroLeituraRascunho(); }
 }
 function guardarRascunho(escopo: string, r: Rascunho) {
-  try { if (!r.carrinho.length && !r.pags.length) localStorage.removeItem(chaveRascunho(escopo)); else localStorage.setItem(chaveRascunho(escopo), JSON.stringify(r)); } catch { /* sem armazenamento */ }
+  const chave = chaveRascunho(escopo);
+  if (!r.carrinho.length && !r.pags.length) {
+    if (localStorage.getItem(chave) !== null) localStorage.removeItem(chave);
+    if (localStorage.getItem(chave) !== null) throw new Error("rascunho_nao_removido");
+  } else {
+    const raw = JSON.stringify(r);
+    localStorage.setItem(chave, raw);
+    if (localStorage.getItem(chave) !== raw) throw new Error("rascunho_nao_guardado");
+  }
 }
 /** Cópia do caixa e dos produtos no celular, para preservar o trabalho se a internet cair. */
 type Cache = { estado: banco.EstadoCaixa; produtos: ProdutoCaixa[]; clientes?: banco.ClienteFiado[] | undefined };
@@ -98,6 +113,7 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
   const [offline, setOffline] = useState(false);
   const [erroFila, setErroFila] = useState("");
   const [erroVenda, setErroVenda] = useState("");
+  const [falhaRascunho, setFalhaRascunho] = useState<"leitura" | "gravacao" | null>(null);
   const fila = useRef<ReturnType<typeof filaCaixa> | null>(null);
   const sincronizando = useRef(false);
   const idCarrinho = useRef(newUid());
@@ -157,13 +173,13 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
   }, [api, chave, atualizarEstado, atualizarProdutos, produtos]);
 
   const carregar = useCallback(async () => {
-    setFase("carregando"); setErroCarga("");
+    setFase("carregando"); setErroCarga(""); setFalhaRascunho(null);
     try {
       const esc = await escopoAcesso(chave);
+      const r = lerRascunho(esc); // Não substituir um carrinho que não pôde ser lido.
       fila.current = filaCaixa(esc);
       trazerVendaAntiga(esc, fila.current);
       setGuardadas(fila.current.ler());
-      const r = lerRascunho(esc);
       if (r) { setCarrinho(r.carrinho); setPags(r.pags); setCliente(r.cliente); if (r.vendaId) idCarrinho.current = r.vendaId; }
       const incerto = fila.current.ler().find((v) => v.confirmacaoPendente && !v.problema);
       if (incerto) { setEnvioPendente(incerto); idCarrinho.current = incerto.venda.id; }
@@ -179,10 +195,27 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
       }
       setEstado(est); setProdutos(prods);
       setFase(est.turno ? "vender" : "abrir");
-    } catch (e) { setErroCarga(erroCaixa(e, "O caixa não carregou")); setFase("erro"); }
+    } catch (e) {
+      if (e instanceof ErroLeituraRascunho) setFalhaRascunho("leitura");
+      else setErroCarga(erroCaixa(e, "O caixa não carregou"));
+      setFase("erro");
+    }
   }, [api, chave]);
   useEffect(() => { void carregar(); }, [carregar]);
-  useEffect(() => { if (escopo) guardarRascunho(escopo, { carrinho, pags, cliente, vendaId: idCarrinho.current }); }, [escopo, carrinho, pags, cliente]);
+  const persistirRascunho = useCallback(() => {
+    if (!escopo) return false;
+    try {
+      guardarRascunho(escopo, { carrinho, pags, cliente, vendaId: idCarrinho.current });
+      setFalhaRascunho(null); return true;
+    } catch { setFalhaRascunho("gravacao"); return false; }
+  }, [escopo, carrinho, pags, cliente]);
+  useEffect(() => { if (escopo) persistirRascunho(); }, [escopo, persistirRascunho]);
+  useEffect(() => {
+    if (falhaRascunho !== "gravacao") return;
+    const avisarSaida = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", avisarSaida);
+    return () => window.removeEventListener("beforeunload", avisarSaida);
+  }, [falhaRascunho]);
   // Preços e produtos novos do dono chegam com o caixa aberto: a cada 2 min, ao voltar ao app e quando a internet volta.
   // Não mexe na tela atual nem no carrinho; sem internet, continua com a lista guardada.
   useEffect(() => {
@@ -238,6 +271,7 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
 
   const conferirCarrinho = async (itens: ItemCarrinho[], receber = false) => {
     if (!estado?.turno || verificando.current || envioPendente) return;
+    if (!persistirRascunho()) return;
     if (offline || navigator.onLine === false) { setErroVenda("Conecte à internet para conferir o estoque e finalizar. O carrinho continua guardado."); return; }
     verificando.current = true; setConferindo(true); setErroVenda("");
     try {
@@ -256,6 +290,7 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
   /** Guardar antes do envio, manter o carrinho e só concluir após confirmação do banco. */
   const finalizar = () => {
     if (!fila.current || !estado?.turno || sincronizando.current || envioPendente) return;
+    if (!persistirRascunho()) return;
     if (offline || navigator.onLine === false) { setErroVenda("Conecte à internet para finalizar. O carrinho continua guardado."); return; }
     const situacao = situacaoPagamento(total, pags);
     if (!situacao.pronto) return;
@@ -268,6 +303,22 @@ export function CaixaCelular({ chave, mercado = false, onSair, onInstalar, api: 
     setErroVenda(""); setEnvioPendente(v); setGuardadas(fila.current.ler()); void sincronizar();
   };
 
+  if (falhaRascunho && !envioPendente) return (
+    <Tela><div className="m-auto max-h-full w-full space-y-4 overflow-y-auto px-4 py-4 text-center">
+      <TriangleAlert size={32} className="mx-auto text-warning" aria-hidden="true" />
+      <div role="alert" className="space-y-3">
+        <h1 className="text-xl font-bold">{falhaRascunho === "leitura" ? "Não foi possível recuperar o carrinho" : "Não foi possível guardar o carrinho"}</h1>
+        <p className="text-base">{falhaRascunho === "leitura"
+          ? "Os dados salvos não foram apagados. Toque em Tentar de novo. Se continuar, chame o dono. Não limpe os dados do aplicativo."
+          : "Não feche nem atualize o aplicativo. As alterações do carrinho estão somente nesta tela. Toque em Tentar de novo. Se continuar, chame o dono. Não limpe os dados do aplicativo."}</p>
+        {fase === "feito" && feito && <p className="text-base font-semibold">A última venda foi confirmada. Não a registre novamente.</p>}
+      </div>
+      <button type="button" onClick={() => { if (falhaRascunho === "leitura") void carregar(); else persistirRascunho(); }} className={btnPrimary(true)}>Tentar de novo</button>
+      <button type="button" onClick={() => {
+        if (falhaRascunho === "leitura" || window.confirm("As alterações não foram guardadas. Ao sair, o carrinho pode faltar ou voltar desatualizado. Deseja sair mesmo assim?")) onSair();
+      }} className={`w-full ${btnGhost}`}>Voltar ao início</button>
+    </div></Tela>
+  );
   if (fase === "carregando") return <Tela><p className="m-auto text-base text-muted-foreground">Abrindo o caixa…</p></Tela>;
   if (fase === "erro" || !estado) return (
     <Tela>
