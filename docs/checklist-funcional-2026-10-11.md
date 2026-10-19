@@ -46,3 +46,8 @@ Fora desta lista, a pedido do dono: caixa no computador (Omni Conector) e "Esque
 ## Teste em aparelho real (depois das correções)
 - [ ] 29. Caixa no celular: câmera bipando, sem internet, fechar o caixa. **R05 preparada em 11/10/2026:** corrigido carregamento dos arquivos para reabrir offline; build/904 testes duas vezes e Chromium de produção aprovados. Falta Publicar → Atualizar e testar pelo ícone em Android/iPhone, incluindo PIN, venda pendente, reconexão, câmera e fechamento financeiro. [Registro e roteiro](caixa-reabertura-offline-2026-10-11.md). O teste no navegador local não fecha este item.
 - [ ] 30. Omni Operação no Android e no iPhone: receber, repor, conferir, perda.
+
+
+## Continuidade A05 — 19/10/2026: teste offline vigente
+
+Os itens e registros de 11/10 acima permanecem como histórico. A referência do item 6 a vender sem internet foi superada pela regra C6/PR #111: o Caixa conserva carrinho offline, mas novas finalizações exigem conexão, conferência do estoque e confirmação do servidor. O item 29 continua `[ ]`, sem teste físico presumido. Usar o [roteiro atualizado](roteiro-teste-celular-2026-10-11.md), passos 29.7–29.9/29.7A, e o [R05 atualizado](caixa-reabertura-offline-2026-10-11.md). Envio online sem resposta deve recuperar o mesmo pedido/ID, sem outra venda. Somente documentação foi alterada; nenhuma função ou marcação antiga foi reaberta/encerrada.
