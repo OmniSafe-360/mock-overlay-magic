@@ -199,6 +199,7 @@ export function montarVenda(id: string, turnoId: string, carrinho: ItemCarrinho[
 
 /** Mensagens do caixa em português. `naoFeito` diz o que não aconteceu quando falta internet. */
 export function erroCaixa(e: unknown, naoFeito = "A venda não foi enviada"): string {
+  if (e instanceof ErroLeituraFilaCaixa) return e.message;
   const m = String((e as { message?: string } | null)?.message ?? e ?? "");
   if (m.startsWith("estoque_bloqueado:")) return m.slice("estoque_bloqueado:".length);
   if (m.includes("resposta_venda_invalida")) return "O envio ainda não foi confirmado. Confira o mesmo envio antes de vender novamente.";
@@ -291,15 +292,27 @@ export const vendaGuardadaValida = (p: unknown): p is VendaGuardada => {
     && Array.isArray(x.venda.pagamentos) && Number.isFinite(x.total) && Number.isFinite(x.troco);
 };
 
+/** A fila não pode ser tratada como vazia quando seus dados não foram lidos. */
+export class ErroLeituraFilaCaixa extends Error {
+  constructor() {
+    super("Não foi possível ler as vendas guardadas neste celular. Novas vendas estão bloqueadas. Toque em Tentar de novo. Se continuar, chame o dono. Não limpe os dados do aplicativo.");
+    this.name = "ErroLeituraFilaCaixa";
+  }
+}
+
 type Armazem = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 /** Vendas finalizadas guardadas neste celular até o Omni confirmar (a mais antiga vai primeiro). Nunca guarda a chave do celular. */
-export function filaCaixa(escopo: string, armazem: Armazem = localStorage) {
+export function filaCaixa(escopo: string, armazem?: Armazem) {
   const chave = `omni.caixa.fila.v1:${escopo}`;
   const ler = (): VendaGuardada[] => {
-    try { const r = JSON.parse(armazem.getItem(chave) ?? "[]"); return Array.isArray(r) ? r.filter(vendaGuardadaValida) : []; } catch { return []; }
+    let r: unknown;
+    try { r = JSON.parse((armazem ?? localStorage).getItem(chave) ?? "[]"); }
+    catch { throw new ErroLeituraFilaCaixa(); }
+    if (!Array.isArray(r) || !r.every(vendaGuardadaValida)) throw new ErroLeituraFilaCaixa();
+    return r;
   };
   const gravar = (l: VendaGuardada[]) => {
-    try { if (l.length) armazem.setItem(chave, JSON.stringify(l)); else armazem.removeItem(chave); }
+    try { if (l.length) (armazem ?? localStorage).setItem(chave, JSON.stringify(l)); else (armazem ?? localStorage).removeItem(chave); }
     catch { throw new Error("Não foi possível guardar a venda neste celular. Confira o armazenamento do navegador."); }
   };
   return {
